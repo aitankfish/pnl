@@ -63,6 +63,9 @@ export async function POST(request: NextRequest) {
     // Derive Treasury PDA with network-specific program ID
     const [treasuryPda] = getTreasuryPDA(targetNetwork);
 
+    // Get connection (needed for fetching bonding curve)
+    const connection = await getSolanaConnection(network);
+
     // Derive pump.fun PDAs
     const pumpPDAs = derivePumpPDAs(tokenMintPubkey);
 
@@ -82,16 +85,39 @@ export async function POST(request: NextRequest) {
       TOKEN_2022_PROGRAM_ID // Pump.fun uses Token Extensions (Token2022)
     );
 
+    // Fetch bonding curve account to get creator
+    // BondingCurve struct (first 8 bytes discriminator, then fields):
+    // - virtual_sol_reserves: u64 (8 bytes)
+    // - virtual_token_reserves: u64 (8 bytes)
+    // - real_sol_reserves: u64 (8 bytes)
+    // - real_token_reserves: u64 (8 bytes)
+    // - token_total_supply: u64 (8 bytes)
+    // - complete: bool (1 byte)
+    // - creator: Pubkey (32 bytes) at offset 8 + 8*5 + 1 = 49
+    const bondingCurveAccountInfo = await connection.getAccountInfo(pumpPDAs.bondingCurve);
+    if (!bondingCurveAccountInfo) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: 'Bonding curve account not found - token may not be created yet',
+        },
+        { status: 400 }
+      );
+    }
+
+    // Extract creator pubkey from bonding curve data (at offset 49)
+    const creatorOffset = 49;
+    const creatorBytes = bondingCurveAccountInfo.data.slice(creatorOffset, creatorOffset + 32);
+    const creator = new PublicKey(creatorBytes);
+
     logger.info('All accounts derived', {
       treasuryPda: treasuryPda.toBase58(),
       marketTokenAccount: marketTokenAccount.toBase58(),
       pumpGlobal: pumpPDAs.global.toBase58(),
       bondingCurve: pumpPDAs.bondingCurve.toBase58(),
       bondingCurveTokenAccount: bondingCurveTokenAccount.toBase58(),
+      creator: creator.toBase58(),
     });
-
-    // Get connection
-    const connection = await getSolanaConnection(network);
 
     // Build resolve_market instruction manually
     // Calculate resolveMarket discriminator: sha256("global:resolve_market")[0..8]
@@ -106,7 +132,7 @@ export async function POST(request: NextRequest) {
     const data = Buffer.alloc(8);
     discriminator.copy(data, 0);
 
-    // Create instruction with all accounts (4 original + 13 pump.fun = 17 total)
+    // Create instruction with all accounts (4 original + 14 pump.fun = 18 total)
     const { TransactionInstruction } = await import('@solana/web3.js');
     const resolveIx = new TransactionInstruction({
       keys: [
@@ -114,7 +140,7 @@ export async function POST(request: NextRequest) {
         { pubkey: marketPubkey, isSigner: false, isWritable: true },       // market
         { pubkey: treasuryPda, isSigner: false, isWritable: true },        // treasury
 
-        // Pump.fun accounts (13 accounts)
+        // Pump.fun accounts (14 accounts)
         { pubkey: tokenMintPubkey, isSigner: false, isWritable: true },    // token_mint
         { pubkey: marketTokenAccount, isSigner: false, isWritable: true }, // market_token_account
         { pubkey: pumpPDAs.global, isSigner: false, isWritable: true },    // pump_global
@@ -123,6 +149,7 @@ export async function POST(request: NextRequest) {
         { pubkey: pumpPDAs.global, isSigner: false, isWritable: true },    // pump_fee_recipient (same as global)
         { pubkey: pumpPDAs.eventAuthority, isSigner: false, isWritable: false }, // pump_event_authority
         { pubkey: PUMP_PROGRAM_ID, isSigner: false, isWritable: false },   // pump_program
+        { pubkey: creator, isSigner: false, isWritable: false },           // creator (for deriving creator_vault)
 
         // Remaining accounts
         { pubkey: callerPubkey, isSigner: true, isWritable: true },        // caller

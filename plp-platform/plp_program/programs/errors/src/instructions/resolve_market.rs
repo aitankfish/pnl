@@ -79,6 +79,11 @@ pub struct ResolveMarket<'info> {
     /// CHECK: Hardcoded to pump.fun program ID
     pub pump_program: UncheckedAccount<'info>,
 
+    /// Token creator (from bonding curve)
+    /// Used to derive creator_vault PDA
+    /// CHECK: Passed by client, validated by Pump.fun during buy
+    pub creator: UncheckedAccount<'info>,
+
     /// Anyone can trigger resolution after expiry (permissionless)
     #[account(mut)]
     pub caller: Signer<'info>,
@@ -269,43 +274,102 @@ pub fn handler(ctx: Context<ResolveMarket>) -> Result<()> {
             ];
             let signer_seeds = &[&market_seeds[..]];
 
-            // Build buy instruction manually
-            // Discriminator = sha256("global:buy")[0..8]
-            let mut buy_discriminator = [0u8; 8];
-            buy_discriminator.copy_from_slice(
-                &anchor_lang::solana_program::hash::hash(b"global:buy").to_bytes()[0..8]
+            // Derive missing PDAs for buy instruction
+            let pump_program_id = ctx.accounts.pump_program.key();
+
+            // creator_vault = ["creator-vault", creator]
+            let (creator_vault, _) = Pubkey::find_program_address(
+                &[b"creator-vault", ctx.accounts.creator.key().as_ref()],
+                &pump_program_id,
             );
 
-            // Instruction data: [discriminator(8), amount(8), max_sol_cost(8)]
-            let mut instruction_data = Vec::with_capacity(24);
+            // global_volume_accumulator = ["global_volume_accumulator"]
+            let (global_volume_accumulator, _) = Pubkey::find_program_address(
+                &[b"global_volume_accumulator"],
+                &pump_program_id,
+            );
+
+            // user_volume_accumulator = ["user_volume_accumulator", user]
+            let (user_volume_accumulator, _) = Pubkey::find_program_address(
+                &[b"user_volume_accumulator", market.key().as_ref()],
+                &pump_program_id,
+            );
+
+            // fee_config = ["fee_config", HARDCODED_PUBKEY]
+            // From IDL: seeds include a hardcoded pubkey [1, 86, 224, 246, ...]
+            // This is likely a specific fee config - using pump_global as fallback
+            let fee_config = ctx.accounts.pump_global.key();
+
+            // fee_program - not clear from docs, using pump_program as fallback
+            let fee_program = pump_program_id;
+
+            // Build buy instruction manually with CORRECT discriminator from IDL
+            // Discriminator = [102, 6, 61, 18, 1, 218, 235, 234] (from pump.json IDL)
+            let buy_discriminator: [u8; 8] = [102, 6, 61, 18, 1, 218, 235, 234];
+
+            // Instruction data: [discriminator(8), amount(8), max_sol_cost(8), track_volume(1)]
+            // track_volume is OptionBool: 1 byte (0x01 = Some(true))
+            let mut instruction_data = Vec::with_capacity(25);
             instruction_data.extend_from_slice(&buy_discriminator);
             instruction_data.extend_from_slice(&tokens_to_buy.to_le_bytes());
             instruction_data.extend_from_slice(&net_amount_for_token.to_le_bytes());
+            instruction_data.push(0x01); // track_volume = Some(true)
 
-            // Build accounts (same order as pump::cpi::accounts::Buy)
+            msg!("   🔧 Buy instruction data:");
+            msg!("      Discriminator: {:?}", buy_discriminator);
+            msg!("      Amount: {}", tokens_to_buy);
+            msg!("      Max SOL: {}", net_amount_for_token);
+            msg!("      Track volume: true");
+
+            // Build accounts in EXACT order from IDL (16 total)
             use anchor_lang::solana_program::{instruction::AccountMeta, instruction::Instruction};
             let accounts = vec![
+                // 1. global (readonly)
                 AccountMeta::new_readonly(ctx.accounts.pump_global.key(), false),
+                // 2. fee_recipient (writable)
                 AccountMeta::new(ctx.accounts.pump_fee_recipient.key(), false),
+                // 3. mint (readonly)
                 AccountMeta::new_readonly(ctx.accounts.token_mint.key(), false),
+                // 4. bonding_curve (writable)
                 AccountMeta::new(ctx.accounts.bonding_curve.key(), false),
+                // 5. associated_bonding_curve (writable)
                 AccountMeta::new(ctx.accounts.bonding_curve_token_account.key(), false),
+                // 6. associated_user (writable) - market's token account
                 AccountMeta::new(ctx.accounts.market_token_account.key(), false),
-                AccountMeta::new(market.key(), true), // signer via PDA
+                // 7. user (writable + signer) - market PDA signs via invoke_signed
+                AccountMeta::new(market.key(), true),
+                // 8. system_program (readonly)
                 AccountMeta::new_readonly(ctx.accounts.system_program.key(), false),
-                AccountMeta::new_readonly(ctx.accounts.token_program.key(), false), // Token2022!
-                AccountMeta::new_readonly(ctx.accounts.rent.key(), false),
+                // 9. token_program (readonly) - Token2022!
+                AccountMeta::new_readonly(ctx.accounts.token_program.key(), false),
+                // 10. creator_vault (writable)
+                AccountMeta::new(creator_vault, false),
+                // 11. event_authority (readonly)
                 AccountMeta::new_readonly(ctx.accounts.pump_event_authority.key(), false),
-                AccountMeta::new_readonly(ctx.accounts.pump_program.key(), false),
+                // 12. program (readonly) - pump program address as account
+                AccountMeta::new_readonly(pump_program_id, false),
+                // 13. global_volume_accumulator (readonly)
+                AccountMeta::new_readonly(global_volume_accumulator, false),
+                // 14. user_volume_accumulator (writable)
+                AccountMeta::new(user_volume_accumulator, false),
+                // 15. fee_config (readonly)
+                AccountMeta::new_readonly(fee_config, false),
+                // 16. fee_program (readonly)
+                AccountMeta::new_readonly(fee_program, false),
             ];
 
+            msg!("   📋 Buy instruction with {} accounts", accounts.len());
+            msg!("      creator_vault: {}", creator_vault);
+            msg!("      global_vol_acc: {}", global_volume_accumulator);
+            msg!("      user_vol_acc: {}", user_volume_accumulator);
+
             let buy_ix = Instruction {
-                program_id: ctx.accounts.pump_program.key(),
+                program_id: pump_program_id,
                 accounts,
                 data: instruction_data,
             };
 
-            // Invoke with PDA signer
+            // Invoke with PDA signer (market signs the buy)
             anchor_lang::solana_program::program::invoke_signed(
                 &buy_ix,
                 &[
@@ -315,12 +379,11 @@ pub fn handler(ctx: Context<ResolveMarket>) -> Result<()> {
                     ctx.accounts.bonding_curve.to_account_info(),
                     ctx.accounts.bonding_curve_token_account.to_account_info(),
                     ctx.accounts.market_token_account.to_account_info(),
-                    market.to_account_info(),
+                    market.to_account_info(), // market PDA signs
                     ctx.accounts.system_program.to_account_info(),
-                    ctx.accounts.token_program.to_account_info(), // Token2022 program!
-                    ctx.accounts.rent.to_account_info(),
-                    ctx.accounts.pump_event_authority.to_account_info(),
-                    ctx.accounts.pump_program.to_account_info(),
+                    ctx.accounts.token_program.to_account_info(), // Token2022!
+                    // Note: We don't need to pass creator_vault and volume_accumulator account_infos
+                    // because Pump.fun will access them directly via CPI
                 ],
                 signer_seeds,
             )?;
