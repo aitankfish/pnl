@@ -393,15 +393,19 @@ export function useResolution() {
 
       // Extract instructions: [compute_budget, create_ata, resolve_market]
       const compiledInstructions = resolveVersionedTx.message.compiledInstructions;
-      const accountKeys = resolveVersionedTx.message.staticAccountKeys;
+
+      // IMPORTANT: Get ALL account keys including ALT accounts
+      // staticAccountKeys only has accounts in the transaction, not ALT accounts
+      // getAccountKeys() returns static + ALT accounts combined
+      const allAccountKeys = resolveVersionedTx.message.getAccountKeys();
 
       // Convert compiled instructions to TransactionInstruction format
       const { PublicKey: PK } = await import('@solana/web3.js');
       const convertInstruction = (compiledIx: any) => {
         return new TransactionInstruction({
-          programId: accountKeys[compiledIx.programIdIndex],
+          programId: allAccountKeys.get(compiledIx.programIdIndex)!,
           keys: compiledIx.accountKeyIndexes.map((idx: number) => ({
-            pubkey: accountKeys[idx],
+            pubkey: allAccountKeys.get(idx)!,
             isSigner: resolveVersionedTx.message.isAccountSigner(idx),
             isWritable: resolveVersionedTx.message.isAccountWritable(idx),
           })),
