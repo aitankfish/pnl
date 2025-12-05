@@ -31,7 +31,7 @@ const logger = createClientLogger();
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { marketAddress, tokenMint, callerWallet, network } = body;
+    const { marketAddress, tokenMint, callerWallet, creator, network } = body;
 
     // Validate inputs
     if (!marketAddress || !tokenMint || !callerWallet) {
@@ -44,10 +44,14 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // Creator defaults to callerWallet if not provided (backward compatibility)
+    const creatorAddress = creator || callerWallet;
+
     logger.info('Preparing market resolution with token launch', {
       marketAddress,
       tokenMint,
       callerWallet,
+      creator: creatorAddress,
       network,
     });
 
@@ -55,6 +59,7 @@ export async function POST(request: NextRequest) {
     const marketPubkey = new PublicKey(marketAddress);
     const tokenMintPubkey = new PublicKey(tokenMint);
     const callerPubkey = new PublicKey(callerWallet);
+    const creatorPubkey = new PublicKey(creatorAddress);
 
     // Get network-specific program ID
     const targetNetwork = (network as 'devnet' | 'mainnet-beta') || 'devnet';
@@ -85,30 +90,9 @@ export async function POST(request: NextRequest) {
       TOKEN_2022_PROGRAM_ID // Pump.fun uses Token Extensions (Token2022)
     );
 
-    // Fetch bonding curve account to get creator
-    // BondingCurve struct (first 8 bytes discriminator, then fields):
-    // - virtual_sol_reserves: u64 (8 bytes)
-    // - virtual_token_reserves: u64 (8 bytes)
-    // - real_sol_reserves: u64 (8 bytes)
-    // - real_token_reserves: u64 (8 bytes)
-    // - token_total_supply: u64 (8 bytes)
-    // - complete: bool (1 byte)
-    // - creator: Pubkey (32 bytes) at offset 8 + 8*5 + 1 = 49
-    const bondingCurveAccountInfo = await connection.getAccountInfo(pumpPDAs.bondingCurve);
-    if (!bondingCurveAccountInfo) {
-      return NextResponse.json(
-        {
-          success: false,
-          error: 'Bonding curve account not found - token may not be created yet',
-        },
-        { status: 400 }
-      );
-    }
-
-    // Extract creator pubkey from bonding curve data (at offset 49)
-    const creatorOffset = 49;
-    const creatorBytes = bondingCurveAccountInfo.data.slice(creatorOffset, creatorOffset + 32);
-    const creator = new PublicKey(creatorBytes);
+    // Note: We don't fetch the bonding curve account here because in the atomic flow,
+    // the token hasn't been created yet when this endpoint is called.
+    // The creator is passed from the frontend (it's the wallet creating the token).
 
     logger.info('All accounts derived', {
       treasuryPda: treasuryPda.toBase58(),
@@ -116,7 +100,7 @@ export async function POST(request: NextRequest) {
       pumpGlobal: pumpPDAs.global.toBase58(),
       bondingCurve: pumpPDAs.bondingCurve.toBase58(),
       bondingCurveTokenAccount: bondingCurveTokenAccount.toBase58(),
-      creator: creator.toBase58(),
+      creator: creatorPubkey.toBase58(),
     });
 
     // Build resolve_market instruction manually
@@ -149,7 +133,7 @@ export async function POST(request: NextRequest) {
         { pubkey: pumpPDAs.global, isSigner: false, isWritable: true },    // pump_fee_recipient (same as global)
         { pubkey: pumpPDAs.eventAuthority, isSigner: false, isWritable: false }, // pump_event_authority
         { pubkey: PUMP_PROGRAM_ID, isSigner: false, isWritable: false },   // pump_program
-        { pubkey: creator, isSigner: false, isWritable: false },           // creator (for deriving creator_vault)
+        { pubkey: creatorPubkey, isSigner: false, isWritable: false },     // creator (for deriving creator_vault)
 
         // Remaining accounts
         { pubkey: callerPubkey, isSigner: true, isWritable: true },        // caller

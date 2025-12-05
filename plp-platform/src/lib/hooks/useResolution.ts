@@ -368,6 +368,7 @@ export function useResolution() {
           marketAddress: params.marketAddress,
           tokenMint: mintKeypair.publicKey.toBase58(),
           callerWallet: primaryWallet!.address,
+          creator: primaryWallet!.address, // Token creator (same as caller in atomic flow)
           network,
         }),
       });
