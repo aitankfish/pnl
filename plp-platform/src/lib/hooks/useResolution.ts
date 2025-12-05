@@ -394,10 +394,21 @@ export function useResolution() {
       // Extract instructions: [compute_budget, create_ata, resolve_market]
       const compiledInstructions = resolveVersionedTx.message.compiledInstructions;
 
-      // IMPORTANT: Get ALL account keys including ALT accounts
-      // staticAccountKeys only has accounts in the transaction, not ALT accounts
-      // getAccountKeys() returns static + ALT accounts combined
-      const allAccountKeys = resolveVersionedTx.message.getAccountKeys();
+      // IMPORTANT: Fetch ALT to resolve account keys
+      // The transaction uses Address Lookup Tables, so we need to fetch the ALT
+      // before we can get all account keys (static + ALT accounts)
+      const ALT_ADDRESS = new PublicKey('hs9SCzyzTgqURSxLm4p3gTtLRUkmL54BWQrtYFn9JeS');
+      const lookupTableAccount = await connection.getAddressLookupTable(ALT_ADDRESS);
+
+      if (!lookupTableAccount.value) {
+        console.error('❌ Failed to fetch Address Lookup Table');
+        return { success: false, error: 'Address Lookup Table not found' };
+      }
+
+      // Get ALL account keys including ALT accounts by passing the resolved ALT
+      const allAccountKeys = resolveVersionedTx.message.getAccountKeys({
+        addressLookupTableAccounts: [lookupTableAccount.value],
+      });
 
       // Convert compiled instructions to TransactionInstruction format
       const { PublicKey: PK } = await import('@solana/web3.js');
