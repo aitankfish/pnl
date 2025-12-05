@@ -84,6 +84,31 @@ pub struct ResolveMarket<'info> {
     /// CHECK: Passed by client, validated by Pump.fun during buy
     pub creator: UncheckedAccount<'info>,
 
+    /// Creator vault PDA (Pump.fun)
+    /// Derived from ["creator-vault", creator]
+    /// CHECK: Pump.fun program validates this
+    #[account(mut)]
+    pub creator_vault: UncheckedAccount<'info>,
+
+    /// Global volume accumulator PDA (Pump.fun)
+    /// Derived from ["global_volume_accumulator"]
+    /// CHECK: Pump.fun program validates this
+    pub global_volume_accumulator: UncheckedAccount<'info>,
+
+    /// User volume accumulator PDA (Pump.fun)
+    /// Derived from ["user_volume_accumulator", user]
+    /// CHECK: Pump.fun program validates this
+    #[account(mut)]
+    pub user_volume_accumulator: UncheckedAccount<'info>,
+
+    /// Fee config PDA (Pump.fun)
+    /// CHECK: Pump.fun program validates this
+    pub fee_config: UncheckedAccount<'info>,
+
+    /// Fee program (Pump.fun)
+    /// CHECK: Pump.fun program validates this
+    pub fee_program: UncheckedAccount<'info>,
+
     /// Anyone can trigger resolution after expiry (permissionless)
     #[account(mut)]
     pub caller: Signer<'info>,
@@ -274,35 +299,6 @@ pub fn handler(ctx: Context<ResolveMarket>) -> Result<()> {
             ];
             let signer_seeds = &[&market_seeds[..]];
 
-            // Derive missing PDAs for buy instruction
-            let pump_program_id = ctx.accounts.pump_program.key();
-
-            // creator_vault = ["creator-vault", creator]
-            let (creator_vault, _) = Pubkey::find_program_address(
-                &[b"creator-vault", ctx.accounts.creator.key().as_ref()],
-                &pump_program_id,
-            );
-
-            // global_volume_accumulator = ["global_volume_accumulator"]
-            let (global_volume_accumulator, _) = Pubkey::find_program_address(
-                &[b"global_volume_accumulator"],
-                &pump_program_id,
-            );
-
-            // user_volume_accumulator = ["user_volume_accumulator", user]
-            let (user_volume_accumulator, _) = Pubkey::find_program_address(
-                &[b"user_volume_accumulator", market.key().as_ref()],
-                &pump_program_id,
-            );
-
-            // fee_config = ["fee_config", HARDCODED_PUBKEY]
-            // From IDL: seeds include a hardcoded pubkey [1, 86, 224, 246, ...]
-            // This is likely a specific fee config - using pump_global as fallback
-            let fee_config = ctx.accounts.pump_global.key();
-
-            // fee_program - not clear from docs, using pump_program as fallback
-            let fee_program = pump_program_id;
-
             // Build buy instruction manually with CORRECT discriminator from IDL
             // Discriminator = [102, 6, 61, 18, 1, 218, 235, 234] (from pump.json IDL)
             let buy_discriminator: [u8; 8] = [102, 6, 61, 18, 1, 218, 235, 234];
@@ -343,33 +339,31 @@ pub fn handler(ctx: Context<ResolveMarket>) -> Result<()> {
                 // 9. token_program (readonly) - Token2022!
                 AccountMeta::new_readonly(ctx.accounts.token_program.key(), false),
                 // 10. creator_vault (writable)
-                AccountMeta::new(creator_vault, false),
+                AccountMeta::new(ctx.accounts.creator_vault.key(), false),
                 // 11. event_authority (readonly)
                 AccountMeta::new_readonly(ctx.accounts.pump_event_authority.key(), false),
                 // 12. program (readonly) - pump program address as account
-                AccountMeta::new_readonly(pump_program_id, false),
+                AccountMeta::new_readonly(ctx.accounts.pump_program.key(), false),
                 // 13. global_volume_accumulator (readonly)
-                AccountMeta::new_readonly(global_volume_accumulator, false),
+                AccountMeta::new_readonly(ctx.accounts.global_volume_accumulator.key(), false),
                 // 14. user_volume_accumulator (writable)
-                AccountMeta::new(user_volume_accumulator, false),
+                AccountMeta::new(ctx.accounts.user_volume_accumulator.key(), false),
                 // 15. fee_config (readonly)
-                AccountMeta::new_readonly(fee_config, false),
+                AccountMeta::new_readonly(ctx.accounts.fee_config.key(), false),
                 // 16. fee_program (readonly)
-                AccountMeta::new_readonly(fee_program, false),
+                AccountMeta::new_readonly(ctx.accounts.fee_program.key(), false),
             ];
 
             msg!("   📋 Buy instruction with {} accounts", accounts.len());
-            msg!("      creator_vault: {}", creator_vault);
-            msg!("      global_vol_acc: {}", global_volume_accumulator);
-            msg!("      user_vol_acc: {}", user_volume_accumulator);
 
             let buy_ix = Instruction {
-                program_id: pump_program_id,
+                program_id: ctx.accounts.pump_program.key(),
                 accounts,
                 data: instruction_data,
             };
 
             // Invoke with PDA signer (market signs the buy)
+            // IMPORTANT: Pass ALL 16 accounts as AccountInfo references
             anchor_lang::solana_program::program::invoke_signed(
                 &buy_ix,
                 &[
@@ -382,8 +376,13 @@ pub fn handler(ctx: Context<ResolveMarket>) -> Result<()> {
                     market.to_account_info(), // market PDA signs
                     ctx.accounts.system_program.to_account_info(),
                     ctx.accounts.token_program.to_account_info(), // Token2022!
-                    // Note: We don't need to pass creator_vault and volume_accumulator account_infos
-                    // because Pump.fun will access them directly via CPI
+                    ctx.accounts.creator_vault.to_account_info(),
+                    ctx.accounts.pump_event_authority.to_account_info(),
+                    ctx.accounts.pump_program.to_account_info(),
+                    ctx.accounts.global_volume_accumulator.to_account_info(),
+                    ctx.accounts.user_volume_accumulator.to_account_info(),
+                    ctx.accounts.fee_config.to_account_info(),
+                    ctx.accounts.fee_program.to_account_info(),
                 ],
                 signer_seeds,
             )?;

@@ -94,6 +94,39 @@ export async function POST(request: NextRequest) {
     // the token hasn't been created yet when this endpoint is called.
     // The creator is passed from the frontend (it's the wallet creating the token).
 
+    // Derive additional Pump.fun PDAs required for buy() CPI
+    // 1. creator_vault = ["creator-vault", creator]
+    const [creatorVault] = PublicKey.findProgramAddressSync(
+      [Buffer.from('creator-vault'), creatorPubkey.toBuffer()],
+      PUMP_PROGRAM_ID
+    );
+
+    // 2. global_volume_accumulator = ["global_volume_accumulator"]
+    const [globalVolumeAccumulator] = PublicKey.findProgramAddressSync(
+      [Buffer.from('global_volume_accumulator')],
+      PUMP_PROGRAM_ID
+    );
+
+    // 3. user_volume_accumulator = ["user_volume_accumulator", user (market PDA)]
+    const [userVolumeAccumulator] = PublicKey.findProgramAddressSync(
+      [Buffer.from('user_volume_accumulator'), marketPubkey.toBuffer()],
+      PUMP_PROGRAM_ID
+    );
+
+    // 4. fee_program - Hardcoded address from Pump.fun IDL
+    const FEE_PROGRAM_ID = new PublicKey('pfeeUxB6jkeY1Hxd7CsFCAjcbHA9rWtchMGdZ6VojVZ');
+
+    // 5. fee_config = ["fee_config", <hardcoded 32-byte pubkey>] with fee_program
+    // Hardcoded pubkey from IDL (bytes [1, 86, 224, 246, ...])
+    const feeConfigSeed2 = new PublicKey(new Uint8Array([
+      1, 86, 224, 246, 147, 102, 90, 207, 68, 219, 21, 104, 191, 23, 91, 170,
+      81, 137, 203, 151, 245, 210, 255, 59, 101, 93, 43, 182, 253, 109, 24, 176
+    ]));
+    const [feeConfig] = PublicKey.findProgramAddressSync(
+      [Buffer.from('fee_config'), feeConfigSeed2.toBuffer()],
+      FEE_PROGRAM_ID
+    );
+
     logger.info('All accounts derived', {
       treasuryPda: treasuryPda.toBase58(),
       marketTokenAccount: marketTokenAccount.toBase58(),
@@ -101,6 +134,11 @@ export async function POST(request: NextRequest) {
       bondingCurve: pumpPDAs.bondingCurve.toBase58(),
       bondingCurveTokenAccount: bondingCurveTokenAccount.toBase58(),
       creator: creatorPubkey.toBase58(),
+      creatorVault: creatorVault.toBase58(),
+      globalVolumeAccumulator: globalVolumeAccumulator.toBase58(),
+      userVolumeAccumulator: userVolumeAccumulator.toBase58(),
+      feeProgram: FEE_PROGRAM_ID.toBase58(),
+      feeConfig: feeConfig.toBase58(),
     });
 
     // Build resolve_market instruction manually
@@ -116,7 +154,7 @@ export async function POST(request: NextRequest) {
     const data = Buffer.alloc(8);
     discriminator.copy(data, 0);
 
-    // Create instruction with all accounts (4 original + 14 pump.fun = 18 total)
+    // Create instruction with all accounts (4 original + 19 pump.fun = 23 total)
     const { TransactionInstruction } = await import('@solana/web3.js');
     const resolveIx = new TransactionInstruction({
       keys: [
@@ -124,7 +162,7 @@ export async function POST(request: NextRequest) {
         { pubkey: marketPubkey, isSigner: false, isWritable: true },       // market
         { pubkey: treasuryPda, isSigner: false, isWritable: true },        // treasury
 
-        // Pump.fun accounts (14 accounts)
+        // Pump.fun accounts (19 accounts)
         { pubkey: tokenMintPubkey, isSigner: false, isWritable: true },    // token_mint
         { pubkey: marketTokenAccount, isSigner: false, isWritable: true }, // market_token_account
         { pubkey: pumpPDAs.global, isSigner: false, isWritable: true },    // pump_global
@@ -133,7 +171,12 @@ export async function POST(request: NextRequest) {
         { pubkey: pumpPDAs.global, isSigner: false, isWritable: true },    // pump_fee_recipient (same as global)
         { pubkey: pumpPDAs.eventAuthority, isSigner: false, isWritable: false }, // pump_event_authority
         { pubkey: PUMP_PROGRAM_ID, isSigner: false, isWritable: false },   // pump_program
-        { pubkey: creatorPubkey, isSigner: false, isWritable: false },     // creator (for deriving creator_vault)
+        { pubkey: creatorPubkey, isSigner: false, isWritable: false },     // creator
+        { pubkey: creatorVault, isSigner: false, isWritable: true },       // creator_vault
+        { pubkey: globalVolumeAccumulator, isSigner: false, isWritable: false }, // global_volume_accumulator
+        { pubkey: userVolumeAccumulator, isSigner: false, isWritable: true }, // user_volume_accumulator
+        { pubkey: feeConfig, isSigner: false, isWritable: false },         // fee_config
+        { pubkey: FEE_PROGRAM_ID, isSigner: false, isWritable: false },    // fee_program
 
         // Remaining accounts
         { pubkey: callerPubkey, isSigner: true, isWritable: true },        // caller
