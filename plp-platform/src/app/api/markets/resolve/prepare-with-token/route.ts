@@ -28,6 +28,10 @@ import { getSolanaConnection } from '@/lib/solana';
 
 const logger = createClientLogger();
 
+// Address Lookup Table (mainnet) - contains frequently-used program accounts
+// Created via scripts/create-alt.ts - saves ~186 bytes per transaction
+const ALT_ADDRESS = new PublicKey('hs9SCzyzTgqURSxLm4p3gTtLRUkmL54BWQrtYFn9JeS');
+
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
@@ -215,22 +219,39 @@ export async function POST(request: NextRequest) {
     // Get recent blockhash
     const { blockhash, lastValidBlockHeight } = await connection.getLatestBlockhash('confirmed');
 
+    // Fetch Address Lookup Table to reduce transaction size
+    // The ALT contains: System, Token2022, ATA, Rent, Pump, Fee programs
+    const lookupTableAccount = await connection.getAddressLookupTable(ALT_ADDRESS);
+    if (!lookupTableAccount.value) {
+      throw new Error('Address Lookup Table not found. Run scripts/create-alt.ts first.');
+    }
+
+    logger.info('Using Address Lookup Table', {
+      altAddress: ALT_ADDRESS.toBase58(),
+      accountsInTable: lookupTableAccount.value.state.addresses.length,
+    });
+
     // Create VersionedTransaction with ATA creation BEFORE resolve
+    // Using ALT reduces transaction size by ~186 bytes (6 accounts × 31 bytes)
     const messageV0 = new TransactionMessage({
       payerKey: callerPubkey,
       recentBlockhash: blockhash,
       instructions: [computeBudgetIx, createATAIx, resolveIx], // ATA first, then resolve
-    }).compileToV0Message();
+    }).compileToV0Message([lookupTableAccount.value]); // Pass ALT for account compression
 
     const transaction = new VersionedTransaction(messageV0);
 
     // Serialize transaction for client-side signing
     const serializedTransaction = Buffer.from(transaction.serialize()).toString('base64');
+    const transactionSize = transaction.serialize().length;
 
     logger.info('Market resolution with token launch transaction prepared', {
       marketAddress: marketPubkey.toBase58(),
       tokenMint: tokenMintPubkey.toBase58(),
       treasuryPda: treasuryPda.toBase58(),
+      transactionSize,
+      transactionSizeLimit: 1232,
+      underLimit: transactionSize <= 1232,
       serializedLength: serializedTransaction.length,
       lastValidBlockHeight,
     });
