@@ -8,7 +8,7 @@
 import { useState } from 'react';
 import { flushSync } from 'react-dom';
 import { useWallet } from '@/hooks/useWallet';
-import { Transaction, TransactionInstruction } from '@solana/web3.js';
+import { TransactionInstruction } from '@solana/web3.js';
 import { getSolanaConnection } from '@/lib/solana';
 import { useNetwork } from './useNetwork';
 import { useSignAndSendTransaction, useWallets, useStandardWallets } from '@privy-io/react-auth/solana';
@@ -435,33 +435,40 @@ export function useResolution() {
         units: 1_000_000, // Extra margin for complex operations (create ~300k + resolve ~200k + buy CPI ~200k + buffer ~300k)
       });
 
-      const atomicTx = new Transaction()
-        .add(computeBudgetIx)       // Compute budget
-        .add(createInstruction)      // Pump.fun create token
-        .add(createATAInstruction)   // Create market's token account (for receiving tokens)
-        .add(resolveInstruction);    // Your program resolve (does buy CPI)
-
       // Get recent blockhash
       const { blockhash } = await connection.getLatestBlockhash('confirmed');
-      atomicTx.recentBlockhash = blockhash;
-      atomicTx.feePayer = new PK(primaryWallet!.address);
 
-      console.log('✅ Atomic transaction built with 4 instructions:');
+      // Build as VersionedTransaction with ALT to keep transaction size under 1232 bytes
+      // Using legacy Transaction would expand all ALT accounts back to 32 bytes each
+      const { TransactionMessage } = await import('@solana/web3.js');
+      const messageV0 = new TransactionMessage({
+        payerKey: new PK(primaryWallet!.address),
+        recentBlockhash: blockhash,
+        instructions: [
+          computeBudgetIx,       // Compute budget
+          createInstruction,      // Pump.fun create token
+          createATAInstruction,   // Create market's token account (for receiving tokens)
+          resolveInstruction,     // Your program resolve (does buy CPI)
+        ],
+      }).compileToV0Message([lookupTableAccount.value]); // Pass ALT for compression
+
+      const atomicTx = new VersionedTransaction(messageV0);
+
+      console.log('✅ Atomic transaction built with 4 instructions + ALT:');
       console.log('   1. Compute budget (1M units)');
       console.log('   2. Pump.fun createV2 (Token2022)');
       console.log('   3. Create market token account (ATA)');
       console.log('   4. Market resolve (buy CPI + fee transfer)');
+      console.log('   📦 Using ALT to compress 6 program accounts');
       console.log('');
 
       // Sign with mint keypair first
-      atomicTx.partialSign(mintKeypair);
+      atomicTx.sign([mintKeypair]);
       console.log('✅ Partially signed with mint keypair');
 
       // Serialize for wallet signing
-      const serializedAtomicTx = atomicTx.serialize({
-        requireAllSignatures: false, // Allow partial signatures
-        verifySignatures: false,
-      });
+      // VersionedTransaction.serialize() doesn't take options - it handles partial signatures automatically
+      const serializedAtomicTx = atomicTx.serialize();
 
       // Get wallet for signing
       let solanaWallet;
