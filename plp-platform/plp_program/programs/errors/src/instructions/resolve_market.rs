@@ -89,6 +89,26 @@ pub struct ResolveMarket<'info> {
     #[account(mut)]
     pub creator_vault: UncheckedAccount<'info>,
 
+    /// Global volume accumulator PDA (Pump.fun)
+    /// Derived from ["global-volume-accumulator"]
+    /// CHECK: Pump.fun program validates this
+    #[account(mut)]
+    pub global_volume_accumulator: UncheckedAccount<'info>,
+
+    /// User volume accumulator PDA (Pump.fun)
+    /// Derived from ["user-volume-accumulator", market]
+    /// CHECK: Pump.fun program validates this
+    #[account(mut)]
+    pub user_volume_accumulator: UncheckedAccount<'info>,
+
+    /// Fee config PDA (from fee program)
+    /// CHECK: Pump.fun program validates this
+    pub fee_config: UncheckedAccount<'info>,
+
+    /// Fee program
+    /// CHECK: Hardcoded to pfeeUxB6jkeY1Hxd7CsFCAjcbHA9rWtchMGdZ6VojVZ
+    pub fee_program: UncheckedAccount<'info>,
+
     /// Anyone can trigger resolution after expiry (permissionless)
     #[account(mut)]
     pub caller: Signer<'info>,
@@ -96,6 +116,8 @@ pub struct ResolveMarket<'info> {
     pub system_program: Program<'info, System>,
     /// Token program (accepts both Token and Token2022)
     pub token_program: Interface<'info, TokenInterface>,
+    /// Token2022 program (for ATA creation)
+    pub token_2022_program: Interface<'info, TokenInterface>,
     pub associated_token_program: Program<'info, AssociatedToken>,
     pub rent: Sysvar<'info, Rent>,
 }
@@ -239,33 +261,41 @@ pub fn handler(ctx: Context<ResolveMarket>) -> Result<()> {
             msg!("      Max SOL Cost: {} lamports", net_amount_for_token);
             msg!("      Track volume: true");
 
-            // Build accounts in EXACT order from IDL (12 accounts for buy instruction)
+            // Build accounts in EXACT order from IDL (16 accounts for buy instruction)
             use anchor_lang::solana_program::{instruction::AccountMeta, instruction::Instruction};
             let accounts = vec![
-                // 1. global (readonly)
+                // 0. global (readonly)
                 AccountMeta::new_readonly(ctx.accounts.pump_global.key(), false),
-                // 2. fee_recipient (writable)
+                // 1. fee_recipient (writable) - HARDCODED ADDRESS!
                 AccountMeta::new(ctx.accounts.pump_fee_recipient.key(), false),
-                // 3. mint (readonly)
+                // 2. mint (readonly)
                 AccountMeta::new_readonly(ctx.accounts.token_mint.key(), false),
-                // 4. bonding_curve (writable)
+                // 3. bonding_curve (writable)
                 AccountMeta::new(ctx.accounts.bonding_curve.key(), false),
-                // 5. associated_bonding_curve (writable)
+                // 4. associated_bonding_curve (writable)
                 AccountMeta::new(ctx.accounts.bonding_curve_token_account.key(), false),
-                // 6. associated_user (writable) - market's token account
+                // 5. associated_user (writable) - market's token account
                 AccountMeta::new(ctx.accounts.market_token_account.key(), false),
-                // 7. user (writable + signer) - market PDA signs via invoke_signed
+                // 6. user (writable + signer) - market PDA signs via invoke_signed
                 AccountMeta::new(market.key(), true),
-                // 8. system_program (readonly)
+                // 7. system_program (readonly)
                 AccountMeta::new_readonly(ctx.accounts.system_program.key(), false),
-                // 9. token_program (readonly) - Token2022!
+                // 8. token_program (readonly) - LEGACY Token, not Token2022!
                 AccountMeta::new_readonly(ctx.accounts.token_program.key(), false),
-                // 10. creator_vault (writable)
+                // 9. creator_vault (writable)
                 AccountMeta::new(ctx.accounts.creator_vault.key(), false),
-                // 11. event_authority (readonly)
+                // 10. event_authority (readonly)
                 AccountMeta::new_readonly(ctx.accounts.pump_event_authority.key(), false),
-                // 12. program (readonly) - pump program address as account
+                // 11. program (readonly) - pump program address as account
                 AccountMeta::new_readonly(ctx.accounts.pump_program.key(), false),
+                // 12. global_volume_accumulator (writable)
+                AccountMeta::new(ctx.accounts.global_volume_accumulator.key(), false),
+                // 13. user_volume_accumulator (writable)
+                AccountMeta::new(ctx.accounts.user_volume_accumulator.key(), false),
+                // 14. fee_config (readonly)
+                AccountMeta::new_readonly(ctx.accounts.fee_config.key(), false),
+                // 15. fee_program (readonly)
+                AccountMeta::new_readonly(ctx.accounts.fee_program.key(), false),
             ];
 
             msg!("   📋 Buy instruction with {} accounts", accounts.len());
@@ -277,7 +307,7 @@ pub fn handler(ctx: Context<ResolveMarket>) -> Result<()> {
             };
 
             // Invoke with PDA signer (market signs the buy)
-            // IMPORTANT: Pass ALL 12 accounts as AccountInfo references in exact order
+            // IMPORTANT: Pass ALL 16 accounts as AccountInfo references in exact order
             anchor_lang::solana_program::program::invoke_signed(
                 &buy_ix,
                 &[
@@ -289,10 +319,14 @@ pub fn handler(ctx: Context<ResolveMarket>) -> Result<()> {
                     ctx.accounts.market_token_account.to_account_info(),
                     market.to_account_info(), // market PDA signs
                     ctx.accounts.system_program.to_account_info(),
-                    ctx.accounts.token_program.to_account_info(), // Token2022!
+                    ctx.accounts.token_program.to_account_info(), // Legacy Token program
                     ctx.accounts.creator_vault.to_account_info(),
                     ctx.accounts.pump_event_authority.to_account_info(),
                     ctx.accounts.pump_program.to_account_info(),
+                    ctx.accounts.global_volume_accumulator.to_account_info(),
+                    ctx.accounts.user_volume_accumulator.to_account_info(),
+                    ctx.accounts.fee_config.to_account_info(),
+                    ctx.accounts.fee_program.to_account_info(),
                 ],
                 signer_seeds,
             )?;

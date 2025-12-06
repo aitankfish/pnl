@@ -26,6 +26,12 @@ import { derivePumpPDAs, PUMP_PROGRAM_ID } from '@/lib/pumpfun';
 import { createClientLogger } from '@/lib/logger';
 import { getSolanaConnection } from '@/lib/solana';
 
+// Pump.fun fee program address (from official IDL)
+const PUMP_FEE_PROGRAM_ID = new PublicKey('pfeeUxB6jkeY1Hxd7CsFCAjcbHA9rWtchMGdZ6VojVZ');
+
+// Pump.fun fee recipient address (hardcoded, from Solana-Pumpfun-Bundler)
+const PUMP_FEE_RECIPIENT = new PublicKey('CebN5WGQ4jvEPvsVU4EoHEpgzq1VV7AbicfhtW4xC9iM');
+
 const logger = createClientLogger();
 
 // Address Lookup Table (mainnet) - contains frequently-used program accounts
@@ -105,14 +111,37 @@ export async function POST(request: NextRequest) {
       PUMP_PROGRAM_ID
     );
 
+    // 2. global_volume_accumulator = ["global-volume-accumulator"]
+    const [globalVolumeAccumulator] = PublicKey.findProgramAddressSync(
+      [Buffer.from('global-volume-accumulator')],
+      PUMP_PROGRAM_ID
+    );
+
+    // 3. user_volume_accumulator = ["user-volume-accumulator", market (as user)]
+    const [userVolumeAccumulator] = PublicKey.findProgramAddressSync(
+      [Buffer.from('user-volume-accumulator'), marketPubkey.toBuffer()],
+      PUMP_PROGRAM_ID
+    );
+
+    // 4. fee_config = derived from fee_program
+    const [feeConfig] = PublicKey.findProgramAddressSync(
+      [Buffer.from('fee-config')],
+      PUMP_FEE_PROGRAM_ID
+    );
+
     logger.info('All accounts derived', {
       treasuryPda: treasuryPda.toBase58(),
       marketTokenAccount: marketTokenAccount.toBase58(),
       pumpGlobal: pumpPDAs.global.toBase58(),
+      pumpFeeRecipient: PUMP_FEE_RECIPIENT.toBase58(),
       bondingCurve: pumpPDAs.bondingCurve.toBase58(),
       bondingCurveTokenAccount: bondingCurveTokenAccount.toBase58(),
       creator: creatorPubkey.toBase58(),
       creatorVault: creatorVault.toBase58(),
+      globalVolumeAccumulator: globalVolumeAccumulator.toBase58(),
+      userVolumeAccumulator: userVolumeAccumulator.toBase58(),
+      feeConfig: feeConfig.toBase58(),
+      feeProgram: PUMP_FEE_PROGRAM_ID.toBase58(),
     });
 
     // Build resolve_market instruction manually
@@ -128,7 +157,7 @@ export async function POST(request: NextRequest) {
     const data = Buffer.alloc(8);
     discriminator.copy(data, 0);
 
-    // Create instruction with all accounts (2 core + 10 pump.fun + 5 program = 17 total)
+    // Create instruction with all accounts (2 core + 16 pump.fun + 5 program = 23 total)
     const { TransactionInstruction } = await import('@solana/web3.js');
     const resolveIx = new TransactionInstruction({
       keys: [
@@ -136,22 +165,28 @@ export async function POST(request: NextRequest) {
         { pubkey: marketPubkey, isSigner: false, isWritable: true },       // market
         { pubkey: treasuryPda, isSigner: false, isWritable: true },        // treasury
 
-        // Pump.fun accounts (10)
-        { pubkey: tokenMintPubkey, isSigner: false, isWritable: true },    // token_mint
-        { pubkey: marketTokenAccount, isSigner: false, isWritable: true }, // market_token_account
-        { pubkey: pumpPDAs.global, isSigner: false, isWritable: false },   // pump_global (readonly per Pump IDL)
-        { pubkey: pumpPDAs.bondingCurve, isSigner: false, isWritable: true }, // bonding_curve
-        { pubkey: bondingCurveTokenAccount, isSigner: false, isWritable: true }, // bonding_curve_token_account
-        { pubkey: pumpPDAs.global, isSigner: false, isWritable: true },    // pump_fee_recipient (same as global)
-        { pubkey: pumpPDAs.eventAuthority, isSigner: false, isWritable: false }, // pump_event_authority
-        { pubkey: PUMP_PROGRAM_ID, isSigner: false, isWritable: false },   // pump_program
-        { pubkey: creatorPubkey, isSigner: false, isWritable: false },     // creator
-        { pubkey: creatorVault, isSigner: false, isWritable: true },       // creator_vault
+        // Pump.fun buy() CPI accounts - EXACT order per official IDL (16 accounts)
+        { pubkey: pumpPDAs.global, isSigner: false, isWritable: false },   // 0. global (readonly)
+        { pubkey: PUMP_FEE_RECIPIENT, isSigner: false, isWritable: true }, // 1. fee_recipient (HARDCODED!)
+        { pubkey: tokenMintPubkey, isSigner: false, isWritable: true },    // 2. mint
+        { pubkey: pumpPDAs.bondingCurve, isSigner: false, isWritable: true }, // 3. bonding_curve
+        { pubkey: bondingCurveTokenAccount, isSigner: false, isWritable: true }, // 4. associated_bonding_curve
+        { pubkey: marketTokenAccount, isSigner: false, isWritable: true }, // 5. associated_user (market's token account)
+        { pubkey: marketPubkey, isSigner: true, isWritable: true },        // 6. user (market PDA as buyer, SIGNER!)
+        { pubkey: SystemProgram.programId, isSigner: false, isWritable: false }, // 7. system_program
+        { pubkey: TOKEN_PROGRAM_ID, isSigner: false, isWritable: false },  // 8. token_program (LEGACY, not Token2022!)
+        { pubkey: creatorVault, isSigner: false, isWritable: true },       // 9. creator_vault
+        { pubkey: pumpPDAs.eventAuthority, isSigner: false, isWritable: false }, // 10. event_authority
+        { pubkey: PUMP_PROGRAM_ID, isSigner: false, isWritable: false },   // 11. program
+        { pubkey: globalVolumeAccumulator, isSigner: false, isWritable: true }, // 12. global_volume_accumulator
+        { pubkey: userVolumeAccumulator, isSigner: false, isWritable: true }, // 13. user_volume_accumulator
+        { pubkey: feeConfig, isSigner: false, isWritable: false },         // 14. fee_config
+        { pubkey: PUMP_FEE_PROGRAM_ID, isSigner: false, isWritable: false }, // 15. fee_program
 
-        // System program accounts (5)
-        { pubkey: callerPubkey, isSigner: true, isWritable: true },        // caller (MUST BE SIGNER!)
-        { pubkey: SystemProgram.programId, isSigner: false, isWritable: false }, // system_program
-        { pubkey: TOKEN_2022_PROGRAM_ID, isSigner: false, isWritable: false },  // token_program (Token2022 for Pump.fun)
+        // Additional program accounts for resolve_market (5)
+        { pubkey: callerPubkey, isSigner: true, isWritable: true },        // caller (transaction signer)
+        { pubkey: creatorPubkey, isSigner: false, isWritable: false },     // creator (from bonding curve)
+        { pubkey: TOKEN_2022_PROGRAM_ID, isSigner: false, isWritable: false },  // token_2022_program (for ATA creation)
         { pubkey: ASSOCIATED_TOKEN_PROGRAM_ID, isSigner: false, isWritable: false }, // associated_token_program
         { pubkey: SYSVAR_RENT_PUBKEY, isSigner: false, isWritable: false }, // rent
       ],
