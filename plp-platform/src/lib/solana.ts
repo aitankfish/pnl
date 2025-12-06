@@ -27,16 +27,17 @@ const RPC_ENDPOINTS: Record<string, string[]> = {
     'https://rpc.ankr.com/solana_devnet',
     'https://solana-devnet.g.alchemy.com/v2/demo',
   ].filter(Boolean) as string[],
-  
+
   'mainnet-beta': [
-    // Primary: Helius RPC (if configured)
+    // Primary: QuickNode RPC (premium for Jito bundling)
+    process.env.NEXT_PUBLIC_QUICKNODE_MAINNET_RPC,
+    // Fallback 1: Helius RPC
     process.env.NEXT_PUBLIC_HELIUS_MAINNET_RPC,
-    // Fallback 1: Official Solana RPC
+    // Fallback 2: Official Solana RPC
     'https://api.mainnet-beta.solana.com',
-    // Fallback 2: Public RPC endpoints
+    // Fallback 3: Public RPC endpoints
     'https://rpc.ankr.com/solana',
     'https://solana-api.projectserum.com',
-    'https://api.mainnet-beta.solana.com',
   ].filter(Boolean) as string[],
 };
 

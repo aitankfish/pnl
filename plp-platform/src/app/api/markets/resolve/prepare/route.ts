@@ -105,7 +105,7 @@ export async function POST(request: NextRequest) {
     // Get program ID
     const { PROGRAM_ID } = await import('@/config/solana');
 
-    // Create instruction with all accounts (same as prepare-with-token)
+    // Create instruction with all accounts (same structure as prepare-jito-bundle)
     // Note: For NO wins, pump.fun accounts are dummy placeholders and won't be used
     const { TransactionInstruction } = await import('@solana/web3.js');
     const resolveIx = new TransactionInstruction({

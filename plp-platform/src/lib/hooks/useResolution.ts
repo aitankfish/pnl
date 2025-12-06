@@ -1,7 +1,8 @@
 /**
  * useResolution Hook
  * Handles the market resolution flow: prepare → sign → send → confirm
- * Supports atomic token launch when YES wins (create + resolve in one tx)
+ * Supports token launch when YES wins (create + resolve via Jito bundle)
+ * Uses Jito bundling for atomic execution of 2 transactions in same block
  * Uses VersionedTransaction and Privy wallet signer (same as create page)
  */
 
@@ -11,7 +12,7 @@ import { useWallet } from '@/hooks/useWallet';
 import { TransactionInstruction } from '@solana/web3.js';
 import { getSolanaConnection } from '@/lib/solana';
 import { useNetwork } from './useNetwork';
-import { useSignAndSendTransaction, useWallets, useStandardWallets } from '@privy-io/react-auth/solana';
+import { useSignAndSendTransaction, useSignTransaction, useWallets, useStandardWallets } from '@privy-io/react-auth/solana';
 import bs58 from 'bs58';
 import { generateVanityKeypair } from '@/lib/vanity';
 import { PumpSdk } from '@pump-fun/pump-sdk';
@@ -23,6 +24,7 @@ export function useResolution() {
   const { wallets } = useWallets(); // External wallets
   const { wallets: standardWallets } = useStandardWallets(); // Standard wallet interface (includes embedded)
   const { signAndSendTransaction } = useSignAndSendTransaction();
+  const { signTransaction } = useSignTransaction(); // For Jito bundling (sign without sending)
 
   const resolve = async (params: {
     marketId: string;
@@ -180,10 +182,10 @@ export function useResolution() {
 
 
   /**
-   * Resolve market with token launch (YES wins scenario)
+   * Resolve market with token launch using Jito bundling (YES wins scenario)
    *
    * DEVNET MODE: Not supported (Pump.fun only exists on mainnet)
-   * MAINNET MODE: Creates token on Pump.fun with atomic transaction → Raydium migration
+   * MAINNET MODE: Creates token on Pump.fun + resolves market via Jito bundle (2 transactions)
    */
   const resolveWithTokenLaunch = async (params: {
     marketId: string;
@@ -197,7 +199,7 @@ export function useResolution() {
   }): Promise<{ success: boolean; signature?: string; error?: any }> => {
     try {
       console.log('═══════════════════════════════════════════════════');
-      console.log('🚀 TOKEN LAUNCH FLOW STARTED');
+      console.log('🚀 TOKEN LAUNCH FLOW STARTED (JITO BUNDLING)');
       console.log('═══════════════════════════════════════════════════');
       console.log(`Network: ${network.toUpperCase()}`);
       console.log(`Token: ${params.tokenMetadata.symbol}`);
@@ -221,12 +223,13 @@ export function useResolution() {
         };
       }
 
-      // MAINNET MODE: Full Pump.fun Integration with PLP Branding
+      // MAINNET MODE: Jito Bundle Integration
       console.log('');
-      console.log('✅ MAINNET MODE - FULL PUMP.FUN INTEGRATION');
+      console.log('✅ MAINNET MODE - JITO BUNDLE INTEGRATION');
       console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
-      console.log('Token will be created on Pump.fun bonding curve');
-      console.log('Automatic Raydium migration when threshold reached');
+      console.log('Token creation + resolution as 2-transaction bundle');
+      console.log('Bypasses 1232 byte transaction size limit');
+      console.log('Maintains atomic execution via Jito validators');
       console.log('Vanity address ending with "pnl" for PLP branding');
       console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
       console.log('');
@@ -359,16 +362,18 @@ export function useResolution() {
 
       console.log('✅ Pump.fun createV2 instruction built (Token2022 format)');
 
-      // Step 4: Prepare resolve_market instruction with pump.fun accounts
-      console.log('🔧 Preparing resolve_market instruction...');
-      const prepareResponse = await fetch('/api/markets/resolve/prepare-with-token', {
+      // Step 4: Prepare Jito bundle (2 separate transactions)
+      console.log('🔧 Preparing Jito bundle transactions...');
+      const prepareResponse = await fetch('/api/markets/resolve/prepare-jito-bundle', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           marketAddress: params.marketAddress,
           tokenMint: mintKeypair.publicKey.toBase58(),
           callerWallet: primaryWallet!.address,
-          creator: primaryWallet!.address, // Token creator (same as caller in atomic flow)
+          founderWallet: primaryWallet!.address,
+          createInstructionData: JSON.stringify(createInstruction),
+          creator: primaryWallet!.address,
           network,
         }),
       });
@@ -376,107 +381,41 @@ export function useResolution() {
       const prepareResult = await prepareResponse.json();
 
       if (!prepareResult.success) {
-        console.error('❌ Failed to prepare resolve transaction:', prepareResult.error);
+        console.error('❌ Failed to prepare Jito bundle:', prepareResult.error);
         return { success: false, error: prepareResult.error };
       }
 
-      console.log('✅ Resolve instruction prepared');
-
-      // Step 5: Build ATOMIC transaction (create + resolve in ONE transaction)
-      console.log('⚡ Building atomic transaction (create + resolve)...');
-      console.log('   This prevents front-running and ensures best token price');
-
-      // Deserialize the resolve transaction to extract instructions
-      const { VersionedTransaction, ComputeBudgetProgram } = await import('@solana/web3.js');
-      const resolveTxBuffer = Buffer.from(prepareResult.data.serializedTransaction, 'base64');
-      const resolveVersionedTx = VersionedTransaction.deserialize(resolveTxBuffer);
-
-      // Extract instructions: [compute_budget, create_ata, resolve_market]
-      const compiledInstructions = resolveVersionedTx.message.compiledInstructions;
-
-      // IMPORTANT: Fetch ALT to resolve account keys
-      // The transaction uses Address Lookup Tables, so we need to fetch the ALT
-      // before we can get all account keys (static + ALT accounts)
-      const ALT_ADDRESS = new PublicKey('hs9SCzyzTgqURSxLm4p3gTtLRUkmL54BWQrtYFn9JeS');
-      const lookupTableAccount = await connection.getAddressLookupTable(ALT_ADDRESS);
-
-      if (!lookupTableAccount.value) {
-        console.error('❌ Failed to fetch Address Lookup Table');
-        return { success: false, error: 'Address Lookup Table not found' };
-      }
-
-      // Get ALL account keys including ALT accounts by passing the resolved ALT
-      const allAccountKeys = resolveVersionedTx.message.getAccountKeys({
-        addressLookupTableAccounts: [lookupTableAccount.value],
-      });
-
-      // Convert compiled instructions to TransactionInstruction format
-      const { PublicKey: PK } = await import('@solana/web3.js');
-      const convertInstruction = (compiledIx: any) => {
-        return new TransactionInstruction({
-          programId: allAccountKeys.get(compiledIx.programIdIndex)!,
-          keys: compiledIx.accountKeyIndexes.map((idx: number) => ({
-            pubkey: allAccountKeys.get(idx)!,
-            isSigner: resolveVersionedTx.message.isAccountSigner(idx),
-            isWritable: resolveVersionedTx.message.isAccountWritable(idx),
-          })),
-          data: Buffer.from(compiledIx.data),
-        });
-      };
-
-      // Extract ATA creation instruction (index 1, after compute budget)
-      const createATAInstruction = convertInstruction(compiledInstructions[1]);
-
-      // Extract resolve_market instruction (index 2, last instruction)
-      const resolveInstruction = convertInstruction(compiledInstructions[2]);
-
-      // Build atomic transaction with high compute units
-      const computeBudgetIx = ComputeBudgetProgram.setComputeUnitLimit({
-        units: 1_000_000, // Extra margin for complex operations (create ~300k + resolve ~200k + buy CPI ~200k + buffer ~300k)
-      });
-
-      // Get recent blockhash
-      const { blockhash } = await connection.getLatestBlockhash('confirmed');
-
-      // Build as VersionedTransaction with ALT to keep transaction size under 1232 bytes
-      // Using legacy Transaction would expand all ALT accounts back to 32 bytes each
-      const { TransactionMessage } = await import('@solana/web3.js');
-      const messageV0 = new TransactionMessage({
-        payerKey: new PK(primaryWallet!.address),
-        recentBlockhash: blockhash,
-        instructions: [
-          computeBudgetIx,       // Compute budget
-          createInstruction,      // Pump.fun create token
-          createATAInstruction,   // Create market's token account (for receiving tokens)
-          resolveInstruction,     // Your program resolve (does buy CPI)
-        ],
-      }).compileToV0Message([lookupTableAccount.value]); // Pass ALT for compression
-
-      const atomicTx = new VersionedTransaction(messageV0);
-
-      console.log('✅ Atomic transaction built with 4 instructions + ALT:');
-      console.log('   1. Compute budget (1M units)');
-      console.log('   2. Pump.fun createV2 (Token2022)');
-      console.log('   3. Create market token account (ATA)');
-      console.log('   4. Market resolve (buy CPI + fee transfer)');
-      console.log('   📦 Using ALT to compress 6 program accounts');
+      console.log('✅ Jito bundle prepared');
+      console.log(`   Jito tip: ${prepareResult.data.jitoTipLamports} lamports (~$0.0002)`);
       console.log('');
 
-      // Sign with mint keypair first
-      atomicTx.sign([mintKeypair]);
-      console.log('✅ Partially signed with mint keypair');
+      // Step 5: Deserialize both transactions from Jito bundle
+      console.log('📦 Loading bundle transactions...');
+      const { VersionedTransaction } = await import('@solana/web3.js');
 
-      // Serialize for wallet signing
-      // VersionedTransaction.serialize() doesn't take options - it handles partial signatures automatically
-      const serializedAtomicTx = atomicTx.serialize();
+      const createTxBuffer = Buffer.from(prepareResult.data.createTransaction, 'base64');
+      const createTx = VersionedTransaction.deserialize(createTxBuffer);
+
+      const resolveTxBuffer = Buffer.from(prepareResult.data.resolveTransaction, 'base64');
+      const resolveTx = VersionedTransaction.deserialize(resolveTxBuffer);
+
+      console.log('✅ Transactions deserialized');
+      console.log(`   TX1 size: ${createTxBuffer.length} bytes (create token)`);
+      console.log(`   TX2 size: ${resolveTxBuffer.length} bytes (resolve market + tip)`);
+      console.log('');
+
+      // Step 6: Sign TX1 with mint keypair first
+      console.log('✍️ Signing transaction 1 (create token)...');
+      createTx.sign([mintKeypair]);
+      console.log('✅ Partially signed with mint keypair');
 
       // Get wallet for signing
       let solanaWallet;
       if (wallets && wallets.length > 0) {
-        console.log('Using external Solana wallet for atomic transaction');
+        console.log('Using external Solana wallet');
         solanaWallet = wallets[0];
       } else if (standardWallets && standardWallets.length > 0) {
-        console.log('Using embedded Solana wallet for atomic transaction');
+        console.log('Using embedded Solana wallet');
         const privyWallet = standardWallets.find((w: any) => w.isPrivyWallet || w.name === 'Privy');
         if (!privyWallet) {
           throw new Error('No Privy wallet found');
@@ -486,46 +425,59 @@ export function useResolution() {
         throw new Error('No Solana wallet found');
       }
 
-      // Simulate transaction before sending to catch errors early
-      console.log('🔍 Simulating transaction...');
-      try {
-        const simulation = await connection.simulateTransaction(atomicTx);
-        if (simulation.value.err) {
-          console.error('❌ Simulation failed:', simulation.value.err);
-          console.error('   Logs:', simulation.value.logs);
-          throw new Error(`Transaction simulation failed: ${JSON.stringify(simulation.value.err)}`);
-        }
-        console.log('✅ Simulation successful - transaction should execute correctly');
-        console.log('   Compute units used:', simulation.value.unitsConsumed);
-      } catch (simError) {
-        console.warn('⚠️  Simulation warning (proceeding anyway):', simError);
-        // Don't fail on simulation errors - they can be false positives
-        // Real validation happens on-chain
-      }
-      console.log('');
-
-      // Sign and send atomic transaction
-      console.log('📤 Signing and sending ATOMIC transaction...');
-      console.log('   This creates token AND resolves market in ONE transaction');
-      console.log('   No gap for front-running!');
-      console.log('');
-
-      const result = await signAndSendTransaction({
-        transaction: serializedAtomicTx,
+      // Request founder signature for TX1 (create token)
+      console.log('🔐 Requesting wallet signature for token creation...');
+      const signedCreateTxResult = await signAndSendTransaction({
+        transaction: createTx.serialize(),
         wallet: solanaWallet as any,
-        chain: 'solana:mainnet', // We're in mainnet-only block (devnet returns early)
+        chain: 'solana:mainnet',
+        sendOptions: { skipPreflight: true }, // Don't send yet, we're bundling
       });
 
-      const signature = bs58.encode(result.signature);
-      console.log(`✅ Atomic transaction sent: ${signature}`);
-      console.log(`   View on Helius Orb: https://orb.helius.dev/tx/${signature}`);
+      console.log('✅ Transaction 1 signed');
 
-      console.log('⏳ Confirming atomic transaction...');
+      // Step 7: Sign TX2 with caller wallet
+      console.log('✍️ Signing transaction 2 (resolve market)...');
+      console.log('🔐 Requesting wallet signature for market resolution...');
+
+      const signedResolveTxResult = await signAndSendTransaction({
+        transaction: resolveTx.serialize(),
+        wallet: solanaWallet as any,
+        chain: 'solana:mainnet',
+        sendOptions: { skipPreflight: true }, // Don't send yet, we're bundling
+      });
+
+      console.log('✅ Transaction 2 signed');
+      console.log('');
+
+      // Step 8: Submit Jito bundle
+      console.log('📤 Submitting bundle to Jito block engine...');
+      const { submitAndConfirmBundle, getJitoExplorerUrl } = await import('@/lib/jito');
+
+      const bundleResult = await submitAndConfirmBundle([
+        VersionedTransaction.deserialize(signedCreateTxResult.transaction),
+        VersionedTransaction.deserialize(signedResolveTxResult.transaction),
+      ]);
+
+      if (bundleResult.status !== 'Landed') {
+        console.error('❌ Bundle failed:', bundleResult.error);
+        console.log(`   Check status: ${getJitoExplorerUrl(bundleResult.bundleId)}`);
+        throw new Error(`Jito bundle ${bundleResult.status}: ${bundleResult.error || 'Unknown error'}`);
+      }
+
+      console.log('✅ Bundle landed successfully!');
+      console.log(`   Bundle ID: ${bundleResult.bundleId}`);
+      console.log(`   Jito Explorer: ${getJitoExplorerUrl(bundleResult.bundleId)}`);
+      console.log('');
+
+      // Step 9: Extract transaction signature (first transaction's signature)
+      const signature = bs58.encode(signedCreateTxResult.signature);
+      console.log(`✅ Token created: ${signature}`);
+
+      // Step 10: Confirm on-chain
+      console.log('⏳ Confirming transactions on-chain...');
       await connection.confirmTransaction(signature, 'confirmed');
-      console.log('✅ Atomic transaction confirmed!');
-      console.log('   • Token created on Pump.fun ✅');
-      console.log('   • Market resolved ✅');
-      console.log('   • Tokens bought with pooled SOL ✅');
+      console.log('✅ Confirmed!');
       console.log('');
 
       // Update database
@@ -549,15 +501,16 @@ export function useResolution() {
 
       console.log('');
       console.log('═══════════════════════════════════════════════════');
-      console.log('🎉 MAINNET ATOMIC TOKEN LAUNCH SUCCESSFUL!');
+      console.log('🎉 JITO BUNDLE TOKEN LAUNCH SUCCESSFUL!');
       console.log('═══════════════════════════════════════════════════');
       console.log(`Token Mint: ${mintKeypair.publicKey.toBase58()}`);
       console.log(`   ↳ Ends with "pnl" (PNL platform branded)`);
+      console.log(`Bundle ID: ${bundleResult.bundleId}`);
       console.log(`Signature: ${signature}`);
       console.log('');
       console.log('🔗 LINKS:');
       console.log(`  • Pump.fun: https://pump.fun/${mintKeypair.publicKey.toBase58()}`);
-      console.log(`  • Helius Orb Token: https://orb.helius.dev/token/${mintKeypair.publicKey.toBase58()}`);
+      console.log(`  • Jito Explorer: ${getJitoExplorerUrl(bundleResult.bundleId)}`);
       console.log(`  • Transaction: https://orb.helius.dev/tx/${signature}`);
       console.log('');
       console.log('✨ TOKEN DISTRIBUTION:');
@@ -565,10 +518,11 @@ export function useResolution() {
       console.log('  • 20% to team (vested: 5% now, 15% locked)');
       console.log('  • 1% to platform');
       console.log('');
-      console.log('⚡ BONDING CURVE ACTIVE:');
-      console.log('  • Token live on Pump.fun with proper metadata');
-      console.log('  • Market PDA bought tokens at optimal price (no front-running)');
-      console.log('  • Will migrate to Raydium at ~$69k market cap');
+      console.log('⚡ EXECUTION METHOD:');
+      console.log('  • 2 transactions bundled atomically via Jito');
+      console.log('  • Bypassed 1232 byte transaction size limit');
+      console.log('  • MEV-protected (no front-running)');
+      console.log('  • Both transactions in same block');
       console.log('═══════════════════════════════════════════════════');
 
       return {
