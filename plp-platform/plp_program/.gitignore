@@ -12,3 +12,8 @@ test-ledger
 id.json
 *keypair*.json
 KEYPAIR_BACKUP.txt
+
+# Recovery/derivation scripts (contain sensitive logic)
+recover-*.js
+derive-*.js
+*-keypair.js
