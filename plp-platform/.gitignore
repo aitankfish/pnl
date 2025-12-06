@@ -61,3 +61,14 @@ scripts/identify-missing-field.ts
 scripts/reverse-hypothesis.ts
 scripts/test-new-market-parsing.ts
 scripts/test-old-market-parsing.ts
+
+# Test scripts with wallets/keypairs (NEVER commit these!)
+scripts/test-jito-bundle.ts
+scripts/test-wallet.json
+scripts/*-wallet*.json
+scripts/*-keypair*.json
+
+# Session notes and planning docs (local only)
+SESSION_NOTES*.md
+JITO_BUNDLING_PLAN.md
+JITO_FRONTEND_CHANGES.md
