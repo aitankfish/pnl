@@ -64,9 +64,16 @@ scripts/test-old-market-parsing.ts
 
 # Test scripts with wallets/keypairs (NEVER commit these!)
 scripts/test-jito-bundle.ts
+scripts/test-pumpfun-launch.ts
 scripts/test-wallet.json
 scripts/*-wallet*.json
 scripts/*-keypair*.json
+
+# Scripts with potential keypair/sensitive data
+scripts/extend-alt.ts
+scripts/create-alt.ts
+scripts/generate-vanity-mint.ts
+scripts/init-treasury*.ts
 
 # Session notes and planning docs (local only)
 SESSION_NOTES*.md
