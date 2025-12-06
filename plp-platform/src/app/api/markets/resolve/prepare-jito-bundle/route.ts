@@ -48,7 +48,7 @@ export async function POST(request: NextRequest) {
       marketAddress,
       tokenMint,
       callerWallet,
-      founder Wallet,
+      founderWallet,
       createInstructionData, // Pump.fun createV2 instruction (from frontend)
       creator,
       network,
