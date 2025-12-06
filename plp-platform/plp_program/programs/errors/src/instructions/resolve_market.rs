@@ -89,25 +89,6 @@ pub struct ResolveMarket<'info> {
     #[account(mut)]
     pub creator_vault: UncheckedAccount<'info>,
 
-    /// Global volume accumulator PDA (Pump.fun)
-    /// Derived from ["global_volume_accumulator"]
-    /// CHECK: Pump.fun program validates this
-    pub global_volume_accumulator: UncheckedAccount<'info>,
-
-    /// User volume accumulator PDA (Pump.fun)
-    /// Derived from ["user_volume_accumulator", user]
-    /// CHECK: Pump.fun program validates this
-    #[account(mut)]
-    pub user_volume_accumulator: UncheckedAccount<'info>,
-
-    /// Fee config PDA (Pump.fun)
-    /// CHECK: Pump.fun program validates this
-    pub fee_config: UncheckedAccount<'info>,
-
-    /// Fee program (Pump.fun)
-    /// CHECK: Pump.fun program validates this
-    pub fee_program: UncheckedAccount<'info>,
-
     /// Anyone can trigger resolution after expiry (permissionless)
     #[account(mut)]
     pub caller: Signer<'info>,
@@ -224,66 +205,6 @@ pub fn handler(ctx: Context<ResolveMarket>) -> Result<()> {
             msg!("   Buying tokens with {} lamports", net_amount_for_token);
 
             // -------------------------
-            // Read REAL bonding curve parameters from Pump.fun Global PDA
-            // -------------------------
-            // Global Account structure (Borsh serialized):
-            // - 0-7: discriminator (8 bytes)
-            // - 8: initialized (1 byte, bool)
-            // - 9-40: authority (32 bytes, Pubkey)
-            // - 41-72: feeRecipient (32 bytes, Pubkey)
-            // - 73-80: initialVirtualTokenReserves (8 bytes, u64)
-            // - 81-88: initialVirtualSolReserves (8 bytes, u64)
-            // - 89-96: initialRealTokenReserves (8 bytes, u64)
-            // - 97-104: tokenTotalSupply (8 bytes, u64)
-            // - 105-112: feeBasisPoints (8 bytes, u64)
-
-            // CRITICAL: Wrap in scope to drop borrow before CPI
-            let tokens_to_buy = {
-                let global_data = ctx.accounts.pump_global.try_borrow_data()?;
-
-                // Read initial bonding curve parameters from Global PDA
-                let initial_virtual_token_reserves = u64::from_le_bytes(
-                    global_data[73..81]
-                        .try_into()
-                        .map_err(|_| ErrorCode::MathError)?
-                ) as u128;
-
-                let initial_virtual_sol_reserves = u64::from_le_bytes(
-                    global_data[81..89]
-                        .try_into()
-                        .map_err(|_| ErrorCode::MathError)?
-                ) as u128;
-
-                let initial_real_token_reserves = u64::from_le_bytes(
-                    global_data[89..97]
-                        .try_into()
-                        .map_err(|_| ErrorCode::MathError)?
-                );
-
-                msg!("   📊 Bonding Curve (from Global PDA):");
-                msg!("      Initial virtual token reserves: {}", initial_virtual_token_reserves);
-                msg!("      Initial virtual SOL reserves: {} lamports", initial_virtual_sol_reserves);
-                msg!("      Initial real token reserves: {} tokens", initial_real_token_reserves);
-
-                // Calculate tokens using constant product formula
-                // tokens_out = (sol_in × virtual_token_reserves) / (virtual_sol_reserves + sol_in)
-                let sol_in = net_amount_for_token as u128;
-                let tokens_calculated = (sol_in * initial_virtual_token_reserves)
-                    / (initial_virtual_sol_reserves + sol_in);
-
-                // Cap at real token reserves (can't buy more than available on new curve)
-                let tokens_to_buy_value = tokens_calculated.min(initial_real_token_reserves as u128) as u64;
-
-                msg!("   💰 Token purchase calculation:");
-                msg!("      SOL to spend: {} lamports", net_amount_for_token);
-                msg!("      Formula result: {} tokens", tokens_calculated);
-                msg!("      Capped at real reserves: {} tokens", tokens_to_buy_value);
-
-                tokens_to_buy_value
-                // global_data borrow is DROPPED here
-            };
-
-            // -------------------------
             // Call pump.fun buy via MANUAL CPI (not using pump-anchor crate)
             // This allows us to pass Token2022 program instead of legacy Token
             // -------------------------
@@ -303,20 +224,22 @@ pub fn handler(ctx: Context<ResolveMarket>) -> Result<()> {
             let buy_discriminator: [u8; 8] = [102, 6, 61, 18, 1, 218, 235, 234];
 
             // Instruction data: [discriminator(8), amount(8), max_sol_cost(8), track_volume(1)]
+            // Amount = SOL to spend (Pump.fun calculates tokens from bonding curve)
+            // Max SOL cost = same as amount (cap spending)
             // track_volume is OptionBool: 1 byte (0x01 = Some(true))
             let mut instruction_data = Vec::with_capacity(25);
             instruction_data.extend_from_slice(&buy_discriminator);
-            instruction_data.extend_from_slice(&tokens_to_buy.to_le_bytes());
-            instruction_data.extend_from_slice(&net_amount_for_token.to_le_bytes());
+            instruction_data.extend_from_slice(&net_amount_for_token.to_le_bytes()); // SOL amount
+            instruction_data.extend_from_slice(&net_amount_for_token.to_le_bytes()); // Max SOL cost
             instruction_data.push(0x01); // track_volume = Some(true)
 
             msg!("   🔧 Buy instruction data:");
             msg!("      Discriminator: {:?}", buy_discriminator);
-            msg!("      Amount: {}", tokens_to_buy);
-            msg!("      Max SOL: {}", net_amount_for_token);
+            msg!("      SOL Amount: {} lamports", net_amount_for_token);
+            msg!("      Max SOL Cost: {} lamports", net_amount_for_token);
             msg!("      Track volume: true");
 
-            // Build accounts in EXACT order from IDL (16 total)
+            // Build accounts in EXACT order from IDL (12 accounts for buy instruction)
             use anchor_lang::solana_program::{instruction::AccountMeta, instruction::Instruction};
             let accounts = vec![
                 // 1. global (readonly)
@@ -343,14 +266,6 @@ pub fn handler(ctx: Context<ResolveMarket>) -> Result<()> {
                 AccountMeta::new_readonly(ctx.accounts.pump_event_authority.key(), false),
                 // 12. program (readonly) - pump program address as account
                 AccountMeta::new_readonly(ctx.accounts.pump_program.key(), false),
-                // 13. global_volume_accumulator (readonly)
-                AccountMeta::new_readonly(ctx.accounts.global_volume_accumulator.key(), false),
-                // 14. user_volume_accumulator (writable)
-                AccountMeta::new(ctx.accounts.user_volume_accumulator.key(), false),
-                // 15. fee_config (readonly)
-                AccountMeta::new_readonly(ctx.accounts.fee_config.key(), false),
-                // 16. fee_program (readonly)
-                AccountMeta::new_readonly(ctx.accounts.fee_program.key(), false),
             ];
 
             msg!("   📋 Buy instruction with {} accounts", accounts.len());
@@ -362,7 +277,7 @@ pub fn handler(ctx: Context<ResolveMarket>) -> Result<()> {
             };
 
             // Invoke with PDA signer (market signs the buy)
-            // IMPORTANT: Pass ALL 16 accounts as AccountInfo references
+            // IMPORTANT: Pass ALL 12 accounts as AccountInfo references in exact order
             anchor_lang::solana_program::program::invoke_signed(
                 &buy_ix,
                 &[
@@ -378,10 +293,6 @@ pub fn handler(ctx: Context<ResolveMarket>) -> Result<()> {
                     ctx.accounts.creator_vault.to_account_info(),
                     ctx.accounts.pump_event_authority.to_account_info(),
                     ctx.accounts.pump_program.to_account_info(),
-                    ctx.accounts.global_volume_accumulator.to_account_info(),
-                    ctx.accounts.user_volume_accumulator.to_account_info(),
-                    ctx.accounts.fee_config.to_account_info(),
-                    ctx.accounts.fee_program.to_account_info(),
                 ],
                 signer_seeds,
             )?;
