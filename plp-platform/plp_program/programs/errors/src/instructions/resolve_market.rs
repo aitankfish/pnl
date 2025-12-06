@@ -248,18 +248,19 @@ pub fn handler(ctx: Context<ResolveMarket>) -> Result<()> {
             // Instruction data: [discriminator(8), amount(8), max_sol_cost(8), track_volume(1)]
             // Amount = SOL to spend (Pump.fun calculates tokens from bonding curve)
             // Max SOL cost = same as amount (cap spending)
-            // track_volume is OptionBool: 1 byte (0x01 = Some(true))
+            // track_volume is OptionBool: 1 byte (0x00 = None, 0x01 = Some(false), 0x02 = Some(true))
+            // Using None to skip volume tracking and reduce required accounts
             let mut instruction_data = Vec::with_capacity(25);
             instruction_data.extend_from_slice(&buy_discriminator);
             instruction_data.extend_from_slice(&net_amount_for_token.to_le_bytes()); // SOL amount
             instruction_data.extend_from_slice(&net_amount_for_token.to_le_bytes()); // Max SOL cost
-            instruction_data.push(0x01); // track_volume = Some(true)
+            instruction_data.push(0x00); // track_volume = None (skip volume tracking to reduce tx size)
 
             msg!("   🔧 Buy instruction data:");
             msg!("      Discriminator: {:?}", buy_discriminator);
             msg!("      SOL Amount: {} lamports", net_amount_for_token);
             msg!("      Max SOL Cost: {} lamports", net_amount_for_token);
-            msg!("      Track volume: true");
+            msg!("      Track volume: None (skipped)");
 
             // Build accounts in EXACT order from IDL (16 accounts for buy instruction)
             use anchor_lang::solana_program::{instruction::AccountMeta, instruction::Instruction};

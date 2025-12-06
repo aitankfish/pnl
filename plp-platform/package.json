@@ -11,7 +11,8 @@
     "start:unified": "NODE_ENV=production NODE_OPTIONS='--no-warnings' tsx server.ts",
     "lint": "eslint",
     "setup-mongodb": "tsx scripts/setup-mongodb.ts",
-    "setup-env-databases": "tsx scripts/setup-env-databases.ts"
+    "setup-env-databases": "tsx scripts/setup-env-databases.ts",
+    "extend-alt": "tsx scripts/extend-alt.ts"
   },
   "dependencies": {
     "@coral-xyz/anchor": "^0.32.1",
