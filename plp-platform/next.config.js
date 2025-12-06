@@ -28,13 +28,16 @@ const nextConfig = {
   // Standalone output for better deployment
   output: 'standalone',
 
+  // Disable minification to avoid unicode issues with Terser
+  swcMinify: false,
+
   // Experimental features for better performance
   experimental: {
     optimizePackageImports: ['@solana/web3.js', 'lucide-react', '@privy-io/react-auth', '@solana/kit'],
   },
 
   // Webpack configuration
-  webpack: (config, { isServer }) => {
+  webpack: (config, { isServer, dev }) => {
     // Don't bundle winston and node-only modules on the client
     if (!isServer) {
       config.resolve.fallback = {
@@ -58,6 +61,12 @@ const nextConfig = {
       config.externals.push({
         winston: 'winston',
       });
+    }
+
+    // Disable minification in production to avoid unicode issues
+    if (!dev) {
+      config.optimization = config.optimization || {};
+      config.optimization.minimize = false;
     }
 
     return config;

@@ -291,7 +291,7 @@ export async function pollBundleStatus(
     const status = await getBundleStatus(bundleId);
 
     if (status === 'Landed') {
-      logger.info('✅ Bundle landed successfully!', { bundleId });
+      logger.info('[SUCCESS] Bundle landed successfully!', { bundleId });
       return {
         bundleId,
         status: 'Landed',
@@ -299,7 +299,7 @@ export async function pollBundleStatus(
     }
 
     if (status === 'Failed') {
-      logger.error('❌ Bundle failed', { bundleId });
+      logger.error('[FAILED] Bundle failed', { bundleId });
       return {
         bundleId,
         status: 'Failed',
@@ -308,7 +308,7 @@ export async function pollBundleStatus(
     }
 
     if (status === 'Invalid') {
-      logger.error('❌ Bundle invalid', { bundleId });
+      logger.error('[INVALID] Bundle invalid', { bundleId });
       return {
         bundleId,
         status: 'Invalid',
@@ -322,7 +322,7 @@ export async function pollBundleStatus(
     await new Promise(resolve => setTimeout(resolve, BUNDLE_POLL_INTERVAL_MS));
   }
 
-  logger.warn('⏱️ Bundle polling timed out', { bundleId });
+  logger.warn('[TIMEOUT] Bundle polling timed out', { bundleId });
   return {
     bundleId,
     status: 'Timeout',

@@ -67,7 +67,7 @@ export async function POST(request: NextRequest) {
 
     const creatorAddress = creator || callerWallet;
 
-    logger.info('🎯 Preparing Jito bundle for token launch + resolution', {
+    logger.info('[JITO] Preparing Jito bundle for token launch + resolution', {
       marketAddress,
       tokenMint,
       callerWallet,
@@ -133,11 +133,11 @@ export async function POST(request: NextRequest) {
       PUMP_FEE_PROGRAM_ID
     );
 
-    logger.info('📋 All accounts derived for Jito bundle');
+    logger.info('[ACCOUNTS] All accounts derived for Jito bundle');
 
-    // ═══════════════════════════════════════════════════════════════
+    // ================================================================
     // TRANSACTION 1: CREATE TOKEN (Pump.fun createV2)
-    // ═══════════════════════════════════════════════════════════════
+    // ================================================================
 
     const { blockhash: blockhash1, lastValidBlockHeight: lastValidBlockHeight1 } =
       await connection.getLatestBlockhash('confirmed');
@@ -159,14 +159,14 @@ export async function POST(request: NextRequest) {
     const createTx = new VersionedTransaction(createMessageV0);
     const serializedCreateTx = Buffer.from(createTx.serialize()).toString('base64');
 
-    logger.info('✅ TX1 (Create Token) prepared', {
+    logger.info('[TX1] Create Token prepared', {
       size: createTx.serialize().length,
       payer: founderPubkey.toBase58(),
     });
 
-    // ═══════════════════════════════════════════════════════════════
+    // ================================================================
     // TRANSACTION 2: RESOLVE MARKET (with Jito tip)
-    // ═══════════════════════════════════════════════════════════════
+    // ================================================================
 
     const { blockhash: blockhash2, lastValidBlockHeight: lastValidBlockHeight2 } =
       await connection.getLatestBlockhash('confirmed');
@@ -250,15 +250,15 @@ export async function POST(request: NextRequest) {
     const resolveTx = new VersionedTransaction(resolveMessageV0);
     const serializedResolveTx = Buffer.from(resolveTx.serialize()).toString('base64');
 
-    logger.info('✅ TX2 (Resolve Market + Jito Tip) prepared', {
+    logger.info('[TX2] Resolve Market + Jito Tip prepared', {
       size: resolveTx.serialize().length,
       payer: callerPubkey.toBase58(),
       jitoTip: MINIMUM_JITO_TIP,
     });
 
-    // ═══════════════════════════════════════════════════════════════
+    // ================================================================
     // RETURN BOTH TRANSACTIONS
-    // ═══════════════════════════════════════════════════════════════
+    // ================================================================
 
     return NextResponse.json({
       success: true,
