@@ -49,9 +49,8 @@ pub struct ResolveMarket<'info> {
     // Pump.fun accounts (for buy CPI when YES wins)
     // -------------------------
 
-    /// Pump.fun global config PDA
+    /// Pump.fun global config PDA (readonly per IDL)
     /// CHECK: Pump.fun program validates this
-    #[account(mut)]
     pub pump_global: UncheckedAccount<'info>,
 
     /// Pump.fun bonding curve PDA for this token

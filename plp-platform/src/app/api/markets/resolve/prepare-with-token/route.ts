@@ -169,7 +169,7 @@ export async function POST(request: NextRequest) {
         // Pump.fun accounts (19 accounts)
         { pubkey: tokenMintPubkey, isSigner: false, isWritable: true },    // token_mint
         { pubkey: marketTokenAccount, isSigner: false, isWritable: true }, // market_token_account
-        { pubkey: pumpPDAs.global, isSigner: false, isWritable: true },    // pump_global
+        { pubkey: pumpPDAs.global, isSigner: false, isWritable: false },   // pump_global (readonly per Pump IDL)
         { pubkey: pumpPDAs.bondingCurve, isSigner: false, isWritable: true }, // bonding_curve
         { pubkey: bondingCurveTokenAccount, isSigner: false, isWritable: true }, // bonding_curve_token_account
         { pubkey: pumpPDAs.global, isSigner: false, isWritable: true },    // pump_fee_recipient (same as global)
