@@ -485,6 +485,12 @@ export function useResolution() {
       // Step 7: Request founder signature for TX1 FIRST (before mint keypair)
       // This is critical: Privy wallet must sign the unsigned transaction
       console.log('✍️ Signing transaction 1 (create token)...');
+
+      // DEBUG: Check unsigned transaction state
+      console.log('🔍 DEBUG: Unsigned TX1 state:');
+      console.log('   Signatures count:', createTx.signatures.length);
+      console.log('   Message signers:', createTx.message.staticAccountKeys.length);
+
       console.log('🔐 Requesting wallet signature for token creation...');
       const signedCreateTxResult = await signTransaction({
         transaction: createTx.serialize(), // Serialize UNSIGNED transaction
@@ -497,9 +503,24 @@ export function useResolution() {
       );
       console.log('✅ Wallet signature added');
 
+      // DEBUG: Check wallet-signed transaction state
+      console.log('🔍 DEBUG: After wallet signing:');
+      console.log('   Signatures count:', signedCreateTx.signatures.length);
+      console.log('   Signature[0]:', signedCreateTx.signatures[0] ? 'present' : 'missing');
+      console.log('   Signature[1]:', signedCreateTx.signatures[1] ? 'present' : 'missing');
+      console.log('   Serialized size:', signedCreateTx.serialize().length);
+
       // Now add mint keypair signature to the wallet-signed transaction
       console.log('✍️ Adding mint keypair signature...');
       signedCreateTx.sign([mintKeypair]);
+
+      // DEBUG: Check fully-signed transaction state
+      console.log('🔍 DEBUG: After mint keypair signing:');
+      console.log('   Signatures count:', signedCreateTx.signatures.length);
+      console.log('   Signature[0]:', signedCreateTx.signatures[0] ? 'present' : 'missing');
+      console.log('   Signature[1]:', signedCreateTx.signatures[1] ? 'present' : 'missing');
+      console.log('   Serialized size:', signedCreateTx.serialize().length);
+
       console.log('✅ Transaction 1 fully signed (wallet + mint keypair)');
 
       // Step 8: Sign TX2 with caller wallet
