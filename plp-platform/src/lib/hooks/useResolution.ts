@@ -344,7 +344,7 @@ export function useResolution() {
         throw new Error(`IPFS upload failed after ${maxRetries} attempts: ${lastError?.message || 'Unknown error'}`);
       }
 
-      // Step 3: Create Pump.fun createV2 instruction using official SDK
+      // Step 3: Get Pump.fun createV2 instruction data
       console.log('🔧 Building Pump.fun createV2 instruction...');
       const connection = await getSolanaConnection();
       const pumpSdk = new PumpSdk(); // SDK now manages connection internally
@@ -363,6 +363,8 @@ export function useResolution() {
       console.log('✅ Pump.fun createV2 instruction built (Token2022 format)');
 
       // Step 4: Prepare Jito bundle (2 separate transactions)
+      // Send only the instruction data buffer (not the full instruction object)
+      // Backend will rebuild with proper PublicKey objects using Pump SDK
       console.log('🔧 Preparing Jito bundle transactions...');
       const prepareResponse = await fetch('/api/markets/resolve/prepare-jito-bundle', {
         method: 'POST',
@@ -372,7 +374,12 @@ export function useResolution() {
           tokenMint: mintKeypair.publicKey.toBase58(),
           callerWallet: primaryWallet!.address,
           founderWallet: primaryWallet!.address,
-          createInstructionData: JSON.stringify(createInstruction),
+          // Send metadata for backend to rebuild instruction
+          pumpMetadata: {
+            name: tokenName,
+            symbol: params.tokenMetadata.symbol,
+            uri: metadataUri,
+          },
           creator: primaryWallet!.address,
           network,
         }),

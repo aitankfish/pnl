@@ -29,6 +29,7 @@ import { derivePumpPDAs, PUMP_PROGRAM_ID } from '@/lib/pumpfun';
 import logger from '@/lib/logger';
 import { getSolanaConnection } from '@/lib/solana';
 import { createJitoTipInstruction, MINIMUM_JITO_TIP } from '@/lib/jito';
+import { PumpSdk } from '@pump-fun/pump-sdk';
 
 // Pump.fun fee program address (from official IDL)
 const PUMP_FEE_PROGRAM_ID = new PublicKey('pfeeUxB6jkeY1Hxd7CsFCAjcbHA9rWtchMGdZ6VojVZ');
@@ -47,17 +48,17 @@ export async function POST(request: NextRequest) {
       tokenMint,
       callerWallet,
       founderWallet,
-      createInstructionData, // Pump.fun createV2 instruction (from frontend)
+      pumpMetadata, // Metadata to rebuild Pump.fun createV2 instruction
       creator,
       network,
     } = body;
 
     // Validate inputs
-    if (!marketAddress || !tokenMint || !callerWallet || !founderWallet || !createInstructionData) {
+    if (!marketAddress || !tokenMint || !callerWallet || !founderWallet || !pumpMetadata) {
       return NextResponse.json(
         {
           success: false,
-          error: 'Missing required fields: marketAddress, tokenMint, callerWallet, founderWallet, createInstructionData',
+          error: 'Missing required fields: marketAddress, tokenMint, callerWallet, founderWallet, pumpMetadata',
         },
         { status: 400 }
       );
@@ -145,8 +146,17 @@ export async function POST(request: NextRequest) {
       units: 500_000,
     });
 
-    // Deserialize the createV2 instruction data from frontend
-    const createIx = JSON.parse(createInstructionData);
+    // Rebuild createV2 instruction using Pump SDK (ensures proper PublicKey objects)
+    const pumpSdk = new PumpSdk();
+    const createIx = await pumpSdk.createV2Instruction({
+      mint: tokenMintPubkey,
+      name: pumpMetadata.name,
+      symbol: pumpMetadata.symbol,
+      uri: pumpMetadata.uri,
+      creator: founderPubkey,
+      user: founderPubkey,
+      mayhemMode: false,
+    });
 
     const createMessageV0 = new TransactionMessage({
       payerKey: founderPubkey,
