@@ -138,6 +138,25 @@ export function parseError(error: unknown): ParsedError {
     }
   }
 
+  // Check for token launch errors
+  if (errorString.includes('Insufficient balance to launch token')) {
+    // Extract the detailed message if available
+    return {
+      title: 'Insufficient Balance',
+      message: errorString,
+      details: 'You need more SOL in your wallet to launch the token.',
+    };
+  }
+
+  // Check for devnet mode error
+  if (errorString.includes('Token launch is not supported on devnet')) {
+    return {
+      title: 'Devnet Not Supported',
+      message: errorString,
+      details: 'Please switch to mainnet to test token creation.',
+    };
+  }
+
   // Check for insufficient funds errors
   if (errorString.includes('insufficient funds') || errorString.includes('Attempt to debit an account but found no record of a prior credit')) {
     return {
