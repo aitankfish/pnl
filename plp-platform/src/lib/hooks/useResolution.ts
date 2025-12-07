@@ -486,11 +486,6 @@ export function useResolution() {
       // This is critical: Privy wallet must sign the unsigned transaction
       console.log('✍️ Signing transaction 1 (create token)...');
 
-      // DEBUG: Check unsigned transaction state
-      console.log('🔍 DEBUG: Unsigned TX1 state:');
-      console.log('   Signatures count:', createTx.signatures.length);
-      console.log('   Message signers:', createTx.message.staticAccountKeys.length);
-
       console.log('🔐 Requesting wallet signature for token creation...');
       const signedCreateTxResult = await signTransaction({
         transaction: createTx.serialize(), // Serialize UNSIGNED transaction
@@ -498,30 +493,94 @@ export function useResolution() {
       });
 
       // Deserialize the wallet-signed transaction
-      const signedCreateTx = VersionedTransaction.deserialize(
+      let signedCreateTx = VersionedTransaction.deserialize(
         signedCreateTxResult.signedTransaction
       );
       console.log('✅ Wallet signature added');
 
-      // DEBUG: Check wallet-signed transaction state
-      console.log('🔍 DEBUG: After wallet signing:');
-      console.log('   Signatures count:', signedCreateTx.signatures.length);
-      console.log('   Signature[0]:', signedCreateTx.signatures[0] ? 'present' : 'missing');
-      console.log('   Signature[1]:', signedCreateTx.signatures[1] ? 'present' : 'missing');
-      console.log('   Serialized size:', signedCreateTx.serialize().length);
+      // Now manually add mint keypair signature to the correct position
+      // Privy wallet incorrectly fills both signature slots, so we need to fix this
+      console.log('✍️ Adding mint keypair signature manually...');
 
-      // Now add mint keypair signature to the wallet-signed transaction
-      console.log('✍️ Adding mint keypair signature...');
-      signedCreateTx.sign([mintKeypair]);
+      try {
+        // Get the message bytes that need to be signed
+        const messageBytes = signedCreateTx.message.serialize();
+        console.log('🔍 Message bytes length:', messageBytes.length);
 
-      // DEBUG: Check fully-signed transaction state
-      console.log('🔍 DEBUG: After mint keypair signing:');
-      console.log('   Signatures count:', signedCreateTx.signatures.length);
-      console.log('   Signature[0]:', signedCreateTx.signatures[0] ? 'present' : 'missing');
-      console.log('   Signature[1]:', signedCreateTx.signatures[1] ? 'present' : 'missing');
-      console.log('   Serialized size:', signedCreateTx.serialize().length);
+        // Sign the message with mint keypair using nacl (same as Solana uses internally)
+        const nacl = await import('tweetnacl');
+        const mintSignature = nacl.default.sign.detached(messageBytes, mintKeypair.secretKey);
+        console.log('✅ Mint signature created:', mintSignature.length, 'bytes');
 
-      console.log('✅ Transaction 1 fully signed (wallet + mint keypair)');
+        // Find which signature position belongs to the mint keypair
+        // The transaction message has an ordered list of signers
+        const { PublicKey: SolanaPublicKey } = await import('@solana/web3.js');
+        const mintPubkey = mintKeypair.publicKey;
+        const walletPubkeyForSigning = new SolanaPublicKey(primaryWallet!.address);
+
+        console.log('🔍 Looking for signer positions in', signedCreateTx.message.staticAccountKeys.length, 'account keys');
+
+        // Check which position each signer is in
+        let mintSignatureIndex = -1;
+        let walletSignatureIndex = -1;
+
+        for (let i = 0; i < signedCreateTx.message.staticAccountKeys.length; i++) {
+          const accountKey = signedCreateTx.message.staticAccountKeys[i];
+          if (accountKey.equals(mintPubkey)) {
+            mintSignatureIndex = i;
+            console.log('   Found mint at position', i);
+          }
+          if (accountKey.equals(walletPubkeyForSigning)) {
+            walletSignatureIndex = i;
+            console.log('   Found wallet at position', i);
+          }
+        }
+
+        console.log('🔍 Signer positions:');
+        console.log('   Wallet position:', walletSignatureIndex);
+        console.log('   Mint position:', mintSignatureIndex);
+        console.log('   Total signatures slots:', signedCreateTx.signatures.length);
+
+        if (mintSignatureIndex === -1) {
+          throw new Error('Mint keypair not found in transaction signers');
+        }
+
+        if (walletSignatureIndex === -1) {
+          throw new Error('Wallet not found in transaction signers');
+        }
+
+        // Create a new signatures array with correct signatures in correct positions
+        const newSignatures = [...signedCreateTx.signatures];
+
+        console.log('🔍 Existing signatures before insertion:');
+        newSignatures.forEach((sig, i) => {
+          console.log(`   Signature[${i}]:`, sig ? `${sig.length} bytes` : 'empty');
+        });
+
+        // The first N signatures correspond to the first N static account keys
+        // where those accounts are signers (writable flag in account keys)
+        if (mintSignatureIndex >= 0 && mintSignatureIndex < newSignatures.length) {
+          newSignatures[mintSignatureIndex] = mintSignature;
+          console.log('✅ Mint signature inserted at position', mintSignatureIndex);
+        } else {
+          throw new Error(`Invalid mint signature position: ${mintSignatureIndex} (max: ${newSignatures.length - 1})`);
+        }
+
+        console.log('🔍 Signatures after insertion:');
+        newSignatures.forEach((sig, i) => {
+          console.log(`   Signature[${i}]:`, sig ? `${sig.length} bytes` : 'empty');
+        });
+
+        // Reconstruct the transaction with correct signatures
+        signedCreateTx = new VersionedTransaction(signedCreateTx.message, newSignatures);
+
+        console.log('✅ Transaction 1 fully signed with correct signature positions');
+        console.log('   Final serialized size:', signedCreateTx.serialize().length, 'bytes');
+
+      } catch (manualSigningError) {
+        console.error('❌ Failed to manually add mint signature:', manualSigningError);
+        throw new Error(`Manual signature insertion failed: ${manualSigningError instanceof Error ? manualSigningError.message : 'Unknown error'}`);
+      }
 
       // Step 8: Sign TX2 with caller wallet
       console.log('✍️ Signing transaction 2 (resolve market)...');
