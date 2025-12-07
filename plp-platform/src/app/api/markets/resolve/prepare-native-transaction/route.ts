@@ -28,7 +28,13 @@ import { getTreasuryPDA, getProgramIdForNetwork } from '@/lib/anchor-program';
 import { derivePumpPDAs, PUMP_PROGRAM_ID } from '@/lib/pumpfun';
 import logger from '@/lib/logger';
 import { getSolanaConnection } from '@/lib/solana';
-import { PumpSdk } from '@pump-fun/pump-sdk';
+import {
+  PumpSdk,
+  GLOBAL_VOLUME_ACCUMULATOR_PDA,
+  PUMP_FEE_CONFIG_PDA,
+  userVolumeAccumulatorPda,
+  creatorVaultPda,
+} from '@pump-fun/pump-sdk';
 
 // Pump.fun fee program address (from official IDL)
 const PUMP_FEE_PROGRAM_ID = new PublicKey('pfeeUxB6jkeY1Hxd7CsFCAjcbHA9rWtchMGdZ6VojVZ');
@@ -110,28 +116,18 @@ export async function POST(request: NextRequest) {
       TOKEN_2022_PROGRAM_ID
     );
 
-    // Derive additional Pump.fun PDAs
-    const [creatorVault] = PublicKey.findProgramAddressSync(
-      [Buffer.from('creator-vault'), creatorPubkey.toBuffer()],
-      PUMP_PROGRAM_ID
-    );
+    // Derive additional Pump.fun PDAs using SDK functions
+    const creatorVault = creatorVaultPda(creatorPubkey);
+    const globalVolumeAccumulator = GLOBAL_VOLUME_ACCUMULATOR_PDA;
+    const userVolumeAccumulator = userVolumeAccumulatorPda(callerPubkey); // User is the caller/buyer
+    const feeConfig = PUMP_FEE_CONFIG_PDA;
 
-    const [globalVolumeAccumulator] = PublicKey.findProgramAddressSync(
-      [Buffer.from('global-volume-accumulator')],
-      PUMP_PROGRAM_ID
-    );
-
-    const [userVolumeAccumulator] = PublicKey.findProgramAddressSync(
-      [Buffer.from('user-volume-accumulator'), marketPubkey.toBuffer()],
-      PUMP_PROGRAM_ID
-    );
-
-    const [feeConfig] = PublicKey.findProgramAddressSync(
-      [Buffer.from('fee-config')],
-      PUMP_FEE_PROGRAM_ID
-    );
-
-    logger.info('[ACCOUNTS] All accounts derived for native transaction');
+    logger.info('[ACCOUNTS] All accounts derived for native transaction', {
+      creatorVault: creatorVault.toBase58(),
+      globalVolumeAccumulator: globalVolumeAccumulator.toBase58(),
+      userVolumeAccumulator: userVolumeAccumulator.toBase58(),
+      feeConfig: feeConfig.toBase58(),
+    });
 
     // ================================================================
     // SINGLE ATOMIC TRANSACTION: CREATE TOKEN + RESOLVE MARKET
