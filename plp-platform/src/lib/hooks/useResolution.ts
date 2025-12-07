@@ -234,6 +234,49 @@ export function useResolution() {
       console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
       console.log('');
 
+      // Check wallet balance before proceeding
+      console.log('💰 Checking wallet balance...');
+      const { Connection, LAMPORTS_PER_SOL, PublicKey: SolanaPublicKey } = await import('@solana/web3.js');
+
+      // Use Helius RPC for balance check (primary endpoint)
+      const rpcUrl = process.env.NEXT_PUBLIC_HELIUS_MAINNET_RPC ||
+                     process.env.NEXT_PUBLIC_QUICKNODE_MAINNET_RPC ||
+                     'https://api.mainnet-beta.solana.com';
+      const balanceConnection = new Connection(rpcUrl);
+
+      const walletPubkey = new SolanaPublicKey(primaryWallet!.address);
+      const balance = await balanceConnection.getBalance(walletPubkey);
+      const balanceSOL = balance / LAMPORTS_PER_SOL;
+
+      // Estimated costs:
+      // TX1 (token creation): ~0.02 SOL (Pump.fun fees + rent)
+      // TX2 (resolution): ~0.003 SOL (ATA creation + Jito tip + fees)
+      const ESTIMATED_COST = 0.025; // SOL
+      const BUFFER = 0.005; // Extra buffer for safety
+      const REQUIRED_BALANCE = ESTIMATED_COST + BUFFER;
+
+      console.log(`   Current balance: ${balanceSOL.toFixed(6)} SOL`);
+      console.log(`   Required minimum: ${REQUIRED_BALANCE.toFixed(6)} SOL`);
+      console.log(`   ↳ TX1 (token creation): ~0.020 SOL`);
+      console.log(`   ↳ TX2 (resolution + Jito): ~0.003 SOL`);
+      console.log(`   ↳ Safety buffer: ~0.005 SOL`);
+
+      if (balanceSOL < REQUIRED_BALANCE) {
+        const shortfall = REQUIRED_BALANCE - balanceSOL;
+        console.error('❌ INSUFFICIENT BALANCE');
+        console.error(`   Need at least ${REQUIRED_BALANCE.toFixed(6)} SOL`);
+        console.error(`   Short by ${shortfall.toFixed(6)} SOL`);
+        console.error('');
+
+        return {
+          success: false,
+          error: `Insufficient balance to launch token. You need at least ${REQUIRED_BALANCE.toFixed(4)} SOL (you have ${balanceSOL.toFixed(4)} SOL). Please add ${shortfall.toFixed(4)} SOL to your wallet and try again.`,
+        };
+      }
+
+      console.log('✅ Sufficient balance confirmed');
+      console.log('');
+
       // Step 1: Generate vanity mint keypair (ending with "pnl")
       console.log('🎯 Generating vanity token address (ending with "pnl")...');
       const mintKeypair = generateVanityKeypair({
