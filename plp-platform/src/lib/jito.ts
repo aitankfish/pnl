@@ -55,7 +55,7 @@ export interface JitoBundleResult {
 
 // Hardcoded Jito tip accounts (publicly known, static addresses)
 // Source: https://jito-labs.gitbook.io/mev/searcher-resources/bundles
-const JITO_TIP_ACCOUNTS = [
+const JITO_TIP_ACCOUNT_STRINGS = [
   '96gYZGLnJYVFmbjzopPSU6QiEV5fGqZNyN9nmNhvrZU5',
   'HFqU5x63VTqvQss8hp11i4wVV8bD44PvwucfZ2bU7gRe',
   'Cw8CFyM9FkoMi7K7Crf6HNQqf4uEMzpKw6QNghXLvLkY',
@@ -64,7 +64,12 @@ const JITO_TIP_ACCOUNTS = [
   'ADuUkR4vqLUMWXxW9gh6D6L8pMSawimctcNZ5pGwDcEt',
   'DttWaMuVvTiduZRnguLF7jNxTgiMBZ1hyAumKUiL2KRL',
   '3AVi9Tg9Uo68tJfuvoKvqKNWKkC5wPdSSdeBnizKZ6jT',
-].map(addr => new PublicKey(addr));
+];
+
+// Convert to PublicKey objects lazily to avoid module initialization issues
+function getHardcodedTipAccounts(): PublicKey[] {
+  return JITO_TIP_ACCOUNT_STRINGS.map(addr => new PublicKey(addr));
+}
 
 /**
  * Fetch Jito tip accounts (with hardcoded fallback)
@@ -91,14 +96,14 @@ export async function getJitoTipAccounts(): Promise<PublicKey[]> {
 
     if (!response.ok) {
       logger.warn(`Jito API returned ${response.status}, using hardcoded tip accounts`);
-      return JITO_TIP_ACCOUNTS;
+      return getHardcodedTipAccounts();
     }
 
     const data = await response.json();
 
     if (data.error) {
       logger.warn(`Jito RPC error: ${data.error.message}, using hardcoded tip accounts`);
-      return JITO_TIP_ACCOUNTS;
+      return getHardcodedTipAccounts();
     }
 
     const tipAccounts = data.result.map((addr: string) => new PublicKey(addr));
@@ -110,7 +115,7 @@ export async function getJitoTipAccounts(): Promise<PublicKey[]> {
     return tipAccounts;
   } catch (error) {
     logger.warn('Failed to fetch Jito tip accounts, using hardcoded fallback', { error });
-    return JITO_TIP_ACCOUNTS;
+    return getHardcodedTipAccounts();
   }
 }
 
@@ -135,6 +140,15 @@ export async function createJitoTipInstruction(
 
   const tipAccounts = await getJitoTipAccounts();
   const randomTipAccount = tipAccounts[Math.floor(Math.random() * tipAccounts.length)];
+
+  // Validate that we actually got a PublicKey object
+  if (!randomTipAccount || typeof randomTipAccount === 'string') {
+    logger.error('Invalid tip account - expected PublicKey, got string or undefined', {
+      type: typeof randomTipAccount,
+      value: randomTipAccount,
+    });
+    throw new Error('Failed to get valid Jito tip account');
+  }
 
   logger.info('Creating Jito tip instruction', {
     from: fromPubkey.toBase58(),
