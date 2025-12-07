@@ -433,27 +433,33 @@ export function useResolution() {
       }
 
       // Request founder signature for TX1 (create token)
+      // Use signTransaction (NOT signAndSendTransaction) to avoid sending immediately
       console.log('🔐 Requesting wallet signature for token creation...');
-      const signedCreateTxResult = await signAndSendTransaction({
+      const signedCreateTxResult = await signTransaction({
         transaction: createTx.serialize(),
         wallet: solanaWallet as any,
         chain: 'solana:mainnet',
-        sendOptions: { skipPreflight: true }, // Don't send yet, we're bundling
       });
 
+      // signTransaction returns SignTransactionOutput with signedTransaction field
+      const signedCreateTx = VersionedTransaction.deserialize(
+        new Uint8Array((signedCreateTxResult as any).signedTransaction || signedCreateTxResult)
+      );
       console.log('✅ Transaction 1 signed');
 
       // Step 7: Sign TX2 with caller wallet
       console.log('✍️ Signing transaction 2 (resolve market)...');
       console.log('🔐 Requesting wallet signature for market resolution...');
 
-      const signedResolveTxResult = await signAndSendTransaction({
+      const signedResolveTxResult = await signTransaction({
         transaction: resolveTx.serialize(),
         wallet: solanaWallet as any,
         chain: 'solana:mainnet',
-        sendOptions: { skipPreflight: true }, // Don't send yet, we're bundling
       });
 
+      const signedResolveTx = VersionedTransaction.deserialize(
+        new Uint8Array((signedResolveTxResult as any).signedTransaction || signedResolveTxResult)
+      );
       console.log('✅ Transaction 2 signed');
       console.log('');
 
@@ -462,8 +468,8 @@ export function useResolution() {
       const { submitAndConfirmBundle, getJitoExplorerUrl } = await import('@/lib/jito');
 
       const bundleResult = await submitAndConfirmBundle([
-        VersionedTransaction.deserialize(signedCreateTxResult.transaction),
-        VersionedTransaction.deserialize(signedResolveTxResult.transaction),
+        signedCreateTx,
+        signedResolveTx,
       ]);
 
       if (bundleResult.status !== 'Landed') {
@@ -478,7 +484,7 @@ export function useResolution() {
       console.log('');
 
       // Step 9: Extract transaction signature (first transaction's signature)
-      const signature = bs58.encode(signedCreateTxResult.signature);
+      const signature = bs58.encode(signedCreateTx.signatures[0]);
       console.log(`✅ Token created: ${signature}`);
 
       // Step 10: Confirm on-chain
