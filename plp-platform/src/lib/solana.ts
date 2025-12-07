@@ -29,13 +29,13 @@ const RPC_ENDPOINTS: Record<string, string[]> = {
   ].filter(Boolean) as string[],
 
   'mainnet-beta': [
-    // Primary: QuickNode RPC (premium for Jito bundling)
-    process.env.NEXT_PUBLIC_QUICKNODE_MAINNET_RPC,
-    // Fallback 1: Helius RPC
+    // Primary: Helius RPC (best performance)
     process.env.NEXT_PUBLIC_HELIUS_MAINNET_RPC,
-    // Fallback 2: Official Solana RPC
+    // Fallback 1: QuickNode RPC (premium backup)
+    process.env.NEXT_PUBLIC_QUICKNODE_MAINNET_RPC,
+    // Fallback 2: Official Solana RPC (free)
     'https://api.mainnet-beta.solana.com',
-    // Fallback 3: Public RPC endpoints
+    // Fallback 3: Public RPC endpoints (free)
     'https://rpc.ankr.com/solana',
     'https://solana-api.projectserum.com',
   ].filter(Boolean) as string[],
