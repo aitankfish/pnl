@@ -12,6 +12,7 @@
     "lint": "eslint",
     "setup-mongodb": "tsx scripts/setup-mongodb.ts",
     "setup-env-databases": "tsx scripts/setup-env-databases.ts",
+    "verify-alt": "tsx scripts/verify-and-update-alt.ts",
     "extend-alt": "tsx scripts/extend-alt.ts"
   },
   "dependencies": {

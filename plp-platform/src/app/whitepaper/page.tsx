@@ -219,20 +219,14 @@ export default function WhitepaperPage() {
                       </div>
                       <p className="text-center text-yellow-300 text-[10px] mb-1">If YES (Atomic)</p>
                       <div className="bg-yellow-900/20 rounded px-2 py-1 border border-yellow-500/40 mb-1">
-                        <p className="font-semibold text-yellow-400 text-center text-[10px]">Jito Bundle</p>
+                        <p className="font-semibold text-yellow-400 text-center text-[10px]">Native TX + ALT</p>
                       </div>
-                      <div className="grid grid-cols-2 gap-1.5">
-                        <div className="bg-gray-800/60 rounded px-2 py-1 border border-yellow-500/30">
-                          <p className="font-semibold text-white text-[10px]">TX1</p>
-                          <p className="text-gray-300 text-[10px]">• Pump.fun</p>
-                          <p className="text-gray-300 text-[10px]">• PDA owns</p>
-                        </div>
-                        <div className="bg-gray-800/60 rounded px-2 py-1 border border-yellow-500/30">
-                          <p className="font-semibold text-white text-[10px]">TX2</p>
-                          <p className="text-gray-300 text-[10px]"><span className="text-green-400">79% YES</span></p>
-                          <p className="text-gray-300 text-[10px]"><span className="text-blue-400">20% Team</span></p>
-                          <p className="text-gray-300 text-[10px]"><span className="text-purple-400">1% Plat</span></p>
-                        </div>
+                      <div className="bg-gray-800/60 rounded px-2 py-1 border border-yellow-500/30">
+                        <p className="font-semibold text-white text-[10px] mb-1">Single Atomic TX</p>
+                        <p className="text-gray-300 text-[10px]">• Pump.fun create</p>
+                        <p className="text-gray-300 text-[10px]">• Create ATA</p>
+                        <p className="text-gray-300 text-[10px]">• Resolve market</p>
+                        <p className="text-gray-300 text-[10px] mt-1"><span className="text-green-400">79% YES</span> <span className="text-blue-400">20% Team</span> <span className="text-purple-400">1% Plat</span></p>
                       </div>
                     </div>
                     <div className="absolute -right-1 top-1/2 transform -translate-y-1/2 text-orange-400 text-xl z-10">→</div>
@@ -324,7 +318,7 @@ export default function WhitepaperPage() {
 
               <div className="bg-gradient-to-br from-yellow-500/10 to-orange-500/10 backdrop-blur-xl rounded-lg p-6 border border-yellow-400/30">
                 <h3 className="text-xl font-semibold text-yellow-400 mb-3">Phase 4: Token Launch (If YES Wins)</h3>
-                <p className="text-gray-300 mb-3">Automated, atomic token creation via Jito bundling:</p>
+                <p className="text-gray-300 mb-3">Automated, atomic token creation via native Solana transaction with Address Lookup Tables:</p>
                 <div className="bg-gradient-to-br from-cyan-500/10 to-blue-500/10 backdrop-blur-xl rounded p-4 mb-3 border border-cyan-400/30">
                   <p className="text-white font-semibold mb-2">Token Distribution:</p>
                   <ul className="text-gray-300 space-y-1">
@@ -548,7 +542,7 @@ export default function WhitepaperPage() {
                   <ul className="text-gray-300 space-y-1 ml-4">
                     <li>• Helius RPC (primary)</li>
                     <li>• QuickNode (fallback)</li>
-                    <li>• Jito bundling (atomic execution)</li>
+                    <li>• Address Lookup Tables (transaction compression)</li>
                   </ul>
                 </div>
 

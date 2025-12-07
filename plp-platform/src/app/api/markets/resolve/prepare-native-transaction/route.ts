@@ -1,11 +1,11 @@
 /**
- * API endpoint for preparing market resolution with Jito bundling
+ * API endpoint for preparing market resolution with native Solana transactions
  *
- * Returns TWO separate transactions that will be bundled atomically via Jito:
- * 1. Create token transaction (signed by founder + mint keypair)
- * 2. Resolve market transaction (signed by caller, includes Jito tip)
+ * Returns a SINGLE atomic transaction with both instructions:
+ * 1. Create token (Pump.fun createV2)
+ * 2. Create ATA + Resolve market (with Pump.fun buy CPI)
  *
- * This approach bypasses the 1232 byte transaction limit while maintaining atomicity.
+ * Uses Address Lookup Tables (ALT) to compress transaction size below 1232 byte limit.
  */
 
 import { NextRequest, NextResponse } from 'next/server';
@@ -28,7 +28,6 @@ import { getTreasuryPDA, getProgramIdForNetwork } from '@/lib/anchor-program';
 import { derivePumpPDAs, PUMP_PROGRAM_ID } from '@/lib/pumpfun';
 import logger from '@/lib/logger';
 import { getSolanaConnection } from '@/lib/solana';
-import { createJitoTipInstruction, MINIMUM_JITO_TIP } from '@/lib/jito';
 import { PumpSdk } from '@pump-fun/pump-sdk';
 
 // Pump.fun fee program address (from official IDL)
@@ -37,7 +36,7 @@ const PUMP_FEE_PROGRAM_ID = new PublicKey('pfeeUxB6jkeY1Hxd7CsFCAjcbHA9rWtchMGdZ
 // Pump.fun fee recipient address (hardcoded)
 const PUMP_FEE_RECIPIENT = new PublicKey('CebN5WGQ4jvEPvsVU4EoHEpgzq1VV7AbicfhtW4xC9iM');
 
-// Address Lookup Table (mainnet) - contains frequently-used program accounts
+// Address Lookup Table (mainnet) - now contains all required accounts
 const ALT_ADDRESS = new PublicKey('hs9SCzyzTgqURSxLm4p3gTtLRUkmL54BWQrtYFn9JeS');
 
 export async function POST(request: NextRequest) {
@@ -66,7 +65,7 @@ export async function POST(request: NextRequest) {
 
     const creatorAddress = creator || callerWallet;
 
-    logger.info('[JITO] Preparing Jito bundle for token launch + resolution', {
+    logger.info('[NATIVE] Preparing native atomic transaction for token launch + resolution', {
       marketAddress,
       tokenMint,
       callerWallet,
@@ -132,23 +131,28 @@ export async function POST(request: NextRequest) {
       PUMP_FEE_PROGRAM_ID
     );
 
-    logger.info('[ACCOUNTS] All accounts derived for Jito bundle');
+    logger.info('[ACCOUNTS] All accounts derived for native transaction');
 
     // ================================================================
-    // TRANSACTION 1: CREATE TOKEN (Pump.fun createV2)
+    // SINGLE ATOMIC TRANSACTION: CREATE TOKEN + RESOLVE MARKET
     // ================================================================
 
-    const { blockhash: blockhash1, lastValidBlockHeight: lastValidBlockHeight1 } =
-      await connection.getLatestBlockhash('confirmed');
+    const { blockhash, lastValidBlockHeight } = await connection.getLatestBlockhash('confirmed');
 
-    // Compute budget for createV2 (500k CU should be enough)
-    const computeBudget1 = ComputeBudgetProgram.setComputeUnitLimit({
-      units: 500_000,
+    // Fetch Address Lookup Table
+    const lookupTableAccount = await connection.getAddressLookupTable(ALT_ADDRESS);
+    if (!lookupTableAccount.value) {
+      throw new Error('Address Lookup Table not found');
+    }
+
+    // Instruction 1: Compute budget (1M CU for both operations)
+    const computeBudgetIx = ComputeBudgetProgram.setComputeUnitLimit({
+      units: 1_000_000,
     });
 
-    // Rebuild createV2 instruction using Pump SDK (ensures proper PublicKey objects)
+    // Instruction 2: Create token (Pump.fun createV2)
     const pumpSdk = new PumpSdk();
-    const createIx = await pumpSdk.createV2Instruction({
+    const createTokenIx = await pumpSdk.createV2Instruction({
       mint: tokenMintPubkey,
       name: pumpMetadata.name,
       symbol: pumpMetadata.symbol,
@@ -158,42 +162,16 @@ export async function POST(request: NextRequest) {
       mayhemMode: false,
     });
 
-    const createMessageV0 = new TransactionMessage({
-      payerKey: founderPubkey,
-      recentBlockhash: blockhash1,
-      instructions: [computeBudget1, createIx],
-    }).compileToV0Message();
-
-    const createTx = new VersionedTransaction(createMessageV0);
-    const serializedCreateTx = Buffer.from(createTx.serialize()).toString('base64');
-
-    logger.info('[TX1] Create Token prepared', {
-      size: createTx.serialize().length,
-      payer: founderPubkey.toBase58(),
-    });
-
-    // ================================================================
-    // TRANSACTION 2: RESOLVE MARKET (with Jito tip)
-    // ================================================================
-
-    const { blockhash: blockhash2, lastValidBlockHeight: lastValidBlockHeight2 } =
-      await connection.getLatestBlockhash('confirmed');
-
-    // Compute budget for resolve (800k CU for CPI + ATA creation)
-    const computeBudget2 = ComputeBudgetProgram.setComputeUnitLimit({
-      units: 800_000,
-    });
-
-    // Create market's ATA instruction
+    // Instruction 3: Create market's ATA
     const createATAIx = createAssociatedTokenAccountInstruction(
-      callerPubkey,
+      founderPubkey, // Founder pays (caller = founder for YES wins)
       marketTokenAccount,
       marketPubkey,
       tokenMintPubkey,
       TOKEN_2022_PROGRAM_ID
     );
 
-    // Build resolve_market instruction
+    // Instruction 4: Resolve market (includes buy() CPI)
     const crypto = require('crypto');
     const discriminator = crypto
       .createHash('sha256')
@@ -205,94 +183,111 @@ export async function POST(request: NextRequest) {
     discriminator.copy(data, 0);
 
     const { TransactionInstruction } = await import('@solana/web3.js');
-    const resolveIx = new TransactionInstruction({
+    const resolveMarketIx = new TransactionInstruction({
       keys: [
-        // Core market accounts (2)
+        // MUST match ResolveMarket struct order in Rust program!
+        // 1. market
         { pubkey: marketPubkey, isSigner: false, isWritable: true },
+        // 2. treasury
         { pubkey: treasuryPda, isSigner: false, isWritable: true },
-
-        // Pump.fun buy() CPI accounts - EXACT order per official IDL (16 accounts)
-        { pubkey: pumpPDAs.global, isSigner: false, isWritable: false },
-        { pubkey: PUMP_FEE_RECIPIENT, isSigner: false, isWritable: true },
+        // 3. token_mint
         { pubkey: tokenMintPubkey, isSigner: false, isWritable: true },
-        { pubkey: pumpPDAs.bondingCurve, isSigner: false, isWritable: true },
-        { pubkey: bondingCurveTokenAccount, isSigner: false, isWritable: true },
+        // 4. market_token_account
         { pubkey: marketTokenAccount, isSigner: false, isWritable: true },
-        { pubkey: marketPubkey, isSigner: true, isWritable: true },
-        { pubkey: SystemProgram.programId, isSigner: false, isWritable: false },
-        { pubkey: TOKEN_PROGRAM_ID, isSigner: false, isWritable: false },
-        { pubkey: creatorVault, isSigner: false, isWritable: true },
+        // 5. pump_global
+        { pubkey: pumpPDAs.global, isSigner: false, isWritable: false },
+        // 6. bonding_curve
+        { pubkey: pumpPDAs.bondingCurve, isSigner: false, isWritable: true },
+        // 7. bonding_curve_token_account
+        { pubkey: bondingCurveTokenAccount, isSigner: false, isWritable: true },
+        // 8. pump_fee_recipient
+        { pubkey: PUMP_FEE_RECIPIENT, isSigner: false, isWritable: true },
+        // 9. pump_event_authority
         { pubkey: pumpPDAs.eventAuthority, isSigner: false, isWritable: false },
+        // 10. pump_program
         { pubkey: PUMP_PROGRAM_ID, isSigner: false, isWritable: false },
-        { pubkey: globalVolumeAccumulator, isSigner: false, isWritable: true },
-        { pubkey: userVolumeAccumulator, isSigner: false, isWritable: true },
-        { pubkey: feeConfig, isSigner: false, isWritable: false },
-        { pubkey: PUMP_FEE_PROGRAM_ID, isSigner: false, isWritable: false },
-
-        // Additional program accounts (5)
-        { pubkey: callerPubkey, isSigner: true, isWritable: true },
+        // 11. creator
         { pubkey: creatorPubkey, isSigner: false, isWritable: false },
+        // 12. creator_vault
+        { pubkey: creatorVault, isSigner: false, isWritable: true },
+        // 13. global_volume_accumulator
+        { pubkey: globalVolumeAccumulator, isSigner: false, isWritable: true },
+        // 14. user_volume_accumulator
+        { pubkey: userVolumeAccumulator, isSigner: false, isWritable: true },
+        // 15. fee_config
+        { pubkey: feeConfig, isSigner: false, isWritable: false },
+        // 16. fee_program
+        { pubkey: PUMP_FEE_PROGRAM_ID, isSigner: false, isWritable: false },
+        // 17. caller (signer)
+        { pubkey: callerPubkey, isSigner: true, isWritable: true },
+        // 18. system_program
+        { pubkey: SystemProgram.programId, isSigner: false, isWritable: false },
+        // 19. token_program
+        { pubkey: TOKEN_PROGRAM_ID, isSigner: false, isWritable: false },
+        // 20. token_2022_program
         { pubkey: TOKEN_2022_PROGRAM_ID, isSigner: false, isWritable: false },
+        // 21. associated_token_program
         { pubkey: ASSOCIATED_TOKEN_PROGRAM_ID, isSigner: false, isWritable: false },
+        // 22. rent
         { pubkey: SYSVAR_RENT_PUBKEY, isSigner: false, isWritable: false },
       ],
       programId: programId,
       data,
     });
 
-    // Create Jito tip instruction (MUST BE LAST!)
-    const jitoTipIx = await createJitoTipInstruction(callerPubkey, MINIMUM_JITO_TIP);
-
-    // Fetch Address Lookup Table
-    const lookupTableAccount = await connection.getAddressLookupTable(ALT_ADDRESS);
-    if (!lookupTableAccount.value) {
-      throw new Error('Address Lookup Table not found');
-    }
-
-    const resolveMessageV0 = new TransactionMessage({
-      payerKey: callerPubkey,
-      recentBlockhash: blockhash2,
-      instructions: [computeBudget2, createATAIx, resolveIx, jitoTipIx], // Tip LAST!
+    // Build single atomic transaction with ALT compression
+    const message = new TransactionMessage({
+      payerKey: founderPubkey, // Founder pays for everything
+      recentBlockhash: blockhash,
+      instructions: [computeBudgetIx, createTokenIx, createATAIx, resolveMarketIx],
     }).compileToV0Message([lookupTableAccount.value]);
 
-    const resolveTx = new VersionedTransaction(resolveMessageV0);
-    const serializedResolveTx = Buffer.from(resolveTx.serialize()).toString('base64');
+    const transaction = new VersionedTransaction(message);
+    const serializedTx = Buffer.from(transaction.serialize()).toString('base64');
 
-    logger.info('[TX2] Resolve Market + Jito Tip prepared', {
-      size: resolveTx.serialize().length,
-      payer: callerPubkey.toBase58(),
-      jitoTip: MINIMUM_JITO_TIP,
+    const txSize = transaction.serialize().length;
+    logger.info('[NATIVE] Atomic transaction prepared', {
+      size: txSize,
+      sizeLimit: 1232,
+      underLimit: txSize < 1232,
+      payer: founderPubkey.toBase58(),
+      instructions: 4,
     });
 
+    if (txSize >= 1232) {
+      logger.error('[NATIVE] Transaction exceeds size limit!', {
+        size: txSize,
+        limit: 1232,
+        overflow: txSize - 1232,
+      });
+      throw new Error(`Transaction too large: ${txSize} bytes (limit: 1232)`);
+    }
+
     // ================================================================
-    // RETURN BOTH TRANSACTIONS
+    // RETURN UNSIGNED TRANSACTION
     // ================================================================
 
     return NextResponse.json({
       success: true,
       data: {
-        // Transaction 1: Create token
-        createTransaction: serializedCreateTx,
-        createSigners: ['founder', 'mint'], // Frontend needs to sign with both
-        createLastValidBlockHeight: lastValidBlockHeight1,
+        // Single atomic transaction
+        transaction: serializedTx,
+        signers: ['founder', 'mint', 'caller'], // All required signers
+        lastValidBlockHeight,
 
-        // Transaction 2: Resolve market
-        resolveTransaction: serializedResolveTx,
-        resolveSigners: ['caller'],
-        resolveLastValidBlockHeight: lastValidBlockHeight2,
+        // Transaction metadata
+        size: txSize,
+        sizeLimit: 1232,
+        accountsCompressed: lookupTableAccount.value.state.addresses.length,
 
-        // Jito info
-        jitoTipAmount: MINIMUM_JITO_TIP,
-        jitoTipLamports: MINIMUM_JITO_TIP,
-
-        // Metadata
+        // Account info
         treasuryPda: treasuryPda.toBase58(),
         tokenMint: tokenMintPubkey.toBase58(),
         marketTokenAccount: marketTokenAccount.toBase58(),
       },
     });
   } catch (error) {
-    logger.error('Failed to prepare Jito bundle:', {
+    logger.error('Failed to prepare native transaction:', {
       error: error instanceof Error ? error.message : String(error),
     });
 
@@ -305,7 +300,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json(
       {
         success: false,
-        error: 'Failed to prepare Jito bundle',
+        error: 'Failed to prepare native transaction',
         details: error instanceof Error ? error.message : 'Unknown error',
         stack: error instanceof Error ? error.stack : undefined,
       },
