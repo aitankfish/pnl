@@ -119,7 +119,8 @@ export async function POST(request: NextRequest) {
     // Derive additional Pump.fun PDAs using SDK functions
     const creatorVault = creatorVaultPda(creatorPubkey);
     const globalVolumeAccumulator = GLOBAL_VOLUME_ACCUMULATOR_PDA;
-    const userVolumeAccumulator = userVolumeAccumulatorPda(callerPubkey); // User is the caller/buyer
+    // CRITICAL: In the CPI context, "user" is the MARKET (receives tokens), not caller!
+    const userVolumeAccumulator = userVolumeAccumulatorPda(marketPubkey);
     const feeConfig = PUMP_FEE_CONFIG_PDA;
 
     logger.info('[ACCOUNTS] All accounts derived for native transaction', {
