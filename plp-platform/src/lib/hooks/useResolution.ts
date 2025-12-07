@@ -466,12 +466,7 @@ export function useResolution() {
       console.log(`   TX2 size: ${resolveTxBuffer.length} bytes (resolve market + tip)`);
       console.log('');
 
-      // Step 6: Sign TX1 with mint keypair first
-      console.log('✍️ Signing transaction 1 (create token)...');
-      createTx.sign([mintKeypair]);
-      console.log('✅ Partially signed with mint keypair');
-
-      // Get wallet for signing
+      // Step 6: Get wallet for signing first (before any partial signing)
       let solanaWallet;
       if (wallets && wallets.length > 0) {
         console.log('Using external Solana wallet');
@@ -487,22 +482,28 @@ export function useResolution() {
         throw new Error('No Solana wallet found');
       }
 
-      // Request founder signature for TX1 (create token)
-      // Use signTransaction (NOT signAndSendTransaction) to avoid sending immediately
+      // Step 7: Request founder signature for TX1 FIRST (before mint keypair)
+      // This is critical: Privy wallet must sign the unsigned transaction
+      console.log('✍️ Signing transaction 1 (create token)...');
       console.log('🔐 Requesting wallet signature for token creation...');
       const signedCreateTxResult = await signTransaction({
-        transaction: createTx.serialize(),
+        transaction: createTx.serialize(), // Serialize UNSIGNED transaction
         wallet: solanaWallet as any,
         chain: 'solana:mainnet',
       });
 
-      // signTransaction returns SignTransactionOutput with signedTransaction field
+      // Deserialize the wallet-signed transaction
       const signedCreateTx = VersionedTransaction.deserialize(
         new Uint8Array((signedCreateTxResult as any).signedTransaction || signedCreateTxResult)
       );
-      console.log('✅ Transaction 1 signed');
+      console.log('✅ Wallet signature added');
 
-      // Step 7: Sign TX2 with caller wallet
+      // Now add mint keypair signature to the wallet-signed transaction
+      console.log('✍️ Adding mint keypair signature...');
+      signedCreateTx.sign([mintKeypair]);
+      console.log('✅ Transaction 1 fully signed (wallet + mint keypair)');
+
+      // Step 8: Sign TX2 with caller wallet
       console.log('✍️ Signing transaction 2 (resolve market)...');
       console.log('🔐 Requesting wallet signature for market resolution...');
 
@@ -518,7 +519,7 @@ export function useResolution() {
       console.log('✅ Transaction 2 signed');
       console.log('');
 
-      // Step 8: Submit Jito bundle
+      // Step 9: Submit Jito bundle
       console.log('📤 Submitting bundle to Jito block engine...');
       const { submitAndConfirmBundle, getJitoExplorerUrl } = await import('@/lib/jito');
 
@@ -538,11 +539,11 @@ export function useResolution() {
       console.log(`   Jito Explorer: ${getJitoExplorerUrl(bundleResult.bundleId)}`);
       console.log('');
 
-      // Step 9: Extract transaction signature (first transaction's signature)
+      // Step 10: Extract transaction signature (first transaction's signature)
       const signature = bs58.encode(signedCreateTx.signatures[0]);
       console.log(`✅ Token created: ${signature}`);
 
-      // Step 10: Confirm on-chain
+      // Step 11: Confirm on-chain
       console.log('⏳ Confirming transactions on-chain...');
       await connection.confirmTransaction(signature, 'confirmed');
       console.log('✅ Confirmed!');
