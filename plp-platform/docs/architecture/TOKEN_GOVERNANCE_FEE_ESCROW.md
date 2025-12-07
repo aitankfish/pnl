@@ -310,36 +310,228 @@ Example:
 - Alice has 10% voting power
 ```
 
-### Outcome Scenarios
+### Evidence-Based Governance Criteria
 
-#### Scenario A: Legitimate Project ✅
+**CRITICAL DESIGN PRINCIPLE**: Governance votes must be based on **objective deliverables**, not token price performance.
+
+#### The Problem: Price ≠ Scam
+
+```
+Bad Scenario (unfair to founders):
+├── Token launches at $0.10
+├── Founder works hard, ships product
+├── Bear market hits, token drops to $0.01 (90% down)
+├── Token holders vote "scam" just because price dropped
+└── Founder loses fees despite delivering on promises
+```
+
+This would be **completely unfair** and discourage legitimate founders from using the platform.
+
+#### The Solution: Objective Evaluation Criteria
+
+Governance votes should evaluate **what founder delivered**, not what the market did.
+
+**Objective Metrics for "Release to Founder" Vote**:
+```
+✅ Did founder ship the product? (check website/app live)
+✅ Did they deliver promised features? (roadmap vs reality)
+✅ Did they maintain communication? (Discord/Twitter active)
+✅ Is there GitHub activity? (code commits, development)
+✅ Did team hold tokens? (or dump immediately?)
+✅ Were marketing claims accurate? (vs delivered reality)
+```
+
+**Objective Metrics for "Flag as Scam" Vote**:
+```
+❌ Founder disappeared (no communication for 30+ days)
+❌ No product shipped (empty GitHub, dead website)
+❌ False advertising (promised X, delivered nothing)
+❌ Team rugpulled (dumped all tokens immediately)
+❌ Abandoned project (no updates, no progress)
+```
+
+**NOT Valid Criteria**:
+```
+🚫 "Token price is down" - NOT evidence of scam
+🚫 "I lost money" - Market risk, not scam indicator
+🚫 "Token didn't moon" - Unrealistic expectations
+🚫 "Bear market" - External market conditions
+```
+
+#### Evidence Requirements
+
+When voting "Flag as Scam", voters must provide **on-chain evidence**:
+
+```rust
+pub enum ScamReason {
+    FounderDisappeared,      // No communication for 30+ days
+    NoProductShipped,        // Nothing built (empty GitHub)
+    FalseAdvertising,        // Promised features never delivered
+    TeamRugpulled,          // Team dumped all tokens
+    AbandonedProject,       // No development for 60+ days
+}
+
+pub struct ScamEvidence {
+    pub evidence_url: String,        // Link to proof (archive.org, GitHub, etc.)
+    pub reason: ScamReason,          // Specific scam type
+    pub description: String,         // Detailed explanation
+    pub submitted_by: Pubkey,        // Who submitted evidence
+    pub timestamp: i64,              // When submitted
+}
+
+pub fn vote_on_fee_release(
+    ctx: Context<VoteOnFeeRelease>,
+    vote_type: FeeGovernanceVote,
+    evidence: Option<ScamEvidence>,  // Required if voting "Scam"
+) -> Result<()> {
+    // If voting to flag as scam, must provide evidence
+    if vote_type == FeeGovernanceVote::FlagAsScam {
+        require!(
+            evidence.is_some(),
+            ErrorCode::ScamEvidenceRequired
+        );
+    }
+
+    // ... rest of voting logic
+}
+```
+
+#### Voting Thresholds
+
+**Different thresholds for different outcomes** (prevents abuse):
+
+```
+Vote to Release Fees (Founder wins):
+├── Threshold: Simple majority (>50% of token votes)
+├── Evidence: Not required (default assumption: founder is legit)
+├── Burden of proof: On scam accusers, not founder
+└── Outcome: Founder claims all trading fees
+
+Vote to Flag as Scam (Voters recoup):
+├── Threshold: Supermajority (>66% of token votes)
+├── Evidence: REQUIRED (must provide proof)
+├── Burden of proof: On accusers (innocent until proven guilty)
+└── Outcome: Fees distributed to YES voters proportionally
+```
+
+**Rationale**: Higher bar for "scam" prevents false accusations against honest founders who faced market headwinds.
+
+#### Appeal Mechanism
+
+Founders can defend themselves if flagged:
+
+```
+Appeal Process:
+├── Scam vote reaches >66% threshold
+├── Founder has 7-day appeal window
+├── Founder submits counter-evidence:
+│   ├── Product delivery proof (screenshots, links, GitHub)
+│   ├── Development activity logs
+│   ├── Communication records
+│   └── Explanation of circumstances
+├── Community reviews appeal
+├── Re-vote with founder's defense considered
+└── Final decision binding
+```
+
+#### Milestone-Based Alternative (Future Enhancement)
+
+Instead of binary "Release 100%" or "Scam 0%", use **tiered fee releases**:
+
+```
+Example: DeFi Trading Bot Project
+
+Milestone 1 (30 days): Ship MVP bot
+├── Evidence: Live bot on website
+├── Vote: Did founder deliver?
+├── If YES: Release 25% of fees
+└── If NO: Hold remaining fees
+
+Milestone 2 (60 days): Reach 100 active users
+├── Evidence: On-chain user count
+├── Vote: Did founder achieve this?
+├── If YES: Release 25% of fees
+└── If NO: Hold remaining fees
+
+Milestone 3 (90 days): $10k in trading volume
+├── Evidence: On-chain volume data
+├── Vote: Did bot generate volume?
+├── If YES: Release 25% of fees
+└── If NO: Hold remaining fees
+
+Milestone 4 (120 days): Product-market fit
+├── Evidence: User retention, growth metrics
+├── Vote: Is product successful?
+├── If YES: Release final 25% of fees
+└── If NO: Remaining fees → YES voters
+```
+
+**Benefits**:
+- Founders rewarded for incremental progress
+- Voters see delivery before releasing all fees
+- Fair to honest founders who face market challenges
+- Gradual trust-building process
+
+### Outcome Scenarios (Evidence-Based)
+
+#### Scenario A: Legitimate Project (Token Up) ✅
 
 ```
 Token launched → Founder delivers on promises
     ↓
-Token trades well on Pump.fun
+Product shipped: Working app, active GitHub, community engaged
     ↓
-Token holders satisfied with project
+Token trades well on Pump.fun (price up 200%)
     ↓
-Governance vote: 70% vote "Release to Founder"
+Governance vote:
+    - Evidence: Product live, features delivered, founder active
+    - Vote: 85% "Release to Founder" (clear success)
     ↓
 Founder calls claim_trading_fees()
     ↓
 Gets all accumulated trading fees
     ↓
-Win-win: Voters profit from token, founder profits from fees
+Win-win: Voters profit from token appreciation, founder rewarded for delivery
 ```
 
-#### Scenario B: Scam Project 🚫
+#### Scenario B: Honest Failure (Token Down, Product Delivered) ✅
+
+```
+Token launched → Founder works hard, ships product
+    ↓
+Product shipped: Working MVP, 50+ GitHub commits, Discord active
+    ↓
+Bear market hits: Token crashes 90% (external market conditions)
+    ↓
+Governance vote:
+    - Evidence: Product exists, founder communicated, roadmap followed
+    - Vote: 70% "Release to Founder" (delivered despite bad market)
+    ↓
+Founder calls claim_trading_fees()
+    ↓
+Gets all fees (earned them through delivery)
+    ↓
+Fair outcome: Founder tried hard, market was against them
+    - Token holders lost on token, but founder delivered product
+    - System protects honest founders from market volatility
+```
+
+#### Scenario C: Actual Scam (No Delivery) 🚫
 
 ```
 Token launched → Founder disappears / rugpulls
     ↓
-Token crashes, founders gone
+No product: Empty GitHub, dead website, no communication for 45+ days
     ↓
-Token holders frustrated, lost money
+Team dumped all tokens immediately after launch
     ↓
-Governance vote: 80% vote "Flag as Scam"
+Governance vote:
+    - Evidence submitted:
+      • Archive.org snapshot showing empty GitHub
+      • Blockchain data showing team wallet sold 100% of tokens
+      • Discord/Twitter inactive for 45 days (screenshot proof)
+    - ScamReason: FounderDisappeared + TeamRugpulled
+    - Vote: 82% "Flag as Scam" (exceeds 66% threshold)
     ↓
 Each YES voter calls recoup_scam_fees()
     ↓
