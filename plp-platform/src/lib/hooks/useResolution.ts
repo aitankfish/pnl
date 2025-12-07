@@ -249,8 +249,8 @@ export function useResolution() {
       console.log(`   ↳ Branded with PNL platform signature!`);
       console.log('');
 
-      // Step 2: Upload metadata to Pump.fun IPFS (with retry logic)
-      console.log('📤 Uploading metadata to Pump.fun IPFS...');
+      // Step 2: Upload image + metadata to Pump.fun IPFS (with retry logic)
+      console.log('📤 Uploading image + metadata to Pump.fun IPFS...');
 
       // Pump.fun limits token names to 32 BYTES (not characters!) - truncate if needed
       // Must use byte length because Unicode characters can be multiple bytes
@@ -276,17 +276,26 @@ export function useResolution() {
         console.log(`   Truncated: ${tokenName} (${encoder.encode(tokenName).length} bytes)`);
       }
 
-      const metadata = {
-        name: tokenName,
-        symbol: params.tokenMetadata.symbol,
-        description: params.tokenMetadata.description,
-        image: params.tokenMetadata.imageUrl,
-        showName: true,
-        createdOn: 'https://pump.fun',
-      };
+      // Fetch the image from market's imageUrl and upload to Pump.fun's IPFS
+      console.log('📷 Fetching market image for IPFS upload...');
+      console.log(`   Source: ${params.tokenMetadata.imageUrl}`);
 
+      let imageBlob: Blob;
+      try {
+        const imageResponse = await fetch(params.tokenMetadata.imageUrl);
+        if (!imageResponse.ok) {
+          throw new Error(`Failed to fetch image: ${imageResponse.status}`);
+        }
+        imageBlob = await imageResponse.blob();
+        console.log(`✅ Image fetched (${(imageBlob.size / 1024).toFixed(2)} KB)`);
+      } catch (error) {
+        console.error('❌ Failed to fetch image:', error);
+        throw new Error(`Cannot fetch market image: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      }
+
+      // Create FormData with actual image file (Pump.fun expects this format)
       const formData = new FormData();
-      formData.append('file', new Blob([JSON.stringify(metadata)], { type: 'application/json' }), 'metadata.json');
+      formData.append('file', imageBlob, 'image.png');
       formData.append('name', tokenName);
       formData.append('symbol', params.tokenMetadata.symbol);
       formData.append('description', params.tokenMetadata.description);
@@ -322,8 +331,11 @@ export function useResolution() {
           }
 
           metadataUri = ipfsResult.data.metadataUri;
-          console.log(`✅ Metadata uploaded to IPFS`);
-          console.log(`   URI: ${metadataUri}`);
+          console.log(`✅ Image + metadata uploaded to IPFS`);
+          console.log(`   Metadata URI: ${metadataUri}`);
+          if (ipfsResult.data.imageUri) {
+            console.log(`   Image URI: ${ipfsResult.data.imageUri}`);
+          }
           console.log('');
           break; // Success, exit retry loop
 
