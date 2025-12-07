@@ -489,12 +489,11 @@ export function useResolution() {
       const signedCreateTxResult = await signTransaction({
         transaction: createTx.serialize(), // Serialize UNSIGNED transaction
         wallet: solanaWallet as any,
-        chain: 'solana:mainnet',
       });
 
       // Deserialize the wallet-signed transaction
       const signedCreateTx = VersionedTransaction.deserialize(
-        new Uint8Array((signedCreateTxResult as any).signedTransaction || signedCreateTxResult)
+        signedCreateTxResult.signedTransaction
       );
       console.log('✅ Wallet signature added');
 
@@ -510,11 +509,10 @@ export function useResolution() {
       const signedResolveTxResult = await signTransaction({
         transaction: resolveTx.serialize(),
         wallet: solanaWallet as any,
-        chain: 'solana:mainnet',
       });
 
       const signedResolveTx = VersionedTransaction.deserialize(
-        new Uint8Array((signedResolveTxResult as any).signedTransaction || signedResolveTxResult)
+        signedResolveTxResult.signedTransaction
       );
       console.log('✅ Transaction 2 signed');
       console.log('');
