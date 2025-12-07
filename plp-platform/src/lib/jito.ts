@@ -37,6 +37,10 @@ export const MINIMUM_JITO_TIP = 1_000; // ~$0.0002 at current SOL prices
 const BUNDLE_POLL_INTERVAL_MS = 3_000; // Poll every 3 seconds
 const BUNDLE_POLL_TIMEOUT_MS = 30_000; // Timeout after 30 seconds
 
+// Retry configuration for bundle submission
+const MAX_BUNDLE_SUBMIT_RETRIES = 5; // Try up to 5 times (covers all endpoints)
+const RETRY_BASE_DELAY_MS = 1000; // Start with 1 second delay
+
 /**
  * Jito bundle status returned by getInflightBundleStatuses
  */
@@ -169,66 +173,112 @@ export async function createJitoTipInstruction(
  * Transactions will be executed atomically in the order provided.
  * All transactions must succeed or the entire bundle fails.
  *
+ * Implements automatic retry with endpoint rotation to handle 429 rate limits.
+ *
  * @param transactions - Array of signed VersionedTransactions (max 5)
  * @returns Bundle ID for tracking
  */
 export async function submitJitoBundle(
   transactions: VersionedTransaction[]
 ): Promise<string> {
-  try {
-    if (transactions.length === 0) {
-      throw new Error('Cannot submit empty bundle');
-    }
-
-    if (transactions.length > 5) {
-      throw new Error(`Bundle too large: ${transactions.length} transactions (max: 5)`);
-    }
-
-    logger.info(`Submitting Jito bundle with ${transactions.length} transactions...`);
-
-    // Serialize all transactions to base64
-    const serializedTxs = transactions.map(tx => {
-      const serialized = Buffer.from(tx.serialize()).toString('base64');
-      logger.debug('Serialized transaction', {
-        size: tx.serialize().length,
-        base64Length: serialized.length,
-      });
-      return serialized;
-    });
-
-    const response = await fetch(`${JITO_BLOCK_ENGINE}/api/v1/bundles`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        jsonrpc: '2.0',
-        id: 1,
-        method: 'sendBundle',
-        params: [serializedTxs],
-      }),
-    });
-
-    if (!response.ok) {
-      throw new Error(`Jito API error: ${response.status} ${response.statusText}`);
-    }
-
-    const data = await response.json();
-
-    if (data.error) {
-      throw new Error(`Jito bundle submission failed: ${data.error.message}`);
-    }
-
-    const bundleId = data.result;
-
-    logger.info('Bundle submitted successfully', {
-      bundleId,
-      explorerUrl: `https://explorer.jito.wtf/bundle/${bundleId}`,
-    });
-
-    return bundleId;
-  } catch (error) {
-    logger.error('Failed to submit Jito bundle', { error });
-    throw new Error(`Failed to submit Jito bundle: ${error instanceof Error ? error.message : 'Unknown error'}`);
+  if (transactions.length === 0) {
+    throw new Error('Cannot submit empty bundle');
   }
+
+  if (transactions.length > 5) {
+    throw new Error(`Bundle too large: ${transactions.length} transactions (max: 5)`);
+  }
+
+  logger.info(`Submitting Jito bundle with ${transactions.length} transactions...`);
+
+  // Serialize all transactions to base64 (do this once)
+  const serializedTxs = transactions.map(tx => {
+    const serialized = Buffer.from(tx.serialize()).toString('base64');
+    logger.debug('Serialized transaction', {
+      size: tx.serialize().length,
+      base64Length: serialized.length,
+    });
+    return serialized;
+  });
+
+  // Try multiple endpoints with exponential backoff on rate limits
+  let lastError: Error | null = null;
+
+  for (let attempt = 0; attempt < MAX_BUNDLE_SUBMIT_RETRIES; attempt++) {
+    // Rotate through endpoints
+    const endpoint = JITO_ENDPOINTS_ORDERED[attempt % JITO_ENDPOINTS_ORDERED.length];
+
+    try {
+      logger.info(`[Attempt ${attempt + 1}/${MAX_BUNDLE_SUBMIT_RETRIES}] Trying endpoint: ${endpoint}`);
+
+      const response = await fetch(`${endpoint}/api/v1/bundles`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          jsonrpc: '2.0',
+          id: 1,
+          method: 'sendBundle',
+          params: [serializedTxs],
+        }),
+      });
+
+      // Handle rate limiting with retry
+      if (response.status === 429) {
+        const retryDelay = RETRY_BASE_DELAY_MS * Math.pow(2, attempt); // Exponential backoff
+        logger.warn(`[429 Rate Limit] Endpoint ${endpoint} rate limited. Retrying in ${retryDelay}ms...`);
+        lastError = new Error(`Rate limited (429) at ${endpoint}`);
+
+        // Wait before next attempt
+        await new Promise(resolve => setTimeout(resolve, retryDelay));
+        continue; // Try next endpoint
+      }
+
+      // Handle other HTTP errors
+      if (!response.ok) {
+        const errorText = await response.text();
+        lastError = new Error(`Jito API error: ${response.status} ${response.statusText} - ${errorText}`);
+        logger.error(`[HTTP ${response.status}] Failed at ${endpoint}`, { error: errorText });
+        throw lastError; // Don't retry non-429 errors
+      }
+
+      // Parse successful response
+      const data = await response.json();
+
+      if (data.error) {
+        lastError = new Error(`Jito bundle submission failed: ${data.error.message}`);
+        logger.error('[RPC Error] Bundle submission failed', { error: data.error });
+        throw lastError;
+      }
+
+      const bundleId = data.result;
+
+      logger.info('[SUCCESS] Bundle submitted successfully', {
+        bundleId,
+        endpoint,
+        attempt: attempt + 1,
+        explorerUrl: `https://explorer.jito.wtf/bundle/${bundleId}`,
+      });
+
+      return bundleId;
+    } catch (error) {
+      // If it's a rate limit error, continue to next attempt
+      if (lastError?.message.includes('429')) {
+        continue;
+      }
+
+      // For other errors, re-throw immediately
+      logger.error('Failed to submit Jito bundle', { error, endpoint });
+      throw new Error(`Failed to submit Jito bundle: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    }
+  }
+
+  // All retries exhausted
+  logger.error('[EXHAUSTED] All Jito endpoints failed or rate limited', { attempts: MAX_BUNDLE_SUBMIT_RETRIES });
+  throw new Error(
+    `Failed to submit Jito bundle after ${MAX_BUNDLE_SUBMIT_RETRIES} attempts. ` +
+    `Last error: ${lastError?.message || 'Unknown error'}. ` +
+    `All endpoints may be rate limited. Try again in a few minutes.`
+  );
 }
 
 /**
