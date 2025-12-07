@@ -577,6 +577,37 @@ export function useResolution() {
         console.log('✅ Transaction 1 fully signed with correct signature positions');
         console.log('   Final serialized size:', signedCreateTx.serialize().length, 'bytes');
 
+        // VERIFY SIGNATURES ARE VALID
+        console.log('🔍 Verifying signature validity...');
+        const isWalletSigValid = nacl.default.sign.detached.verify(
+          messageBytes,
+          newSignatures[walletSignatureIndex],
+          walletPubkeyForSigning.toBytes()
+        );
+        const isMintSigValid = nacl.default.sign.detached.verify(
+          messageBytes,
+          newSignatures[mintSignatureIndex],
+          mintPubkey.toBytes()
+        );
+
+        console.log('🔍 Signature verification results:');
+        console.log('   Wallet signature valid:', isWalletSigValid ? '✅ YES' : '❌ NO');
+        console.log('   Mint signature valid:', isMintSigValid ? '✅ YES' : '❌ NO');
+
+        if (!isWalletSigValid) {
+          console.error('❌ WALLET SIGNATURE IS INVALID!');
+          console.error('   This is why Jito rejects the transaction.');
+          console.error('   Privy is signing incorrectly for multi-signer transactions.');
+          throw new Error('Wallet signature validation failed - Privy signed incorrectly');
+        }
+
+        if (!isMintSigValid) {
+          console.error('❌ MINT SIGNATURE IS INVALID!');
+          throw new Error('Mint signature validation failed');
+        }
+
+        console.log('✅ Both signatures are cryptographically valid!');
+
       } catch (manualSigningError) {
         console.error('❌ Failed to manually add mint signature:', manualSigningError);
         throw new Error(`Manual signature insertion failed: ${manualSigningError instanceof Error ? manualSigningError.message : 'Unknown error'}`);
