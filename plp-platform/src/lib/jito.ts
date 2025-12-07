@@ -6,9 +6,7 @@
  */
 
 import { Connection, PublicKey, SystemProgram, TransactionInstruction, VersionedTransaction } from '@solana/web3.js';
-import { createClientLogger } from './logger';
-
-const logger = createClientLogger();
+import logger from './logger';
 
 // Jito Block Engine endpoints by region
 // Choose the endpoint closest to your infrastructure for lowest latency
@@ -106,7 +104,7 @@ export async function getJitoTipAccounts(): Promise<PublicKey[]> {
     const tipAccounts = data.result.map((addr: string) => new PublicKey(addr));
 
     logger.info(`Fetched ${tipAccounts.length} Jito tip accounts`, {
-      accounts: tipAccounts.map(a => a.toBase58()),
+      accounts: tipAccounts.map((a: PublicKey) => a.toBase58()),
     });
 
     return tipAccounts;

@@ -26,7 +26,7 @@ import {
 } from '@solana/spl-token';
 import { getTreasuryPDA, getProgramIdForNetwork } from '@/lib/anchor-program';
 import { derivePumpPDAs, PUMP_PROGRAM_ID } from '@/lib/pumpfun';
-import { createClientLogger } from '@/lib/logger';
+import logger from '@/lib/logger';
 import { getSolanaConnection } from '@/lib/solana';
 import { createJitoTipInstruction, MINIMUM_JITO_TIP } from '@/lib/jito';
 
@@ -35,8 +35,6 @@ const PUMP_FEE_PROGRAM_ID = new PublicKey('pfeeUxB6jkeY1Hxd7CsFCAjcbHA9rWtchMGdZ
 
 // Pump.fun fee recipient address (hardcoded)
 const PUMP_FEE_RECIPIENT = new PublicKey('CebN5WGQ4jvEPvsVU4EoHEpgzq1VV7AbicfhtW4xC9iM');
-
-const logger = createClientLogger();
 
 // Address Lookup Table (mainnet) - contains frequently-used program accounts
 const ALT_ADDRESS = new PublicKey('hs9SCzyzTgqURSxLm4p3gTtLRUkmL54BWQrtYFn9JeS');
