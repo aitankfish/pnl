@@ -166,13 +166,22 @@ pub fn handler(
     let rent = Rent::get()?;
     let vault_rent_lamports = rent.minimum_balance(0);
 
+    // Derive vault seeds for invoke_signed (PDA needs to sign its own creation)
+    let vault_seeds = &[
+        b"market_vault",
+        market_key.as_ref(),
+        &[_vault_bump],
+    ];
+    let vault_signer_seeds = &[&vault_seeds[..]];
+
     anchor_lang::system_program::create_account(
-        CpiContext::new(
+        CpiContext::new_with_signer(
             ctx.accounts.system_program.to_account_info(),
             anchor_lang::system_program::CreateAccount {
                 from: ctx.accounts.founder.to_account_info(),
                 to: ctx.accounts.market_vault.to_account_info(),
             },
+            vault_signer_seeds, // PDA signs via invoke_signed
         ),
         vault_rent_lamports,
         0, // No data

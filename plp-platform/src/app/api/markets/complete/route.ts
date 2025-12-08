@@ -8,6 +8,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { connectToDatabase, Project, PredictionMarket } from '@/lib/mongodb';
 import { createClientLogger } from '@/lib/logger';
+import { getSyncManager } from '@/services/blockchain-sync/sync-manager';
 
 const logger = createClientLogger();
 
@@ -69,6 +70,23 @@ export async function POST(request: NextRequest) {
     project.updatedAt = new Date();
     await project.save();
 
+    // Auto-subscribe the new market to the sync manager
+    // This ensures real-time updates without requiring server restart
+    try {
+      const syncManager = getSyncManager();
+      await syncManager.subscribeToMarket(body.marketAddress);
+      logger.info('Auto-subscribed new market to sync manager', {
+        marketAddress: body.marketAddress
+      });
+    } catch (error) {
+      // Don't fail the entire request if subscription fails
+      // The market will be picked up on next server restart
+      logger.warn('Failed to auto-subscribe market to sync manager:', {
+        marketAddress: body.marketAddress,
+        error: error instanceof Error ? error.message : String(error)
+      });
+    }
+
     logger.info('Market creation completed', {
       marketId: savedMarket._id,
       marketAddress: savedMarket.marketAddress,
@@ -89,7 +107,9 @@ export async function POST(request: NextRequest) {
     });
 
   } catch (error) {
-    logger.error('Failed to complete market creation:', error);
+    logger.error('Failed to complete market creation:', {
+      error: error instanceof Error ? error.message : String(error)
+    });
 
     return NextResponse.json(
       {
