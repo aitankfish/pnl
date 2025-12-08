@@ -176,7 +176,7 @@ pub fn handler(
         ),
         vault_rent_lamports,
         0, // No data
-        ctx.program_id,
+        &System::id(), // System-owned (not program-owned) for pure SOL vault
     )?;
 
     Ok(())

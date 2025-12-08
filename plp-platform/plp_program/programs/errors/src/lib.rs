@@ -63,16 +63,6 @@ pub mod plp_prediction_market {
         )
     }
 
-    /// Migrate existing market to use Market Vault PDA
-    ///
-    /// This instruction upgrades markets created before the vault system.
-    /// It creates the market_vault PDA and transfers any SOL from the market to the vault.
-    ///
-    /// Can be called by anyone (idempotent - safe to call multiple times)
-    pub fn migrate_market(ctx: Context<MigrateMarket>) -> Result<()> {
-        instructions::migrate_market::handler(ctx)
-    }
-
     // ========================================
     // TRADING
     // ========================================
