@@ -400,8 +400,8 @@ export class EventProcessor {
         yesPrice: derived.yesPercentage,
         noPrice: 100 - derived.yesPercentage,
 
-        // Volume data (SOL staked)
-        totalVolume: (BigInt(derived.totalYesStake) + BigInt(derived.totalNoStake)).toString(),
+        // Volume data (SOL staked - already in SOL, not lamports)
+        totalVolume: (derived.totalYesStake + derived.totalNoStake),
         yesVolume: derived.totalYesStake,
         noVolume: derived.totalNoStake,
 
