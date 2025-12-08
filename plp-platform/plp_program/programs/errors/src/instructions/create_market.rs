@@ -9,6 +9,8 @@ use crate::state::*;
 /// PDA layout:
 /// - Market PDA = seeds: ["market", founder, hash(ipfs_cid)]
 ///   (IPFS CIDs can be 59 bytes, but PDA seeds are limited to 32 bytes each)
+/// - Market Vault PDA = seeds: ["market_vault", market]
+///   (Pure SOL holder, 0 bytes data, used for all SOL transfers)
 ///
 /// Charges 0.015 SOL creation fee to treasury
 /// Initializes Constant Product AMM with equal pools (yes_pool = no_pool = target_pool)
@@ -16,7 +18,7 @@ use crate::state::*;
 #[derive(Accounts)]
 #[instruction(ipfs_cid: String)]
 pub struct CreateMarket<'info> {
-    /// Market account (PDA, program-owned)
+    /// Market account (PDA, program-owned, stores market data)
     #[account(
         init,
         payer = founder,
@@ -25,6 +27,13 @@ pub struct CreateMarket<'info> {
         bump
     )]
     pub market: Account<'info, Market>,
+
+    /// Market Vault PDA (pure SOL holder, 0 bytes)
+    /// This vault holds all SOL for the market and is used in Pump.fun CPI
+    /// Separated from market PDA to avoid "Transfer: from must not carry data" error
+    /// CHECK: Validated and initialized in handler
+    #[account(mut)]
+    pub market_vault: UncheckedAccount<'info>,
 
     /// Global Treasury PDA (receives creation fee)
     #[account(
@@ -48,6 +57,9 @@ pub fn handler(
     expiry_time: i64,
     metadata_uri: String,
 ) -> Result<()> {
+    // Get market key before mutable borrow
+    let market_key = ctx.accounts.market.key();
+
     let market = &mut ctx.accounts.market;
 
     // -------------------------
@@ -135,8 +147,42 @@ pub fn handler(
     market.treasury = ctx.accounts.treasury.key();
     market.bump = ctx.bumps.market;
 
+    // -------------------------
+    // 4) Initialize Market Vault PDA
+    // -------------------------
+
+    // Derive and validate vault PDA
+    let (vault_pda, _vault_bump) = Pubkey::find_program_address(
+        &[b"market_vault", market_key.as_ref()],
+        ctx.program_id
+    );
+
+    require!(
+        ctx.accounts.market_vault.key() == vault_pda,
+        ErrorCode::Unauthorized
+    );
+
+    // Create the vault account (rent-exempt with 0 bytes)
+    let rent = Rent::get()?;
+    let vault_rent_lamports = rent.minimum_balance(0);
+
+    anchor_lang::system_program::create_account(
+        CpiContext::new(
+            ctx.accounts.system_program.to_account_info(),
+            anchor_lang::system_program::CreateAccount {
+                from: ctx.accounts.founder.to_account_info(),
+                to: ctx.accounts.market_vault.to_account_info(),
+            },
+        ),
+        vault_rent_lamports,
+        0, // No data
+        ctx.program_id,
+    )?;
+
     msg!("✅ Market created");
     msg!("   Founder: {}", market.founder);
+    msg!("   Market PDA: {}", market_key);
+    msg!("   Market Vault PDA: {}", vault_pda);
     msg!("   IPFS CID: {}", market.ipfs_cid);
     msg!("   Target pool: {} lamports ({} SOL)", target_pool, target_pool / 1_000_000_000);
     msg!("   Initial AMM yes_pool: {} lamports", market.yes_pool);

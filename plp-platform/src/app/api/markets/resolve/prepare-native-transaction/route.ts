@@ -24,7 +24,7 @@ import {
   getAssociatedTokenAddress,
   createAssociatedTokenAccountInstruction,
 } from '@solana/spl-token';
-import { getTreasuryPDA, getProgramIdForNetwork } from '@/lib/anchor-program';
+import { getTreasuryPDA, getProgramIdForNetwork, getMarketVaultPDA } from '@/lib/anchor-program';
 import { derivePumpPDAs, PUMP_PROGRAM_ID } from '@/lib/pumpfun';
 import logger from '@/lib/logger';
 import { getSolanaConnection } from '@/lib/solana';
@@ -94,6 +94,14 @@ export async function POST(request: NextRequest) {
     // Derive Treasury PDA
     const [treasuryPda] = getTreasuryPDA(targetNetwork);
 
+    // Derive Market Vault PDA (simple derivation from market address)
+    const [marketVaultPda] = getMarketVaultPDA(marketPubkey, targetNetwork);
+
+    logger.info('[VAULT] Derived market vault PDA', {
+      market: marketPubkey.toBase58(),
+      vault: marketVaultPda.toBase58(),
+    });
+
     // Get connection
     const connection = await getSolanaConnection(network);
 
@@ -120,11 +128,12 @@ export async function POST(request: NextRequest) {
     const creatorVault = creatorVaultPda(creatorPubkey);
     const globalVolumeAccumulator = GLOBAL_VOLUME_ACCUMULATOR_PDA;
     // CRITICAL: user_volume_accumulator MUST match the "user" in buy() CPI
-    // Since market PDA is the "user" (signer/payer), volume is tracked to market PDA
-    const userVolumeAccumulator = userVolumeAccumulatorPda(marketPubkey);
+    // Since market VAULT is the "user" (signer/payer), volume is tracked to market vault
+    const userVolumeAccumulator = userVolumeAccumulatorPda(marketVaultPda);
     const feeConfig = PUMP_FEE_CONFIG_PDA;
 
     logger.info('[ACCOUNTS] All accounts derived for native transaction', {
+      marketVault: marketVaultPda.toBase58(),
       creatorVault: creatorVault.toBase58(),
       globalVolumeAccumulator: globalVolumeAccumulator.toBase58(),
       userVolumeAccumulator: userVolumeAccumulator.toBase58(),
@@ -186,47 +195,49 @@ export async function POST(request: NextRequest) {
         // MUST match ResolveMarket struct order in Rust program!
         // 1. market
         { pubkey: marketPubkey, isSigner: false, isWritable: true },
-        // 2. treasury
+        // 2. market_vault (NEW - holds all SOL)
+        { pubkey: marketVaultPda, isSigner: false, isWritable: true },
+        // 3. treasury
         { pubkey: treasuryPda, isSigner: false, isWritable: true },
-        // 3. token_mint
+        // 4. token_mint
         { pubkey: tokenMintPubkey, isSigner: false, isWritable: true },
-        // 4. market_token_account
+        // 5. market_token_account
         { pubkey: marketTokenAccount, isSigner: false, isWritable: true },
-        // 5. pump_global
+        // 6. pump_global
         { pubkey: pumpPDAs.global, isSigner: false, isWritable: false },
-        // 6. bonding_curve
+        // 7. bonding_curve
         { pubkey: pumpPDAs.bondingCurve, isSigner: false, isWritable: true },
-        // 7. bonding_curve_token_account
+        // 8. bonding_curve_token_account
         { pubkey: bondingCurveTokenAccount, isSigner: false, isWritable: true },
-        // 8. pump_fee_recipient
+        // 9. pump_fee_recipient
         { pubkey: PUMP_FEE_RECIPIENT, isSigner: false, isWritable: true },
-        // 9. pump_event_authority
+        // 10. pump_event_authority
         { pubkey: pumpPDAs.eventAuthority, isSigner: false, isWritable: false },
-        // 10. pump_program
+        // 11. pump_program
         { pubkey: PUMP_PROGRAM_ID, isSigner: false, isWritable: false },
-        // 11. creator
+        // 12. creator
         { pubkey: creatorPubkey, isSigner: false, isWritable: false },
-        // 12. creator_vault
+        // 13. creator_vault
         { pubkey: creatorVault, isSigner: false, isWritable: true },
-        // 13. global_volume_accumulator
+        // 14. global_volume_accumulator
         { pubkey: globalVolumeAccumulator, isSigner: false, isWritable: true },
-        // 14. user_volume_accumulator
+        // 15. user_volume_accumulator
         { pubkey: userVolumeAccumulator, isSigner: false, isWritable: true },
-        // 15. fee_config
+        // 16. fee_config
         { pubkey: feeConfig, isSigner: false, isWritable: false },
-        // 16. fee_program
+        // 17. fee_program
         { pubkey: PUMP_FEE_PROGRAM_ID, isSigner: false, isWritable: false },
-        // 17. caller (signer)
+        // 18. caller (signer)
         { pubkey: callerPubkey, isSigner: true, isWritable: true },
-        // 18. system_program
+        // 19. system_program
         { pubkey: SystemProgram.programId, isSigner: false, isWritable: false },
-        // 19. token_program
+        // 20. token_program
         { pubkey: TOKEN_PROGRAM_ID, isSigner: false, isWritable: false },
-        // 20. token_2022_program
+        // 21. token_2022_program
         { pubkey: TOKEN_2022_PROGRAM_ID, isSigner: false, isWritable: false },
-        // 21. associated_token_program
+        // 22. associated_token_program
         { pubkey: ASSOCIATED_TOKEN_PROGRAM_ID, isSigner: false, isWritable: false },
-        // 22. rent
+        // 23. rent
         { pubkey: SYSVAR_RENT_PUBKEY, isSigner: false, isWritable: false },
       ],
       programId: programId,
@@ -280,6 +291,7 @@ export async function POST(request: NextRequest) {
 
         // Account info
         treasuryPda: treasuryPda.toBase58(),
+        marketVaultPda: marketVaultPda.toBase58(),
         tokenMint: tokenMintPubkey.toBase58(),
         marketTokenAccount: marketTokenAccount.toBase58(),
       },

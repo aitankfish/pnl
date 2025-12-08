@@ -85,7 +85,7 @@ pub fn handler(ctx: Context<ClaimPlatformTokens>) -> Result<()> {
 
     msg!("✅ PLATFORM TOKENS CLAIMED");
     msg!("   P&L Wallet: {}", PNL_WALLET);
-    msg!("   Amount: {} tokens (1% of supply)", market.platform_tokens_allocated);
+    msg!("   Amount: {} tokens (2% of supply)", market.platform_tokens_allocated);
 
     Ok(())
 }

@@ -12,7 +12,7 @@ use crate::utils::amm::*;
 /// 2. Validate minimum investment (0.01 SOL)
 /// 3. Check one-position rule (user cannot have NO shares)
 /// 4. Deduct 1.5% trade fee → treasury
-/// 5. Transfer net SOL (98.5%) → market pool
+/// 5. Transfer net SOL (98.5%) → market vault
 /// 6. Calculate shares using Constant Product AMM (x * y = k)
 /// 7. Update position.yes_shares and AMM pools (yes_pool, no_pool)
 #[derive(Accounts)]
@@ -22,6 +22,14 @@ pub struct BuyYes<'info> {
         constraint = market.resolution == MarketResolution::Unresolved @ ErrorCode::AlreadyResolved
     )]
     pub market: Account<'info, Market>,
+
+    /// Market Vault PDA (holds all SOL for the market)
+    #[account(
+        mut,
+        seeds = [b"market_vault", market.key().as_ref()],
+        bump
+    )]
+    pub market_vault: SystemAccount<'info>,
 
     #[account(
         init_if_needed,
@@ -137,12 +145,12 @@ pub fn handler(ctx: Context<BuyYes>, sol_amount: u64) -> Result<()> {
         .ok_or(ErrorCode::MathError)?;
 
     // -------------------------
-    // 3) Transfer net amount to market (stays in market account for tracking)
+    // 3) Transfer net amount to market vault (SOL holder)
     // -------------------------
 
     let net_transfer = system_program::Transfer {
         from: ctx.accounts.user.to_account_info(),
-        to: market.to_account_info(),
+        to: ctx.accounts.market_vault.to_account_info(),
     };
 
     system_program::transfer(
@@ -153,7 +161,7 @@ pub fn handler(ctx: Context<BuyYes>, sol_amount: u64) -> Result<()> {
         net_amount,
     )?;
 
-    // Update market pool balance
+    // Update market pool balance tracker
     market.pool_balance = market
         .pool_balance
         .checked_add(net_amount)

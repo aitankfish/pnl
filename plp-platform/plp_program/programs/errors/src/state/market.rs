@@ -85,13 +85,13 @@ pub struct Market {
     /// Token mint address (set after YES resolution and token creation)
     pub token_mint: Option<Pubkey>,
 
-    /// Platform token allocation (1% of total supply, immediate claim)
+    /// Platform token allocation (2% of total supply, immediate claim)
     pub platform_tokens_allocated: u64,
 
-    /// Whether platform has claimed their 1% token allocation
+    /// Whether platform has claimed their 2% token allocation
     pub platform_tokens_claimed: bool,
 
-    /// YES voter token allocation (79% of total supply, proportional distribution)
+    /// YES voter token allocation (65% of total supply, proportional distribution)
     pub yes_voter_tokens_allocated: u64,
 
     /// Platform treasury address

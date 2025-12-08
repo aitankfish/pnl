@@ -34,8 +34,8 @@ pub const PNL_WALLET: &str = "3MihVtsLsVuEccpmz4YG72Cr8CJWf1evRorTPdPiHeEQ";
 pub const PUMP_FUN_PROGRAM_ID: &str = "6EF8rrecthR5Dkzon8Nwu78hRvfCKubJ14M5uBEwF6P";
 
 /// Token distribution percentages (in basis points)
-pub const PLATFORM_TOKEN_SHARE_BPS: u64 = 100; // 1%
-pub const TEAM_TOKEN_SHARE_BPS: u64 = 2000; // 20% (5% immediate + 15% vested)
-pub const TEAM_IMMEDIATE_SHARE_BPS: u64 = 500; // 5% of total (immediate)
-pub const TEAM_VESTED_SHARE_BPS: u64 = 1500; // 15% of total (vested over 12 months)
-pub const YES_VOTERS_TOKEN_SHARE_BPS: u64 = 7900; // 79%
+pub const PLATFORM_TOKEN_SHARE_BPS: u64 = 200; // 2%
+pub const TEAM_TOKEN_SHARE_BPS: u64 = 3300; // 33% (8% immediate + 25% vested)
+pub const TEAM_IMMEDIATE_SHARE_BPS: u64 = 800; // 8% of total (immediate)
+pub const TEAM_VESTED_SHARE_BPS: u64 = 2500; // 25% of total (vested over 12 months)
+pub const YES_VOTERS_TOKEN_SHARE_BPS: u64 = 6500; // 65%

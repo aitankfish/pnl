@@ -109,6 +109,26 @@ export function getMarketPDA(founderPubkey: PublicKey, ipfsCid: string, network?
 }
 
 /**
+ * Derive Market Vault PDA
+ *
+ * @param marketPubkey - Market PDA public key
+ * @param network - Network to use (defaults to devnet)
+ * @returns Market Vault PDA and bump
+ */
+export function getMarketVaultPDA(marketPubkey: PublicKey, network?: 'devnet' | 'mainnet-beta'): [PublicKey, number] {
+  // Match on-chain program seeds: [b"market_vault", market.key()]
+  const programId = getProgramIdForNetwork(network);
+
+  return PublicKey.findProgramAddressSync(
+    [
+      Buffer.from('market_vault'),
+      marketPubkey.toBytes()
+    ],
+    programId
+  );
+}
+
+/**
  * Derive Position PDA
  *
  * @param marketPda - Market public key

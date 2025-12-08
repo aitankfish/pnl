@@ -26,6 +26,14 @@ pub struct ResolveMarket<'info> {
     )]
     pub market: Account<'info, Market>,
 
+    /// Market Vault PDA (holds all SOL, used as buyer in Pump.fun CPI)
+    #[account(
+        mut,
+        seeds = [b"market_vault", market.key().as_ref()],
+        bump
+    )]
+    pub market_vault: SystemAccount<'info>,
+
     #[account(
         mut,
         seeds = [b"treasury"],
@@ -188,13 +196,13 @@ pub fn handler(ctx: Context<ResolveMarket>) -> Result<()> {
             // Calculate 5% completion fee
             let completion_fee = (market.pool_balance * COMPLETION_FEE_BPS) / BPS_DIVISOR;
 
-            // CRITICAL: Reserve rent-exempt balance for Market PDA
+            // CRITICAL: Reserve rent-exempt balance for Market Vault PDA
             // Pump.fun validates the buyer remains rent-exempt after purchase
             let rent = Rent::get()?;
-            let market_rent_exempt = rent.minimum_balance(Market::SPACE);
+            let vault_rent_exempt = rent.minimum_balance(0); // Vault has 0 bytes data
 
             // Reserve: rent-exempt + completion fee
-            let total_reserved = market_rent_exempt
+            let total_reserved = vault_rent_exempt
                 .checked_add(completion_fee)
                 .ok_or(ErrorCode::MathError)?;
 
@@ -205,7 +213,7 @@ pub fn handler(ctx: Context<ResolveMarket>) -> Result<()> {
                 .ok_or(ErrorCode::MathError)?;
 
             msg!("✅ YES WINS - Initiating token launch");
-            msg!("   Market rent-exempt: {} lamports", market_rent_exempt);
+            msg!("   Market vault rent-exempt: {} lamports", vault_rent_exempt);
             msg!("   Completion fee: {} lamports (5%)", completion_fee);
             msg!("   Total reserved: {} lamports", total_reserved);
             msg!("   SOL for token launch: {} lamports", net_amount_for_token);
@@ -230,16 +238,15 @@ pub fn handler(ctx: Context<ResolveMarket>) -> Result<()> {
             // Call pump.fun buy via MANUAL CPI (not using pump-anchor crate)
             // This allows us to pass Token2022 program instead of legacy Token
             // -------------------------
-            // Market PDA buys tokens with NET amount (after 5% fee reserved)
-            let founder_key = market.founder;
-            let ipfs_hash = anchor_lang::solana_program::hash::hash(market.ipfs_cid.as_bytes());
-            let market_seeds = &[
-                b"market",
-                founder_key.as_ref(),
-                ipfs_hash.as_ref(),
-                &[market.bump],
+            // Market VAULT PDA buys tokens with NET amount (after 5% fee reserved)
+            // Vault derives from market.key()
+            let market_key = market.key();
+            let vault_seeds = &[
+                b"market_vault",
+                market_key.as_ref(),
+                &[ctx.bumps.market_vault],
             ];
-            let signer_seeds = &[&market_seeds[..]];
+            let signer_seeds = &[&vault_seeds[..]];
 
             // Build buy instruction manually with CORRECT discriminator from IDL
             // Discriminator = [102, 6, 61, 18, 1, 218, 235, 234] (from pump.json IDL)
@@ -277,8 +284,8 @@ pub fn handler(ctx: Context<ResolveMarket>) -> Result<()> {
                 AccountMeta::new(ctx.accounts.bonding_curve_token_account.key(), false),
                 // 5. associated_user (writable) - market's token account
                 AccountMeta::new(ctx.accounts.market_token_account.key(), false),
-                // 6. user (writable + signer) - market PDA signs via invoke_signed
-                AccountMeta::new(market.key(), true),
+                // 6. user (writable + signer) - market VAULT signs via invoke_signed (pure SOL holder)
+                AccountMeta::new(ctx.accounts.market_vault.key(), true),
                 // 7. system_program (readonly)
                 AccountMeta::new_readonly(ctx.accounts.system_program.key(), false),
                 // 8. token_program (readonly) - LEGACY Token, not Token2022!
@@ -307,7 +314,7 @@ pub fn handler(ctx: Context<ResolveMarket>) -> Result<()> {
                 data: instruction_data,
             };
 
-            // Invoke with PDA signer (market signs the buy)
+            // Invoke with PDA signer (market vault signs the buy)
             // IMPORTANT: Pass ALL 16 accounts as AccountInfo references in exact order
             anchor_lang::solana_program::program::invoke_signed(
                 &buy_ix,
@@ -318,7 +325,7 @@ pub fn handler(ctx: Context<ResolveMarket>) -> Result<()> {
                     ctx.accounts.bonding_curve.to_account_info(),
                     ctx.accounts.bonding_curve_token_account.to_account_info(),
                     ctx.accounts.market_token_account.to_account_info(),
-                    market.to_account_info(), // market PDA signs
+                    ctx.accounts.market_vault.to_account_info(), // market vault PDA signs
                     ctx.accounts.system_program.to_account_info(),
                     ctx.accounts.token_program.to_account_info(), // Legacy Token program
                     ctx.accounts.creator_vault.to_account_info(),
@@ -343,9 +350,8 @@ pub fn handler(ctx: Context<ResolveMarket>) -> Result<()> {
             // -------------------------
             // Now transfer completion fee (AFTER CPI completes)
             // -------------------------
-            // Market PDA now has: rent_exempt + (original_pool - net_amount) = rent_exempt + completion_fee
-            // Transfer this fee to treasury
-            **market.to_account_info().try_borrow_mut_lamports()? -= completion_fee;
+            // Market vault holds all SOL, transfer fee from vault to treasury
+            **ctx.accounts.market_vault.to_account_info().try_borrow_mut_lamports()? -= completion_fee;
             **treasury.to_account_info().try_borrow_mut_lamports()? += completion_fee;
 
             // Update treasury total fees
@@ -359,17 +365,19 @@ pub fn handler(ctx: Context<ResolveMarket>) -> Result<()> {
             // Set token mint in market state
             market.token_mint = Some(ctx.accounts.token_mint.key());
 
-            // Update pool balance to rent-exempt amount (reserved for account)
-            // Total spent: net_amount_for_token + completion_fee
-            // Remaining: market_rent_exempt
-            market.pool_balance = market_rent_exempt;
+            // Update pool balance to rent-exempt amount (reserved for vault account)
+            // Total spent from vault: net_amount_for_token + completion_fee
+            // Remaining in vault: vault_rent_exempt
+            market.pool_balance = vault_rent_exempt;
 
             // -------------------------
-            // Calculate token distribution (79% / 20% / 1%)
+            // Calculate token distribution (65% / 33% / 2%)
             // -------------------------
 
             let platform_tokens = (total_tokens * PLATFORM_TOKEN_SHARE_BPS) / BPS_DIVISOR;
             let team_tokens = (total_tokens * TEAM_TOKEN_SHARE_BPS) / BPS_DIVISOR;
+            let team_immediate = (total_tokens * TEAM_IMMEDIATE_SHARE_BPS) / BPS_DIVISOR;
+            let team_vested = (total_tokens * TEAM_VESTED_SHARE_BPS) / BPS_DIVISOR;
             let yes_voter_tokens = total_tokens
                 .checked_sub(platform_tokens)
                 .and_then(|v| v.checked_sub(team_tokens))
@@ -381,16 +389,16 @@ pub fn handler(ctx: Context<ResolveMarket>) -> Result<()> {
 
             msg!("");
             msg!("   📊 TOKEN DISTRIBUTION:");
-            msg!("   Platform (1%): {} tokens", platform_tokens);
-            msg!("   Team (20%): {} tokens", team_tokens);
-            msg!("   └─ Immediate (5%): {} tokens", team_tokens / 4); // 5/20 = 1/4
-            msg!("   └─ Vested (15%, 12mo linear): {} tokens", (team_tokens * 3) / 4); // 15/20 = 3/4
-            msg!("   YES voters (79%): {} tokens", yes_voter_tokens);
+            msg!("   Platform (2%): {} tokens", platform_tokens);
+            msg!("   Team (33%): {} tokens", team_tokens);
+            msg!("   └─ Immediate (8%): {} tokens", team_immediate);
+            msg!("   └─ Vested (25%, 12mo linear): {} tokens", team_vested);
+            msg!("   YES voters (65%): {} tokens", yes_voter_tokens);
             msg!("");
             msg!("   ⏭️  NEXT STEPS:");
             msg!("   1. Initialize team vesting account (call init_team_vesting)");
             msg!("   2. YES voters claim tokens (call claim_rewards)");
-            msg!("   3. Platform claims 1% (call claim_platform_tokens)");
+            msg!("   3. Platform claims 2% (call claim_platform_tokens)");
             msg!("   4. Team claims vested tokens monthly (call claim_team_tokens)");
         }
 
@@ -398,8 +406,8 @@ pub fn handler(ctx: Context<ResolveMarket>) -> Result<()> {
             // Deduct 5% completion fee from pool
             let completion_fee = (market.pool_balance * COMPLETION_FEE_BPS) / BPS_DIVISOR;
 
-            // Transfer fee from market to treasury
-            **market.to_account_info().try_borrow_mut_lamports()? -= completion_fee;
+            // Transfer fee from market vault to treasury
+            **ctx.accounts.market_vault.to_account_info().try_borrow_mut_lamports()? -= completion_fee;
             **treasury.to_account_info().try_borrow_mut_lamports()? += completion_fee;
 
             // Update treasury total fees
