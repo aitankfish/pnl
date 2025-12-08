@@ -180,6 +180,15 @@ pub mod plp_prediction_market {
         instructions::close_market::handler(ctx)
     }
 
+    /// Emergency drain vault to founder (platform admin only)
+    ///
+    /// Drains all SOL from market vault (minus rent-exempt) to market founder
+    /// Works with both program-owned and system-owned vaults
+    /// Only callable by platform admin (treasury.admin) for emergency recovery
+    pub fn emergency_drain_vault(ctx: Context<EmergencyDrainVault>) -> Result<()> {
+        instructions::emergency_drain_vault::handler(ctx)
+    }
+
     // ========================================
     // LEGACY INSTRUCTIONS (DEPRECATED & REMOVED)
     // ========================================

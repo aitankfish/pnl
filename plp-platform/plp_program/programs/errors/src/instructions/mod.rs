@@ -40,9 +40,11 @@ pub use claim_platform_tokens::*;
 // Account cleanup (rent recovery)
 pub mod close_position;
 pub mod close_market;
+pub mod emergency_drain_vault;
 
 pub use close_position::*;
 pub use close_market::*;
+pub use emergency_drain_vault::*;
 
 // Legacy instructions (deprecated - commented out for now)
 // TODO: Fix compatibility issues in legacy instructions if needed
