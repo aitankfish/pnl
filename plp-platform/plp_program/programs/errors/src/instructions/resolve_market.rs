@@ -156,13 +156,6 @@ pub fn handler(ctx: Context<ResolveMarket>) -> Result<()> {
         ErrorCode::CannotResolveYet
     );
 
-    msg!("🔍 Resolution authorization:");
-    msg!("   Is expired: {}", is_expired);
-    msg!("   Is founder: {}", is_founder);
-    msg!("   In funding phase: {}", in_funding_phase);
-    msg!("   Pool is full: {}", pool_is_full);
-    msg!("   NO is winning: {}", no_is_winning);
-
     // -------------------------
     // 2) Determine resolution outcome
     // -------------------------
@@ -180,12 +173,6 @@ pub fn handler(ctx: Context<ResolveMarket>) -> Result<()> {
         // Tie or no participation → Refund
         MarketResolution::Refund
     };
-
-    msg!("🔍 Market resolution determined: {:?}", resolution);
-    msg!("   total_yes_shares: {}", market.total_yes_shares);
-    msg!("   total_no_shares: {}", market.total_no_shares);
-    msg!("   pool_balance: {} lamports", market.pool_balance);
-    msg!("   target_pool: {} lamports", market.target_pool);
 
     // -------------------------
     // 3) Process resolution
@@ -212,12 +199,6 @@ pub fn handler(ctx: Context<ResolveMarket>) -> Result<()> {
                 .checked_sub(total_reserved)
                 .ok_or(ErrorCode::MathError)?;
 
-            msg!("✅ YES WINS - Initiating token launch");
-            msg!("   Market vault rent-exempt: {} lamports", vault_rent_exempt);
-            msg!("   Completion fee: {} lamports (5%)", completion_fee);
-            msg!("   Total reserved: {} lamports", total_reserved);
-            msg!("   SOL for token launch: {} lamports", net_amount_for_token);
-
             // -------------------------
             // Buy tokens on Pump.fun with remaining SOL
             // -------------------------
@@ -230,9 +211,6 @@ pub fn handler(ctx: Context<ResolveMarket>) -> Result<()> {
                 ctx.accounts.pump_program.key() == expected_pump_program,
                 ErrorCode::Unauthorized
             );
-
-            msg!("   Token mint: {}", ctx.accounts.token_mint.key());
-            msg!("   Buying tokens with {} lamports", net_amount_for_token);
 
             // -------------------------
             // Call pump.fun buy via MANUAL CPI (not using pump-anchor crate)
@@ -262,12 +240,6 @@ pub fn handler(ctx: Context<ResolveMarket>) -> Result<()> {
             instruction_data.extend_from_slice(&net_amount_for_token.to_le_bytes()); // SOL amount
             instruction_data.extend_from_slice(&net_amount_for_token.to_le_bytes()); // Max SOL cost
             instruction_data.push(0x00); // track_volume = None (skip volume tracking to reduce tx size)
-
-            msg!("   🔧 Buy instruction data:");
-            msg!("      Discriminator: {:?}", buy_discriminator);
-            msg!("      SOL Amount: {} lamports", net_amount_for_token);
-            msg!("      Max SOL Cost: {} lamports", net_amount_for_token);
-            msg!("      Track volume: None (skipped)");
 
             // Build accounts in EXACT order from IDL (16 accounts for buy instruction)
             use anchor_lang::solana_program::{instruction::AccountMeta, instruction::Instruction};
@@ -306,8 +278,6 @@ pub fn handler(ctx: Context<ResolveMarket>) -> Result<()> {
                 AccountMeta::new_readonly(ctx.accounts.fee_program.key(), false),
             ];
 
-            msg!("   📋 Buy instruction with {} accounts", accounts.len());
-
             let buy_ix = Instruction {
                 program_id: ctx.accounts.pump_program.key(),
                 accounts,
@@ -345,8 +315,6 @@ pub fn handler(ctx: Context<ResolveMarket>) -> Result<()> {
             )?;
             let total_tokens = market_token_acct.amount;
 
-            msg!("   Total tokens acquired: {}", total_tokens);
-
             // -------------------------
             // Now transfer completion fee (AFTER CPI completes)
             // -------------------------
@@ -359,8 +327,6 @@ pub fn handler(ctx: Context<ResolveMarket>) -> Result<()> {
                 .total_fees
                 .checked_add(completion_fee)
                 .ok_or(ErrorCode::MathError)?;
-
-            msg!("   Completion fee transferred: {} lamports", completion_fee);
 
             // Set token mint in market state
             market.token_mint = Some(ctx.accounts.token_mint.key());
@@ -387,19 +353,6 @@ pub fn handler(ctx: Context<ResolveMarket>) -> Result<()> {
             market.platform_tokens_allocated = platform_tokens;
             market.yes_voter_tokens_allocated = yes_voter_tokens;
 
-            msg!("");
-            msg!("   📊 TOKEN DISTRIBUTION:");
-            msg!("   Platform (2%): {} tokens", platform_tokens);
-            msg!("   Team (33%): {} tokens", team_tokens);
-            msg!("   └─ Immediate (8%): {} tokens", team_immediate);
-            msg!("   └─ Vested (25%, 12mo linear): {} tokens", team_vested);
-            msg!("   YES voters (65%): {} tokens", yes_voter_tokens);
-            msg!("");
-            msg!("   ⏭️  NEXT STEPS:");
-            msg!("   1. Initialize team vesting account (call init_team_vesting)");
-            msg!("   2. YES voters claim tokens (call claim_rewards)");
-            msg!("   3. Platform claims 2% (call claim_platform_tokens)");
-            msg!("   4. Team claims vested tokens monthly (call claim_team_tokens)");
         }
 
         MarketResolution::NoWins => {
@@ -426,19 +379,10 @@ pub fn handler(ctx: Context<ResolveMarket>) -> Result<()> {
             // This ensures all NO voters claim from the same fixed pool
             market.distribution_pool = market.pool_balance;
 
-            msg!("✅ NO WINS");
-            msg!("   Completion fee: {} lamports (5%)", completion_fee);
-            msg!("   Remaining for distribution: {} lamports", market.pool_balance);
-            msg!("   Distribution pool set: {} lamports", market.distribution_pool);
-            msg!("   NO voters can now claim proportional SOL rewards");
         }
 
         MarketResolution::Refund => {
             // No fees deducted for refunds
-            msg!("↩️  REFUND");
-            msg!("   Market did not reach target or ended in tie");
-            msg!("   All participants can claim full refunds");
-            msg!("   No fees deducted");
         }
 
         MarketResolution::Unresolved => {
@@ -452,9 +396,6 @@ pub fn handler(ctx: Context<ResolveMarket>) -> Result<()> {
     // -------------------------
 
     market.resolution = resolution;
-
-    msg!("🏁 Market resolved successfully");
-    msg!("   Final resolution: {:?}", market.resolution);
 
     Ok(())
 }

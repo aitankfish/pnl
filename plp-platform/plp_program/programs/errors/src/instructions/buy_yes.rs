@@ -106,10 +106,6 @@ pub fn handler(ctx: Context<BuyYes>, sol_amount: u64) -> Result<()> {
                 .checked_sub(net_amount)
                 .ok_or(ErrorCode::MathError)?;
 
-            msg!("⚠️  Vote amount capped to remaining pool capacity");
-            msg!("   Requested: {} lamports", sol_amount);
-            msg!("   Capped to: {} lamports", actual_sol_amount);
-            msg!("   Remaining capacity: {} lamports", remaining_capacity);
         }
     }
 
@@ -223,17 +219,6 @@ pub fn handler(ctx: Context<BuyYes>, sol_amount: u64) -> Result<()> {
         .total_invested
         .checked_add(actual_sol_amount)
         .ok_or(ErrorCode::MathError)?;
-
-    msg!("✅ BUY YES");
-    msg!("   User: {}", ctx.accounts.user.key());
-    msg!("   SOL spent: {} lamports", actual_sol_amount);
-    msg!("   Trade fee: {} lamports (1.5%)", trade_fee);
-    msg!("   Net to pool: {} lamports", net_amount);
-    msg!("   Shares received: {}", shares);
-    msg!("   New position yes_shares: {}", position.yes_shares);
-    msg!("   New AMM yes_pool: {}", market.yes_pool);
-    msg!("   New AMM no_pool: {}", market.no_pool);
-    msg!("   New pool balance: {}", market.pool_balance);
 
     Ok(())
 }

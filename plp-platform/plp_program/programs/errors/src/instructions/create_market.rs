@@ -179,18 +179,5 @@ pub fn handler(
         ctx.program_id,
     )?;
 
-    msg!("✅ Market created");
-    msg!("   Founder: {}", market.founder);
-    msg!("   Market PDA: {}", market_key);
-    msg!("   Market Vault PDA: {}", vault_pda);
-    msg!("   IPFS CID: {}", market.ipfs_cid);
-    msg!("   Target pool: {} lamports ({} SOL)", target_pool, target_pool / 1_000_000_000);
-    msg!("   Initial AMM yes_pool: {} lamports", market.yes_pool);
-    msg!("   Initial AMM no_pool: {} lamports", market.no_pool);
-    msg!("   Initial k (liquidity): {}", (market.yes_pool as u128) * (market.no_pool as u128));
-    msg!("   Starting price: YES = 0.5, NO = 0.5");
-    msg!("   Expiry: {}", market.expiry_time);
-    msg!("   Creation fee charged: {} lamports", CREATION_FEE_LAMPORTS);
-
     Ok(())
 }
