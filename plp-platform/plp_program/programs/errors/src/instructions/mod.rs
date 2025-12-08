@@ -13,6 +13,10 @@ pub use withdraw_fees::*;
 pub mod create_market;
 pub use create_market::*;
 
+// Market migration (for upgrading existing markets)
+pub mod migrate_market;
+pub use migrate_market::*;
+
 // Trading instructions
 pub mod buy_yes;
 pub mod buy_no;
