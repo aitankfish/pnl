@@ -34,6 +34,9 @@ export function useResolution() {
       symbol: string;
       description: string;
       imageUrl: string;
+      twitter?: string;
+      telegram?: string;
+      website?: string;
     };
     needsTokenLaunch?: boolean; // If YES wins, needs token creation
   }): Promise<{ success: boolean; signature?: string; error?: any }> => {
@@ -195,6 +198,9 @@ export function useResolution() {
       symbol: string;
       description: string;
       imageUrl: string;
+      twitter?: string;
+      telegram?: string;
+      website?: string;
     };
   }): Promise<{ success: boolean; signature?: string; error?: any }> => {
     try {
@@ -334,15 +340,25 @@ export function useResolution() {
         throw new Error(`Cannot fetch market image: ${error instanceof Error ? error.message : 'Unknown error'}`);
       }
 
+      // Build PLP market link
+      const baseUrl = typeof window !== 'undefined' ? window.location.origin : 'https://plp.fun';
+      const marketUrl = `${baseUrl}/market/${params.marketId}`;
+
       // Create FormData with actual image file (Pump.fun expects this format)
       const formData = new FormData();
       formData.append('file', imageBlob, 'image.png');
       formData.append('name', tokenName);
       formData.append('symbol', params.tokenMetadata.symbol);
-      formData.append('description', params.tokenMetadata.description);
-      formData.append('twitter', '');
-      formData.append('telegram', '');
-      formData.append('website', '');
+
+      // Append market link to description for visibility
+      const descriptionWithMarket = params.tokenMetadata.description +
+        `\n\n🎯 Prediction Market: ${marketUrl}`;
+      formData.append('description', descriptionWithMarket);
+
+      formData.append('twitter', params.tokenMetadata.twitter || '');
+      formData.append('telegram', params.tokenMetadata.telegram || '');
+      // Use market link as website if no website provided
+      formData.append('website', params.tokenMetadata.website || marketUrl);
       formData.append('showName', 'true');
 
       // Retry logic with exponential backoff (3 attempts)

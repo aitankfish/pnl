@@ -154,14 +154,25 @@ export async function GET(
     const phase = market.phase || 'Prediction';
     const poolProgressPercentage = market.poolProgressPercentage || 0;
     const isExpired = now.getTime() > expiryTime.getTime();
+    const hasTokenLaunched = !!market.pumpFunTokenAddress; // Check if token was launched
 
     let displayStatus = '✅ Active';
     let badgeClass = 'bg-green-500/20 text-green-300 border-green-400/30';
 
     // Resolved states
     if (resolution === 'YesWins') {
-      displayStatus = '🎉 YES Wins';
-      badgeClass = 'bg-green-500/20 text-green-300 border-green-400/30';
+      // Check if token has been launched
+      if (hasTokenLaunched) {
+        displayStatus = '🚀 Token Launched';
+        badgeClass = 'bg-cyan-500/20 text-cyan-300 border-cyan-400/30';
+      } else if (phase === 1) { // 1 = Funding phase (extended)
+        displayStatus = '💰 Funding Phase';
+        badgeClass = 'bg-purple-500/20 text-purple-300 border-purple-400/30';
+      } else {
+        // YES won but not launched yet
+        displayStatus = '🎉 YES Wins';
+        badgeClass = 'bg-green-500/20 text-green-300 border-green-400/30';
+      }
     } else if (resolution === 'NoWins') {
       displayStatus = '❌ NO Wins';
       badgeClass = 'bg-red-500/20 text-red-300 border-red-400/30';
@@ -266,6 +277,7 @@ export async function GET(
       phase: market.phase,
       resolution: market.resolution,
       tokenMint: market.tokenMint,
+      pumpFunTokenAddress: market.pumpFunTokenAddress,
       platformTokensAllocated: market.platformTokensAllocated,
       platformTokensClaimed: market.platformTokensClaimed,
       yesVoterTokensAllocated: market.yesVoterTokensAllocated,
@@ -293,8 +305,9 @@ export async function GET(
       },
       {
         headers: {
-          // Cache for 15 seconds, serve stale for 30 seconds while revalidating
-          'Cache-Control': 'public, s-maxage=15, stale-while-revalidate=30',
+          // Reduced cache to 2 seconds for near real-time status updates
+          // Markets can change status frequently (voting, expiry, resolution, token launch)
+          'Cache-Control': 'public, s-maxage=2, stale-while-revalidate=5',
         },
       }
     );

@@ -67,6 +67,10 @@ export async function POST(request: NextRequest) {
       winningOption: marketAccount.winningOption,
     });
 
+    // Connect to database first (outside retry loop so db is in scope for notifications)
+    await connectToDatabase();
+    const db = await getDatabase();
+
     // Update database with resolution (with retry logic)
     let dbUpdateSuccess = false;
     let lastDbError: Error | null = null;
@@ -75,9 +79,6 @@ export async function POST(request: NextRequest) {
     for (let attempt = 1; attempt <= maxRetries; attempt++) {
       try {
         logger.info(`Database update attempt ${attempt}/${maxRetries}`);
-
-        await connectToDatabase();
-        const db = await getDatabase();
 
         // Prepare update data
         const updateData: any = {
@@ -143,7 +144,20 @@ export async function POST(request: NextRequest) {
       if (participants.length > 0) {
         logger.info(`Creating notifications for ${participants.length} participants`);
 
-        // Get market details for notification message
+        // Get market details for notification message (only if db is available)
+        if (!db) {
+          logger.warn('Database connection not available, skipping notifications');
+          return NextResponse.json({
+            success: true,
+            data: {
+              signature,
+              resolution: resolutionOutcome,
+              winningOption: marketAccount.winningOption,
+              message: 'Market resolved successfully! (notifications skipped)',
+            },
+          });
+        }
+
         const market = await db.collection(COLLECTIONS.PREDICTION_MARKETS).findOne(
           { _id: new ObjectId(marketId) }
         );

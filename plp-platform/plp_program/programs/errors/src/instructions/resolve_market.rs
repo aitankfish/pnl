@@ -180,8 +180,13 @@ pub fn handler(ctx: Context<ResolveMarket>) -> Result<()> {
 
     match resolution {
         MarketResolution::YesWins => {
-            // Calculate 5% completion fee
-            let completion_fee = (market.pool_balance * COMPLETION_FEE_BPS) / BPS_DIVISOR;
+            // CRITICAL: Use vault's ACTUAL lamport balance, not market.pool_balance
+            // market.pool_balance may be out of sync if buy_yes/buy_no had issues
+            // Vault's actual balance is the source of truth for available SOL
+            let vault_lamports = ctx.accounts.market_vault.lamports();
+
+            // Calculate 5% completion fee based on actual vault balance
+            let completion_fee = (vault_lamports * COMPLETION_FEE_BPS) / BPS_DIVISOR;
 
             // CRITICAL: Reserve rent-exempt balance for Market Vault PDA
             // Pump.fun validates the buyer remains rent-exempt after purchase
@@ -193,9 +198,8 @@ pub fn handler(ctx: Context<ResolveMarket>) -> Result<()> {
                 .checked_add(completion_fee)
                 .ok_or(ErrorCode::MathError)?;
 
-            // Net amount for token purchase = pool - reserved
-            let net_amount_for_token = market
-                .pool_balance
+            // Net amount for token purchase = vault_actual_balance - reserved
+            let net_amount_for_token = vault_lamports
                 .checked_sub(total_reserved)
                 .ok_or(ErrorCode::MathError)?;
 
@@ -319,8 +323,26 @@ pub fn handler(ctx: Context<ResolveMarket>) -> Result<()> {
             // Now transfer completion fee (AFTER CPI completes)
             // -------------------------
             // Market vault holds all SOL, transfer fee from vault to treasury
-            **ctx.accounts.market_vault.to_account_info().try_borrow_mut_lamports()? -= completion_fee;
-            **treasury.to_account_info().try_borrow_mut_lamports()? += completion_fee;
+            // Use system_program::transfer with invoke_signed (vault is system-owned)
+            let market_key = market.key();
+            let vault_seeds = &[
+                b"market_vault",
+                market_key.as_ref(),
+                &[ctx.bumps.market_vault],
+            ];
+            let signer_seeds = &[&vault_seeds[..]];
+
+            anchor_lang::system_program::transfer(
+                CpiContext::new_with_signer(
+                    ctx.accounts.system_program.to_account_info(),
+                    anchor_lang::system_program::Transfer {
+                        from: ctx.accounts.market_vault.to_account_info(),
+                        to: treasury.to_account_info(),
+                    },
+                    signer_seeds,
+                ),
+                completion_fee,
+            )?;
 
             // Update treasury total fees
             treasury.total_fees = treasury
@@ -356,12 +378,33 @@ pub fn handler(ctx: Context<ResolveMarket>) -> Result<()> {
         }
 
         MarketResolution::NoWins => {
-            // Deduct 5% completion fee from pool
-            let completion_fee = (market.pool_balance * COMPLETION_FEE_BPS) / BPS_DIVISOR;
+            // Use vault's ACTUAL lamport balance (same as YesWins case)
+            let vault_lamports = ctx.accounts.market_vault.lamports();
+
+            // Deduct 5% completion fee from actual vault balance
+            let completion_fee = (vault_lamports * COMPLETION_FEE_BPS) / BPS_DIVISOR;
 
             // Transfer fee from market vault to treasury
-            **ctx.accounts.market_vault.to_account_info().try_borrow_mut_lamports()? -= completion_fee;
-            **treasury.to_account_info().try_borrow_mut_lamports()? += completion_fee;
+            // Use system_program::transfer with invoke_signed (vault is system-owned)
+            let market_key = market.key();
+            let vault_seeds = &[
+                b"market_vault",
+                market_key.as_ref(),
+                &[ctx.bumps.market_vault],
+            ];
+            let signer_seeds = &[&vault_seeds[..]];
+
+            anchor_lang::system_program::transfer(
+                CpiContext::new_with_signer(
+                    ctx.accounts.system_program.to_account_info(),
+                    anchor_lang::system_program::Transfer {
+                        from: ctx.accounts.market_vault.to_account_info(),
+                        to: treasury.to_account_info(),
+                    },
+                    signer_seeds,
+                ),
+                completion_fee,
+            )?;
 
             // Update treasury total fees
             treasury.total_fees = treasury
@@ -369,11 +412,27 @@ pub fn handler(ctx: Context<ResolveMarket>) -> Result<()> {
                 .checked_add(completion_fee)
                 .ok_or(ErrorCode::MathError)?;
 
-            // Update market pool balance (95% remains for NO voter distribution)
-            market.pool_balance = market
-                .pool_balance
+            // Calculate remaining vault balance for distribution
+            let distribution_amount = vault_lamports
                 .checked_sub(completion_fee)
                 .ok_or(ErrorCode::MathError)?;
+
+            // Transfer remaining SOL from vault to market account for distribution
+            // NO voters will claim from market account (not vault)
+            anchor_lang::system_program::transfer(
+                CpiContext::new_with_signer(
+                    ctx.accounts.system_program.to_account_info(),
+                    anchor_lang::system_program::Transfer {
+                        from: ctx.accounts.market_vault.to_account_info(),
+                        to: market.to_account_info(),
+                    },
+                    signer_seeds,
+                ),
+                distribution_amount,
+            )?;
+
+            // Update market pool balance (95% of vault now in market account)
+            market.pool_balance = distribution_amount;
 
             // Set distribution pool (snapshot for proportional claims)
             // This ensures all NO voters claim from the same fixed pool
@@ -383,6 +442,42 @@ pub fn handler(ctx: Context<ResolveMarket>) -> Result<()> {
 
         MarketResolution::Refund => {
             // No fees deducted for refunds
+            // Transfer all vault SOL to market account for user refunds
+            let vault_lamports = ctx.accounts.market_vault.lamports();
+
+            // Keep minimum rent-exempt balance in vault
+            let rent = Rent::get()?;
+            let vault_rent_exempt = rent.minimum_balance(0);
+
+            // Transfer everything except rent-exempt to market account
+            let refund_pool = vault_lamports
+                .checked_sub(vault_rent_exempt)
+                .ok_or(ErrorCode::MathError)?;
+
+            if refund_pool > 0 {
+                let market_key = market.key();
+                let vault_seeds = &[
+                    b"market_vault",
+                    market_key.as_ref(),
+                    &[ctx.bumps.market_vault],
+                ];
+                let signer_seeds = &[&vault_seeds[..]];
+
+                anchor_lang::system_program::transfer(
+                    CpiContext::new_with_signer(
+                        ctx.accounts.system_program.to_account_info(),
+                        anchor_lang::system_program::Transfer {
+                            from: ctx.accounts.market_vault.to_account_info(),
+                            to: market.to_account_info(),
+                        },
+                        signer_seeds,
+                    ),
+                    refund_pool,
+                )?;
+
+                // Update market pool balance for refunds
+                market.pool_balance = refund_pool;
+            }
         }
 
         MarketResolution::Unresolved => {

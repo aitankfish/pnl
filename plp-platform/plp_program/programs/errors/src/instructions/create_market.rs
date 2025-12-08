@@ -66,9 +66,9 @@ pub fn handler(
     // 1) Validate inputs
     // -------------------------
 
-    // Enforce minimum target pool (0.5 SOL minimum)
+    // Enforce minimum target pool (0.08 SOL minimum)
     // Frontend can restrict to specific values (5/10/15 SOL for production)
-    const MIN_POOL_LAMPORTS: u64 = 500_000_000; // 0.5 SOL
+    const MIN_POOL_LAMPORTS: u64 = 80_000_000; // 0.08 SOL
     require!(
         target_pool >= MIN_POOL_LAMPORTS,
         ErrorCode::InvalidTargetPool

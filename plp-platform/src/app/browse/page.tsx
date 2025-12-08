@@ -8,6 +8,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { CheckCircle, XCircle, Loader2, Filter } from 'lucide-react';
 import Link from 'next/link';
 import { useVoting } from '@/lib/hooks/useVoting';
+import { useAllMarketsSocket } from '@/lib/hooks/useSocket';
 import { FEES } from '@/config/solana';
 import CountdownTimer from '@/components/CountdownTimer';
 import ErrorDialog from '@/components/ErrorDialog';
@@ -109,6 +110,9 @@ export default function BrowsePage() {
   const [selectedCategory, setSelectedCategory] = useState<string>('All');
   const { vote } = useVoting();
 
+  // Socket.IO for real-time updates
+  const { marketUpdates, isConnected } = useAllMarketsSocket();
+
   // Error dialog state
   const [errorDialog, setErrorDialog] = useState<{
     open: boolean;
@@ -138,6 +142,25 @@ export default function BrowsePage() {
   useEffect(() => {
     fetchMarkets();
   }, []);
+
+  // Merge socket updates into markets state for real-time updates
+  useEffect(() => {
+    if (marketUpdates.size === 0) return;
+
+    setMarkets((prevMarkets) => {
+      return prevMarkets.map((market) => {
+        const update = marketUpdates.get(market.marketAddress);
+        if (update) {
+          // Merge socket update with existing market data
+          return {
+            ...market,
+            ...update,
+          };
+        }
+        return market;
+      });
+    });
+  }, [marketUpdates]);
 
   const fetchMarkets = async () => {
     try {

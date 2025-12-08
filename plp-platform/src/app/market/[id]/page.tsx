@@ -1259,6 +1259,9 @@ export default function MarketDetailsPage() {
                                       symbol: market.tokenSymbol,
                                       description: market.description,
                                       imageUrl: market.projectImageUrl || 'https://via.placeholder.com/300', // Fallback if no image
+                                      twitter: market.metadata?.socialLinks?.twitter || '',
+                                      telegram: market.metadata?.socialLinks?.telegram || '',
+                                      website: market.metadata?.socialLinks?.website || '',
                                     };
 
                                     const result = await resolve({
@@ -1431,6 +1434,9 @@ export default function MarketDetailsPage() {
                                         symbol: market.tokenSymbol,
                                         description: market.description,
                                         imageUrl: market.projectImageUrl || '',
+                                        twitter: market.metadata?.socialLinks?.twitter || '',
+                                        telegram: market.metadata?.socialLinks?.telegram || '',
+                                        website: market.metadata?.socialLinks?.website || '',
                                       };
 
                                       const result = await resolve({

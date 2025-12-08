@@ -742,12 +742,12 @@ export default function CreatePage() {
                       <div className="mt-2">
                         <input
                           type="number"
-                          step="0.1"
-                          min="0.5"
-                          placeholder="Enter SOL amount (min 0.5)"
+                          step="0.01"
+                          min="0.08"
+                          placeholder="Enter SOL amount (min 0.08)"
                           onChange={(e) => {
                             const sol = parseFloat(e.target.value);
-                            if (!isNaN(sol) && sol >= 0.5) {
+                            if (!isNaN(sol) && sol >= 0.08) {
                               handleInputChange('targetPool', String(Math.floor(sol * 1e9)));
                             } else if (e.target.value === '') {
                               handleInputChange('targetPool', '');
