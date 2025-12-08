@@ -27,7 +27,7 @@ pub const MAX_METADATA_URI_LEN: usize = 200;
 /// Basis points divisor (100%)
 pub const BPS_DIVISOR: u64 = 10_000;
 
-/// P&L Platform wallet for receiving 1% token allocation
+/// P&L Platform wallet for receiving 2% token allocation
 pub const PNL_WALLET: &str = "3MihVtsLsVuEccpmz4YG72Cr8CJWf1evRorTPdPiHeEQ";
 
 /// Pump.fun program ID (mainnet)

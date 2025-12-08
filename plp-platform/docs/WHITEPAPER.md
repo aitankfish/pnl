@@ -21,7 +21,7 @@ Key innovations:
 - ✅ **Aligned Incentives**: Founders stake reputation, voters risk capital, both benefit from success
 - ✅ **Fair Distribution**: Transparent, on-chain token allocation to supporters
 - ✅ **Global Access**: Permissionless, no KYC barriers, low minimum investment
-- ✅ **Built-In Accountability**: Future governance controls trading fee release
+- ✅ **Transparent Economics**: Clear fee structure and token distribution
 
 PNL transforms token launches from trust-based gambles into **transparent, community-vetted events where the market decides**.
 
@@ -38,9 +38,8 @@ PNL transforms token launches from trust-based gambles into **transparent, commu
 7. [Benefits for Founders](#benefits-for-founders)
 8. [Benefits for Voters](#benefits-for-voters)
 9. [Technical Architecture](#technical-architecture)
-10. [Future: Accountability Layer](#future-accountability-layer)
-11. [Vision: Democratizing Web3 Funding](#vision-democratizing-web3-funding)
-12. [Conclusion](#conclusion)
+10. [Vision: Democratizing Web3 Funding](#vision-democratizing-web3-funding)
+11. [Conclusion](#conclusion)
 
 ---
 
@@ -266,9 +265,9 @@ PHASE 4: TOKEN LAUNCH (YES Wins - Atomic Execution)
     │ • Mint token on      │────────┐     │ • Market buys     │
     │   Pump.fun bonding   │        │     │   ~30% of tokens  │
     │   curve              │        │     │ • Distribute to   │
-    │ • Market PDA is      │        │────▶│   YES voters: 79% │
-    │   creator (owns fees)│        │     │   Team: 20%       │
-    │ • Token2022 standard │        │     │   Platform: 1%    │
+    │ • Market PDA is      │        │────▶│   YES voters: 65% │
+    │   creator (owns fees)│        │     │   Team: 33%       │
+    │ • Token2022 standard │        │     │   Platform: 2%    │
     │ • Metadata uploaded  │        │     │ • Jito tip: min   │
     └──────────────────────┘        │     │   0.000001 SOL    │
                                     │     └───────────────────┘
@@ -292,75 +291,11 @@ PHASE 4: TOKEN LAUNCH (YES Wins - Atomic Execution)
              │
              ↓
 
-PHASE 5: GOVERNANCE (Future - 30 Days After Launch)
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-┌─────────────────────────────────────┐
-│      30-Day Grace Period             │
-│  ─────────────────────────────────  │
-│  • Founder builds product           │
-│  • Token trades freely              │
-│  • Trading fees accumulate in       │
-│    Market PDA vault (locked)        │
-│  • Community monitors progress      │
-└────────────┬────────────────────────┘
-             │
-             ↓
-┌─────────────────────────────────────┐
-│   Governance Voting Opens (30 days) │
-│  ─────────────────────────────────  │
-│  • Token holders vote:              │
-│    - "Release to Founder" OR        │
-│    - "Flag as Scam"                 │
-│  • Voting power = token holdings    │
-│  • Evidence-based criteria:         │
-│    ✅ Product delivered?            │
-│    ✅ Features shipped?             │
-│    ✅ Communication maintained?     │
-│    🚫 NOT: "Token price down"       │
-└────────────┬────────────────────────┘
-             │
-             ↓
-     ┌───────────────┐
-     │  VOTE RESULT? │
-     └───────┬───────┘
-             │
-    ┌────────┴──────────┐
-    │                   │
-    ↓                   ↓
-┌──────────────┐   ┌─────────────────┐
-│ RELEASE FEES │   │  FLAG AS SCAM   │
-│ (>50% votes) │   │ (>66% + evidence)│
-└──────┬───────┘   └────────┬────────┘
-       │                    │
-       ↓                    ↓
-┌──────────────────┐   ┌──────────────────┐
-│ Founder Claims   │   │ Voters Recoup    │
-│ ──────────────── │   │ ──────────────── │
-│ • Gets all trading│  │ • Each YES voter │
-│   fees from vault │  │   claims share   │
-│ • Rewarded for   │   │ • Proportional to│
-│   delivery       │   │   their shares   │
-│ • Reputation ↑   │   │ • ~70% recovery  │
-│                  │   │ • Founder: $0    │
-└──────────────────┘   └──────────────────┘
-
-PHASE 6: ONGOING (Post-Governance)
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-┌─────────────────────────────────────┐
-│       Founder Reputation Built       │
-│  ─────────────────────────────────  │
-│  • Historical track record saved    │
-│  • Future launches easier/harder    │
-│  • Community trust established      │
-│  • Platform reputation system       │
-└─────────────────────────────────────┘
-
 KEY METRICS TRACKED
 ──────────────────────────────────────────────────────────────────────────
 • Total markets created
 • Success rate (YES wins / total)
 • Average market confidence (% YES)
-• Governance outcomes (fees released vs scam flags)
 • Token performance (if launched)
 • Community sentiment score
 ```
@@ -422,11 +357,11 @@ Token Launch Flow:
 ├── Token created on Pump.fun (bonding curve platform)
 ├── Market pool buys initial tokens (~30% of remaining pool)
 ├── Token distribution:
-│   ├── PNL Platform: 1%
-│   ├── Team: 20% (5% immediate + 15% vested over 12 months)
-│   └── YES Voters: 79% (proportional to shares)
+│   ├── PNL Platform: 2%
+│   ├── Team: 33% (8% immediate + 25% vested over 12 months)
+│   └── YES Voters: 65% (proportional to shares)
 ├── Token trades on Pump.fun bonding curve
-└── Trading fees accumulate (future: governance-controlled)
+└── Trading fees go to founder (token creator)
 ```
 
 **Technical Innovation**: Jito bundling ensures atomic execution
@@ -511,11 +446,11 @@ YES wins majority           Token created atomically
       ↓                              ↓
 Market pool buys tokens     Initial liquidity seeded
       ↓                              ↓
-YES voters receive 79%      Trading begins on Pump.fun
+YES voters receive 65%      Trading begins on Pump.fun
       ↓                              ↓
-Founder gets 20% vested     May graduate to Raydium DEX
+Founder gets 33% (8%+25%)   May graduate to Raydium DEX
       ↓                              ↓
-Platform receives 1%        Future: Fee governance
+Platform receives 2%        Trading fees go to founder
 ```
 
 **Key Insight**: Prediction market participants become token stakeholders, perfectly aligning incentives for long-term project success.
@@ -530,12 +465,12 @@ When YES wins and token launches, distribution is:
 
 ```
 Total Token Supply: 100%
-├── YES Voters: 79%
+├── YES Voters: 65%
 │   └── Proportional to YES shares held
-├── Team: 20%
-│   ├── Immediate: 5%
-│   └── Vested: 15% (linear unlock over 12 months)
-└── PNL Platform: 1%
+├── Team: 33%
+│   ├── Immediate: 8%
+│   └── Vested: 25% (linear unlock over 12 months)
+└── PNL Platform: 2%
 ```
 
 ### Why This Is Fair
@@ -549,15 +484,15 @@ Traditional:
 └── Result: 100x price differential, retail gets dumped on
 
 PNL:
-├── YES Voters: 79% at market price (earned through validation)
-├── Team: 20% at same price (15% vested over 12 months)
-├── Platform: 1% at same price (sustainability fee)
+├── YES Voters: 65% at market price (earned through validation)
+├── Team: 33% at same price (25% vested over 12 months)
+├── Platform: 2% at same price (sustainability fee)
 └── Result: Fair, transparent, same price for everyone
 ```
 
 **No Price Tiers**: Everyone pays same price (determined by Pump.fun bonding curve)
 **No Hidden Allocations**: All distribution on-chain, verifiable
-**Vesting Protects Investors**: Team can't dump immediately (15% vested)
+**Vesting Protects Investors**: Team can't dump immediately (25% vested)
 **Proportional Reward**: Bigger believers get more tokens
 
 ### Example Distribution
@@ -575,15 +510,15 @@ Token Launch:
 ├── Market buys ~35 SOL worth of tokens from Pump.fun
 ├── Receives X tokens (based on bonding curve)
 ├── Distribution of X tokens:
-│   ├── YES voters get 79% of X (proportional to shares)
-│   ├── Team gets 20% of X (5% now, 15% vested)
-│   └── Platform gets 1% of X
+│   ├── YES voters get 65% of X (proportional to shares)
+│   ├── Team gets 33% of X (8% now, 25% vested)
+│   └── Platform gets 2% of X
 └── 79 SOL remains for YES voters to claim
 ```
 
 **Alice's Share** (invested 8 SOL YES, 10% of YES pool):
 - Claims: 7.9 SOL back (her share of pool)
-- Receives: 7.9% of total tokens (79% × 10%)
+- Receives: 6.5% of total tokens (65% × 10%)
 
 ---
 

@@ -5,7 +5,7 @@ use crate::errors::ErrorCode;
 use crate::state::*;
 use std::str::FromStr;
 
-/// Claim platform's 1% token allocation (immediate, no vesting)
+/// Claim platform's 2% token allocation (immediate, no vesting)
 ///
 /// Transfers tokens to hardcoded P&L wallet: 3MihVtsLsVuEccpmz4YG72Cr8CJWf1evRorTPdPiHeEQ
 /// Can only be called once after token launch
@@ -26,7 +26,7 @@ pub struct ClaimPlatformTokens<'info> {
     )]
     pub market_token_account: Account<'info, TokenAccount>,
 
-    /// P&L Platform wallet's token account (receives 1% allocation)
+    /// P&L Platform wallet's token account (receives 2% allocation)
     #[account(
         mut,
         constraint = pnl_token_account.owner == Pubkey::from_str(PNL_WALLET).unwrap() @ ErrorCode::Unauthorized,
@@ -82,10 +82,6 @@ pub fn handler(ctx: Context<ClaimPlatformTokens>) -> Result<()> {
     // -------------------------
 
     market.platform_tokens_claimed = true;
-
-    msg!("✅ PLATFORM TOKENS CLAIMED");
-    msg!("   P&L Wallet: {}", PNL_WALLET);
-    msg!("   Amount: {} tokens (2% of supply)", market.platform_tokens_allocated);
 
     Ok(())
 }

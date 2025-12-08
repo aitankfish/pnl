@@ -2,9 +2,9 @@ use anchor_lang::prelude::*;
 
 /// Team vesting schedule for token distribution
 ///
-/// Stores vesting information for the team's 20% token allocation
-/// - 5% immediate (claimable at resolution)
-/// - 15% vested (linear over 12 months with monthly unlock)
+/// Stores vesting information for the team's 33% token allocation
+/// - 8% immediate (claimable at resolution)
+/// - 25% vested (linear over 12 months with monthly unlock)
 #[account]
 pub struct TeamVesting {
     /// Market this vesting schedule belongs to
@@ -16,13 +16,13 @@ pub struct TeamVesting {
     /// Token mint address (created via Pump.fun)
     pub token_mint: Pubkey,
 
-    /// Total tokens allocated to team (20% of total supply)
+    /// Total tokens allocated to team (33% of total supply)
     pub total_tokens: u64,
 
-    /// Immediate tokens (5% of total supply, claimable right away)
+    /// Immediate tokens (8% of total supply, claimable right away)
     pub immediate_tokens: u64,
 
-    /// Vesting tokens (15% of total supply, vested over 12 months)
+    /// Vesting tokens (25% of total supply, vested over 12 months)
     pub vesting_tokens: u64,
 
     /// Tokens already claimed by team (includes both immediate and vested)

@@ -45,16 +45,16 @@ export default function WhitepaperPage() {
             <p className="text-gray-300 leading-relaxed mt-4">
               <strong className="text-white">PNL (Prediction & Launch Platform)</strong> introduces a revolutionary
               solution: <strong className="text-blue-400">prediction markets as a vetting mechanism for token launches</strong>.
-              By combining market-based validation with transparent token distribution and accountability mechanisms,
+              By combining market-based validation with transparent token distribution,
               PNL creates the world&apos;s first community-validated token launch platform.
             </p>
 
             <div className="mt-6 space-y-2">
               <p className="text-green-400">✅ Market-Based Validation: Community predicts and votes on project success</p>
               <p className="text-green-400">✅ Aligned Incentives: Founders and voters both benefit from success</p>
-              <p className="text-green-400">✅ Fair Distribution: Transparent, on-chain token allocation (79% to supporters)</p>
+              <p className="text-green-400">✅ Fair Distribution: Transparent, on-chain token allocation (65% to supporters)</p>
               <p className="text-green-400">✅ Global Access: Permissionless, no KYC barriers, 0.01 SOL minimum</p>
-              <p className="text-green-400">✅ Built-In Accountability: Future governance controls trading fee release</p>
+              <p className="text-green-400">✅ Transparent Economics: Clear fee structure and token distribution</p>
             </div>
           </section>
 
@@ -114,7 +114,7 @@ export default function WhitepaperPage() {
                 <li><strong>Community votes with real money:</strong> YES (will succeed) or NO (will fail)</li>
                 <li><strong>Market aggregates information:</strong> Price reflects true probability</li>
                 <li><strong>Token launches only if YES wins:</strong> Community validation required</li>
-                <li><strong>Fair distribution:</strong> YES voters receive 79% of tokens proportionally</li>
+                <li><strong>Fair distribution:</strong> YES voters receive 65% of tokens proportionally</li>
               </ol>
               <p className="text-green-400 mt-4 font-semibold">
                 Result: Only projects the community believes in get launched.
@@ -208,49 +208,23 @@ export default function WhitepaperPage() {
                   <div className="text-yellow-400 text-xl">↓</div>
                 </div>
 
-                {/* Phases Row 2 - Token Launch and Governance */}
-                <div className="grid grid-cols-2 gap-2 mb-3">
-                  {/* Phase 4: Token Launch */}
-                  <div className="relative">
-                    <div className="bg-gradient-to-br from-yellow-600/20 to-yellow-500/20 border border-yellow-500 rounded p-2">
-                      <div className="flex items-center justify-center mb-1">
-                        <div className="bg-yellow-500 text-white font-bold rounded-full w-5 h-5 flex items-center justify-center mr-1 text-xs">4</div>
-                        <h4 className="text-xs font-bold text-yellow-400">LAUNCH</h4>
-                      </div>
-                      <p className="text-center text-yellow-300 text-[10px] mb-1">If YES (Atomic)</p>
-                      <div className="bg-yellow-900/20 rounded px-2 py-1 border border-yellow-500/40 mb-1">
-                        <p className="font-semibold text-yellow-400 text-center text-[10px]">Native TX + ALT</p>
-                      </div>
-                      <div className="bg-gray-800/60 rounded px-2 py-1 border border-yellow-500/30">
-                        <p className="font-semibold text-white text-[10px] mb-1">Single Atomic TX</p>
-                        <p className="text-gray-300 text-[10px]">• Pump.fun create</p>
-                        <p className="text-gray-300 text-[10px]">• Create ATA</p>
-                        <p className="text-gray-300 text-[10px]">• Resolve market</p>
-                        <p className="text-gray-300 text-[10px] mt-1"><span className="text-green-400">79% YES</span> <span className="text-blue-400">20% Team</span> <span className="text-purple-400">1% Plat</span></p>
-                      </div>
+                {/* Phase 4: Token Launch */}
+                <div className="mb-3">
+                  <div className="bg-gradient-to-br from-yellow-600/20 to-yellow-500/20 border border-yellow-500 rounded p-2">
+                    <div className="flex items-center justify-center mb-1">
+                      <div className="bg-yellow-500 text-white font-bold rounded-full w-5 h-5 flex items-center justify-center mr-1 text-xs">4</div>
+                      <h4 className="text-xs font-bold text-yellow-400">LAUNCH</h4>
                     </div>
-                    <div className="absolute -right-1 top-1/2 transform -translate-y-1/2 text-orange-400 text-xl z-10">→</div>
-                  </div>
-
-                  {/* Phase 5: Governance */}
-                  <div className="relative">
-                    <div className="bg-gradient-to-br from-orange-600/20 to-orange-500/20 border border-orange-500 rounded p-2">
-                      <div className="flex items-center justify-center mb-1">
-                        <div className="bg-orange-500 text-white font-bold rounded-full w-5 h-5 flex items-center justify-center mr-1 text-xs">5</div>
-                        <h4 className="text-xs font-bold text-orange-400">GOVERN</h4>
-                      </div>
-                      <p className="text-center text-orange-300 text-[10px] mb-1">Day 30+</p>
-                      <div className="space-y-1">
-                        <div className="bg-gray-800/60 rounded px-2 py-1 border border-orange-500/30">
-                          <p className="font-semibold text-white text-[10px]">Grace</p>
-                          <p className="text-gray-300 text-[10px]">Build & escrow</p>
-                        </div>
-                        <div className="bg-gray-800/60 rounded px-2 py-1 border border-orange-500/30">
-                          <p className="font-semibold text-white text-[10px]">Vote</p>
-                          <p className="text-gray-300 text-[10px]"><span className="text-green-400">Release</span> 50%</p>
-                          <p className="text-gray-300 text-[10px]"><span className="text-red-400">Scam</span> 66%</p>
-                        </div>
-                      </div>
+                    <p className="text-center text-yellow-300 text-[10px] mb-1">If YES (Atomic)</p>
+                    <div className="bg-yellow-900/20 rounded px-2 py-1 border border-yellow-500/40 mb-1">
+                      <p className="font-semibold text-yellow-400 text-center text-[10px]">Native TX + ALT</p>
+                    </div>
+                    <div className="bg-gray-800/60 rounded px-2 py-1 border border-yellow-500/30">
+                      <p className="font-semibold text-white text-[10px] mb-1">Single Atomic TX</p>
+                      <p className="text-gray-300 text-[10px]">• Pump.fun create</p>
+                      <p className="text-gray-300 text-[10px]">• Create ATA</p>
+                      <p className="text-gray-300 text-[10px]">• Resolve market</p>
+                      <p className="text-gray-300 text-[10px] mt-1"><span className="text-green-400">65% YES</span> <span className="text-blue-400">33% Team</span> <span className="text-purple-400">2% Plat</span></p>
                     </div>
                   </div>
                 </div>
@@ -272,10 +246,10 @@ export default function WhitepaperPage() {
                       <p className="text-gray-300 text-[10px]">• Confidence</p>
                     </div>
                     <div className="bg-gray-800/60 rounded px-2 py-1 border border-pink-500/30">
-                      <p className="text-gray-300 text-[10px]">• Governance</p>
+                      <p className="text-gray-300 text-[10px]">• Token Performance</p>
                     </div>
                     <div className="bg-gray-800/60 rounded px-2 py-1 border border-pink-500/30 sm:col-span-2">
-                      <p className="text-gray-300 text-[10px]">• Reputation</p>
+                      <p className="text-gray-300 text-[10px]">• Community Sentiment</p>
                     </div>
                   </div>
                 </div>
@@ -322,9 +296,9 @@ export default function WhitepaperPage() {
                 <div className="bg-gradient-to-br from-cyan-500/10 to-blue-500/10 backdrop-blur-xl rounded p-4 mb-3 border border-cyan-400/30">
                   <p className="text-white font-semibold mb-2">Token Distribution:</p>
                   <ul className="text-gray-300 space-y-1">
-                    <li>• <strong className="text-green-400">YES Voters: 79%</strong> (proportional to shares)</li>
-                    <li>• <strong className="text-blue-400">Team: 20%</strong> (5% immediate + 15% vested over 12 months)</li>
-                    <li>• <strong className="text-purple-400">PNL Platform: 1%</strong></li>
+                    <li>• <strong className="text-green-400">YES Voters: 65%</strong> (proportional to shares)</li>
+                    <li>• <strong className="text-blue-400">Team: 33%</strong> (8% immediate + 25% vested over 12 months)</li>
+                    <li>• <strong className="text-purple-400">PNL Platform: 2%</strong></li>
                   </ul>
                 </div>
                 <p className="text-gray-300">Token trades on Pump.fun bonding curve, may graduate to Raydium DEX.</p>
@@ -353,9 +327,9 @@ export default function WhitepaperPage() {
                 <div className="bg-black/30 rounded p-4 border border-green-400/20">
                   <p className="text-green-400 font-semibold mb-2">✅ PNL:</p>
                   <ul className="text-gray-300 text-sm space-y-1">
-                    <li>• YES Voters: 79% at market price</li>
-                    <li>• Team: 20% at same price (vested)</li>
-                    <li>• Platform: 1% at same price</li>
+                    <li>• YES Voters: 65% at market price</li>
+                    <li>• Team: 33% at same price (vested)</li>
+                    <li>• Platform: 2% at same price</li>
                     <li className="text-green-400 font-semibold">→ Fair, transparent, same price for all</li>
                   </ul>
                 </div>
@@ -383,7 +357,6 @@ export default function WhitepaperPage() {
                   <li>• Development and maintenance</li>
                   <li>• RPC infrastructure costs</li>
                   <li>• Security audits</li>
-                  <li>• Future: DAO governance and distribution</li>
                 </ul>
               </div>
             </div>
@@ -412,63 +385,8 @@ export default function WhitepaperPage() {
                   <li>✅ Collective intelligence advantage</li>
                   <li>✅ Downside protection (refunds if NO wins)</li>
                   <li>✅ Portfolio diversification ($2 minimum)</li>
-                  <li>✅ Future governance rights</li>
                 </ul>
               </div>
-            </div>
-          </section>
-
-          {/* Future: Accountability */}
-          <section className="mb-12">
-            <h2 className="text-3xl font-bold text-white mb-6">Future: Accountability Layer</h2>
-
-            <div className="bg-gradient-to-br from-purple-500/10 to-pink-500/10 backdrop-blur-xl border border-purple-400/30 rounded-lg p-6">
-              <h3 className="text-2xl font-semibold text-purple-400 mb-4">Fee Governance Mechanism</h3>
-              <p className="text-gray-300 mb-4">
-                Next evolution: Market PDA owns the token, trading fees held in escrow and controlled by governance.
-              </p>
-
-              <div className="bg-black/30 rounded p-4 space-y-3 border border-purple-400/20">
-                <div>
-                  <p className="text-white font-semibold">30-day grace period:</p>
-                  <p className="text-gray-300 text-sm">Founder builds product, fees accumulate in escrow</p>
-                </div>
-
-                <div>
-                  <p className="text-white font-semibold">30-day governance vote (evidence-based):</p>
-                  <p className="text-gray-300 text-sm">Token holders vote: &quot;Release to Founder&quot; OR &quot;Flag as Scam&quot;</p>
-                  <p className="text-blue-400 text-xs mt-1">✅ Based on delivery, NOT token price performance</p>
-                </div>
-
-                <div>
-                  <p className="text-white font-semibold text-sm">Valid criteria:</p>
-                  <ul className="text-gray-300 text-xs space-y-1 ml-4">
-                    <li>✅ Did founder ship product?</li>
-                    <li>✅ Were features delivered?</li>
-                    <li>✅ GitHub activity / development?</li>
-                    <li>🚫 &quot;Token price down&quot; - NOT valid</li>
-                  </ul>
-                </div>
-
-                <div>
-                  <p className="text-green-400 font-semibold">If Release wins (&gt;50% + product delivered):</p>
-                  <p className="text-gray-300 text-sm">Founder claims fees (earned through delivery, regardless of token price)</p>
-                </div>
-
-                <div>
-                  <p className="text-red-400 font-semibold">If Scam wins (&gt;66% supermajority + evidence):</p>
-                  <p className="text-gray-300 text-sm">Evidence required: No product, founder vanished, rugpull, etc.</p>
-                  <p className="text-gray-300 text-sm">Fees distributed to YES voters proportionally (~70% recovery)</p>
-                </div>
-              </div>
-
-              <p className="text-yellow-400 font-semibold mt-4">
-                Impact: Scams economically unviable + Honest founders protected from market volatility.
-              </p>
-
-              <p className="text-gray-400 text-sm mt-4">
-                Full technical specification: <code className="text-blue-400">docs/architecture/TOKEN_GOVERNANCE_FEE_ESCROW.md</code>
-              </p>
             </div>
           </section>
 

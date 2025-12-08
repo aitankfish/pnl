@@ -199,8 +199,9 @@ export async function buildCreateMarketTransaction(params: {
   const expiryTime = now + (params.marketDuration * 24 * 60 * 60);
 
   // Derive PDAs
-  const [treasuryPda] = getTreasuryPDA();
-  const [marketPda] = getMarketPDA(params.founder, params.ipfsCid);
+  const [treasuryPda] = getTreasuryPDA(network);
+  const [marketPda] = getMarketPDA(params.founder, params.ipfsCid, network);
+  const [marketVaultPda] = getMarketVaultPDA(marketPda, network);
 
   // Calculate instruction discriminator for create_market
   // Anchor discriminator = first 8 bytes of SHA256("global:create_market")
@@ -253,9 +254,10 @@ export async function buildCreateMarketTransaction(params: {
   const { TransactionInstruction: TxInstruction } = await import('@solana/web3.js');
   const instruction = new TxInstruction({
     keys: [
-      { pubkey: marketPda, isSigner: false, isWritable: true },      // market
-      { pubkey: treasuryPda, isSigner: false, isWritable: true },    // treasury
-      { pubkey: params.founder, isSigner: true, isWritable: true },  // founder
+      { pubkey: marketPda, isSigner: false, isWritable: true },        // market
+      { pubkey: marketVaultPda, isSigner: false, isWritable: true },   // market_vault (NEW!)
+      { pubkey: treasuryPda, isSigner: false, isWritable: true },      // treasury
+      { pubkey: params.founder, isSigner: true, isWritable: true },    // founder
       { pubkey: SystemProgram.programId, isSigner: false, isWritable: false }, // system_program
     ],
     programId: programId,
@@ -274,6 +276,7 @@ export async function buildCreateMarketTransaction(params: {
   return {
     transaction,
     marketPda: marketPda.toBase58(),
+    marketVaultPda: marketVaultPda.toBase58(),
     treasuryPda: treasuryPda.toBase58(),
     expiryTime,
     creationFee: FEES.CREATION,
@@ -298,6 +301,7 @@ export async function buildBuyYesTransaction(params: {
   // Derive PDAs with network-specific program ID
   const [treasuryPda] = getTreasuryPDA(network);
   const [positionPda] = getPositionPDA(params.market, params.user, network);
+  const [marketVaultPda] = getMarketVaultPDA(params.market, network);
 
   // Calculate buyYes discriminator: sha256("global:buy_yes")[0..8]
   const crypto = require('crypto');
@@ -327,9 +331,10 @@ export async function buildBuyYesTransaction(params: {
   const instruction = new TransactionInstruction({
     keys: [
       { pubkey: params.market, isSigner: false, isWritable: true },      // market
+      { pubkey: marketVaultPda, isSigner: false, isWritable: true },     // market_vault (NEW!)
       { pubkey: positionPda, isSigner: false, isWritable: true },        // position
-      { pubkey: treasuryPda, isSigner: false, isWritable: true },        // treasury (MUST be 3rd!)
-      { pubkey: params.user, isSigner: true, isWritable: true },         // user (MUST be 4th!)
+      { pubkey: treasuryPda, isSigner: false, isWritable: true },        // treasury
+      { pubkey: params.user, isSigner: true, isWritable: true },         // user
       { pubkey: SystemProgram.programId, isSigner: false, isWritable: false }, // system_program
     ],
     programId: programId,
@@ -376,6 +381,7 @@ export async function buildBuyNoTransaction(params: {
   // Derive PDAs with network-specific program ID
   const [treasuryPda] = getTreasuryPDA(network);
   const [positionPda] = getPositionPDA(params.market, params.user, network);
+  const [marketVaultPda] = getMarketVaultPDA(params.market, network);
 
   // Calculate buyNo discriminator: sha256("global:buy_no")[0..8]
   const crypto = require('crypto');
@@ -405,9 +411,10 @@ export async function buildBuyNoTransaction(params: {
   const instruction = new TransactionInstruction({
     keys: [
       { pubkey: params.market, isSigner: false, isWritable: true },      // market
+      { pubkey: marketVaultPda, isSigner: false, isWritable: true },     // market_vault (NEW!)
       { pubkey: positionPda, isSigner: false, isWritable: true },        // position
-      { pubkey: treasuryPda, isSigner: false, isWritable: true },        // treasury (MUST be 3rd!)
-      { pubkey: params.user, isSigner: true, isWritable: true },         // user (MUST be 4th!)
+      { pubkey: treasuryPda, isSigner: false, isWritable: true },        // treasury
+      { pubkey: params.user, isSigner: true, isWritable: true },         // user
       { pubkey: SystemProgram.programId, isSigner: false, isWritable: false }, // system_program
     ],
     programId: programId,

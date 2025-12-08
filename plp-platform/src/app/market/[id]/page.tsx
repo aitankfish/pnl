@@ -17,7 +17,7 @@ import { useTeamVesting } from '@/lib/hooks/useTeamVesting';
 import { usePlatformTokens } from '@/lib/hooks/usePlatformTokens';
 import { useClose } from '@/lib/hooks/useClose';
 import { useNetwork } from '@/lib/hooks/useNetwork';
-import { getPositionPDA } from '@/lib/anchor-program';
+import { getPositionPDA, getMarketVaultPDA } from '@/lib/anchor-program';
 import { PublicKey } from '@solana/web3.js';
 import CountdownTimer from '@/components/CountdownTimer';
 import { parseError } from '@/lib/utils/errorParser';
@@ -2015,6 +2015,29 @@ export default function MarketDetailsPage() {
                     <ExternalLink className="w-3 h-3 opacity-60 group-hover:opacity-100 flex-shrink-0" />
                   </a>
                 </div>
+
+                {/* Market Vault PDA */}
+                {(() => {
+                  try {
+                    const [marketVaultPda] = getMarketVaultPDA(new PublicKey(market.marketAddress));
+                    return (
+                      <div className="p-2 sm:p-3 bg-white/5 rounded-lg col-span-2">
+                        <div className="text-xs text-gray-400 mb-0.5 sm:mb-1">Market Vault</div>
+                        <a
+                          href={`https://orb.helius.dev/address/${marketVaultPda.toBase58()}${SOLANA_NETWORK === 'devnet' ? '?cluster=devnet' : ''}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="flex items-center space-x-1 text-yellow-400 hover:text-yellow-300 transition-colors text-xs group"
+                        >
+                          <span className="font-mono break-all sm:break-normal">{marketVaultPda.toBase58().slice(0, 8)}...{marketVaultPda.toBase58().slice(-8)}</span>
+                          <ExternalLink className="w-3 h-3 opacity-60 group-hover:opacity-100 flex-shrink-0" />
+                        </a>
+                      </div>
+                    );
+                  } catch (e) {
+                    return null;
+                  }
+                })()}
 
                 {/* Creator Address */}
                 {onchainData?.success && onchainData.data.founder && (

@@ -132,11 +132,11 @@ Open [http://localhost:3000](http://localhost:3000) to view the application.
 
 ### Token Distribution (YES Wins)
 When a market resolves with YES winning, tokens purchased on pump.fun are distributed:
-- **YES Voters**: 79% (proportional to shares held, claimable immediately)
-- **Project Team**: 20% total
-  - 5% immediate claim
-  - 15% vested linearly over 12 months
-- **Platform**: 1% (immediate claim to P&L wallet)
+- **YES Voters**: 65% (proportional to shares held, claimable immediately)
+- **Project Team**: 33% total
+  - 8% immediate claim
+  - 25% vested linearly over 12 months
+- **Platform**: 2% (immediate claim to P&L wallet)
 
 ### Rewards
 - **YES Wins**: Proportional token airdrop based on YES shares held

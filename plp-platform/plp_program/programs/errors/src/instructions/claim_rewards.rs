@@ -6,7 +6,7 @@ use crate::state::*;
 /// Claim rewards after market resolution
 ///
 /// Handles three scenarios:
-/// 1. YesWins: YES voters receive proportional tokens (79% allocation)
+/// 1. YesWins: YES voters receive proportional tokens (65% allocation)
 /// 2. NoWins: NO voters receive proportional SOL from pool
 /// 3. Refund: All participants receive refund (invested - trading fees)
 ///
@@ -60,7 +60,7 @@ pub fn handler(ctx: Context<ClaimRewards>) -> Result<()> {
 
     match market.resolution {
         MarketResolution::YesWins => {
-            // YES voters receive tokens (proportional to yes_shares out of 79% allocation)
+            // YES voters receive tokens (proportional to yes_shares out of 65% allocation)
             require!(position.yes_shares > 0, ErrorCode::InsufficientBalance);
             require!(market.total_yes_shares > 0, ErrorCode::MathError);
             require!(market.yes_voter_tokens_allocated > 0, ErrorCode::InsufficientBalance);
@@ -71,13 +71,6 @@ pub fn handler(ctx: Context<ClaimRewards>) -> Result<()> {
                 / market.total_yes_shares as u128) as u64;
 
             require!(user_tokens > 0, ErrorCode::InsufficientBalance);
-
-            msg!("✅ YES WINS - Token Distribution");
-            msg!("   User: {}", ctx.accounts.user.key());
-            msg!("   User YES shares: {}", position.yes_shares);
-            msg!("   Total YES shares: {}", market.total_yes_shares);
-            msg!("   YES voter pool (79%): {}", market.yes_voter_tokens_allocated);
-            msg!("   User token claim: {}", user_tokens);
 
             // -------------------------
             // Transfer tokens from market to user
@@ -132,8 +125,6 @@ pub fn handler(ctx: Context<ClaimRewards>) -> Result<()> {
             );
 
             token::transfer(transfer_ctx, user_tokens)?;
-
-            msg!("   ✅ Tokens transferred successfully");
         }
 
         MarketResolution::NoWins => {
@@ -163,14 +154,6 @@ pub fn handler(ctx: Context<ClaimRewards>) -> Result<()> {
                 .pool_balance
                 .checked_sub(user_payout)
                 .ok_or(ErrorCode::MathError)?;
-
-            msg!("✅ NO WINS - SOL Distribution");
-            msg!("   User: {}", ctx.accounts.user.key());
-            msg!("   User NO shares: {}", position.no_shares);
-            msg!("   Total NO shares: {}", market.total_no_shares);
-            msg!("   Distribution pool (fixed): {} lamports", market.distribution_pool);
-            msg!("   SOL payout: {} lamports", user_payout);
-            msg!("   Remaining pool balance: {} lamports", market.pool_balance);
         }
 
         MarketResolution::Refund => {
@@ -201,13 +184,6 @@ pub fn handler(ctx: Context<ClaimRewards>) -> Result<()> {
                 .pool_balance
                 .checked_sub(refund_amount)
                 .ok_or(ErrorCode::MathError)?;
-
-            msg!("↩️  REFUND");
-            msg!("   User: {}", ctx.accounts.user.key());
-            msg!("   Total invested: {} lamports", total_invested);
-            msg!("   Trading fees paid: {} lamports (1.5%)", total_invested - refund_amount);
-            msg!("   Refund amount: {} lamports (98.5% of invested)", refund_amount);
-            msg!("   Remaining pool: {} lamports", market.pool_balance);
         }
 
         MarketResolution::Unresolved => {
@@ -231,8 +207,6 @@ pub fn handler(ctx: Context<ClaimRewards>) -> Result<()> {
     // 3. Mark account for garbage collection
     //
     // This happens AFTER this function returns, handled by Anchor framework
-
-    msg!("🎁 Claim successful - position closed, rent recovered");
 
     Ok(())
 }

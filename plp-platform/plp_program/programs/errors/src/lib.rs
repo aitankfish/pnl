@@ -145,7 +145,7 @@ pub mod plp_prediction_market {
     /// Initialize team vesting schedule after YES wins
     ///
     /// Must be called after resolve_market when market resolves to YesWins
-    /// Sets up 12-month linear vesting for team's 20% token allocation
+    /// Sets up 12-month linear vesting for team's 33% token allocation
     pub fn init_team_vesting(ctx: Context<InitTeamVesting>, total_token_supply: u64) -> Result<()> {
         instructions::init_team_vesting::handler(ctx, total_token_supply)
     }
@@ -158,7 +158,7 @@ pub mod plp_prediction_market {
         instructions::claim_team_tokens::handler(ctx)
     }
 
-    /// Claim platform's 1% token allocation (immediate, no vesting)
+    /// Claim platform's 2% token allocation (immediate, no vesting)
     ///
     /// Transfers tokens to P&L wallet: 3MihVtsLsVuEccpmz4YG72Cr8CJWf1evRorTPdPiHeEQ
     /// Can be called by anyone after token launch

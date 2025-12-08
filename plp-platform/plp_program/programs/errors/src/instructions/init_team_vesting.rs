@@ -6,7 +6,7 @@ use crate::state::*;
 /// Initialize team vesting schedule after YES wins
 ///
 /// Must be called after resolve_market when market.resolution == YesWins
-/// Sets up 12-month linear vesting for team's 20% token allocation
+/// Sets up 12-month linear vesting for team's 33% token allocation
 #[derive(Accounts)]
 pub struct InitTeamVesting<'info> {
     #[account(
@@ -43,7 +43,7 @@ pub fn handler(ctx: Context<InitTeamVesting>, total_token_supply: u64) -> Result
     use crate::constants::{BPS_DIVISOR, TEAM_TOKEN_SHARE_BPS, TEAM_IMMEDIATE_SHARE_BPS, TEAM_VESTED_SHARE_BPS};
 
     // -------------------------
-    // Calculate team allocation (20% total = 5% immediate + 15% vested)
+    // Calculate team allocation (33% total = 8% immediate + 25% vested)
     // -------------------------
 
     let team_tokens = (total_token_supply * TEAM_TOKEN_SHARE_BPS) / BPS_DIVISOR;
@@ -71,19 +71,6 @@ pub fn handler(ctx: Context<InitTeamVesting>, total_token_supply: u64) -> Result
     team_vesting.vesting_start = current_time;
     team_vesting.vesting_duration = TeamVesting::VESTING_DURATION_SECONDS;
     team_vesting.bump = ctx.bumps.team_vesting;
-
-    msg!("✅ TEAM VESTING INITIALIZED");
-    msg!("   Market: {}", market.key());
-    msg!("   Team wallet: {}", team_vesting.team_wallet);
-    msg!("   Token mint: {}", team_vesting.token_mint);
-    msg!("   Total team tokens: {} (20%)", team_tokens);
-    msg!("   └─ Immediate (5%): {} tokens (claimable now)", immediate_tokens);
-    msg!("   └─ Vested (15%): {} tokens (12 month linear)", vesting_tokens);
-    msg!("   Vesting start: {}", current_time);
-    msg!("   Vesting duration: {} seconds (12 months)", team_vesting.vesting_duration);
-    msg!("   First vested unlock: {} (1 month from now)", current_time + (team_vesting.vesting_duration / 12));
-    msg!("");
-    msg!("   Team can claim 5% immediately + vested tokens monthly using claim_team_tokens");
 
     Ok(())
 }
