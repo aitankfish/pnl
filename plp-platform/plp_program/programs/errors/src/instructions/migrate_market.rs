@@ -50,13 +50,22 @@ pub fn handler(ctx: Context<MigrateMarket>) -> Result<()> {
     let rent = Rent::get()?;
     let vault_rent_lamports = rent.minimum_balance(0);
 
+    // Prepare vault seeds for signing
+    let vault_seeds = &[
+        b"market_vault",
+        market_key.as_ref(),
+        &[_vault_bump],
+    ];
+    let signer_seeds = &[&vault_seeds[..]];
+
     anchor_lang::system_program::create_account(
-        CpiContext::new(
+        CpiContext::new_with_signer(
             ctx.accounts.system_program.to_account_info(),
             anchor_lang::system_program::CreateAccount {
                 from: ctx.accounts.payer.to_account_info(),
                 to: ctx.accounts.market_vault.to_account_info(),
             },
+            signer_seeds,
         ),
         vault_rent_lamports,
         0,

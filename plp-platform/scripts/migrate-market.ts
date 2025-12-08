@@ -11,8 +11,7 @@
  *   npx tsx scripts/migrate-market.ts 7xKXtg2CW87d97TXJSDpbD5jBkheTqA83TZRuJosgAsU
  */
 
-import { Connection, PublicKey, Transaction, Keypair, SystemProgram } from '@solana/web3.js';
-import { getMarketVaultPDA } from '@/lib/anchor-program';
+import { Connection, PublicKey, Transaction, TransactionInstruction, Keypair, SystemProgram } from '@solana/web3.js';
 import * as fs from 'fs';
 import * as path from 'path';
 
@@ -25,12 +24,8 @@ const RPC_URL = NETWORK === 'mainnet-beta'
 const PROGRAM_ID = new PublicKey('C5mVE2BwSehWJNkNvhpsoepyKwZkvSLZx29bi4MzVj86');
 
 // Migration instruction discriminator (first 8 bytes of sha256("global:migrate_market"))
-// You'll need to update this after building the program and checking the IDL
 const MIGRATE_MARKET_DISCRIMINATOR = Buffer.from([
-  // This will be filled automatically by Anchor - we'll use a placeholder
-  // The actual discriminator is: sha256("global:migrate_market").slice(0, 8)
-  // For now, we'll let the user run this and it will show the error if wrong
-  0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00
+  0xc9, 0x71, 0xb5, 0x78, 0xd9, 0x3c, 0x6d, 0xcb
 ]);
 
 async function migrateMarket(marketAddress: string) {
@@ -70,8 +65,14 @@ async function migrateMarket(marketAddress: string) {
     process.exit(1);
   }
 
-  // Derive market vault PDA
-  const [marketVaultPda] = getMarketVaultPDA(marketPubkey, NETWORK);
+  // Derive market vault PDA directly (seeds: [b"market_vault", market.key()])
+  const [marketVaultPda] = PublicKey.findProgramAddressSync(
+    [
+      Buffer.from('market_vault'),
+      marketPubkey.toBytes()
+    ],
+    PROGRAM_ID
+  );
   console.log(`Market Vault PDA: ${marketVaultPda.toBase58()}`);
   console.log('');
 
@@ -112,7 +113,7 @@ async function migrateMarket(marketAddress: string) {
 
   const instructionData = MIGRATE_MARKET_DISCRIMINATOR;
 
-  const migrateInstruction = {
+  const migrateInstruction = new TransactionInstruction({
     keys: [
       { pubkey: marketPubkey, isSigner: false, isWritable: true },           // market
       { pubkey: marketVaultPda, isSigner: false, isWritable: true },         // market_vault
@@ -121,7 +122,7 @@ async function migrateMarket(marketAddress: string) {
     ],
     programId: PROGRAM_ID,
     data: instructionData,
-  };
+  });
 
   const transaction = new Transaction().add(migrateInstruction);
   transaction.feePayer = payer.publicKey;
