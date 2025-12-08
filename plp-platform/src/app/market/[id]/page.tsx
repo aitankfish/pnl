@@ -57,8 +57,9 @@ interface MarketDetails {
   noVotes: number;
   totalYesStake: number;
   totalNoStake: number;
-  yesPercentage?: number; // Calculated and stored in MongoDB
-  noPercentage?: number; // Calculated and stored in MongoDB
+  yesPercentage?: number; // Legacy field (may be stale)
+  noPercentage?: number; // Calculated from yesPercentage
+  sharesYesPercentage?: number; // Blockchain-synced (single source of truth)
   poolProgressPercentage?: number; // Calculated and stored in MongoDB
   expiryTime: string;
   status: string;
@@ -922,13 +923,16 @@ export default function MarketDetailsPage() {
     return now >= expiry;
   })();
 
-  // Use percentage from MongoDB (calculated and stored in backend)
-  // Fallback to local calculation if not available (backward compatibility)
-  const yesPercentage = market.yesPercentage !== undefined
-    ? market.yesPercentage
-    : (market.totalYesStake + market.totalNoStake > 0
-        ? Math.round((market.totalYesStake / (market.totalYesStake + market.totalNoStake)) * 100)
-        : 50);
+  // Use sharesYesPercentage from blockchain sync (single source of truth)
+  // This is calculated from on-chain totalYesShares / totalShares
+  // Fallback to yesPercentage or local calculation if not available (backward compatibility)
+  const yesPercentage = market.sharesYesPercentage !== undefined
+    ? market.sharesYesPercentage
+    : (market.yesPercentage !== undefined
+        ? market.yesPercentage
+        : (market.totalYesStake + market.totalNoStake > 0
+            ? Math.round((market.totalYesStake / (market.totalYesStake + market.totalNoStake)) * 100)
+            : 50));
 
   // Calculate dynamic market status
   const marketStatus = getDetailedMarketStatus(market, onchainData);
