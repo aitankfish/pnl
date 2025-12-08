@@ -260,8 +260,8 @@ pub fn handler(ctx: Context<ResolveMarket>) -> Result<()> {
                 AccountMeta::new(ctx.accounts.market_vault.key(), true),
                 // 7. system_program (readonly)
                 AccountMeta::new_readonly(ctx.accounts.system_program.key(), false),
-                // 8. token_program (readonly) - LEGACY Token, not Token2022!
-                AccountMeta::new_readonly(ctx.accounts.token_program.key(), false),
+                // 8. token_program (readonly) - Token2022 (Pump.fun uses Token2022)
+                AccountMeta::new_readonly(ctx.accounts.token_2022_program.key(), false),
                 // 9. creator_vault (writable)
                 AccountMeta::new(ctx.accounts.creator_vault.key(), false),
                 // 10. event_authority (readonly)
@@ -297,7 +297,7 @@ pub fn handler(ctx: Context<ResolveMarket>) -> Result<()> {
                     ctx.accounts.market_token_account.to_account_info(),
                     ctx.accounts.market_vault.to_account_info(), // market vault PDA signs
                     ctx.accounts.system_program.to_account_info(),
-                    ctx.accounts.token_program.to_account_info(), // Legacy Token program
+                    ctx.accounts.token_2022_program.to_account_info(), // Token2022 program (Pump.fun tokens)
                     ctx.accounts.creator_vault.to_account_info(),
                     ctx.accounts.pump_event_authority.to_account_info(),
                     ctx.accounts.pump_program.to_account_info(),
