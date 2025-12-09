@@ -57,7 +57,7 @@ export default function LaunchedPage() {
   // Helper function to get Helius Orb link
   const getSolscanLink = (address: string) => {
     const network = process.env.NEXT_PUBLIC_SOLANA_NETWORK === 'devnet' ? '?cluster=devnet' : '';
-    return `https://orb.helius.dev/token/${address}${network}`;
+    return `https://orb.helius.dev/address/${address}${network}`;
   };
 
   // Helper function to get Pump.fun link

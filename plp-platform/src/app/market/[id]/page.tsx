@@ -2030,7 +2030,7 @@ export default function MarketDetailsPage() {
                   <div className="p-2 sm:p-3 bg-white/5 rounded-lg col-span-2">
                     <div className="text-xs text-gray-400 mb-0.5 sm:mb-1">Token Mint</div>
                     <a
-                      href={`https://orb.helius.dev/token/${onchainData.data.tokenMint}${SOLANA_NETWORK === 'devnet' ? '?cluster=devnet' : ''}`}
+                      href={`https://orb.helius.dev/address/${onchainData.data.tokenMint}${SOLANA_NETWORK === 'devnet' ? '?cluster=devnet' : ''}`}
                       target="_blank"
                       rel="noopener noreferrer"
                       className="flex items-center space-x-1 text-pink-400 hover:text-pink-300 transition-colors text-xs group"
