@@ -40,13 +40,46 @@ export async function POST(request: NextRequest) {
       tokenMint,
     });
 
-    // Fetch the updated market state from blockchain
+    // Fetch the updated market state from blockchain (with retry for RPC lag)
     const connection = await getSolanaConnection();
     const program = getProgram(); // getProgram creates its own connection, don't pass wallet for read-only
     const marketPubkey = new PublicKey(marketAddress);
 
     logger.info('Fetching updated market state from blockchain...');
-    const marketAccount = await program.account.market.fetch(marketPubkey);
+
+    // Retry fetching market account to handle RPC lag after transaction
+    let marketAccount: any = null;
+    const maxFetchRetries = 5;
+
+    for (let attempt = 1; attempt <= maxFetchRetries; attempt++) {
+      try {
+        logger.info(`Fetching market account (attempt ${attempt}/${maxFetchRetries})...`);
+        marketAccount = await program.account.market.fetch(marketPubkey);
+        logger.info('✅ Market account fetched successfully', {
+          resolution: marketAccount.resolution,
+          phase: marketAccount.phase,
+          attempt,
+        });
+        break; // Success, exit retry loop
+      } catch (fetchError) {
+        const errorMsg = fetchError instanceof Error ? fetchError.message : String(fetchError);
+        logger.warn(`Market account fetch attempt ${attempt} failed: ${errorMsg}`);
+
+        if (attempt < maxFetchRetries) {
+          // Exponential backoff: 500ms, 1s, 2s, 4s
+          const backoffMs = Math.pow(2, attempt - 1) * 500;
+          logger.info(`Retrying in ${backoffMs / 1000}s...`);
+          await new Promise(resolve => setTimeout(resolve, backoffMs));
+        } else {
+          // All retries exhausted
+          throw new Error(`Failed to fetch market account after ${maxFetchRetries} attempts: ${errorMsg}`);
+        }
+      }
+    }
+
+    if (!marketAccount) {
+      throw new Error('Market account fetch failed - no data returned');
+    }
 
     // Determine resolution outcome
     // Rust enum: 0=Unresolved, 1=YesWins, 2=NoWins, 3=Refund
