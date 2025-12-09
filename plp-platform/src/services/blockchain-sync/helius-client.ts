@@ -48,6 +48,7 @@ export class HeliusClient {
   private programId: string;
   private heartbeatInterval: NodeJS.Timeout | null = null;
   private lastHeartbeat: number = Date.now();
+  private requestIdCounter = 0; // Counter to ensure unique request IDs
 
   constructor(network: 'devnet' | 'mainnet', programId: string) {
     this.programId = programId;
@@ -62,6 +63,17 @@ export class HeliusClient {
       : `wss://mainnet.helius-rpc.com/?api-key=${apiKey}`;
 
     logger.info(`Helius client initialized for ${network}`);
+  }
+
+  /**
+   * Generate a unique request ID (timestamp + counter)
+   */
+  private getUniqueRequestId(): number {
+    // Combine timestamp (milliseconds) with incrementing counter
+    // This ensures uniqueness even if multiple requests happen in same millisecond
+    const timestamp = Date.now();
+    this.requestIdCounter = (this.requestIdCounter + 1) % 1000; // Reset every 1000 requests
+    return timestamp * 1000 + this.requestIdCounter;
   }
 
   /**
@@ -242,7 +254,7 @@ export class HeliusClient {
       return;
     }
 
-    const requestId = Date.now();
+    const requestId = this.getUniqueRequestId();
     const subscribeRequest = {
       jsonrpc: '2.0',
       id: requestId,
@@ -258,7 +270,7 @@ export class HeliusClient {
 
     this.pendingSubscriptions.set(requestId, subscriptionKey);
     this.ws.send(JSON.stringify(subscribeRequest));
-    logger.info(`📡 Subscribed to account: ${address}`);
+    logger.info(`📡 Subscribed to account: ${address.slice(0, 8)}... (requestId: ${requestId})`);
   }
 
   /**
@@ -277,7 +289,7 @@ export class HeliusClient {
       return;
     }
 
-    const requestId = Date.now();
+    const requestId = this.getUniqueRequestId();
     const subscribeRequest = {
       jsonrpc: '2.0',
       id: requestId,
@@ -293,7 +305,7 @@ export class HeliusClient {
 
     this.pendingSubscriptions.set(requestId, subscriptionKey);
     this.ws.send(JSON.stringify(subscribeRequest));
-    logger.info(`📡 Subscribed to program: ${targetProgramId}`);
+    logger.info(`📡 Subscribed to program: ${targetProgramId} (requestId: ${requestId})`);
   }
 
   /**
@@ -318,6 +330,7 @@ export class HeliusClient {
             const pubkey = subscriptionKey.replace('account:', '');
             this.subscriptionIdToPubkey.set(subscriptionId, pubkey);
             logger.info(`✅ Account subscription confirmed: ${pubkey.slice(0, 8)}... -> ${subscriptionId}`, {
+              requestId: message.id,
               subscriptionKey,
               subscriptionId,
               totalMappings: this.subscriptionIdToPubkey.size,
