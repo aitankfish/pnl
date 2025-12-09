@@ -1514,8 +1514,8 @@ export default function MarketDetailsPage() {
                         </p>
                       </div>
 
-                      {/* YES Voter Claim */}
-                      {positionData?.success && positionData.data.hasPosition && !positionData.data.claimed && (
+                      {/* YES Voter Claim - Exclude founder (they have Team Token section) */}
+                      {positionData?.success && positionData.data.hasPosition && !positionData.data.claimed && primaryWallet?.address !== onchainData.data.founder && (
                         <div className="mt-3">
                           {positionData.data.side === 'yes' ? (
                             <Button
@@ -1540,8 +1540,8 @@ export default function MarketDetailsPage() {
                         </div>
                       )}
 
-                      {/* Already Claimed - YES Voters */}
-                      {positionData?.success && positionData.data.hasPosition && positionData.data.claimed && positionData.data.side === 'yes' && (
+                      {/* Already Claimed - YES Voters (exclude founder) */}
+                      {positionData?.success && positionData.data.hasPosition && positionData.data.claimed && positionData.data.side === 'yes' && primaryWallet?.address !== onchainData.data.founder && (
                         <div className="mt-3">
                           <div className="bg-green-500/10 border border-green-500/30 rounded-lg p-4">
                             <p className="text-green-400 font-semibold flex items-center justify-center gap-2">
@@ -1562,16 +1562,16 @@ export default function MarketDetailsPage() {
                             <div className="p-2 bg-amber-500/20 rounded-full">
                               <Users className="w-4 h-4 text-amber-400" />
                             </div>
-                            <h4 className="text-amber-400 text-sm font-semibold">Team Token Allocation (20%)</h4>
+                            <h4 className="text-amber-400 text-sm font-semibold">Team Token Allocation (33%)</h4>
                           </div>
 
                           <div className="space-y-2">
                             <div className="flex justify-between text-xs">
-                              <span className="text-gray-400">Immediate (5%)</span>
+                              <span className="text-gray-400">Immediate (8%)</span>
                               <span className="text-amber-300 font-semibold">Claimable Now</span>
                             </div>
                             <div className="flex justify-between text-xs">
-                              <span className="text-gray-400">Vested (15%)</span>
+                              <span className="text-gray-400">Vested (25%)</span>
                               <span className="text-orange-300 font-semibold">12 Month Linear</span>
                             </div>
                           </div>
@@ -1613,7 +1613,7 @@ export default function MarketDetailsPage() {
                           </Button>
 
                           <p className="text-xs text-gray-400 italic">
-                            Note: First initialize vesting, then claim your tokens (5% immediate + vested amount).
+                            Note: First initialize vesting, then claim your tokens (8% immediate + vested amount).
                           </p>
                         </div>
                       )}

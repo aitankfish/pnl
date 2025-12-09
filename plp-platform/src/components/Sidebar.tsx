@@ -174,12 +174,13 @@ function Sidebar({ currentPage }: SidebarProps) {
         <div className="flex items-center justify-between gap-1 sm:gap-0 relative z-10">
           {/* Logo */}
           <div className="flex items-center flex-shrink-0">
-            <Link href="/launchpad" prefetch={true} className="flex items-center hover:scale-105 transition-transform mr-1 sm:mr-6 group">
+            <Link href="/launchpad" prefetch={true} className="flex flex-col items-center hover:scale-105 transition-transform mr-1 sm:mr-6 group">
               <span className="text-lg sm:text-2xl font-bold">
                 <span className="text-green-400">P</span>
                 <span className="text-blue-400">&</span>
                 <span className="text-red-400">L</span>
               </span>
+              <span className="text-[10px] sm:text-xs text-gray-400 font-semibold -mt-1">BETA</span>
             </Link>
           </div>
 
