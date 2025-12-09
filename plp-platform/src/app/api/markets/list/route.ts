@@ -125,7 +125,7 @@ export async function GET(_request: NextRequest) {
       const phase = market.phase || 'Prediction';
       const poolProgressPercentage = market.poolProgressPercentage || 0;
       const isExpired = now.getTime() > expiryTime.getTime();
-      const hasTokenLaunched = !!market.pumpFunTokenAddress; // Check if token was launched
+      const hasTokenLaunched = !!(market.tokenMint || market.pumpFunTokenAddress); // Check if token was launched
 
       let displayStatus = '✅ Active';
       let badgeClass = 'bg-green-500/20 text-green-300 border-green-400/30';
@@ -169,9 +169,6 @@ export async function GET(_request: NextRequest) {
       let isNoVoteEnabled = true;
       let yesVoteDisabledReason = '';
       let noVoteDisabledReason = '';
-
-      // Check if token has been launched (highest priority - disables everything)
-      const hasTokenLaunched = !!(market.tokenMint || market.pumpFunTokenAddress);
 
       if (hasTokenLaunched) {
         // Token launched - all voting disabled
