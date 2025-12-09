@@ -45,6 +45,8 @@ export class HeliusClient {
   private isConnecting = false;
   private isIntentionallyClosed = false;
   private programId: string;
+  private heartbeatInterval: NodeJS.Timeout | null = null;
+  private lastHeartbeat: number = Date.now();
 
   constructor(network: 'devnet' | 'mainnet', programId: string) {
     this.programId = programId;
@@ -87,6 +89,7 @@ export class HeliusClient {
           logger.info('✅ Helius WebSocket connected');
           this.isConnecting = false;
           this.reconnectAttempts = 0;
+          this.startHeartbeat();
           resolve();
         });
 
@@ -106,6 +109,7 @@ export class HeliusClient {
           logger.warn(`⚠️ Helius WebSocket closed: ${code} - ${reason}`);
           this.isConnecting = false;
           this.ws = null;
+          this.stopHeartbeat();
 
           if (!this.isIntentionallyClosed) {
             this.scheduleReconnect();
@@ -116,9 +120,13 @@ export class HeliusClient {
           this.ws?.pong();
         });
 
+        this.ws.on('pong', () => {
+          logger.debug('💓 Pong received');
+        });
+
       } catch (error) {
         this.isConnecting = false;
-        logger.error('Failed to create WebSocket connection:', error);
+        logger.error('Failed to create WebSocket connection:', error instanceof Error ? { message: error.message } : { error: String(error) });
         reject(error);
       }
     });
@@ -152,9 +160,38 @@ export class HeliusClient {
         // Resubscribe to all previous subscriptions
         await this.resubscribeAll();
       } catch (error) {
-        logger.error('Reconnection failed:', error);
+        logger.error('Reconnection failed:', error instanceof Error ? { message: error.message } : { error: String(error) });
       }
     }, delay);
+  }
+
+  /**
+   * Start heartbeat to keep connection alive
+   */
+  private startHeartbeat(): void {
+    this.stopHeartbeat(); // Clear any existing heartbeat
+
+    // Send ping every 30 seconds to keep connection alive
+    this.heartbeatInterval = setInterval(() => {
+      if (this.ws?.readyState === WebSocket.OPEN) {
+        this.ws.ping();
+        this.lastHeartbeat = Date.now();
+        logger.debug('💓 Heartbeat sent');
+      }
+    }, 30000); // 30 seconds
+
+    logger.info('✅ Heartbeat started (30s interval)');
+  }
+
+  /**
+   * Stop heartbeat
+   */
+  private stopHeartbeat(): void {
+    if (this.heartbeatInterval) {
+      clearInterval(this.heartbeatInterval);
+      this.heartbeatInterval = null;
+      logger.debug('Heartbeat stopped');
+    }
   }
 
   /**
@@ -288,7 +325,7 @@ export class HeliusClient {
         this.handleAccountUpdate(message as AccountUpdateNotification);
       }
     } catch (error) {
-      logger.error('Error parsing WebSocket message:', error);
+      logger.error('Error parsing WebSocket message:', error instanceof Error ? { message: error.message } : { error: String(error) });
     }
   }
 
@@ -483,6 +520,8 @@ export class HeliusClient {
       clearTimeout(this.reconnectTimeout);
       this.reconnectTimeout = null;
     }
+
+    this.stopHeartbeat();
 
     if (this.ws) {
       logger.info('Disconnecting from Helius WebSocket...');
