@@ -14,7 +14,6 @@ import { useClaiming } from '@/lib/hooks/useClaiming';
 import { useResolution } from '@/lib/hooks/useResolution';
 import { useExtend } from '@/lib/hooks/useExtend';
 import { useTeamVesting } from '@/lib/hooks/useTeamVesting';
-import { usePlatformTokens } from '@/lib/hooks/usePlatformTokens';
 import { useClose } from '@/lib/hooks/useClose';
 import { useNetwork } from '@/lib/hooks/useNetwork';
 import { getPositionPDA, getMarketVaultPDA } from '@/lib/anchor-program';
@@ -210,7 +209,6 @@ export default function MarketDetailsPage() {
   const { resolve, isResolving } = useResolution();
   const { extend, isExtending } = useExtend();
   const { initVesting, isInitializing, claimTeamTokens, isClaiming: isClaimingTeamTokens } = useTeamVesting();
-  const { claimPlatformTokens, isClaiming: isClaimingPlatformTokens } = usePlatformTokens();
   const { closePosition, isClosingPosition, closeMarket, isClosingMarket } = useClose();
   // Note: claimed status is now tracked in the database via positionData.data.claimed
   // No need for local state
@@ -816,28 +814,6 @@ export default function MarketDetailsPage() {
       refetchOnchainData();
 
       setToastMessage('✅ Team tokens claimed successfully!');
-      setShowToast(true);
-      setTimeout(() => setShowToast(false), 3000);
-    } else {
-      const parsedError = parseError(result.error);
-      setToastMessage(`❌ ${parsedError.title}: ${parsedError.message}`);
-      setShowToast(true);
-      setTimeout(() => setShowToast(false), 5000);
-    }
-  };
-
-  const handleClaimPlatformTokens = async () => {
-    if (!market || !onchainData?.success) return;
-
-    const result = await claimPlatformTokens({
-      marketAddress: market.marketAddress,
-      tokenMint: onchainData.data.tokenMint || '',
-    });
-
-    if (result.success) {
-      refetchOnchainData();
-
-      setToastMessage('✅ Platform tokens (1%) claimed successfully!');
       setShowToast(true);
       setTimeout(() => setShowToast(false), 3000);
     } else {
@@ -1639,39 +1615,6 @@ export default function MarketDetailsPage() {
                           <p className="text-xs text-gray-400 italic">
                             Note: First initialize vesting, then claim your tokens (5% immediate + vested amount).
                           </p>
-                        </div>
-                      )}
-
-                      {/* Platform Token Claim - Anyone can call to send to P&L wallet */}
-                      {onchainData.data.tokenMint && !onchainData.data.platformTokensClaimed && (
-                        <div className="bg-gradient-to-br from-cyan-500/10 via-blue-500/10 to-indigo-500/10 border border-cyan-400/30 rounded-lg p-4 text-left">
-                          <div className="flex items-center space-x-2 mb-3">
-                            <div className="p-2 bg-cyan-500/20 rounded-full">
-                              <Target className="w-4 h-4 text-cyan-400" />
-                            </div>
-                            <h4 className="text-cyan-400 text-sm font-semibold">Platform Token Allocation (1%)</h4>
-                          </div>
-
-                          <p className="text-gray-300 text-xs mb-3">
-                            Platform fee tokens are available for claiming. Anyone can trigger this to send tokens to the P&L platform wallet.
-                          </p>
-
-                          <Button
-                            onClick={handleClaimPlatformTokens}
-                            disabled={isClaimingPlatformTokens}
-                            className="w-full bg-gradient-to-r from-cyan-500 to-blue-500 hover:from-cyan-600 hover:to-blue-600 text-white font-semibold"
-                          >
-                            {isClaimingPlatformTokens ? (
-                              <>
-                                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                                Claiming...
-                              </>
-                            ) : (
-                              <>
-                                🏦 Claim Platform Tokens
-                              </>
-                            )}
-                          </Button>
                         </div>
                       )}
                     </div>

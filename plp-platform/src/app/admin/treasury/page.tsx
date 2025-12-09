@@ -13,7 +13,8 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Loader2, Wallet, Shield, ArrowDownToLine, Coins } from 'lucide-react';
+import { Loader2, Wallet, Shield, ArrowDownToLine, Coins, Target } from 'lucide-react';
+import { usePlatformTokens } from '@/lib/hooks/usePlatformTokens';
 
 interface TreasuryState {
   admin: string;
@@ -22,19 +23,33 @@ interface TreasuryState {
   bump: number;
 }
 
+interface MarketWithTokens {
+  _id: string;
+  marketName: string;
+  marketAddress: string;
+  tokenMint: string;
+  pumpFunTokenAddress: string;
+  platformTokensAllocated: string;
+  platformTokensClaimed: boolean;
+}
+
 export default function TreasuryAdminPage() {
   const { primaryWallet } = useWallet();
   const { network } = useNetwork();
   const { wallets } = useWallets();
   const { signAndSendTransaction } = useSignAndSendTransaction();
+  const { claimPlatformTokens, isClaiming } = usePlatformTokens();
 
   const [treasury, setTreasury] = useState<TreasuryState | null>(null);
   const [loading, setLoading] = useState(false);
   const [newAdminAddress, setNewAdminAddress] = useState('');
   const [withdrawAmount, setWithdrawAmount] = useState('');
   const [recipientAddress, setRecipientAddress] = useState('');
+  const [marketsWithTokens, setMarketsWithTokens] = useState<MarketWithTokens[]>([]);
+  const [loadingMarkets, setLoadingMarkets] = useState(false);
+  const [claimingMarket, setClaimingMarket] = useState<string | null>(null);
 
-  // Platform wallet for 1% tokens (hardcoded in program)
+  // Platform wallet for 2% tokens (hardcoded in program)
   const PLATFORM_WALLET = '3MihVtsLsVuEccpmz4YG72Cr8CJWf1evRorTPdPiHeEQ';
 
   const isAdmin = primaryWallet?.address === treasury?.admin;
@@ -75,9 +90,27 @@ export default function TreasuryAdminPage() {
     }
   };
 
+  // Fetch markets with unclaimed platform tokens
+  const fetchMarketsWithTokens = async () => {
+    try {
+      setLoadingMarkets(true);
+      const response = await fetch('/api/markets/platform-tokens/list');
+      const result = await response.json();
+
+      if (result.success) {
+        setMarketsWithTokens(result.data || []);
+      }
+    } catch (error) {
+      console.error('Failed to fetch markets with tokens:', error);
+    } finally {
+      setLoadingMarkets(false);
+    }
+  };
+
   useEffect(() => {
     if (primaryWallet) {
       fetchTreasury();
+      fetchMarketsWithTokens();
     }
   }, [primaryWallet, network]);
 
@@ -191,6 +224,31 @@ export default function TreasuryAdminPage() {
       alert(`Failed: ${error.message}`);
     } finally {
       setLoading(false);
+    }
+  };
+
+  // Claim platform tokens from a market
+  const handleClaimPlatformTokens = async (market: MarketWithTokens) => {
+    try {
+      setClaimingMarket(market.marketAddress);
+
+      const result = await claimPlatformTokens({
+        marketAddress: market.marketAddress,
+        tokenMint: market.tokenMint,
+      });
+
+      if (result.success) {
+        alert(`Platform tokens claimed successfully! Signature: ${result.signature}`);
+        // Refresh the list
+        await fetchMarketsWithTokens();
+      } else {
+        throw new Error(result.error);
+      }
+    } catch (error: any) {
+      console.error('Failed to claim platform tokens:', error);
+      alert(`Failed to claim: ${error.message}`);
+    } finally {
+      setClaimingMarket(null);
     }
   };
 
@@ -456,6 +514,73 @@ export default function TreasuryAdminPage() {
                 </Button>
               </CardContent>
             </Card>
+
+            {/* Claim Platform Tokens */}
+            <Card className="bg-gray-800/50 border-gray-700">
+              <CardHeader>
+                <CardTitle className="text-white flex items-center gap-2">
+                  <Target className="w-5 h-5" />
+                  Platform Token Claims (2%)
+                </CardTitle>
+                <CardDescription className="text-gray-400">
+                  Claim 2% token allocation from launched markets
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                {loadingMarkets ? (
+                  <div className="flex items-center justify-center py-8">
+                    <Loader2 className="w-6 h-6 animate-spin text-purple-400" />
+                  </div>
+                ) : marketsWithTokens.length === 0 ? (
+                  <div className="text-center py-8">
+                    <p className="text-gray-400">No markets with unclaimed platform tokens</p>
+                  </div>
+                ) : (
+                  <div className="space-y-4">
+                    {marketsWithTokens.map((market) => (
+                      <div
+                        key={market._id}
+                        className="bg-gray-700/50 border border-gray-600 rounded-lg p-4 space-y-3"
+                      >
+                        <div className="space-y-2">
+                          <h4 className="text-white font-semibold">{market.marketName}</h4>
+                          <div className="space-y-1 text-sm text-gray-300">
+                            <div className="flex justify-between">
+                              <span>Market Address:</span>
+                              <span className="font-mono text-xs">{market.marketAddress.slice(0, 8)}...{market.marketAddress.slice(-8)}</span>
+                            </div>
+                            <div className="flex justify-between">
+                              <span>Token Mint:</span>
+                              <span className="font-mono text-xs">{market.tokenMint.slice(0, 8)}...{market.tokenMint.slice(-8)}</span>
+                            </div>
+                            <div className="flex justify-between">
+                              <span>Allocated:</span>
+                              <span className="text-cyan-400 font-bold">
+                                {(Number(market.platformTokensAllocated) / 1_000_000).toLocaleString()} tokens
+                              </span>
+                            </div>
+                          </div>
+                        </div>
+                        <Button
+                          onClick={() => handleClaimPlatformTokens(market)}
+                          disabled={claimingMarket === market.marketAddress || isClaiming}
+                          className="w-full bg-gradient-to-r from-cyan-500 to-blue-500"
+                        >
+                          {claimingMarket === market.marketAddress ? (
+                            <>
+                              <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                              Claiming...
+                            </>
+                          ) : (
+                            'Claim Platform Tokens'
+                          )}
+                        </Button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
           </>
         )}
 
@@ -467,7 +592,7 @@ export default function TreasuryAdminPage() {
               Platform Token Wallet
             </CardTitle>
             <CardDescription className="text-gray-400">
-              Receives 1% token allocation from each launched token
+              Receives 2% token allocation from each launched token
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -494,8 +619,8 @@ export default function TreasuryAdminPage() {
             <p><strong>2. Transfer Admin:</strong> Initial admin transfers control to operational wallet</p>
             <p><strong>3. Lock Initial Wallet:</strong> Store securely as emergency recovery</p>
             <p><strong>4. Fee Collection:</strong> 5% completion fees accumulate in treasury PDA</p>
-            <p><strong>5. Token Collection:</strong> 1% tokens go to platform wallet automatically</p>
-            <p><strong>6. Withdrawal:</strong> Operational admin withdraws accumulated SOL fees anytime</p>
+            <p><strong>5. Token Collection:</strong> 2% tokens allocated for platform, claimed by admin</p>
+            <p><strong>6. Withdrawal:</strong> Operational admin withdraws accumulated SOL fees and claims platform tokens anytime</p>
           </CardContent>
         </Card>
       </div>
