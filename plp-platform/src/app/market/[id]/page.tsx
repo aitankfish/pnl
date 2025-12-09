@@ -562,18 +562,9 @@ export default function MarketDetailsPage() {
         setShowToast(true);
         setTimeout(() => setShowToast(false), 3000);
 
-        // Refresh data in background after a short delay
-        // This prevents race conditions with backend processing
-        setTimeout(() => {
-          try {
-            console.log('🔄 [VOTE] Refreshing frontend data...');
-            refetchPosition();
-            refetchOnchainData();
-          } catch (error) {
-            // Silently ignore refetch errors - Socket.IO will update anyway
-            console.warn('Failed to refetch data:', error);
-          }
-        }, 500); // Wait 500ms for backend to finish processing
+        // Socket.IO will handle real-time updates - no manual refetch needed
+        // This prevents race condition where stale data overwrites socket updates
+        // Position will be refetched after socket update via debounced effect (line 452-459)
       } else {
         // Parse error and show toast
         const parsedError = parseError(result.error);
