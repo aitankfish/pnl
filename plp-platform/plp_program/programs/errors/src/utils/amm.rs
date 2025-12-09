@@ -75,8 +75,9 @@ pub fn calculate_shares_from_sol(
             .ok_or(ErrorCode::MathError)?;
 
         // Ensure we don't drain the pool completely (keep minimum liquidity)
-        if yes_pool_new < 100_000_000 {
-            // Min 0.1 YES token
+        // TODO: Revert to 0.1 SOL (100_000_000) after testing/launch
+        if yes_pool_new < 10_000_000 {
+            // Min 0.01 YES token (lowered for testing)
             return Err(ErrorCode::InsufficientBalance);
         }
 
@@ -99,8 +100,9 @@ pub fn calculate_shares_from_sol(
             .ok_or(ErrorCode::MathError)?;
 
         // Ensure we don't drain the pool completely
-        if no_pool_new < 100_000_000 {
-            // Min 0.1 NO token
+        // TODO: Revert to 0.1 SOL (100_000_000) after testing/launch
+        if no_pool_new < 10_000_000 {
+            // Min 0.01 NO token (lowered for testing)
             return Err(ErrorCode::InsufficientBalance);
         }
 
