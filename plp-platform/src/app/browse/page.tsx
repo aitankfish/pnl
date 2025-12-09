@@ -194,8 +194,8 @@ export default function BrowsePage() {
     setVotingState(null);
 
     if (result.success) {
-      // Success - silently refresh the markets list
-      fetchMarkets();
+      // Success - Socket.IO will handle the real-time update
+      // Don't call fetchMarkets() to avoid race condition with blockchain sync
     } else {
       // Error - show error dialog
       const parsedError = parseError(result.error);
