@@ -39,6 +39,7 @@ export class HeliusClient {
   private wsUrl: string;
   private subscriptions: Map<string, number> = new Map(); // subscription key -> subscription ID
   private subscriptionIdToPubkey: Map<number, string> = new Map(); // subscription ID -> pubkey
+  private bufferedNotifications: Map<number, any[]> = new Map(); // subscription ID -> buffered notifications (arrived before confirmation)
   private reconnectTimeout: NodeJS.Timeout | null = null;
   private reconnectAttempts = 0;
   private maxReconnectAttempts = 10;
@@ -321,6 +322,29 @@ export class HeliusClient {
               subscriptionId,
               totalMappings: this.subscriptionIdToPubkey.size,
             });
+
+            // Process any buffered notifications that arrived before confirmation
+            const buffered = this.bufferedNotifications.get(subscriptionId);
+            if (buffered && buffered.length > 0) {
+              logger.info(`📦 Processing ${buffered.length} buffered notification(s) for subscription ${subscriptionId}`, {
+                subscriptionId,
+                pubkey: pubkey.slice(0, 8) + '...',
+                count: buffered.length,
+              });
+
+              // Process each buffered notification
+              for (const notification of buffered) {
+                this.handleAccountUpdate(notification).catch((error) => {
+                  logger.error('Error processing buffered notification:', {
+                    error: error instanceof Error ? error.message : String(error),
+                    subscriptionId,
+                  });
+                });
+              }
+
+              // Clear buffer
+              this.bufferedNotifications.delete(subscriptionId);
+            }
           } else {
             logger.info(`✅ Subscription confirmed: ${subscriptionKey} -> ${subscriptionId}`);
           }
@@ -377,14 +401,32 @@ export class HeliusClient {
 
         const resolvedPubkey = this.subscriptionIdToPubkey.get(subscriptionId);
         if (!resolvedPubkey) {
-          logger.error(`❌ CRITICAL: No pubkey mapping for subscription ID ${subscriptionId}`, {
+          // Notification arrived before confirmation - buffer it for processing later
+          logger.warn(`⚠️  Buffering notification: subscription confirmation not yet received`, {
             subscriptionId,
             availableMappings: Array.from(this.subscriptionIdToPubkey.keys()),
             totalSubscriptions: this.subscriptions.size,
+            bufferedCount: this.bufferedNotifications.size,
           });
-          // Don't drop the update - this is a critical data loss issue
-          // Log for investigation but continue processing if possible
-          // However, without pubkey we can't process accountNotification
+
+          // Add to buffer
+          const buffered = this.bufferedNotifications.get(subscriptionId) || [];
+          buffered.push(notification);
+          this.bufferedNotifications.set(subscriptionId, buffered);
+
+          // Clean up old buffers after 30 seconds (confirmation should arrive within seconds)
+          setTimeout(() => {
+            const stillBuffered = this.bufferedNotifications.get(subscriptionId);
+            if (stillBuffered) {
+              logger.error(`❌ CRITICAL: Buffered notifications never processed (confirmation timeout)`, {
+                subscriptionId,
+                bufferedCount: stillBuffered.length,
+                timeoutSeconds: 30,
+              });
+              this.bufferedNotifications.delete(subscriptionId);
+            }
+          }, 30000);
+
           return;
         }
 
