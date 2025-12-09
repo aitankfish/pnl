@@ -67,7 +67,7 @@ export const FEES = {
 
 // Target pool options (in lamports)
 // Program accepts any amount >= MIN_POOL_LAMPORTS
-export const MIN_POOL_LAMPORTS = 500_000_000; // 0.5 SOL minimum
+export const MIN_POOL_LAMPORTS = 80_000_000; // 0.08 SOL minimum (matches on-chain program validation)
 
 // Frontend UI options (for dropdown)
 export const TARGET_POOL_OPTIONS = [

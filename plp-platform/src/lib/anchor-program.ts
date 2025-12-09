@@ -187,7 +187,7 @@ export async function buildCreateMarketTransaction(params: {
 
   const programId = new PublicKey(programIdString);
 
-  // Validate target pool (program now accepts any amount >= 0.5 SOL)
+  // Validate target pool (program now accepts any amount >= 0.08 SOL)
   if (params.targetPool < MIN_POOL_LAMPORTS) {
     throw new Error(
       `Invalid target pool. Must be at least ${MIN_POOL_LAMPORTS / 1e9} SOL`

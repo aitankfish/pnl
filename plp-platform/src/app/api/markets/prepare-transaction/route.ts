@@ -37,7 +37,7 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // Validate target pool (program now accepts any amount >= 0.5 SOL)
+    // Validate target pool (program now accepts any amount >= 0.08 SOL)
     const targetPoolLamports = parseInt(body.targetPool);
     if (targetPoolLamports < MIN_POOL_LAMPORTS) {
       return NextResponse.json(

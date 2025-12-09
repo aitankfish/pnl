@@ -199,13 +199,29 @@ export async function GET(
     let yesVoteDisabledReason = '';
     let noVoteDisabledReason = '';
 
-    // Resolved states - disable all voting
-    if (resolution === 'NoWins') {
+    // Check if token has been launched (highest priority - disables everything)
+    const hasTokenLaunched = !!(market.tokenMint || market.pumpFunTokenAddress);
+
+    if (hasTokenLaunched) {
+      // Token launched - all voting disabled
+      isYesVoteEnabled = false;
+      isNoVoteEnabled = false;
+      yesVoteDisabledReason = '🚀 Token Launched';
+      noVoteDisabledReason = '🚀 Token Launched';
+    } else if (isExpired) {
+      // Market expired - all voting disabled
+      isYesVoteEnabled = false;
+      isNoVoteEnabled = false;
+      yesVoteDisabledReason = '⏰ Market Expired';
+      noVoteDisabledReason = '⏰ Market Expired';
+    } else if (resolution === 'NoWins') {
+      // NO won - both disabled
       isYesVoteEnabled = false;
       isNoVoteEnabled = false;
       yesVoteDisabledReason = 'NO Won';
       noVoteDisabledReason = 'NO Won';
     } else if (resolution === 'Refund') {
+      // Refunded - both disabled
       isYesVoteEnabled = false;
       isNoVoteEnabled = false;
       yesVoteDisabledReason = 'Refunded';
