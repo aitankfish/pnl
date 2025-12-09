@@ -198,10 +198,15 @@ export class HeliusClient {
    * Resubscribe to all previous subscriptions after reconnection
    */
   private async resubscribeAll(): Promise<void> {
-    // Save subscription keys before clearing
+    // Save subscription keys AND pubkey mappings before clearing
     const subscriptionKeys = Array.from(this.subscriptions.keys());
+    const oldMappings = new Map(this.subscriptionIdToPubkey);
 
-    logger.info(`Resubscribing to ${subscriptionKeys.length} subscriptions...`);
+    logger.info(`Resubscribing to ${subscriptionKeys.length} subscriptions...`, {
+      accountSubscriptions: subscriptionKeys.filter(k => k.startsWith('account:')).length,
+      programSubscriptions: subscriptionKeys.filter(k => k.startsWith('program:')).length,
+      oldMappingsCount: oldMappings.size,
+    });
 
     // Clear old subscription IDs (they're invalid after reconnect)
     this.subscriptions.clear();
@@ -218,6 +223,7 @@ export class HeliusClient {
     }
 
     logger.info(`✅ Resubscription requests sent for ${subscriptionKeys.length} subscriptions`);
+    logger.info(`⏳ Waiting for subscription confirmations to rebuild pubkey mappings...`);
   }
 
   /**
@@ -310,12 +316,20 @@ export class HeliusClient {
           if (subscriptionKey.startsWith('account:')) {
             const pubkey = subscriptionKey.replace('account:', '');
             this.subscriptionIdToPubkey.set(subscriptionId, pubkey);
-            logger.info(`✅ Account subscription confirmed: ${pubkey.slice(0, 8)}... -> ${subscriptionId}`);
+            logger.info(`✅ Account subscription confirmed: ${pubkey.slice(0, 8)}... -> ${subscriptionId}`, {
+              subscriptionKey,
+              subscriptionId,
+              totalMappings: this.subscriptionIdToPubkey.size,
+            });
           } else {
             logger.info(`✅ Subscription confirmed: ${subscriptionKey} -> ${subscriptionId}`);
           }
         } else {
-          logger.info(`✅ Subscription confirmed: ${message.result}`);
+          logger.warn(`⚠️  Subscription confirmed but no pending request found`, {
+            requestId: message.id,
+            subscriptionId: message.result,
+            pendingCount: this.pendingSubscriptions.size,
+          });
         }
         return;
       }
@@ -363,7 +377,14 @@ export class HeliusClient {
 
         const resolvedPubkey = this.subscriptionIdToPubkey.get(subscriptionId);
         if (!resolvedPubkey) {
-          logger.warn(`No pubkey mapping for subscription ID ${subscriptionId}`);
+          logger.error(`❌ CRITICAL: No pubkey mapping for subscription ID ${subscriptionId}`, {
+            subscriptionId,
+            availableMappings: Array.from(this.subscriptionIdToPubkey.keys()),
+            totalSubscriptions: this.subscriptions.size,
+          });
+          // Don't drop the update - this is a critical data loss issue
+          // Log for investigation but continue processing if possible
+          // However, without pubkey we can't process accountNotification
           return;
         }
 
