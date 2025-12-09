@@ -115,9 +115,9 @@ export async function GET(_request: NextRequest) {
         totalNoStake: market.totalNoStake || 0,
       };
 
-      // Use percentages from blockchain sync (single source of truth)
-      // sharesYesPercentage is calculated from on-chain totalYesShares / totalShares
-      const yesPercentage = market.sharesYesPercentage ?? 50;
+      // Use sharesYesPercentage as single source of truth (from blockchain AMM)
+      // This is calculated from on-chain totalYesShares / (totalYesShares + totalNoShares)
+      const yesPercentage = market.sharesYesPercentage ?? market.yesPercentage ?? 50;
       const noPercentage = 100 - yesPercentage;
 
       // Calculate display status (single source of truth for all pages)

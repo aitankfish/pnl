@@ -285,7 +285,10 @@ export async function GET(
       totalYesShares: market.totalYesShares,
       totalNoShares: market.totalNoShares,
       poolProgressPercentage: market.poolProgressPercentage,
-      yesPercentage: market.yesPercentage,
+      // Use sharesYesPercentage as single source of truth (from blockchain AMM)
+      // This matches browse page API and ensures consistency
+      yesPercentage: market.sharesYesPercentage ?? market.yesPercentage ?? 50,
+      noPercentage: market.sharesYesPercentage ? 100 - market.sharesYesPercentage : (market.yesPercentage ? 100 - market.yesPercentage : 50),
       sharesYesPercentage: market.sharesYesPercentage,
       phase: market.phase,
       resolution: market.resolution,

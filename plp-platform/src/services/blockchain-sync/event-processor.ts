@@ -234,13 +234,14 @@ export class EventProcessor {
       });
     }
 
-    // 7. Broadcast update to connected clients with stake-based percentages
+    // 7. Broadcast update to connected clients with AMM-based percentages (single source of truth)
     broadcastMarketUpdate(event.address, {
       marketAddress: event.address,
       poolProgressPercentage: derived.poolProgressPercentage,
-      yesPercentage: updateData.yesPercentage, // Use stake-based percentage (consistent everywhere)
-      noPercentage: updateData.noPercentage, // Add noPercentage for completeness
-      sharesYesPercentage: derived.sharesYesPercentage,
+      // Use sharesYesPercentage as primary field (from blockchain AMM) for consistency with APIs
+      yesPercentage: derived.sharesYesPercentage, // AMM-based (blockchain source of truth)
+      noPercentage: 100 - derived.sharesYesPercentage, // Calculated from AMM percentage
+      sharesYesPercentage: derived.sharesYesPercentage, // Keep for backwards compatibility
       totalYesStake: updateData.totalYesStake, // Use recalculated stake totals
       totalNoStake: updateData.totalNoStake,
       yesVotes: yesVoteCount,
@@ -258,8 +259,8 @@ export class EventProcessor {
       noVotes: noVoteCount,
       totalYesStake: updateData.totalYesStake,
       totalNoStake: updateData.totalNoStake,
-      yesPercentage: updateData.yesPercentage,
-      noPercentage: updateData.noPercentage,
+      yesPercentage: derived.sharesYesPercentage, // AMM-based (single source of truth)
+      noPercentage: 100 - derived.sharesYesPercentage,
     });
   }
 
