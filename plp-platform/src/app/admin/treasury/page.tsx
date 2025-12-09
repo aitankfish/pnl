@@ -13,8 +13,9 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Loader2, Wallet, Shield, ArrowDownToLine, Coins, Target } from 'lucide-react';
+import { Loader2, Wallet, Shield, ArrowDownToLine, Coins, Target, AlertTriangle } from 'lucide-react';
 import { usePlatformTokens } from '@/lib/hooks/usePlatformTokens';
+import { useEmergencyDrain } from '@/lib/hooks/useEmergencyDrain';
 
 interface TreasuryState {
   admin: string;
@@ -39,6 +40,7 @@ export default function TreasuryAdminPage() {
   const { wallets } = useWallets();
   const { signAndSendTransaction } = useSignAndSendTransaction();
   const { claimPlatformTokens, isClaiming } = usePlatformTokens();
+  const { drainVault, isDraining } = useEmergencyDrain();
 
   const [treasury, setTreasury] = useState<TreasuryState | null>(null);
   const [loading, setLoading] = useState(false);
@@ -48,6 +50,10 @@ export default function TreasuryAdminPage() {
   const [marketsWithTokens, setMarketsWithTokens] = useState<MarketWithTokens[]>([]);
   const [loadingMarkets, setLoadingMarkets] = useState(false);
   const [claimingMarket, setClaimingMarket] = useState<string | null>(null);
+
+  // Emergency drain state
+  const [drainMarketAddress, setDrainMarketAddress] = useState('');
+  const [drainFounderAddress, setDrainFounderAddress] = useState('');
 
   // Platform wallet for 2% tokens (hardcoded in program)
   const PLATFORM_WALLET = '3MihVtsLsVuEccpmz4YG72Cr8CJWf1evRorTPdPiHeEQ';
@@ -249,6 +255,32 @@ export default function TreasuryAdminPage() {
       alert(`Failed to claim: ${error.message}`);
     } finally {
       setClaimingMarket(null);
+    }
+  };
+
+  // Emergency drain vault (admin only)
+  const handleEmergencyDrain = async () => {
+    if (!drainMarketAddress || !drainFounderAddress) {
+      alert('Please enter both market address and founder address');
+      return;
+    }
+
+    try {
+      const result = await drainVault({
+        marketAddress: drainMarketAddress,
+        founderAddress: drainFounderAddress,
+      });
+
+      if (result.success) {
+        alert(`Vault drained successfully! Signature: ${result.signature}`);
+        setDrainMarketAddress('');
+        setDrainFounderAddress('');
+      } else {
+        throw new Error(result.error);
+      }
+    } catch (error: any) {
+      console.error('Failed to drain vault:', error);
+      alert(`Failed to drain vault: ${error.message}`);
     }
   };
 
@@ -579,6 +611,59 @@ export default function TreasuryAdminPage() {
                     ))}
                   </div>
                 )}
+              </CardContent>
+            </Card>
+
+            {/* Emergency Drain Vault */}
+            <Card className="bg-red-900/20 border-red-700">
+              <CardHeader>
+                <CardTitle className="text-white flex items-center gap-2">
+                  <AlertTriangle className="w-5 h-5" />
+                  Emergency Vault Drain
+                </CardTitle>
+                <CardDescription className="text-gray-400">
+                  Drain stuck SOL from market vaults back to founder (Admin only)
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="space-y-2">
+                  <Label className="text-gray-300">Market Address</Label>
+                  <Input
+                    value={drainMarketAddress}
+                    onChange={(e) => setDrainMarketAddress(e.target.value)}
+                    placeholder="Enter market address..."
+                    className="bg-gray-700 border-gray-600 text-white"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label className="text-gray-300">Founder Address</Label>
+                  <Input
+                    value={drainFounderAddress}
+                    onChange={(e) => setDrainFounderAddress(e.target.value)}
+                    placeholder="Enter founder address..."
+                    className="bg-gray-700 border-gray-600 text-white"
+                  />
+                </div>
+                <Button
+                  onClick={handleEmergencyDrain}
+                  disabled={isDraining || !drainMarketAddress || !drainFounderAddress}
+                  className="w-full bg-gradient-to-r from-red-500 to-orange-500 hover:from-red-600 hover:to-orange-600"
+                >
+                  {isDraining ? (
+                    <>
+                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                      Draining Vault...
+                    </>
+                  ) : (
+                    <>
+                      <AlertTriangle className="w-4 h-4 mr-2" />
+                      Drain Vault (Emergency Only)
+                    </>
+                  )}
+                </Button>
+                <p className="text-xs text-yellow-400">
+                  ⚠️ Warning: This will drain all SOL from the vault to the founder&apos;s wallet. Only use in emergency situations.
+                </p>
               </CardContent>
             </Card>
           </>
