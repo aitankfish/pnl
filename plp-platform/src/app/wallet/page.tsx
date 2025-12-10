@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import { useWallet } from '@/hooks/useWallet';
 import { useFundWallet, useSignAndSendTransaction, useWallets, useStandardWallets } from '@privy-io/react-auth/solana';
+import { usePrivy } from '@privy-io/react-auth';
 import { useSolPrice } from '@/hooks/useSolPrice';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -572,9 +573,79 @@ function DepositModal({ isOpen, onClose, address }: { isOpen: boolean; onClose: 
   );
 }
 
-function SettingsModal({ isOpen, onClose, wallet, onLogout }: any) {
+function SettingsModal({ isOpen, onClose, wallet, onLogout, primaryWallet, exportWallet }: any) {
   const [showPrivateKey, setShowPrivateKey] = useState(false);
+  const [showSeedPhrase, setShowSeedPhrase] = useState(false);
   const [exportWarningShown, setExportWarningShown] = useState(false);
+  const [privateKey, setPrivateKey] = useState<string>('');
+  const [seedPhrase, setSeedPhrase] = useState<string>('');
+  const [isExporting, setIsExporting] = useState(false);
+  const [exportError, setExportError] = useState<string>('');
+  const [copiedPrivateKey, setCopiedPrivateKey] = useState(false);
+  const [copiedSeedPhrase, setCopiedSeedPhrase] = useState(false);
+
+  const isPrivyWallet = wallet?.walletClientType === 'privy';
+
+  const handleExportPrivateKey = async () => {
+    if (!isPrivyWallet || !primaryWallet || !exportWallet) return;
+
+    try {
+      setIsExporting(true);
+      setExportError('');
+
+      // Use Privy's client-side export wallet function
+      const exported = await exportWallet();
+
+      if (exported && exported.privateKey) {
+        setPrivateKey(exported.privateKey);
+        setShowPrivateKey(true);
+      } else {
+        setExportError('Failed to export private key');
+      }
+    } catch (error: any) {
+      console.error('Error exporting private key:', error);
+      setExportError(error.message || 'Failed to export private key. Please try again.');
+    } finally {
+      setIsExporting(false);
+    }
+  };
+
+  const handleExportSeedPhrase = async () => {
+    if (!isPrivyWallet || !primaryWallet || !exportWallet) return;
+
+    try {
+      setIsExporting(true);
+      setExportError('');
+
+      // Use Privy's client-side export wallet function
+      const exported = await exportWallet();
+
+      if (exported && (exported.mnemonic || exported.seedPhrase)) {
+        const phrase = exported.mnemonic || exported.seedPhrase;
+        setSeedPhrase(phrase);
+        setShowSeedPhrase(true);
+      } else {
+        setExportError('Seed phrase not available for this wallet. This wallet may have been imported from a private key.');
+      }
+    } catch (error: any) {
+      console.error('Error exporting seed phrase:', error);
+      setExportError(error.message || 'Failed to export seed phrase. Please try again.');
+    } finally {
+      setIsExporting(false);
+    }
+  };
+
+  const copyPrivateKey = () => {
+    navigator.clipboard.writeText(privateKey);
+    setCopiedPrivateKey(true);
+    setTimeout(() => setCopiedPrivateKey(false), 2000);
+  };
+
+  const copySeedPhrase = () => {
+    navigator.clipboard.writeText(seedPhrase);
+    setCopiedSeedPhrase(true);
+    setTimeout(() => setCopiedSeedPhrase(false), 2000);
+  };
 
   if (!isOpen) return null;
 
@@ -600,8 +671,10 @@ function SettingsModal({ isOpen, onClose, wallet, onLogout }: any) {
                     <span>Security Warning</span>
                   </p>
                   <ul className="list-disc list-inside space-y-1 text-xs">
-                    <li>Never share your private key with anyone</li>
-                    <li>Privy wallets use social recovery</li>
+                    <li>Never share your private key or seed phrase with anyone</li>
+                    <li>Anyone with access can control your wallet and funds</li>
+                    <li>Store backups securely offline</li>
+                    <li>Privy wallets use social recovery by default</li>
                   </ul>
                 </div>
                 <Button
@@ -609,7 +682,7 @@ function SettingsModal({ isOpen, onClose, wallet, onLogout }: any) {
                   variant="outline"
                   className="w-full border-white/10 text-white hover:bg-white/5"
                 >
-                  View Security Options
+                  I Understand - View Export Options
                 </Button>
               </div>
             ) : (
@@ -617,28 +690,110 @@ function SettingsModal({ isOpen, onClose, wallet, onLogout }: any) {
                 <div className="p-4 bg-white/5 border border-white/10 rounded-lg">
                   <Label className="text-white mb-2 block">Wallet Type</Label>
                   <p className="text-sm text-gray-400">
-                    {wallet?.walletClientType === 'privy' ? 'Privy Embedded Wallet' : 'External Wallet'}
+                    {isPrivyWallet ? 'Privy Embedded Wallet' : 'External Wallet'}
                   </p>
                 </div>
 
-                <div className="p-4 bg-white/5 border border-white/10 rounded-lg">
-                  <div className="flex items-center justify-between mb-2">
-                    <Label className="text-white">Private Key Export</Label>
-                    <button
-                      onClick={() => setShowPrivateKey(!showPrivateKey)}
-                      className="text-cyan-400 hover:text-cyan-300"
-                    >
-                      {showPrivateKey ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                    </button>
+                {exportError && (
+                  <div className="p-3 bg-red-500/10 border border-red-500/20 rounded-lg text-red-400 text-sm">
+                    {exportError}
                   </div>
-                  {showPrivateKey && (
-                    <div className="p-3 bg-black/50 rounded font-mono text-xs text-white break-all">
-                      {wallet?.walletClientType === 'privy'
-                        ? 'Private key export not available for Privy embedded wallets.'
-                        : 'Private key managed by your wallet provider'}
+                )}
+
+                {/* Private Key Export */}
+                {isPrivyWallet ? (
+                  <div className="p-4 bg-white/5 border border-white/10 rounded-lg space-y-3">
+                    <div className="flex items-center justify-between">
+                      <Label className="text-white">Private Key</Label>
+                      {!privateKey && (
+                        <Button
+                          onClick={handleExportPrivateKey}
+                          disabled={isExporting}
+                          size="sm"
+                          className="bg-cyan-500 hover:bg-cyan-600"
+                        >
+                          {isExporting ? 'Exporting...' : 'Export'}
+                        </Button>
+                      )}
                     </div>
-                  )}
-                </div>
+                    {privateKey && (
+                      <div className="space-y-2">
+                        <div className="p-3 bg-black/50 rounded font-mono text-xs text-white break-all max-h-32 overflow-y-auto">
+                          {showPrivateKey ? privateKey : '•'.repeat(64)}
+                        </div>
+                        <div className="flex gap-2">
+                          <Button
+                            onClick={() => setShowPrivateKey(!showPrivateKey)}
+                            size="sm"
+                            variant="outline"
+                            className="flex-1 border-white/10 text-white hover:bg-white/5"
+                          >
+                            {showPrivateKey ? <><EyeOff className="w-3 h-3 mr-1" /> Hide</> : <><Eye className="w-3 h-3 mr-1" /> Show</>}
+                          </Button>
+                          <Button
+                            onClick={copyPrivateKey}
+                            size="sm"
+                            variant="outline"
+                            className="flex-1 border-white/10 text-white hover:bg-white/5"
+                          >
+                            {copiedPrivateKey ? <><Check className="w-3 h-3 mr-1" /> Copied!</> : <><Copy className="w-3 h-3 mr-1" /> Copy</>}
+                          </Button>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                ) : (
+                  <div className="p-4 bg-white/5 border border-white/10 rounded-lg">
+                    <Label className="text-white mb-2 block">Private Key</Label>
+                    <p className="text-sm text-gray-400">
+                      External wallet - private key managed by your wallet provider
+                    </p>
+                  </div>
+                )}
+
+                {/* Seed Phrase Export */}
+                {isPrivyWallet && (
+                  <div className="p-4 bg-white/5 border border-white/10 rounded-lg space-y-3">
+                    <div className="flex items-center justify-between">
+                      <Label className="text-white">Seed Phrase</Label>
+                      {!seedPhrase && (
+                        <Button
+                          onClick={handleExportSeedPhrase}
+                          disabled={isExporting}
+                          size="sm"
+                          className="bg-cyan-500 hover:bg-cyan-600"
+                        >
+                          {isExporting ? 'Exporting...' : 'Export'}
+                        </Button>
+                      )}
+                    </div>
+                    {seedPhrase && (
+                      <div className="space-y-2">
+                        <div className="p-3 bg-black/50 rounded font-mono text-xs text-white break-words max-h-32 overflow-y-auto">
+                          {showSeedPhrase ? seedPhrase : '••••• ••••• ••••• ••••• ••••• •••••'}
+                        </div>
+                        <div className="flex gap-2">
+                          <Button
+                            onClick={() => setShowSeedPhrase(!showSeedPhrase)}
+                            size="sm"
+                            variant="outline"
+                            className="flex-1 border-white/10 text-white hover:bg-white/5"
+                          >
+                            {showSeedPhrase ? <><EyeOff className="w-3 h-3 mr-1" /> Hide</> : <><Eye className="w-3 h-3 mr-1" /> Show</>}
+                          </Button>
+                          <Button
+                            onClick={copySeedPhrase}
+                            size="sm"
+                            variant="outline"
+                            className="flex-1 border-white/10 text-white hover:bg-white/5"
+                          >
+                            {copiedSeedPhrase ? <><Check className="w-3 h-3 mr-1" /> Copied!</> : <><Copy className="w-3 h-3 mr-1" /> Copy</>}
+                          </Button>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
               </div>
             )}
           </div>
@@ -666,6 +821,7 @@ function SettingsModal({ isOpen, onClose, wallet, onLogout }: any) {
 
 export default function WalletPage() {
   const { primaryWallet, logout, login, user: contextUser } = useWallet();
+  const { exportWallet } = usePrivy(); // Get exportWallet from Privy
   const { solPrice, isLoading: isPriceLoading } = useSolPrice();
   const { wallets } = useWallets(); // External wallets
   const { wallets: standardWallets } = useStandardWallets(); // Standard wallet interface (includes embedded)
@@ -1738,6 +1894,8 @@ export default function WalletPage() {
         onClose={() => setShowSettingsModal(false)}
         wallet={(primaryWallet as any)._privyWallet}
         onLogout={logout}
+        primaryWallet={primaryWallet}
+        exportWallet={exportWallet}
       />
       <JupiterSwap
         isOpen={showSwapModal}
