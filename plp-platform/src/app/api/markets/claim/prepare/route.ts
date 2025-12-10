@@ -18,7 +18,12 @@ import {
   ComputeBudgetProgram,
   TransactionInstruction,
 } from '@solana/web3.js';
-import { TOKEN_PROGRAM_ID } from '@solana/spl-token';
+import {
+  TOKEN_2022_PROGRAM_ID,
+  getAssociatedTokenAddressSync,
+  createAssociatedTokenAccountIdempotentInstruction,
+  ASSOCIATED_TOKEN_PROGRAM_ID,
+} from '@solana/spl-token';
 import { getProgram, getPositionPDA } from '@/lib/anchor-program';
 import { createClientLogger } from '@/lib/logger';
 import { getSolanaConnection } from '@/lib/solana';
@@ -257,41 +262,90 @@ export async function POST(request: NextRequest) {
     // Get program ID
     const { PROGRAM_ID } = await import('@/config/solana');
 
-    // Create instruction with ALL 7 required accounts
+    // For YesWins: need to derive Token2022 accounts
+    // For NoWins/Refund: token accounts are checked as UncheckedAccount, so we can use placeholders
+    const instructions = [];
+
+    let marketTokenAccount = userPubkey; // Placeholder for NoWins/Refund
+    let userTokenAccount = userPubkey;   // Placeholder for NoWins/Refund
+    let tokenMintAccount = userPubkey;   // Placeholder for NoWins/Refund
+    let tokenProgramId = TOKEN_2022_PROGRAM_ID; // Always Token2022 (Pump.fun standard)
+
+    if (marketAccount.resolution === 1 && marketAccount.tokenMint) {
+      // YesWins - derive actual Token2022 ATAs
+      logger.info('YesWins claim - deriving Token2022 accounts');
+
+      marketTokenAccount = getAssociatedTokenAddressSync(
+        marketAccount.tokenMint,
+        marketPubkey,
+        true, // allowOwnerOffCurve - market is a PDA
+        TOKEN_2022_PROGRAM_ID
+      );
+
+      userTokenAccount = getAssociatedTokenAddressSync(
+        marketAccount.tokenMint,
+        userPubkey,
+        false,
+        TOKEN_2022_PROGRAM_ID
+      );
+
+      tokenMintAccount = marketAccount.tokenMint;
+
+      // Create user token account if it doesn't exist (idempotent)
+      const createUserTokenAccountIx = createAssociatedTokenAccountIdempotentInstruction(
+        userPubkey,      // payer
+        userTokenAccount, // associated token account address
+        userPubkey,      // owner
+        marketAccount.tokenMint, // mint
+        TOKEN_2022_PROGRAM_ID,
+        ASSOCIATED_TOKEN_PROGRAM_ID
+      );
+
+      instructions.push(createUserTokenAccountIx);
+
+      logger.info('Token2022 accounts derived', {
+        tokenMint: marketAccount.tokenMint.toBase58(),
+        marketTokenAccount: marketTokenAccount.toBase58(),
+        userTokenAccount: userTokenAccount.toBase58(),
+      });
+    }
+
+    // Create claim instruction with proper accounts
     // Order must match ClaimRewards struct in Rust program:
     // 1. market, 2. position, 3. market_token_account, 4. user_token_account,
-    // 5. user, 6. system_program, 7. token_program
-    //
-    // For NoWins/Refund: Use user wallet as placeholder for token accounts
-    // (they're not used but must be mutable accounts)
-    // For YesWins: Would need actual ATAs (TODO: implement token account derivation)
+    // 5. user, 6. system_program, 7. token_mint, 8. token_program
     const claimIx = new TransactionInstruction({
       keys: [
         { pubkey: marketPubkey, isSigner: false, isWritable: true },   // market
         { pubkey: positionPda, isSigner: false, isWritable: true },    // position (will be closed)
-        { pubkey: userPubkey, isSigner: false, isWritable: true }, // market_token_account (placeholder for NoWins/Refund)
-        { pubkey: userPubkey, isSigner: false, isWritable: true }, // user_token_account (placeholder for NoWins/Refund)
+        { pubkey: marketTokenAccount, isSigner: false, isWritable: true }, // market_token_account
+        { pubkey: userTokenAccount, isSigner: false, isWritable: true },   // user_token_account
         { pubkey: userPubkey, isSigner: true, isWritable: true },      // user
         { pubkey: SystemProgram.programId, isSigner: false, isWritable: false }, // system_program
-        { pubkey: TOKEN_PROGRAM_ID, isSigner: false, isWritable: false }, // token_program
+        { pubkey: tokenMintAccount, isSigner: false, isWritable: false }, // token_mint
+        { pubkey: tokenProgramId, isSigner: false, isWritable: false }, // token_program
       ],
       programId: PROGRAM_ID,
       data,
     });
 
+    instructions.push(claimIx);
+
     // Build compute budget instruction
     const computeBudgetIx = ComputeBudgetProgram.setComputeUnitLimit({
-      units: 300_000,
+      units: 400_000, // Increased for ATA creation
     });
 
     // Get recent blockhash
     const { blockhash, lastValidBlockHeight } = await connection.getLatestBlockhash('confirmed');
 
-    // Create VersionedTransaction (same as resolve_market pattern)
+    // Create VersionedTransaction with all instructions
+    // For YesWins: [computeBudget, createUserTokenAccount, claim]
+    // For NoWins/Refund: [computeBudget, claim]
     const messageV0 = new TransactionMessage({
       payerKey: userPubkey,
       recentBlockhash: blockhash,
-      instructions: [computeBudgetIx, claimIx],
+      instructions: [computeBudgetIx, ...instructions],
     }).compileToV0Message();
 
     const transaction = new VersionedTransaction(messageV0);
