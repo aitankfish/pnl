@@ -2,8 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { useWallet } from '@/hooks/useWallet';
-import { useFundWallet, useSignAndSendTransaction, useWallets, useStandardWallets } from '@privy-io/react-auth/solana';
-import { usePrivy } from '@privy-io/react-auth';
+import { useFundWallet, useSignAndSendTransaction, useWallets, useStandardWallets, useExportWallet } from '@privy-io/react-auth/solana';
 import { useSolPrice } from '@/hooks/useSolPrice';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -574,26 +573,12 @@ function DepositModal({ isOpen, onClose, address }: { isOpen: boolean; onClose: 
 }
 
 function SettingsModal({ isOpen, onClose, wallet, onLogout, primaryWallet, exportWallet }: any) {
-  const [showPrivateKey, setShowPrivateKey] = useState(false);
-  const [showSeedPhrase, setShowSeedPhrase] = useState(false);
   const [exportWarningShown, setExportWarningShown] = useState(false);
-  const [privateKey, setPrivateKey] = useState<string>('');
-  const [seedPhrase, setSeedPhrase] = useState<string>('');
   const [isExporting, setIsExporting] = useState(false);
   const [exportError, setExportError] = useState<string>('');
-  const [copiedPrivateKey, setCopiedPrivateKey] = useState(false);
-  const [copiedSeedPhrase, setCopiedSeedPhrase] = useState(false);
 
   // Check if this is a Privy embedded wallet (not external wallet like Phantom)
   const isPrivyWallet = primaryWallet?.isEmbedded === true || wallet?.walletClientType === 'privy';
-
-  console.log('Wallet detection:', {
-    isPrivyWallet,
-    isEmbedded: primaryWallet?.isEmbedded,
-    walletClientType: wallet?.walletClientType,
-    primaryWallet,
-    wallet
-  });
 
   const handleExportPrivateKey = async () => {
     if (!isPrivyWallet) {
@@ -610,15 +595,16 @@ function SettingsModal({ isOpen, onClose, wallet, onLogout, primaryWallet, expor
       setIsExporting(true);
       setExportError('');
 
-      // Use Privy's client-side export wallet function
-      const exported = await exportWallet();
+      console.log('Exporting wallet with address:', primaryWallet.address);
 
-      if (exported && exported.privateKey) {
-        setPrivateKey(exported.privateKey);
-        setShowPrivateKey(true);
-      } else {
-        setExportError('Failed to export private key');
-      }
+      // Use Privy's Solana-specific export wallet function
+      // Must pass the wallet address parameter
+      await exportWallet({ address: primaryWallet.address });
+
+      // Note: exportWallet opens a modal for the user to view/copy their private key
+      // It doesn't return the key directly for security reasons
+      setExportError('');
+
     } catch (error: any) {
       console.error('Error exporting private key:', error);
 
@@ -633,56 +619,6 @@ function SettingsModal({ isOpen, onClose, wallet, onLogout, primaryWallet, expor
     }
   };
 
-  const handleExportSeedPhrase = async () => {
-    if (!isPrivyWallet) {
-      setExportError('Seed phrase export is only available for Privy embedded wallets. External wallet credentials should be managed through your wallet provider (Phantom, Solflare, etc.).');
-      return;
-    }
-
-    if (!primaryWallet || !exportWallet) {
-      setExportError('Unable to export wallet. Please try logging out and back in.');
-      return;
-    }
-
-    try {
-      setIsExporting(true);
-      setExportError('');
-
-      // Use Privy's client-side export wallet function
-      const exported = await exportWallet();
-
-      if (exported && (exported.mnemonic || exported.seedPhrase)) {
-        const phrase = exported.mnemonic || exported.seedPhrase;
-        setSeedPhrase(phrase);
-        setShowSeedPhrase(true);
-      } else {
-        setExportError('Seed phrase not available for this wallet. This wallet may have been imported from a private key.');
-      }
-    } catch (error: any) {
-      console.error('Error exporting seed phrase:', error);
-
-      // Handle specific error messages
-      if (error.message?.includes('embedded wallet')) {
-        setExportError('This feature is only available for Privy embedded wallets. If you\'re using an external wallet (Phantom, Solflare, etc.), please manage your credentials through your wallet provider.');
-      } else {
-        setExportError(error.message || 'Failed to export seed phrase. Please try again.');
-      }
-    } finally {
-      setIsExporting(false);
-    }
-  };
-
-  const copyPrivateKey = () => {
-    navigator.clipboard.writeText(privateKey);
-    setCopiedPrivateKey(true);
-    setTimeout(() => setCopiedPrivateKey(false), 2000);
-  };
-
-  const copySeedPhrase = () => {
-    navigator.clipboard.writeText(seedPhrase);
-    setCopiedSeedPhrase(true);
-    setTimeout(() => setCopiedSeedPhrase(false), 2000);
-  };
 
   if (!isOpen) return null;
 
@@ -746,43 +682,22 @@ function SettingsModal({ isOpen, onClose, wallet, onLogout, primaryWallet, expor
                 {isPrivyWallet ? (
                   <div className="p-4 bg-white/5 border border-white/10 rounded-lg space-y-3">
                     <div className="flex items-center justify-between">
-                      <Label className="text-white">Private Key</Label>
-                      {!privateKey && (
-                        <Button
-                          onClick={handleExportPrivateKey}
-                          disabled={isExporting}
-                          size="sm"
-                          className="bg-cyan-500 hover:bg-cyan-600"
-                        >
-                          {isExporting ? 'Exporting...' : 'Export'}
-                        </Button>
-                      )}
-                    </div>
-                    {privateKey && (
-                      <div className="space-y-2">
-                        <div className="p-3 bg-black/50 rounded font-mono text-xs text-white break-all max-h-32 overflow-y-auto">
-                          {showPrivateKey ? privateKey : '•'.repeat(64)}
-                        </div>
-                        <div className="flex gap-2">
-                          <Button
-                            onClick={() => setShowPrivateKey(!showPrivateKey)}
-                            size="sm"
-                            variant="outline"
-                            className="flex-1 border-white/10 text-white hover:bg-white/5"
-                          >
-                            {showPrivateKey ? <><EyeOff className="w-3 h-3 mr-1" /> Hide</> : <><Eye className="w-3 h-3 mr-1" /> Show</>}
-                          </Button>
-                          <Button
-                            onClick={copyPrivateKey}
-                            size="sm"
-                            variant="outline"
-                            className="flex-1 border-white/10 text-white hover:bg-white/5"
-                          >
-                            {copiedPrivateKey ? <><Check className="w-3 h-3 mr-1" /> Copied!</> : <><Copy className="w-3 h-3 mr-1" /> Copy</>}
-                          </Button>
-                        </div>
+                      <div>
+                        <Label className="text-white">Private Key</Label>
+                        <p className="text-xs text-gray-400 mt-1">Export your wallet's private key</p>
                       </div>
-                    )}
+                      <Button
+                        onClick={handleExportPrivateKey}
+                        disabled={isExporting}
+                        size="sm"
+                        className="bg-cyan-500 hover:bg-cyan-600"
+                      >
+                        {isExporting ? 'Opening...' : 'Export'}
+                      </Button>
+                    </div>
+                    <p className="text-xs text-gray-500">
+                      Clicking Export will open a secure modal where you can view and copy your private key. The key never passes through our servers.
+                    </p>
                   </div>
                 ) : (
                   <div className="p-4 bg-white/5 border border-white/10 rounded-lg">
@@ -793,56 +708,21 @@ function SettingsModal({ isOpen, onClose, wallet, onLogout, primaryWallet, expor
                   </div>
                 )}
 
-                {/* Seed Phrase Export */}
-                {isPrivyWallet ? (
-                  <div className="p-4 bg-white/5 border border-white/10 rounded-lg space-y-3">
-                    <div className="flex items-center justify-between">
-                      <Label className="text-white">Seed Phrase</Label>
-                      {!seedPhrase && (
-                        <Button
-                          onClick={handleExportSeedPhrase}
-                          disabled={isExporting}
-                          size="sm"
-                          className="bg-cyan-500 hover:bg-cyan-600"
-                        >
-                          {isExporting ? 'Exporting...' : 'Export'}
-                        </Button>
-                      )}
+                {/* Seed Phrase Information */}
+                <div className="p-4 bg-amber-500/10 border border-amber-500/20 rounded-lg space-y-2">
+                  <div className="flex items-start space-x-2">
+                    <Shield className="w-4 h-4 text-amber-400 mt-0.5 flex-shrink-0" />
+                    <div>
+                      <Label className="text-amber-300 text-sm">Seed Phrase Not Available</Label>
+                      <p className="text-xs text-amber-200/70 mt-1">
+                        Seed phrase export is not supported for Solana wallets because different wallet clients use different HD derivation paths, making seed phrases incompatible across wallets.
+                      </p>
+                      <p className="text-xs text-amber-200/70 mt-2">
+                        <strong>Use private key export instead</strong> - it works with all Solana wallets (Phantom, Solflare, etc.)
+                      </p>
                     </div>
-                    {seedPhrase && (
-                      <div className="space-y-2">
-                        <div className="p-3 bg-black/50 rounded font-mono text-xs text-white break-words max-h-32 overflow-y-auto">
-                          {showSeedPhrase ? seedPhrase : '••••• ••••• ••••• ••••• ••••• •••••'}
-                        </div>
-                        <div className="flex gap-2">
-                          <Button
-                            onClick={() => setShowSeedPhrase(!showSeedPhrase)}
-                            size="sm"
-                            variant="outline"
-                            className="flex-1 border-white/10 text-white hover:bg-white/5"
-                          >
-                            {showSeedPhrase ? <><EyeOff className="w-3 h-3 mr-1" /> Hide</> : <><Eye className="w-3 h-3 mr-1" /> Show</>}
-                          </Button>
-                          <Button
-                            onClick={copySeedPhrase}
-                            size="sm"
-                            variant="outline"
-                            className="flex-1 border-white/10 text-white hover:bg-white/5"
-                          >
-                            {copiedSeedPhrase ? <><Check className="w-3 h-3 mr-1" /> Copied!</> : <><Copy className="w-3 h-3 mr-1" /> Copy</>}
-                          </Button>
-                        </div>
-                      </div>
-                    )}
                   </div>
-                ) : (
-                  <div className="p-4 bg-white/5 border border-white/10 rounded-lg">
-                    <Label className="text-white mb-2 block">Seed Phrase</Label>
-                    <p className="text-sm text-gray-400">
-                      External wallet - seed phrase managed by your wallet provider
-                    </p>
-                  </div>
-                )}
+                </div>
               </div>
             )}
           </div>
@@ -870,7 +750,7 @@ function SettingsModal({ isOpen, onClose, wallet, onLogout, primaryWallet, expor
 
 export default function WalletPage() {
   const { primaryWallet, logout, login, user: contextUser } = useWallet();
-  const { exportWallet } = usePrivy(); // Get exportWallet from Privy
+  const { exportWallet } = useExportWallet(); // Get exportWallet from Solana-specific hook
   const { solPrice, isLoading: isPriceLoading } = useSolPrice();
   const { wallets } = useWallets(); // External wallets
   const { wallets: standardWallets } = useStandardWallets(); // Standard wallet interface (includes embedded)
