@@ -97,20 +97,55 @@ export async function GET(_request: NextRequest) {
       };
 
       const totalVotes = voteCounts.yesVoteCount + voteCounts.noVoteCount;
-      const yesPercentage = totalVotes > 0 ? Math.round((voteCounts.yesVoteCount / totalVotes) * 100) : 0;
 
-      // Calculate pool amount raised (from target pool or pool balance)
-      const poolRaised = market.poolBalance
-        ? (market.poolBalance / 1_000_000_000).toFixed(2) // Convert lamports to SOL
-        : (market.targetPool / 1_000_000_000).toFixed(2);
+      // Use sharesYesPercentage (from blockchain AMM) as single source of truth
+      // This is consistent with browse page and reflects actual market outcome
+      const yesPercentage = market.sharesYesPercentage ?? market.yesPercentage ?? 50;
+
+      // Calculate pool amount raised - use poolBalance (actual SOL raised)
+      // During prediction phase, poolBalance tracks SOL contributed
+      // After launch, it may be 0 if all was used for token creation
+      const poolBalanceNum = typeof market.poolBalance === 'string'
+        ? parseInt(market.poolBalance, 10)
+        : market.poolBalance || 0;
+      const targetPoolNum = typeof market.targetPool === 'string'
+        ? parseInt(market.targetPool, 10)
+        : market.targetPool || 0;
+
+      const poolRaised = poolBalanceNum > 0
+        ? (poolBalanceNum / 1_000_000_000).toFixed(2) // Convert lamports to SOL
+        : (targetPoolNum / 1_000_000_000).toFixed(2); // Fallback to target
+
+      // Format category properly (first letter capital, handle special cases)
+      const formatCategory = (cat: string): string => {
+        if (!cat) return 'Other';
+        const lowerCat = cat.toLowerCase();
+        // Special cases
+        const specialCases: { [key: string]: string } = {
+          'dao': 'DAO',
+          'nft': 'NFT',
+          'ai': 'AI/ML',
+          'defi': 'DeFi',
+          'realestate': 'Real Estate',
+        };
+        if (specialCases[lowerCat]) return specialCases[lowerCat];
+        // Capitalize first letter
+        return cat.charAt(0).toUpperCase() + cat.slice(1).toLowerCase();
+      };
+
+      // Truncate description to 150 characters
+      const description = project?.description || '';
+      const truncatedDescription = description.length > 150
+        ? description.substring(0, 150) + '...'
+        : description;
 
       return {
         id: market._id.toString(),
         marketAddress: market.marketAddress,
         name: project?.name || 'Unknown Project',
         symbol: project?.tokenSymbol || 'TKN',
-        description: project?.description || '',
-        category: project?.category || 'Other',
+        description: truncatedDescription,
+        category: formatCategory(project?.category || 'Other'),
         launchDate: market.resolvedAt ? new Date(market.resolvedAt).toISOString().split('T')[0] : 'Unknown',
         tokenAddress: market.pumpFunTokenAddress,
         projectImageUrl: convertToGatewayUrl(project?.projectImageUrl),
