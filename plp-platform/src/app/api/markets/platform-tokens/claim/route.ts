@@ -12,7 +12,7 @@ import {
   VersionedTransaction,
   ComputeBudgetProgram,
 } from '@solana/web3.js';
-import { TOKEN_PROGRAM_ID, getAssociatedTokenAddressSync } from '@solana/spl-token';
+import { TOKEN_2022_PROGRAM_ID, getAssociatedTokenAddressSync } from '@solana/spl-token';
 import { createClientLogger } from '@/lib/logger';
 import { getSolanaConnection } from '@/lib/solana';
 
@@ -50,16 +50,19 @@ export async function POST(request: NextRequest) {
     const tokenMintPubkey = new PublicKey(tokenMint);
     const pnlWalletPubkey = new PublicKey(PNL_WALLET);
 
-    // Get associated token accounts
+    // Get associated token accounts (Token2022 - Pump.fun uses Token2022)
     const marketTokenAccount = getAssociatedTokenAddressSync(
       tokenMintPubkey,
       marketPubkey,
-      true // allowOwnerOffCurve - market is a PDA
+      true, // allowOwnerOffCurve - market is a PDA
+      TOKEN_2022_PROGRAM_ID
     );
 
     const pnlTokenAccount = getAssociatedTokenAddressSync(
       tokenMintPubkey,
-      pnlWalletPubkey
+      pnlWalletPubkey,
+      false,
+      TOKEN_2022_PROGRAM_ID
     );
 
     logger.info('Token accounts derived', {
@@ -94,8 +97,9 @@ export async function POST(request: NextRequest) {
         { pubkey: marketPubkey, isSigner: false, isWritable: true },           // market
         { pubkey: marketTokenAccount, isSigner: false, isWritable: true },     // market_token_account
         { pubkey: pnlTokenAccount, isSigner: false, isWritable: true },        // pnl_token_account
+        { pubkey: tokenMintPubkey, isSigner: false, isWritable: false },       // token_mint
         { pubkey: callerPubkey, isSigner: true, isWritable: true },            // caller (can be anyone)
-        { pubkey: TOKEN_PROGRAM_ID, isSigner: false, isWritable: false },      // token_program
+        { pubkey: TOKEN_2022_PROGRAM_ID, isSigner: false, isWritable: false }, // token_program (Token2022)
       ],
       programId: PROGRAM_ID,
       data,
