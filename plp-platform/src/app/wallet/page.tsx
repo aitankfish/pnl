@@ -584,10 +584,27 @@ function SettingsModal({ isOpen, onClose, wallet, onLogout, primaryWallet, expor
   const [copiedPrivateKey, setCopiedPrivateKey] = useState(false);
   const [copiedSeedPhrase, setCopiedSeedPhrase] = useState(false);
 
-  const isPrivyWallet = wallet?.walletClientType === 'privy';
+  // Check if this is a Privy embedded wallet (not external wallet like Phantom)
+  const isPrivyWallet = primaryWallet?.isEmbedded === true || wallet?.walletClientType === 'privy';
+
+  console.log('Wallet detection:', {
+    isPrivyWallet,
+    isEmbedded: primaryWallet?.isEmbedded,
+    walletClientType: wallet?.walletClientType,
+    primaryWallet,
+    wallet
+  });
 
   const handleExportPrivateKey = async () => {
-    if (!isPrivyWallet || !primaryWallet || !exportWallet) return;
+    if (!isPrivyWallet) {
+      setExportError('Private key export is only available for Privy embedded wallets. External wallet credentials should be managed through your wallet provider (Phantom, Solflare, etc.).');
+      return;
+    }
+
+    if (!primaryWallet || !exportWallet) {
+      setExportError('Unable to export wallet. Please try logging out and back in.');
+      return;
+    }
 
     try {
       setIsExporting(true);
@@ -604,14 +621,28 @@ function SettingsModal({ isOpen, onClose, wallet, onLogout, primaryWallet, expor
       }
     } catch (error: any) {
       console.error('Error exporting private key:', error);
-      setExportError(error.message || 'Failed to export private key. Please try again.');
+
+      // Handle specific error messages
+      if (error.message?.includes('embedded wallet')) {
+        setExportError('This feature is only available for Privy embedded wallets. If you\'re using an external wallet (Phantom, Solflare, etc.), please manage your credentials through your wallet provider.');
+      } else {
+        setExportError(error.message || 'Failed to export private key. Please try again.');
+      }
     } finally {
       setIsExporting(false);
     }
   };
 
   const handleExportSeedPhrase = async () => {
-    if (!isPrivyWallet || !primaryWallet || !exportWallet) return;
+    if (!isPrivyWallet) {
+      setExportError('Seed phrase export is only available for Privy embedded wallets. External wallet credentials should be managed through your wallet provider (Phantom, Solflare, etc.).');
+      return;
+    }
+
+    if (!primaryWallet || !exportWallet) {
+      setExportError('Unable to export wallet. Please try logging out and back in.');
+      return;
+    }
 
     try {
       setIsExporting(true);
@@ -629,7 +660,13 @@ function SettingsModal({ isOpen, onClose, wallet, onLogout, primaryWallet, expor
       }
     } catch (error: any) {
       console.error('Error exporting seed phrase:', error);
-      setExportError(error.message || 'Failed to export seed phrase. Please try again.');
+
+      // Handle specific error messages
+      if (error.message?.includes('embedded wallet')) {
+        setExportError('This feature is only available for Privy embedded wallets. If you\'re using an external wallet (Phantom, Solflare, etc.), please manage your credentials through your wallet provider.');
+      } else {
+        setExportError(error.message || 'Failed to export seed phrase. Please try again.');
+      }
     } finally {
       setIsExporting(false);
     }
@@ -690,8 +727,13 @@ function SettingsModal({ isOpen, onClose, wallet, onLogout, primaryWallet, expor
                 <div className="p-4 bg-white/5 border border-white/10 rounded-lg">
                   <Label className="text-white mb-2 block">Wallet Type</Label>
                   <p className="text-sm text-gray-400">
-                    {isPrivyWallet ? 'Privy Embedded Wallet' : 'External Wallet'}
+                    {isPrivyWallet ? 'Privy Embedded Wallet' : 'External Wallet (Phantom, Solflare, etc.)'}
                   </p>
+                  {!isPrivyWallet && (
+                    <p className="text-xs text-gray-500 mt-2">
+                      Manage your credentials through your wallet extension
+                    </p>
+                  )}
                 </div>
 
                 {exportError && (
@@ -752,7 +794,7 @@ function SettingsModal({ isOpen, onClose, wallet, onLogout, primaryWallet, expor
                 )}
 
                 {/* Seed Phrase Export */}
-                {isPrivyWallet && (
+                {isPrivyWallet ? (
                   <div className="p-4 bg-white/5 border border-white/10 rounded-lg space-y-3">
                     <div className="flex items-center justify-between">
                       <Label className="text-white">Seed Phrase</Label>
@@ -792,6 +834,13 @@ function SettingsModal({ isOpen, onClose, wallet, onLogout, primaryWallet, expor
                         </div>
                       </div>
                     )}
+                  </div>
+                ) : (
+                  <div className="p-4 bg-white/5 border border-white/10 rounded-lg">
+                    <Label className="text-white mb-2 block">Seed Phrase</Label>
+                    <p className="text-sm text-gray-400">
+                      External wallet - seed phrase managed by your wallet provider
+                    </p>
                   </div>
                 )}
               </div>
