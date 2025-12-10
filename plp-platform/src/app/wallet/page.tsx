@@ -1546,7 +1546,8 @@ export default function WalletPage() {
         )}
       </div>
 
-        {/* Your Predictions Section */}
+      {/* Your Predictions Section */}
+      <div className="max-w-4xl mx-auto space-y-6 mt-8">
         <div className="space-y-4">
           <h3 className="text-lg sm:text-xl font-semibold text-white px-2 sm:px-0">Your Predictions</h3>
 
