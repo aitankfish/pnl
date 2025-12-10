@@ -86,6 +86,40 @@ export async function GET(_request: NextRequest) {
     const marketIds = validMarkets.map(m => m._id);
     const voteCountsMap = await calculateVoteCountsForMarkets(marketIds);
 
+    // Calculate stake totals from participants for all markets
+    const { PredictionParticipant } = await import('@/lib/mongodb');
+    const participants = await PredictionParticipant.find({
+      marketId: { $in: marketIds }
+    }).lean();
+
+    // Build map of stake totals per market
+    const stakeTotalsMap = new Map<string, { totalYesStake: number; totalNoStake: number }>();
+
+    // Initialize all markets with 0 stakes
+    for (const marketId of marketIds) {
+      stakeTotalsMap.set(marketId.toString(), { totalYesStake: 0, totalNoStake: 0 });
+    }
+
+    // Calculate stakes from participants
+    for (const participant of participants) {
+      const marketIdStr = participant.marketId.toString();
+      const stakes = stakeTotalsMap.get(marketIdStr) || { totalYesStake: 0, totalNoStake: 0 };
+
+      const yesShares = BigInt(participant.yesShares || '0');
+      const noShares = BigInt(participant.noShares || '0');
+
+      // Convert from lamports to SOL
+      stakes.totalYesStake += Number(yesShares) / 1_000_000_000;
+      stakes.totalNoStake += Number(noShares) / 1_000_000_000;
+
+      stakeTotalsMap.set(marketIdStr, stakes);
+    }
+
+    logger.info('Calculated stake totals for launched markets', {
+      marketCount: marketIds.length,
+      participantCount: participants.length
+    });
+
     // Transform data for frontend
     const launchedTokens = validMarkets.map((market) => {
       const project = market.projectId as any; // populated project
@@ -102,19 +136,19 @@ export async function GET(_request: NextRequest) {
       // This is consistent with browse page and reflects actual market outcome
       const yesPercentage = market.sharesYesPercentage ?? market.yesPercentage ?? 50;
 
-      // Calculate pool amount raised - use poolBalance (actual SOL raised)
-      // During prediction phase, poolBalance tracks SOL contributed
-      // After launch, it may be 0 if all was used for token creation
-      const poolBalanceNum = typeof market.poolBalance === 'string'
-        ? parseInt(market.poolBalance, 10)
-        : market.poolBalance || 0;
-      const targetPoolNum = typeof market.targetPool === 'string'
-        ? parseInt(market.targetPool, 10)
-        : market.targetPool || 0;
+      // Get calculated stake totals (actual SOL raised from all participants)
+      // After token launch, poolBalance becomes 0 (used for token creation)
+      // So we calculate from participants' yesShares and noShares
+      const stakeTotals = stakeTotalsMap.get(market._id.toString()) || {
+        totalYesStake: 0,
+        totalNoStake: 0,
+      };
 
-      const poolRaised = poolBalanceNum > 0
-        ? (poolBalanceNum / 1_000_000_000).toFixed(2) // Convert lamports to SOL
-        : (targetPoolNum / 1_000_000_000).toFixed(2); // Fallback to target
+      const totalRaised = stakeTotals.totalYesStake + stakeTotals.totalNoStake;
+
+      const poolRaised = totalRaised > 0
+        ? totalRaised.toFixed(2) // Already in SOL
+        : '0.00';
 
       // Format category properly (first letter capital, handle special cases)
       const formatCategory = (cat: string): string => {
