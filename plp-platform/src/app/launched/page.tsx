@@ -68,13 +68,10 @@ export default function LaunchedPage() {
   return (
     <div className="p-6 space-y-8">
         {/* Header */}
-        <div className="text-center space-y-4">
-          <h1 className="text-4xl font-bold text-white mb-2">
-            Successfully Launched Projects
+        <div className="text-center">
+          <h1 className="text-lg sm:text-2xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-green-400 via-cyan-400 to-blue-400 tracking-tight">
+            Community-backed tokens. Now live on Solana.
           </h1>
-          <p className="text-white/70 text-lg">
-            Explore tokens that have been successfully launched through our prediction markets
-          </p>
         </div>
 
         {/* Loading State */}
