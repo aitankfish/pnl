@@ -280,11 +280,15 @@ export class SyncManager {
             syncStatus: 'synced',
           };
 
-          // Check if resolved (update resolvedAt timestamp)
+          // Check if resolved (update resolvedAt timestamp and marketState)
           const currentMarket = await db.collection('predictionmarkets').findOne({ _id: market._id });
           if (marketData.resolution !== 0 && currentMarket && !currentMarket.resolvedAt) {
             updateData.resolvedAt = new Date();
+            updateData.marketState = 1; // Set to Resolved state
             logger.info(`🎯 Market resolved during initial sync: ${market.marketAddress.slice(0, 8)}... -> ${this.getResolutionString(marketData.resolution)}`);
+          } else if (marketData.resolution !== 0) {
+            // Already resolved, make sure marketState is correct
+            updateData.marketState = 1;
           }
 
           // Update MongoDB

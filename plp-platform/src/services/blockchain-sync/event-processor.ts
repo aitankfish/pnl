@@ -160,10 +160,14 @@ export class EventProcessor {
       syncStatus: 'synced',
     };
 
-    // Check if resolved (update resolvedAt timestamp)
+    // Check if resolved (update resolvedAt timestamp and marketState)
     if (marketData.resolution !== 0 && !market.resolvedAt) {
       updateData.resolvedAt = new Date();
+      updateData.marketState = 1; // Set to Resolved state
       logger.info(`✅ Market resolved: ${this.getResolutionString(marketData.resolution)}`);
+    } else if (marketData.resolution !== 0) {
+      // Already resolved, make sure marketState is correct
+      updateData.marketState = 1;
     }
 
     // Calculate stake-based percentages from participants (consistent with vote/complete API)
