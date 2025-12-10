@@ -245,7 +245,7 @@ export default function TreasuryAdminPage() {
 
       if (result.success) {
         alert(`Platform tokens claimed successfully! Signature: ${result.signature}`);
-        // Refresh the list
+        // Refresh the list to update claimed status
         await fetchMarketsWithTokens();
       } else {
         throw new Error(result.error);
@@ -253,6 +253,19 @@ export default function TreasuryAdminPage() {
     } catch (error: any) {
       console.error('Failed to claim platform tokens:', error);
       alert(`Failed to claim: ${error.message}`);
+    } finally {
+      setClaimingMarket(null);
+    }
+  };
+
+  // Re-check claim status for a market
+  const handleRecheckStatus = async (marketAddress: string) => {
+    try {
+      setClaimingMarket(marketAddress); // Use same state for loading indicator
+      await fetchMarketsWithTokens(); // Refresh all markets from backend
+    } catch (error: any) {
+      console.error('Failed to re-check status:', error);
+      alert(`Failed to re-check status: ${error.message}`);
     } finally {
       setClaimingMarket(null);
     }
@@ -565,7 +578,7 @@ export default function TreasuryAdminPage() {
                   </div>
                 ) : marketsWithTokens.length === 0 ? (
                   <div className="text-center py-8">
-                    <p className="text-gray-400">No markets with unclaimed platform tokens</p>
+                    <p className="text-gray-400">No markets with platform tokens yet</p>
                   </div>
                 ) : (
                   <div className="space-y-4">
@@ -593,20 +606,43 @@ export default function TreasuryAdminPage() {
                             </div>
                           </div>
                         </div>
-                        <Button
-                          onClick={() => handleClaimPlatformTokens(market)}
-                          disabled={claimingMarket === market.marketAddress || isClaiming}
-                          className="w-full bg-gradient-to-r from-cyan-500 to-blue-500"
-                        >
-                          {claimingMarket === market.marketAddress ? (
-                            <>
-                              <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                              Claiming...
-                            </>
-                          ) : (
-                            'Claim Platform Tokens'
-                          )}
-                        </Button>
+                        {market.platformTokensClaimed ? (
+                          <div className="space-y-2">
+                            <div className="flex items-center justify-center gap-2 p-3 bg-green-900/30 border border-green-600 rounded-lg">
+                              <span className="text-green-400 font-bold">✓ Claimed</span>
+                            </div>
+                            <Button
+                              onClick={() => handleRecheckStatus(market.marketAddress)}
+                              disabled={claimingMarket === market.marketAddress}
+                              variant="outline"
+                              className="w-full border-gray-600 text-gray-300 hover:bg-gray-700"
+                            >
+                              {claimingMarket === market.marketAddress ? (
+                                <>
+                                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                                  Refreshing...
+                                </>
+                              ) : (
+                                'Re-check Status'
+                              )}
+                            </Button>
+                          </div>
+                        ) : (
+                          <Button
+                            onClick={() => handleClaimPlatformTokens(market)}
+                            disabled={claimingMarket === market.marketAddress || isClaiming}
+                            className="w-full bg-gradient-to-r from-cyan-500 to-blue-500"
+                          >
+                            {claimingMarket === market.marketAddress ? (
+                              <>
+                                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                                Claiming...
+                              </>
+                            ) : (
+                              'Claim Platform Tokens'
+                            )}
+                          </Button>
+                        )}
                       </div>
                     ))}
                   </div>

@@ -1,9 +1,9 @@
 /**
- * API endpoint for fetching markets with unclaimed platform tokens
+ * API endpoint for fetching markets with platform tokens
  *
  * This endpoint returns all markets that have:
  * - A token mint (token has been launched)
- * - Platform tokens allocated but not yet claimed
+ * - Platform tokens allocated (both claimed and unclaimed)
  */
 
 import { NextRequest, NextResponse } from 'next/server';
@@ -17,15 +17,15 @@ export async function GET(request: NextRequest) {
     // Connect to MongoDB
     await connectToDatabase();
 
-    // Find markets with tokens launched but platform tokens not claimed
+    // Find all markets with tokens launched (both claimed and unclaimed)
     const markets = await PredictionMarket.find({
       tokenMint: { $exists: true, $ne: null },
-      platformTokensClaimed: false,
     })
       .select('marketName marketAddress tokenMint pumpFunTokenAddress platformTokensAllocated platformTokensClaimed')
+      .sort({ platformTokensClaimed: 1, createdAt: -1 }) // Unclaimed first, then by newest
       .lean();
 
-    logger.info(`Found ${markets.length} markets with unclaimed platform tokens`);
+    logger.info(`Found ${markets.length} markets with platform tokens (${markets.filter(m => !m.platformTokensClaimed).length} unclaimed)`);
 
     return NextResponse.json({
       success: true,
