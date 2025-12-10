@@ -230,18 +230,56 @@ pub fn handler(ctx: Context<ResolveMarket>) -> Result<()> {
             ];
             let signer_seeds = &[&vault_seeds[..]];
 
+            // -------------------------
+            // Calculate token amount from SOL using bonding curve formula
+            // -------------------------
+            // CRITICAL: Pump.fun Buy expects TOKEN AMOUNT (6 decimals), NOT SOL amount!
+            // Read bonding curve reserves to calculate tokens
+            let bonding_curve_data = ctx.accounts.bonding_curve.try_borrow_data()?;
+
+            // Parse virtual reserves from bonding curve account
+            // Offset 0x08: virtual_token_reserves (u64)
+            // Offset 0x10: virtual_sol_reserves (u64)
+            let virtual_token_reserves = u64::from_le_bytes(
+                bonding_curve_data[8..16].try_into().map_err(|_| ErrorCode::InvalidAccountData)?
+            );
+            let virtual_sol_reserves = u64::from_le_bytes(
+                bonding_curve_data[16..24].try_into().map_err(|_| ErrorCode::InvalidAccountData)?
+            );
+
+            // Constant product AMM formula: k = virtual_token_reserves * virtual_sol_reserves
+            // After buy: (vSOL + SOL_in) * (vTOKEN - TOKEN_out) = k
+            // TOKEN_out = vTOKEN - (k / (vSOL + SOL_in))
+            let k = (virtual_token_reserves as u128)
+                .checked_mul(virtual_sol_reserves as u128)
+                .ok_or(ErrorCode::MathError)?;
+
+            let new_virtual_sol_reserves = (virtual_sol_reserves as u128)
+                .checked_add(net_amount_for_token as u128)
+                .ok_or(ErrorCode::MathError)?;
+
+            let new_virtual_token_reserves = k
+                .checked_div(new_virtual_sol_reserves)
+                .ok_or(ErrorCode::MathError)?;
+
+            let token_amount = (virtual_token_reserves as u128)
+                .checked_sub(new_virtual_token_reserves)
+                .ok_or(ErrorCode::MathError)? as u64;
+
+            msg!("Bonding curve calculation: {} SOL -> {} tokens",
+                 net_amount_for_token, token_amount);
+
             // Build buy instruction manually with CORRECT discriminator from IDL
             // Discriminator = [102, 6, 61, 18, 1, 218, 235, 234] (from pump.json IDL)
             let buy_discriminator: [u8; 8] = [102, 6, 61, 18, 1, 218, 235, 234];
 
-            // Instruction data: [discriminator(8), amount(8), max_sol_cost(8), track_volume(1)]
-            // Amount = SOL to spend (Pump.fun calculates tokens from bonding curve)
-            // Max SOL cost = same as amount (cap spending)
+            // Instruction data: [discriminator(8), token_amount(8), max_sol_cost(8), track_volume(1)]
+            // CRITICAL FIX: Parameter 1 = TOKEN AMOUNT (6 decimals), NOT SOL!
+            // Parameter 2 = MAX SOL COST (lamports cap)
             // track_volume is OptionBool: 1 byte (0x00 = None, 0x01 = Some(false), 0x02 = Some(true))
-            // Using None to skip volume tracking and reduce required accounts
             let mut instruction_data = Vec::with_capacity(25);
             instruction_data.extend_from_slice(&buy_discriminator);
-            instruction_data.extend_from_slice(&net_amount_for_token.to_le_bytes()); // SOL amount
+            instruction_data.extend_from_slice(&token_amount.to_le_bytes()); // TOKEN amount (FIX!)
             instruction_data.extend_from_slice(&net_amount_for_token.to_le_bytes()); // Max SOL cost
             instruction_data.push(0x00); // track_volume = None (skip volume tracking to reduce tx size)
 

@@ -44,4 +44,6 @@ pub enum ErrorCode {
     TargetNotReached,
     #[msg("YES must be winning to extend market for funding.")]
     YesNotWinning,
+    #[msg("Invalid or corrupted account data format.")]
+    InvalidAccountData,
 }
