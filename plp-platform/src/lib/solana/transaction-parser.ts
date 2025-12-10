@@ -88,18 +88,22 @@ export function parseClaimAmountFromTransaction(
   }
 
   // Check token balance changes (for YesWins)
-  if (tx.meta?.preTokenBalances && tx.meta?.postTokenBalances) {
+  if (tx.meta?.postTokenBalances) {
     // Find token balance changes for the user's token accounts
-    const preTokens = tx.meta.preTokenBalances;
+    const preTokens = tx.meta.preTokenBalances || [];
     const postTokens = tx.meta.postTokenBalances;
 
     for (const postToken of postTokens) {
-      const preToken = preTokens.find(
-        (pre) => pre.accountIndex === postToken.accountIndex
-      );
+      // Handle both existing accounts and newly created accounts
+      if (postToken.uiTokenAmount) {
+        const preToken = preTokens.find(
+          (pre) => pre.accountIndex === postToken.accountIndex
+        );
 
-      if (postToken.uiTokenAmount && preToken?.uiTokenAmount) {
-        const preAmount = BigInt(preToken.uiTokenAmount.amount);
+        // For new accounts, preAmount is 0
+        const preAmount = preToken?.uiTokenAmount
+          ? BigInt(preToken.uiTokenAmount.amount)
+          : BigInt(0);
         const postAmount = BigInt(postToken.uiTokenAmount.amount);
         const tokenChange = Number(postAmount - preAmount);
 
@@ -109,6 +113,7 @@ export function parseClaimAmountFromTransaction(
             preAmount: preAmount.toString(),
             postAmount: postAmount.toString(),
             tokenChange,
+            isNewAccount: !preToken,
           });
 
           return {
