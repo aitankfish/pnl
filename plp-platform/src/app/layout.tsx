@@ -14,6 +14,12 @@ export const dynamic = 'force-dynamic';
 export const metadata: Metadata = {
   title: 'P&L - Predict and Launch',
   description: 'Community-driven token launch platform powered by prediction markets',
+  manifest: '/manifest.json',
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: 'black-translucent',
+    title: 'P&L',
+  },
 };
 
 export const viewport = {
