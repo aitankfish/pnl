@@ -16,29 +16,55 @@ function redactApiKey(url: string): string {
   return url.replace(/(api[-_]key=)[^&\s]+/gi, '$1***REDACTED***');
 }
 
-// RPC endpoint configuration with fallbacks
-const RPC_ENDPOINTS: Record<string, string[]> = {
-  devnet: [
-    // Primary: Helius RPC (if configured)
-    process.env.NEXT_PUBLIC_HELIUS_DEVNET_RPC,
-    // Fallback 1: Official Solana RPC
-    'https://api.devnet.solana.com',
-    // Fallback 2: Public RPC endpoints
-    'https://rpc.ankr.com/solana_devnet',
-    'https://solana-devnet.g.alchemy.com/v2/demo',
-  ].filter(Boolean) as string[],
+/**
+ * Get Helius RPC endpoint
+ * - Server-side: Use HELIUS_API_KEY (not domain-restricted)
+ * - Client-side: Use NEXT_PUBLIC_HELIUS_MAINNET_RPC (domain-whitelisted)
+ */
+function getHeliusRpcEndpoint(network: 'devnet' | 'mainnet-beta'): string | undefined {
+  const isServer = typeof window === 'undefined';
 
-  'mainnet-beta': [
-    // Primary: Helius RPC (best performance)
-    process.env.NEXT_PUBLIC_HELIUS_MAINNET_RPC,
-    // Fallback 1: QuickNode RPC (premium backup)
-    process.env.NEXT_PUBLIC_QUICKNODE_MAINNET_RPC,
-    // Fallback 2: Official Solana RPC (free)
-    'https://api.mainnet-beta.solana.com',
-    // Fallback 3: Public RPC endpoints (free)
-    'https://rpc.ankr.com/solana',
-    'https://solana-api.projectserum.com',
-  ].filter(Boolean) as string[],
+  if (isServer) {
+    // Backend: Use HELIUS_API_KEY
+    const apiKey = process.env.HELIUS_API_KEY;
+    if (!apiKey) return undefined;
+
+    return network === 'devnet'
+      ? `https://devnet.helius-rpc.com/?api-key=${apiKey}`
+      : `https://mainnet.helius-rpc.com/?api-key=${apiKey}`;
+  } else {
+    // Frontend: Use domain-whitelisted endpoint
+    return network === 'devnet'
+      ? process.env.NEXT_PUBLIC_HELIUS_DEVNET_RPC
+      : process.env.NEXT_PUBLIC_HELIUS_MAINNET_RPC;
+  }
+}
+
+// RPC endpoint configuration with fallbacks (evaluated dynamically)
+const getRpcEndpoints = (network: 'devnet' | 'mainnet-beta'): string[] => {
+  if (network === 'devnet') {
+    return [
+      // Primary: Helius RPC (if configured)
+      getHeliusRpcEndpoint('devnet'),
+      // Fallback 1: Official Solana RPC
+      'https://api.devnet.solana.com',
+      // Fallback 2: Public RPC endpoints
+      'https://rpc.ankr.com/solana_devnet',
+      'https://solana-devnet.g.alchemy.com/v2/demo',
+    ].filter(Boolean) as string[];
+  } else {
+    return [
+      // Primary: Helius RPC (best performance)
+      getHeliusRpcEndpoint('mainnet-beta'),
+      // Fallback 1: QuickNode RPC (premium backup)
+      process.env.NEXT_PUBLIC_QUICKNODE_MAINNET_RPC,
+      // Fallback 2: Official Solana RPC (free)
+      'https://api.mainnet-beta.solana.com',
+      // Fallback 3: Public RPC endpoints (free)
+      'https://rpc.ankr.com/solana',
+      'https://solana-api.projectserum.com',
+    ].filter(Boolean) as string[];
+  }
 };
 
 class SolanaConnectionManager {
@@ -91,7 +117,8 @@ class SolanaConnectionManager {
       this.setNetwork(network);
     }
 
-    const endpoints = RPC_ENDPOINTS[targetNetwork];
+    // Get endpoints dynamically (allows server/client context detection)
+    const endpoints = getRpcEndpoints(targetNetwork);
     
     for (const endpoint of endpoints) {
       try {

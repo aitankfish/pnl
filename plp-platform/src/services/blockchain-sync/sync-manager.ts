@@ -221,16 +221,17 @@ export class SyncManager {
       const { Connection, PublicKey } = await import('@solana/web3.js');
       const { parseMarketAccount, calculateDerivedFields } = await import('./account-parser');
 
-      // Get RPC endpoint
-      const rpcEndpoint = this.network === 'devnet'
-        ? process.env.NEXT_PUBLIC_HELIUS_DEVNET_RPC
-        : process.env.NEXT_PUBLIC_HELIUS_MAINNET_RPC;
-
-      if (!rpcEndpoint) {
-        logger.error('RPC endpoint not configured');
+      // Get RPC endpoint - use HELIUS_API_KEY for backend (not domain-restricted)
+      const heliusApiKey = process.env.HELIUS_API_KEY;
+      if (!heliusApiKey) {
+        logger.error('HELIUS_API_KEY not configured');
         await client.close();
         return;
       }
+
+      const rpcEndpoint = this.network === 'devnet'
+        ? `https://devnet.helius-rpc.com/?api-key=${heliusApiKey}`
+        : `https://mainnet.helius-rpc.com/?api-key=${heliusApiKey}`;
 
       const connection = new Connection(rpcEndpoint, 'confirmed');
 
@@ -334,10 +335,23 @@ export class SyncManager {
    */
   async subscribeToMarket(marketAddress: string): Promise<void> {
     if (!this.heliusClient) {
-      throw new Error('Helius client not initialized');
+      logger.warn('Cannot subscribe to market - Helius client not initialized (sync manager not started)', {
+        marketAddress: marketAddress.slice(0, 8) + '...'
+      });
+      return; // Gracefully return instead of throwing
+    }
+
+    if (!this.isRunning) {
+      logger.warn('Cannot subscribe to market - Sync manager not running', {
+        marketAddress: marketAddress.slice(0, 8) + '...'
+      });
+      return;
     }
 
     await this.heliusClient.subscribeToAccount(marketAddress);
+    logger.info('Market subscribed to sync manager', {
+      marketAddress: marketAddress.slice(0, 8) + '...'
+    });
   }
 
   /**

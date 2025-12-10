@@ -34,6 +34,7 @@ const nextConfig = {
   // Experimental features for better performance
   experimental: {
     optimizePackageImports: ['@solana/web3.js', 'lucide-react', '@privy-io/react-auth', '@solana/kit'],
+    instrumentationHook: true, // Enable instrumentation.ts for server-side initialization
   },
 
   // Webpack configuration
