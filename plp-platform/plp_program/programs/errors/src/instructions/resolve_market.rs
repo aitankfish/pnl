@@ -262,12 +262,20 @@ pub fn handler(ctx: Context<ResolveMarket>) -> Result<()> {
                 .checked_div(new_virtual_sol_reserves)
                 .ok_or(ErrorCode::MathError)?;
 
-            let token_amount = (virtual_token_reserves as u128)
+            let token_amount_exact = (virtual_token_reserves as u128)
                 .checked_sub(new_virtual_token_reserves)
                 .ok_or(ErrorCode::MathError)? as u64;
 
-            msg!("Bonding curve calculation: {} SOL -> {} tokens",
-                 net_amount_for_token, token_amount);
+            // Apply 1% slippage buffer to account for rounding and ensure transaction succeeds
+            // This guarantees we don't request more tokens than our SOL can buy
+            let token_amount = (token_amount_exact as u128)
+                .checked_mul(99)
+                .ok_or(ErrorCode::MathError)?
+                .checked_div(100)
+                .ok_or(ErrorCode::MathError)? as u64;
+
+            msg!("Bonding curve calculation: {} lamports SOL -> {} tokens (exact: {}, with 1% slippage)",
+                 net_amount_for_token, token_amount, token_amount_exact);
 
             // Build buy instruction manually with CORRECT discriminator from IDL
             // Discriminator = [102, 6, 61, 18, 1, 218, 235, 234] (from pump.json IDL)
