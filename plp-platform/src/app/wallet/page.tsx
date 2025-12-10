@@ -1492,34 +1492,34 @@ export default function WalletPage() {
                   <div className="grid gap-4 sm:grid-cols-2">
                     {positionsData.data.active.slice(0, showAllPositions ? undefined : 3).map((position: any) => (
                       <Card key={position.marketId} className="bg-white/5 border-white/10 hover:bg-white/10 transition-colors">
-                        <CardContent className="p-4">
+                        <CardContent className="p-3 sm:p-4">
                           <a href={`/market/${position.marketId}`} className="block group">
-                            <div className="flex items-start justify-between mb-3">
-                              <div className="flex items-center space-x-3 flex-1 min-w-0">
+                            <div className="mb-3">
+                              <div className="flex items-start gap-2 sm:gap-3 mb-2">
                                 {position.marketImage ? (
                                   <img
                                     src={position.marketImage}
                                     alt={position.marketName}
-                                    className="w-10 h-10 rounded-lg object-cover flex-shrink-0"
+                                    className="w-9 h-9 sm:w-10 sm:h-10 rounded-lg object-cover flex-shrink-0"
                                   />
                                 ) : (
-                                  <div className={`w-10 h-10 bg-gradient-to-r ${
+                                  <div className={`w-9 h-9 sm:w-10 sm:h-10 bg-gradient-to-r ${
                                     position.voteType === 'yes'
                                       ? 'from-green-500 to-emerald-500'
                                       : 'from-red-500 to-pink-500'
                                   } rounded-lg flex items-center justify-center flex-shrink-0`}>
-                                    <TrendingUp className="w-5 h-5 text-white" />
+                                    <TrendingUp className="w-4 h-4 sm:w-5 sm:h-5 text-white" />
                                   </div>
                                 )}
                                 <div className="flex-1 min-w-0">
-                                  <h4 className="text-white font-semibold group-hover:text-cyan-400 transition-colors truncate">
+                                  <h4 className="text-sm sm:text-base text-white font-semibold group-hover:text-cyan-400 transition-colors truncate">
                                     {position.marketName}
                                   </h4>
                                   <p className="text-xs text-gray-400">{position.tokenSymbol || 'TKN'}</p>
                                 </div>
                               </div>
-                              <div className="flex items-center gap-2">
-                                <span className={`px-2 py-1 rounded text-xs border whitespace-nowrap ${
+                              <div className="flex items-center gap-2 ml-11 sm:ml-[52px]">
+                                <span className={`px-2 py-0.5 sm:py-1 rounded text-xs border whitespace-nowrap ${
                                   position.voteType === 'yes'
                                     ? 'bg-green-500/20 text-green-400 border-green-400/30'
                                     : 'bg-red-500/20 text-red-400 border-red-400/30'
@@ -1567,30 +1567,30 @@ export default function WalletPage() {
                   <div className="grid gap-4 sm:grid-cols-2">
                     {positionsData.data.claimable.map((position: any) => (
                       <Card key={position.marketId} className="bg-gradient-to-r from-green-500/10 to-emerald-500/10 border-green-500/20 hover:border-green-500/40 transition-colors">
-                        <CardContent className="p-4">
+                        <CardContent className="p-3 sm:p-4">
                           <a href={`/market/${position.marketId}`} className="block group">
-                            <div className="flex items-start justify-between mb-3">
-                              <div className="flex items-center space-x-3 flex-1 min-w-0">
+                            <div className="mb-3">
+                              <div className="flex items-start gap-2 sm:gap-3 mb-2">
                                 {position.marketImage ? (
                                   <img
                                     src={position.marketImage}
                                     alt={position.marketName}
-                                    className="w-10 h-10 rounded-lg object-cover flex-shrink-0"
+                                    className="w-9 h-9 sm:w-10 sm:h-10 rounded-lg object-cover flex-shrink-0"
                                   />
                                 ) : (
-                                  <div className="w-10 h-10 bg-gradient-to-r from-green-500 to-emerald-500 rounded-lg flex items-center justify-center flex-shrink-0">
-                                    <Trophy className="w-5 h-5 text-white" />
+                                  <div className="w-9 h-9 sm:w-10 sm:h-10 bg-gradient-to-r from-green-500 to-emerald-500 rounded-lg flex items-center justify-center flex-shrink-0">
+                                    <Trophy className="w-4 h-4 sm:w-5 sm:h-5 text-white" />
                                   </div>
                                 )}
                                 <div className="flex-1 min-w-0">
-                                  <h4 className="text-white font-semibold group-hover:text-cyan-400 transition-colors truncate">
+                                  <h4 className="text-sm sm:text-base text-white font-semibold group-hover:text-cyan-400 transition-colors truncate">
                                     {position.marketName}
                                   </h4>
                                   <p className="text-xs text-gray-400">{position.tokenSymbol || 'TKN'}</p>
                                 </div>
                               </div>
-                              <div className="flex items-center gap-2">
-                                <span className="px-2 py-1 rounded text-xs border bg-green-500/20 text-green-400 border-green-400/30 whitespace-nowrap">
+                              <div className="flex items-center gap-2 ml-11 sm:ml-[52px]">
+                                <span className="px-2 py-0.5 sm:py-1 rounded text-xs border bg-green-500/20 text-green-400 border-green-400/30 whitespace-nowrap">
                                   WON
                                 </span>
                                 <VoteHistory marketId={position.marketId} walletAddress={primaryWallet?.address!} />
@@ -1636,31 +1636,33 @@ export default function WalletPage() {
                   <div className="grid gap-4 sm:grid-cols-2">
                     {positionsData.data.resolved.filter((p: any) => !p.canClaim).map((position: any) => (
                       <Card key={position.marketId} className="bg-white/5 border-white/10 opacity-70 hover:opacity-100 transition-opacity">
-                        <CardContent className="p-4">
+                        <CardContent className="p-3 sm:p-4">
                           <a href={`/market/${position.marketId}`} className="block group">
-                            <div className="flex items-start justify-between mb-3">
-                              <div className="flex items-center space-x-3 flex-1 min-w-0">
+                            <div className="mb-3">
+                              <div className="flex items-start gap-2 sm:gap-3 mb-2">
                                 {position.marketImage ? (
                                   <img
                                     src={position.marketImage}
                                     alt={position.marketName}
-                                    className="w-10 h-10 rounded-lg object-cover flex-shrink-0 grayscale"
+                                    className="w-9 h-9 sm:w-10 sm:h-10 rounded-lg object-cover flex-shrink-0 grayscale"
                                   />
                                 ) : (
-                                  <div className="w-10 h-10 bg-gradient-to-r from-gray-500 to-gray-600 rounded-lg flex items-center justify-center flex-shrink-0">
-                                    <XCircle className="w-5 h-5 text-white" />
+                                  <div className="w-9 h-9 sm:w-10 sm:h-10 bg-gradient-to-r from-gray-500 to-gray-600 rounded-lg flex items-center justify-center flex-shrink-0">
+                                    <XCircle className="w-4 h-4 sm:w-5 sm:h-5 text-white" />
                                   </div>
                                 )}
                                 <div className="flex-1 min-w-0">
-                                  <h4 className="text-white font-semibold group-hover:text-cyan-400 transition-colors truncate">
+                                  <h4 className="text-sm sm:text-base text-white font-semibold group-hover:text-cyan-400 transition-colors truncate">
                                     {position.marketName}
                                   </h4>
                                   <p className="text-xs text-gray-400">{position.tokenSymbol || 'TKN'}</p>
                                 </div>
                               </div>
-                              <span className="px-2 py-1 rounded text-xs border bg-red-500/20 text-red-400 border-red-400/30 whitespace-nowrap">
-                                LOST
-                              </span>
+                              <div className="ml-11 sm:ml-[52px]">
+                                <span className="inline-block px-2 py-0.5 sm:py-1 rounded text-xs border bg-red-500/20 text-red-400 border-red-400/30 whitespace-nowrap">
+                                  LOST
+                                </span>
+                              </div>
                             </div>
 
                             <div className="grid grid-cols-2 gap-3 text-sm">

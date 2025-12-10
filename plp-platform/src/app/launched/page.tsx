@@ -1,16 +1,17 @@
 'use client';
 
-import React from 'react';
+import React, { useState, useMemo } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import {
   Rocket,
   TrendingUp,
   ExternalLink,
-  Star,
   Zap,
-  Loader2
+  Loader2,
+  Filter
 } from 'lucide-react';
 import Link from 'next/link';
 import useSWR from 'swr';
@@ -41,12 +42,49 @@ interface LaunchedToken {
 }
 
 export default function LaunchedPage() {
+  const [sortBy, setSortBy] = useState<string>('Newest First');
+  const [selectedCategory, setSelectedCategory] = useState<string>('All');
+
   // Fetch launched tokens from API
   const { data, error, isLoading } = useSWR('/api/markets/launched', fetcher, {
     refreshInterval: 30000, // Refresh every 30 seconds
   });
 
-  const launchedProjects: LaunchedToken[] = data?.data?.launched || [];
+  const rawLaunchedProjects: LaunchedToken[] = data?.data?.launched || [];
+
+  // Sort options
+  const sortOptions = ['Newest First', 'Oldest First', 'Highest Pool', 'Most Votes', 'Highest YES%'];
+
+  // Get unique categories from launched projects
+  const categories = useMemo(() => {
+    const uniqueCategories = new Set(rawLaunchedProjects.map(p => p.category));
+    return ['All', ...Array.from(uniqueCategories).sort()];
+  }, [rawLaunchedProjects]);
+
+  // Filtered and sorted projects
+  const launchedProjects = useMemo(() => {
+    // First filter by category
+    let projects = [...rawLaunchedProjects];
+    if (selectedCategory !== 'All') {
+      projects = projects.filter(p => p.category === selectedCategory);
+    }
+
+    // Then sort
+    switch (sortBy) {
+      case 'Newest First':
+        return projects.sort((a, b) => new Date(b.launchDate).getTime() - new Date(a.launchDate).getTime());
+      case 'Oldest First':
+        return projects.sort((a, b) => new Date(a.launchDate).getTime() - new Date(b.launchDate).getTime());
+      case 'Highest Pool':
+        return projects.sort((a, b) => parseFloat(b.launchPool) - parseFloat(a.launchPool));
+      case 'Most Votes':
+        return projects.sort((a, b) => b.totalVotes - a.totalVotes);
+      case 'Highest YES%':
+        return projects.sort((a, b) => b.yesPercentage - a.yesPercentage);
+      default:
+        return projects;
+    }
+  }, [rawLaunchedProjects, sortBy, selectedCategory]);
 
   // Helper function to truncate token address
   const truncateAddress = (address: string) => {
@@ -109,11 +147,53 @@ export default function LaunchedPage() {
         {/* Projects Grid */}
         {!isLoading && !error && launchedProjects.length > 0 && (
           <div className="space-y-6">
-            <div className="flex items-center justify-between">
-              <h2 className="text-3xl font-bold text-white">Launched Tokens ({launchedProjects.length})</h2>
-              <div className="flex items-center space-x-2">
-                <Star className="w-5 h-5 text-yellow-400" />
-                <span className="text-white/70">Sorted by Launch Date</span>
+            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+              <h2 className="text-lg font-semibold text-white">Live ({launchedProjects.length})</h2>
+              <div className="flex flex-wrap items-center gap-2 sm:gap-3">
+                {/* Category Filter */}
+                <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-1.5 sm:gap-2">
+                    <Filter className="w-4 h-4 sm:w-5 sm:h-5 text-gray-400" />
+                    <span className="text-xs sm:text-sm text-gray-400 font-medium hidden sm:inline">Category:</span>
+                  </div>
+                  <Select value={selectedCategory} onValueChange={setSelectedCategory}>
+                    <SelectTrigger className="w-[120px] sm:w-[140px] bg-white/10 border-white/20 text-white hover:bg-white/20 transition-colors text-sm">
+                      <SelectValue placeholder="Category" />
+                    </SelectTrigger>
+                    <SelectContent className="bg-gray-900 border-white/20">
+                      {categories.map((category) => (
+                        <SelectItem
+                          key={category}
+                          value={category}
+                          className="text-white hover:bg-white/10 focus:bg-white/10 cursor-pointer"
+                        >
+                          {category}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                {/* Sort Filter */}
+                <div className="flex items-center gap-2">
+                  <span className="text-xs sm:text-sm text-gray-400 font-medium hidden sm:inline">Sort:</span>
+                  <Select value={sortBy} onValueChange={setSortBy}>
+                    <SelectTrigger className="w-[120px] sm:w-[140px] bg-white/10 border-white/20 text-white hover:bg-white/20 transition-colors text-sm">
+                      <SelectValue placeholder="Sort by" />
+                    </SelectTrigger>
+                    <SelectContent className="bg-gray-900 border-white/20">
+                      {sortOptions.map((option) => (
+                        <SelectItem
+                          key={option}
+                          value={option}
+                          className="text-white hover:bg-white/10 focus:bg-white/10 cursor-pointer"
+                        >
+                          {option}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
               </div>
             </div>
 

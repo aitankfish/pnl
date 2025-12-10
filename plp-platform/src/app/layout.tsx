@@ -15,6 +15,11 @@ export const metadata: Metadata = {
   title: 'P&L - Predict and Launch',
   description: 'Community-driven token launch platform powered by prediction markets',
   manifest: '/manifest.json',
+  icons: {
+    icon: '/logo.png',
+    apple: '/logo.png',
+    shortcut: '/logo.png',
+  },
   appleWebApp: {
     capable: true,
     statusBarStyle: 'black-translucent',
