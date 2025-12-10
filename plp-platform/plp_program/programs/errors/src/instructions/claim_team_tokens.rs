@@ -1,5 +1,5 @@
 use anchor_lang::prelude::*;
-use anchor_spl::token::{self, Token, TokenAccount, Transfer};
+use anchor_spl::token_interface::{self, TokenAccount, TokenInterface, TransferChecked};
 use crate::errors::ErrorCode;
 use crate::state::*;
 
@@ -29,7 +29,7 @@ pub struct ClaimTeamTokens<'info> {
         constraint = market_token_account.owner == market.key() @ ErrorCode::Unauthorized,
         constraint = market_token_account.mint == team_vesting.token_mint @ ErrorCode::Unauthorized
     )]
-    pub market_token_account: Account<'info, TokenAccount>,
+    pub market_token_account: InterfaceAccount<'info, TokenAccount>,
 
     /// Team's token account (receives vested tokens)
     #[account(
@@ -37,13 +37,17 @@ pub struct ClaimTeamTokens<'info> {
         constraint = team_token_account.owner == team_wallet.key() @ ErrorCode::Unauthorized,
         constraint = team_token_account.mint == team_vesting.token_mint @ ErrorCode::Unauthorized
     )]
-    pub team_token_account: Account<'info, TokenAccount>,
+    pub team_token_account: InterfaceAccount<'info, TokenAccount>,
 
     /// Team wallet claiming tokens
     #[account(mut)]
     pub team_wallet: Signer<'info>,
 
-    pub token_program: Program<'info, Token>,
+    /// Token mint account
+    /// CHECK: Validated via token account constraints
+    pub token_mint: UncheckedAccount<'info>,
+
+    pub token_program: Interface<'info, TokenInterface>,
 }
 
 pub fn handler(ctx: Context<ClaimTeamTokens>) -> Result<()> {
@@ -76,15 +80,16 @@ pub fn handler(ctx: Context<ClaimTeamTokens>) -> Result<()> {
 
     let transfer_ctx = CpiContext::new_with_signer(
         ctx.accounts.token_program.to_account_info(),
-        Transfer {
+        TransferChecked {
             from: ctx.accounts.market_token_account.to_account_info(),
             to: ctx.accounts.team_token_account.to_account_info(),
             authority: market.to_account_info(),
+            mint: ctx.accounts.token_mint.to_account_info(),
         },
         signer_seeds,
     );
 
-    token::transfer(transfer_ctx, claimable)?;
+    token_interface::transfer_checked(transfer_ctx, claimable, 6)?; // Pump.fun tokens use 6 decimals
 
     // -------------------------
     // 3) Update claimed amount

@@ -1,5 +1,5 @@
 use anchor_lang::prelude::*;
-use anchor_spl::token::{self, Token, TokenAccount, Transfer};
+use anchor_spl::token_interface::{self, TokenAccount, TokenInterface, TransferChecked};
 use crate::errors::ErrorCode;
 use crate::state::*;
 
@@ -46,6 +46,11 @@ pub struct ClaimRewards<'info> {
 
     pub system_program: Program<'info, System>,
 
+    /// Token mint account (only used for YES wins)
+    /// CHECK: Only used for YES wins token transfers
+    pub token_mint: UncheckedAccount<'info>,
+
+    /// Token program (only used for YES wins)
     /// CHECK: Only used for YES wins token transfers
     pub token_program: UncheckedAccount<'info>,
 }
@@ -116,15 +121,16 @@ pub fn handler(ctx: Context<ClaimRewards>) -> Result<()> {
             // Transfer tokens via CPI
             let transfer_ctx = CpiContext::new_with_signer(
                 ctx.accounts.token_program.to_account_info(),
-                Transfer {
+                TransferChecked {
                     from: ctx.accounts.market_token_account.to_account_info(),
                     to: ctx.accounts.user_token_account.to_account_info(),
                     authority: market.to_account_info(),
+                    mint: ctx.accounts.token_mint.to_account_info(),
                 },
                 signer_seeds,
             );
 
-            token::transfer(transfer_ctx, user_tokens)?;
+            token_interface::transfer_checked(transfer_ctx, user_tokens, 6)?; // Pump.fun tokens use 6 decimals
         }
 
         MarketResolution::NoWins => {

@@ -1,5 +1,5 @@
 use anchor_lang::prelude::*;
-use anchor_spl::token::{self, Token, TokenAccount, Transfer};
+use anchor_spl::token_interface::{self, TokenAccount, TokenInterface, TransferChecked};
 use crate::constants::PNL_WALLET;
 use crate::errors::ErrorCode;
 use crate::state::*;
@@ -24,7 +24,7 @@ pub struct ClaimPlatformTokens<'info> {
         constraint = market_token_account.owner == market.key() @ ErrorCode::Unauthorized,
         constraint = market_token_account.mint == market.token_mint.unwrap() @ ErrorCode::Unauthorized
     )]
-    pub market_token_account: Account<'info, TokenAccount>,
+    pub market_token_account: InterfaceAccount<'info, TokenAccount>,
 
     /// P&L Platform wallet's token account (receives 2% allocation)
     #[account(
@@ -32,13 +32,17 @@ pub struct ClaimPlatformTokens<'info> {
         constraint = pnl_token_account.owner == Pubkey::from_str(PNL_WALLET).unwrap() @ ErrorCode::Unauthorized,
         constraint = pnl_token_account.mint == market.token_mint.unwrap() @ ErrorCode::Unauthorized
     )]
-    pub pnl_token_account: Account<'info, TokenAccount>,
+    pub pnl_token_account: InterfaceAccount<'info, TokenAccount>,
+
+    /// Token mint account
+    /// CHECK: Validated via token account constraints
+    pub token_mint: UncheckedAccount<'info>,
 
     /// Can be called by anyone (tokens always go to P&L wallet)
     #[account(mut)]
     pub caller: Signer<'info>,
 
-    pub token_program: Program<'info, Token>,
+    pub token_program: Interface<'info, TokenInterface>,
 }
 
 pub fn handler(ctx: Context<ClaimPlatformTokens>) -> Result<()> {
@@ -67,15 +71,16 @@ pub fn handler(ctx: Context<ClaimPlatformTokens>) -> Result<()> {
 
     let transfer_ctx = CpiContext::new_with_signer(
         ctx.accounts.token_program.to_account_info(),
-        Transfer {
+        TransferChecked {
             from: ctx.accounts.market_token_account.to_account_info(),
             to: ctx.accounts.pnl_token_account.to_account_info(),
             authority: market.to_account_info(),
+            mint: ctx.accounts.token_mint.to_account_info(),
         },
         signer_seeds,
     );
 
-    token::transfer(transfer_ctx, market.platform_tokens_allocated)?;
+    token_interface::transfer_checked(transfer_ctx, market.platform_tokens_allocated, 6)?; // Pump.fun tokens use 6 decimals
 
     // -------------------------
     // Mark as claimed
