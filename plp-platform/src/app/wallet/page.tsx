@@ -43,6 +43,7 @@ import { useTokenBalance } from '@/lib/hooks/useTokenBalance';
 import { getUsdcMint, TOKEN_DECIMALS } from '@/config/tokens';
 import { useNetwork } from '@/lib/hooks/useNetwork';
 import { JupiterSwap } from '@/components/JupiterSwap';
+import { useAllTokenBalances } from '@/lib/hooks/useAllTokenBalances';
 
 const fetcher = (url: string) => fetch(url).then((res) => res.json());
 
@@ -679,6 +680,9 @@ export default function WalletPage() {
     TOKEN_DECIMALS.USDC
   );
 
+  // Fetch all token balances (SPL Token + Token2022)
+  const { tokens: allTokens, isLoading: isTokensLoading } = useAllTokenBalances(primaryWallet?.address);
+
   // Privy fiat onramp hook
   const { fundWallet } = useFundWallet({
     onUserExited: ({ balance }) => {
@@ -1244,6 +1248,14 @@ export default function WalletPage() {
 
       {/* Tokens List */}
       <div className="max-w-4xl mx-auto space-y-6">
+        <div className="flex items-center justify-between px-2 sm:px-0 mb-4">
+          <h3 className="text-lg sm:text-xl font-semibold text-white">Your Tokens</h3>
+          {isTokensLoading && (
+            <RefreshCw className="w-4 h-4 text-cyan-400 animate-spin" />
+          )}
+        </div>
+
+        {/* SOL - Always show first */}
         <Card className="bg-white/5 border-white/10">
           <CardContent className="p-0">
             <div className="flex items-center justify-between p-4 hover:bg-white/5 transition-colors">
@@ -1257,6 +1269,7 @@ export default function WalletPage() {
                 </div>
                 <div>
                   <h3 className="text-white font-semibold">Solana</h3>
+                  <p className="text-xs text-gray-400">SOL</p>
                 </div>
               </div>
               <div className="text-right">
@@ -1266,6 +1279,116 @@ export default function WalletPage() {
             </div>
           </CardContent>
         </Card>
+
+        {/* USDC - Show if balance > 0 */}
+        {usdcBalance > 0 && (
+          <Card className="bg-white/5 border-white/10">
+            <CardContent className="p-0">
+              <div className="flex items-center justify-between p-4 hover:bg-white/5 transition-colors">
+                <div className="flex items-center space-x-3">
+                  <div className="w-12 h-12 rounded-full bg-gradient-to-r from-blue-500 to-green-500 flex items-center justify-center p-2">
+                    <img
+                      src="https://raw.githubusercontent.com/solana-labs/token-list/main/assets/mainnet/EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v/logo.png"
+                      alt="USDC"
+                      className="w-full h-full"
+                    />
+                  </div>
+                  <div>
+                    <h3 className="text-white font-semibold">USD Coin</h3>
+                    <p className="text-xs text-gray-400">USDC</p>
+                  </div>
+                </div>
+                <div className="text-right">
+                  <p className="text-white font-semibold">${usdcFormatted}</p>
+                  <p className="text-gray-400 text-sm">{usdcFormatted} USDC</p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Other Tokens (from claims and transfers) */}
+        {allTokens.length > 0 && (
+          <>
+            {allTokens
+              .filter(token => token.mint !== usdcMint.toBase58()) // Exclude USDC (already shown above)
+              .map((token) => (
+                <Card key={token.mint} className="bg-white/5 border-white/10">
+                  <CardContent className="p-0">
+                    <div className="flex items-center justify-between p-4 hover:bg-white/5 transition-colors">
+                      <div className="flex items-center space-x-3">
+                        <div className="w-12 h-12 rounded-full bg-gradient-to-r from-pink-500 to-purple-500 flex items-center justify-center p-2 overflow-hidden">
+                          {token.logoURI ? (
+                            <img
+                              src={token.logoURI}
+                              alt={token.symbol}
+                              className="w-full h-full object-cover"
+                              onError={(e) => {
+                                // Fallback to gradient if image fails to load
+                                (e.target as HTMLImageElement).style.display = 'none';
+                              }}
+                            />
+                          ) : (
+                            <span className="text-white font-bold text-sm">
+                              {token.symbol?.slice(0, 3).toUpperCase() || 'TKN'}
+                            </span>
+                          )}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <h3 className="text-white font-semibold truncate">{token.name}</h3>
+                          <p className="text-xs text-gray-400">{token.symbol}</p>
+                        </div>
+                      </div>
+                      <div className="text-right">
+                        <p className="text-white font-semibold">
+                          {token.uiAmount.toLocaleString(undefined, {
+                            maximumFractionDigits: token.decimals > 6 ? 4 : 2,
+                          })}
+                        </p>
+                        <p className="text-gray-400 text-xs truncate max-w-[120px]">
+                          {token.symbol}
+                        </p>
+                        <a
+                          href={`https://orb.helius.dev/address/${token.mint}${SOLANA_NETWORK === 'devnet' ? '?cluster=devnet' : ''}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-xs text-cyan-400 hover:text-cyan-300 flex items-center gap-1 mt-1"
+                          onClick={(e) => e.stopPropagation()}
+                        >
+                          View Token <ExternalLink className="w-3 h-3" />
+                        </a>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
+          </>
+        )}
+
+        {/* Loading State */}
+        {isTokensLoading && allTokens.length === 0 && (
+          <Card className="bg-white/5 border-white/10">
+            <CardContent className="p-6">
+              <div className="text-center text-gray-400 py-4">
+                <RefreshCw className="w-6 h-6 mx-auto mb-2 animate-spin" />
+                <p className="text-sm">Loading tokens...</p>
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Empty State */}
+        {!isTokensLoading && allTokens.length === 0 && usdcBalance === 0 && (
+          <Card className="bg-white/5 border-white/10">
+            <CardContent className="p-6">
+              <div className="text-center text-gray-400 py-4">
+                <p className="text-sm">No tokens found</p>
+                <p className="text-xs mt-2">Claim rewards from markets to receive tokens</p>
+              </div>
+            </CardContent>
+          </Card>
+        )}
+      </div>
 
         {/* Your Predictions Section */}
         <div className="space-y-4">
@@ -1608,7 +1731,7 @@ export default function WalletPage() {
       <DepositModal
         isOpen={showDepositModal}
         onClose={() => setShowDepositModal(false)}
-        address={primaryWallet.address}
+        address={primaryWallet?.address || ''}
       />
       <SettingsModal
         isOpen={showSettingsModal}
