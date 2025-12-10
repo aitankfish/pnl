@@ -26,6 +26,12 @@ pub struct WithdrawFees<'info> {
 pub fn handler(ctx: Context<WithdrawFees>, amount: u64) -> Result<()> {
     let treasury = &mut ctx.accounts.treasury;
 
+    // Prevent duplicate mutable account attack
+    require!(
+        ctx.accounts.recipient.key() != treasury.key(),
+        ErrorCode::Unauthorized
+    );
+
     // Ensure sufficient balance
     let treasury_lamports = **treasury.to_account_info().lamports.borrow();
     require!(treasury_lamports >= amount, ErrorCode::InsufficientBalance);

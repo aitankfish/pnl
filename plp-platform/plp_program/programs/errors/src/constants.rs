@@ -39,3 +39,7 @@ pub const TEAM_TOKEN_SHARE_BPS: u64 = 3300; // 33% (8% immediate + 25% vested)
 pub const TEAM_IMMEDIATE_SHARE_BPS: u64 = 800; // 8% of total (immediate)
 pub const TEAM_VESTED_SHARE_BPS: u64 = 2500; // 25% of total (vested over 12 months)
 pub const YES_VOTERS_TOKEN_SHARE_BPS: u64 = 6500; // 65%
+
+/// Market duration limits (in seconds)
+pub const MIN_MARKET_DURATION: i64 = 24 * 60 * 60; // 1 day minimum
+pub const MAX_MARKET_DURATION: i64 = 365 * 24 * 60 * 60; // 1 year maximum

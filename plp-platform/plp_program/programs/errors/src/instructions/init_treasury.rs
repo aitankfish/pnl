@@ -33,10 +33,14 @@ pub struct InitTreasury<'info> {
 pub fn handler(ctx: Context<InitTreasury>) -> Result<()> {
     let t = &mut ctx.accounts.treasury;
 
-    // ✅ Initialize treasury with caller as admin
-    // Note: Treasury PDA can only be initialized once due to Anchor's `init` constraint
-    // The first person to call this becomes the initial admin
-    // Admin can be transferred later via set_admin instruction
+    // ✅ Security: Only authorized admin can initialize treasury
+    const AUTHORIZED_ADMIN: &str = "7iyZKvd28ZcfVKUxeezwSkvdoQ9sN1D7pEGe42w8yTkZ";
+    let authorized_admin = Pubkey::try_from(AUTHORIZED_ADMIN).unwrap();
+
+    require!(
+        ctx.accounts.payer.key() == authorized_admin,
+        crate::errors::ErrorCode::Unauthorized
+    );
 
     t.admin = ctx.accounts.payer.key();
     t.total_fees = 0;

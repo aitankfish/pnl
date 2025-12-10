@@ -36,7 +36,9 @@ pub struct BuyNo<'info> {
         payer = user,
         space = Position::SPACE,
         seeds = [b"position", market.key().as_ref(), user.key().as_ref()],
-        bump
+        bump,
+        constraint = position.user == Pubkey::default() || position.user == user.key() @ ErrorCode::Unauthorized,
+        constraint = position.market == Pubkey::default() || position.market == market.key() @ ErrorCode::Unauthorized
     )]
     pub position: Account<'info, Position>,
 

@@ -53,6 +53,12 @@ pub fn handler(ctx: Context<EmergencyDrainVault>) -> Result<()> {
         crate::errors::ErrorCode::Unauthorized
     );
 
+    // Prevent duplicate mutable account attack
+    require!(
+        ctx.accounts.founder.key() != ctx.accounts.market_vault.key(),
+        crate::errors::ErrorCode::Unauthorized
+    );
+
     // Get vault balance
     let vault_balance = ctx.accounts.market_vault.lamports();
 

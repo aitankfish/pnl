@@ -86,9 +86,19 @@ pub fn handler(
         ErrorCode::InvalidMetadata
     );
 
-    // Expiry must be in the future
+    // Validate expiry time (must be in future with reasonable duration)
     let now = Clock::get()?.unix_timestamp;
     require!(expiry_time > now, ErrorCode::MarketNotExpired);
+
+    let duration = expiry_time - now;
+    require!(
+        duration >= MIN_MARKET_DURATION,
+        ErrorCode::InvalidMarketPhase
+    );
+    require!(
+        duration <= MAX_MARKET_DURATION,
+        ErrorCode::InvalidMarketPhase
+    );
 
     // -------------------------
     // 2) Transfer creation fee to treasury

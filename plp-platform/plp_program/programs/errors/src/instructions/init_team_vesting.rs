@@ -40,6 +40,14 @@ pub fn handler(ctx: Context<InitTeamVesting>, total_token_supply: u64) -> Result
     let team_vesting = &mut ctx.accounts.team_vesting;
     let market = &ctx.accounts.market;
 
+    // -------------------------
+    // Validate team_wallet is the market founder
+    // -------------------------
+    require!(
+        ctx.accounts.team_wallet.key() == market.founder,
+        ErrorCode::Unauthorized
+    );
+
     use crate::constants::{BPS_DIVISOR, TEAM_TOKEN_SHARE_BPS, TEAM_IMMEDIATE_SHARE_BPS, TEAM_VESTED_SHARE_BPS};
 
     // -------------------------

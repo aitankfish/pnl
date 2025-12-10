@@ -237,7 +237,14 @@ pub fn handler(ctx: Context<ResolveMarket>) -> Result<()> {
             // Read bonding curve reserves to calculate tokens
             let bonding_curve_data = ctx.accounts.bonding_curve.try_borrow_data()?;
 
+            // Validate bonding curve account has enough data
+            require!(
+                bonding_curve_data.len() >= 32,
+                ErrorCode::InvalidAccountData
+            );
+
             // Parse virtual reserves from bonding curve account
+            // Bonding curve layout: [discriminator(8), virtual_token_reserves(8), virtual_sol_reserves(8), ...]
             // Offset 0x08: virtual_token_reserves (u64)
             // Offset 0x10: virtual_sol_reserves (u64)
             let virtual_token_reserves = u64::from_le_bytes(
@@ -245,6 +252,12 @@ pub fn handler(ctx: Context<ResolveMarket>) -> Result<()> {
             );
             let virtual_sol_reserves = u64::from_le_bytes(
                 bonding_curve_data[16..24].try_into().map_err(|_| ErrorCode::InvalidAccountData)?
+            );
+
+            // Validate reserves are not zero (sanity check)
+            require!(
+                virtual_token_reserves > 0 && virtual_sol_reserves > 0,
+                ErrorCode::InvalidAccountData
             );
 
             // Constant product AMM formula: k = virtual_token_reserves * virtual_sol_reserves
@@ -363,6 +376,17 @@ pub fn handler(ctx: Context<ResolveMarket>) -> Result<()> {
             let market_token_acct = TokenAccount::try_deserialize(
                 &mut &ctx.accounts.market_token_account.try_borrow_data()?[..]
             )?;
+
+            // Validate token account ownership and mint
+            require!(
+                market_token_acct.owner == market.key(),
+                ErrorCode::Unauthorized
+            );
+            require!(
+                market_token_acct.mint == ctx.accounts.token_mint.key(),
+                ErrorCode::Unauthorized
+            );
+
             let total_tokens = market_token_acct.amount;
 
             // -------------------------
@@ -410,8 +434,6 @@ pub fn handler(ctx: Context<ResolveMarket>) -> Result<()> {
 
             let platform_tokens = (total_tokens * PLATFORM_TOKEN_SHARE_BPS) / BPS_DIVISOR;
             let team_tokens = (total_tokens * TEAM_TOKEN_SHARE_BPS) / BPS_DIVISOR;
-            let team_immediate = (total_tokens * TEAM_IMMEDIATE_SHARE_BPS) / BPS_DIVISOR;
-            let team_vested = (total_tokens * TEAM_VESTED_SHARE_BPS) / BPS_DIVISOR;
             let yes_voter_tokens = total_tokens
                 .checked_sub(platform_tokens)
                 .and_then(|v| v.checked_sub(team_tokens))
