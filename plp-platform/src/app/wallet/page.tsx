@@ -1332,64 +1332,58 @@ export default function WalletPage() {
       </div>
 
       {/* Tokens List */}
-      <div className="max-w-4xl mx-auto space-y-6">
-        <div className="flex items-center justify-between px-2 sm:px-0 mb-4">
-          <h3 className="text-lg sm:text-xl font-semibold text-white">Your Tokens</h3>
+      <div className="max-w-4xl mx-auto space-y-3">
+        <div className="flex items-center justify-between px-2 sm:px-0 mb-3">
+          <h3 className="text-base font-semibold text-white">Your Tokens</h3>
           {isTokensLoading && (
-            <RefreshCw className="w-4 h-4 text-cyan-400 animate-spin" />
+            <RefreshCw className="w-3 h-3 text-cyan-400 animate-spin" />
           )}
         </div>
 
         {/* SOL - Always show first */}
-        <Card className="bg-white/5 border-white/10">
-          <CardContent className="p-0">
-            <div className="flex items-center justify-between p-4 hover:bg-white/5 transition-colors">
-              <div className="flex items-center space-x-3">
-                <div className="w-12 h-12 rounded-full bg-gradient-to-r from-purple-500 to-cyan-500 flex items-center justify-center p-2">
+        <div className="bg-white/5 border border-white/10 rounded-lg hover:bg-white/10 transition-colors cursor-pointer">
+          <div className="flex items-center justify-between p-3">
+            <div className="flex items-center space-x-2.5">
+              <div className="w-9 h-9 rounded-full bg-gradient-to-r from-purple-500 to-cyan-500 flex items-center justify-center p-1.5">
+                <img
+                  src="https://raw.githubusercontent.com/solana-labs/token-list/main/assets/mainnet/So11111111111111111111111111111111111111112/logo.png"
+                  alt="Solana"
+                  className="w-full h-full"
+                />
+              </div>
+              <div>
+                <h3 className="text-white font-medium text-sm">Solana</h3>
+                <p className="text-[11px] text-gray-400">{solBalance.toFixed(4)} SOL</p>
+              </div>
+            </div>
+            <div className="text-right">
+              <p className="text-white font-medium text-sm">${isPriceLoading ? '...' : usdValue}</p>
+            </div>
+          </div>
+        </div>
+
+        {/* USDC - Show if balance > 0 */}
+        {usdcBalance > 0 && (
+          <div className="bg-white/5 border border-white/10 rounded-lg hover:bg-white/10 transition-colors cursor-pointer">
+            <div className="flex items-center justify-between p-3">
+              <div className="flex items-center space-x-2.5">
+                <div className="w-9 h-9 rounded-full bg-gradient-to-r from-blue-500 to-green-500 flex items-center justify-center p-1.5">
                   <img
-                    src="https://raw.githubusercontent.com/solana-labs/token-list/main/assets/mainnet/So11111111111111111111111111111111111111112/logo.png"
-                    alt="Solana"
+                    src="https://raw.githubusercontent.com/solana-labs/token-list/main/assets/mainnet/EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v/logo.png"
+                    alt="USDC"
                     className="w-full h-full"
                   />
                 </div>
                 <div>
-                  <h3 className="text-white font-semibold">Solana</h3>
-                  <p className="text-xs text-gray-400">SOL</p>
+                  <h3 className="text-white font-medium text-sm">USD Coin</h3>
+                  <p className="text-[11px] text-gray-400">{usdcFormatted} USDC</p>
                 </div>
               </div>
               <div className="text-right">
-                <p className="text-white font-semibold">${isPriceLoading ? '...' : usdValue}</p>
-                <p className="text-gray-400 text-sm">{solBalance.toFixed(4)} SOL</p>
+                <p className="text-white font-medium text-sm">${usdcFormatted}</p>
               </div>
             </div>
-          </CardContent>
-        </Card>
-
-        {/* USDC - Show if balance > 0 */}
-        {usdcBalance > 0 && (
-          <Card className="bg-white/5 border-white/10">
-            <CardContent className="p-0">
-              <div className="flex items-center justify-between p-4 hover:bg-white/5 transition-colors">
-                <div className="flex items-center space-x-3">
-                  <div className="w-12 h-12 rounded-full bg-gradient-to-r from-blue-500 to-green-500 flex items-center justify-center p-2">
-                    <img
-                      src="https://raw.githubusercontent.com/solana-labs/token-list/main/assets/mainnet/EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v/logo.png"
-                      alt="USDC"
-                      className="w-full h-full"
-                    />
-                  </div>
-                  <div>
-                    <h3 className="text-white font-semibold">USD Coin</h3>
-                    <p className="text-xs text-gray-400">USDC</p>
-                  </div>
-                </div>
-                <div className="text-right">
-                  <p className="text-white font-semibold">${usdcFormatted}</p>
-                  <p className="text-gray-400 text-sm">{usdcFormatted} USDC</p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
+          </div>
         )}
 
         {/* Other Tokens (from claims and transfers) */}
@@ -1398,80 +1392,70 @@ export default function WalletPage() {
             {allTokens
               .filter(token => token.mint !== usdcMint.toBase58()) // Exclude USDC (already shown above)
               .map((token) => (
-                <Card key={token.mint} className="bg-white/5 border-white/10">
-                  <CardContent className="p-0">
-                    <div className="flex items-center justify-between p-4 hover:bg-white/5 transition-colors">
-                      <div className="flex items-center space-x-3">
-                        <div className="w-12 h-12 rounded-full bg-gradient-to-r from-pink-500 to-purple-500 flex items-center justify-center p-2 overflow-hidden">
-                          {token.logoURI ? (
-                            <img
-                              src={token.logoURI}
-                              alt={token.symbol}
-                              className="w-full h-full object-cover"
-                              onError={(e) => {
-                                // Fallback to gradient if image fails to load
-                                (e.target as HTMLImageElement).style.display = 'none';
-                              }}
-                            />
-                          ) : (
-                            <span className="text-white font-bold text-sm">
-                              {token.symbol?.slice(0, 3).toUpperCase() || 'TKN'}
-                            </span>
-                          )}
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <h3 className="text-white font-semibold truncate">{token.name}</h3>
-                          <p className="text-xs text-gray-400">{token.symbol}</p>
-                        </div>
+                <div key={token.mint} className="bg-white/5 border border-white/10 rounded-lg hover:bg-white/10 transition-colors cursor-pointer">
+                  <div className="flex items-center justify-between p-3">
+                    <div className="flex items-center space-x-2.5 flex-1 min-w-0">
+                      <div className="w-9 h-9 rounded-full bg-gradient-to-r from-pink-500 to-purple-500 flex items-center justify-center p-1.5 overflow-hidden flex-shrink-0">
+                        {token.logoURI ? (
+                          <img
+                            src={token.logoURI}
+                            alt={token.symbol}
+                            className="w-full h-full object-cover rounded-full"
+                            onError={(e) => {
+                              // Fallback to gradient if image fails to load
+                              (e.target as HTMLImageElement).style.display = 'none';
+                            }}
+                          />
+                        ) : (
+                          <span className="text-white font-bold text-xs">
+                            {token.symbol?.slice(0, 3).toUpperCase() || 'TKN'}
+                          </span>
+                        )}
                       </div>
-                      <div className="text-right">
-                        <p className="text-white font-semibold">
+                      <div className="flex-1 min-w-0">
+                        <h3 className="text-white font-medium text-sm truncate">{token.name}</h3>
+                        <p className="text-[11px] text-gray-400 truncate">
                           {token.uiAmount.toLocaleString(undefined, {
                             maximumFractionDigits: token.decimals > 6 ? 4 : 2,
-                          })}
+                          })} {token.symbol}
                         </p>
-                        <p className="text-gray-400 text-xs truncate max-w-[120px]">
-                          {token.symbol}
-                        </p>
-                        <a
-                          href={`https://orb.helius.dev/address/${token.mint}${SOLANA_NETWORK === 'devnet' ? '?cluster=devnet' : ''}`}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="text-xs text-cyan-400 hover:text-cyan-300 flex items-center gap-1 mt-1"
-                          onClick={(e) => e.stopPropagation()}
-                        >
-                          View Token <ExternalLink className="w-3 h-3" />
-                        </a>
                       </div>
                     </div>
-                  </CardContent>
-                </Card>
+                    <div className="text-right flex-shrink-0 ml-2">
+                      <a
+                        href={`https://orb.helius.dev/address/${token.mint}${SOLANA_NETWORK === 'devnet' ? '?cluster=devnet' : ''}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-[11px] text-cyan-400 hover:text-cyan-300 flex items-center gap-0.5"
+                        onClick={(e) => e.stopPropagation()}
+                      >
+                        View <ExternalLink className="w-2.5 h-2.5" />
+                      </a>
+                    </div>
+                  </div>
+                </div>
               ))}
           </>
         )}
 
         {/* Loading State */}
         {isTokensLoading && allTokens.length === 0 && (
-          <Card className="bg-white/5 border-white/10">
-            <CardContent className="p-6">
-              <div className="text-center text-gray-400 py-4">
-                <RefreshCw className="w-6 h-6 mx-auto mb-2 animate-spin" />
-                <p className="text-sm">Loading tokens...</p>
-              </div>
-            </CardContent>
-          </Card>
+          <div className="bg-white/5 border border-white/10 rounded-lg">
+            <div className="text-center text-gray-400 py-6">
+              <RefreshCw className="w-5 h-5 mx-auto mb-2 animate-spin" />
+              <p className="text-xs">Loading tokens...</p>
+            </div>
+          </div>
         )}
 
         {/* Empty State */}
         {!isTokensLoading && allTokens.length === 0 && usdcBalance === 0 && (
-          <Card className="bg-white/5 border-white/10">
-            <CardContent className="p-6">
-              <div className="text-center text-gray-400 py-4">
-                <p className="text-sm">No tokens found</p>
-                <p className="text-xs mt-2">Claim rewards from markets to receive tokens</p>
-              </div>
-            </CardContent>
-          </Card>
+          <div className="bg-white/5 border border-white/10 rounded-lg">
+            <div className="text-center text-gray-400 py-6">
+              <p className="text-xs">No tokens found</p>
+              <p className="text-[11px] mt-1 text-gray-500">Claim rewards from markets to receive tokens</p>
+            </div>
+          </div>
         )}
       </div>
 
