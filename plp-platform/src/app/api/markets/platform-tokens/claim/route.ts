@@ -12,7 +12,12 @@ import {
   VersionedTransaction,
   ComputeBudgetProgram,
 } from '@solana/web3.js';
-import { TOKEN_2022_PROGRAM_ID, getAssociatedTokenAddressSync } from '@solana/spl-token';
+import {
+  TOKEN_2022_PROGRAM_ID,
+  getAssociatedTokenAddressSync,
+  createAssociatedTokenAccountIdempotentInstruction,
+  ASSOCIATED_TOKEN_PROGRAM_ID,
+} from '@solana/spl-token';
 import { createClientLogger } from '@/lib/logger';
 import { getSolanaConnection } from '@/lib/solana';
 
@@ -105,9 +110,19 @@ export async function POST(request: NextRequest) {
       data,
     });
 
+    // Create PNL token account if it doesn't exist (idempotent - safe to call even if exists)
+    const createPnlTokenAccountIx = createAssociatedTokenAccountIdempotentInstruction(
+      callerPubkey,      // payer
+      pnlTokenAccount,   // associated token account address
+      pnlWalletPubkey,   // owner
+      tokenMintPubkey,   // mint
+      TOKEN_2022_PROGRAM_ID,
+      ASSOCIATED_TOKEN_PROGRAM_ID
+    );
+
     // Build compute budget instruction
     const computeBudgetIx = ComputeBudgetProgram.setComputeUnitLimit({
-      units: 200_000,
+      units: 300_000, // Increased for ATA creation
     });
 
     // Get recent blockhash
@@ -117,7 +132,7 @@ export async function POST(request: NextRequest) {
     const messageV0 = new TransactionMessage({
       payerKey: callerPubkey,
       recentBlockhash: blockhash,
-      instructions: [computeBudgetIx, claimPlatformTokensIx],
+      instructions: [computeBudgetIx, createPnlTokenAccountIx, claimPlatformTokensIx],
     }).compileToV0Message();
 
     const transaction = new VersionedTransaction(messageV0);
