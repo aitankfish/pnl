@@ -248,7 +248,7 @@ export default function BrowsePage() {
   }
 
   return (
-    <div className="p-3 sm:p-6 space-y-6 sm:space-y-8">
+    <div className="pt-2 sm:pt-3 px-3 sm:px-6 pb-6 space-y-6 sm:space-y-8">
         {/* Header */}
         <div className="text-center">
           <h1 className="text-lg sm:text-2xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-purple-400 via-pink-400 to-cyan-400 tracking-tight">

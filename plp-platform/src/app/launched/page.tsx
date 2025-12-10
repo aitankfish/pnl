@@ -104,7 +104,7 @@ export default function LaunchedPage() {
   };
 
   return (
-    <div className="p-6 space-y-8">
+    <div className="pt-3 sm:pt-4 px-3 sm:px-6 pb-6 sm:pb-8 space-y-6 sm:space-y-8">
         {/* Header */}
         <div className="text-center">
           <h1 className="text-lg sm:text-2xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-green-400 via-cyan-400 to-blue-400 tracking-tight">

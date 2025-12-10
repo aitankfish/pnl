@@ -163,7 +163,7 @@ export default function LaunchpadPage() {
   };
 
   return (
-    <div className="p-6">
+    <div className="pt-3 sm:pt-4 px-3 sm:px-6 pb-6">
         {/* Header */}
         <div className="mb-6">
           <h1 className="text-3xl font-bold mb-2">
