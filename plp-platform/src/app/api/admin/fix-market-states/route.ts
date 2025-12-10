@@ -24,8 +24,18 @@ export async function POST(request: NextRequest) {
       marketState: 0, // Active state
       $or: [
         { resolution: { $ne: 'Unresolved' } }, // Resolved but still active
-        { pumpFunTokenAddress: { $exists: true, $ne: null, $ne: '' } }, // Has token but still active
-        { tokenMint: { $exists: true, $ne: null, $ne: '' } } // Has token but still active
+        {
+          pumpFunTokenAddress: {
+            $exists: true,
+            $nin: [null, '']
+          }
+        }, // Has token but still active
+        {
+          tokenMint: {
+            $exists: true,
+            $nin: [null, '']
+          }
+        } // Has token but still active
       ]
     });
 
