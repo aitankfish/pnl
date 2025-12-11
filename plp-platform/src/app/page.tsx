@@ -1,34 +1,95 @@
+'use client';
+
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import Link from 'next/link';
 import { TrendingUp, Users, Rocket, Shield, Zap, CheckCircle, ExternalLink, ArrowRight, XCircle } from 'lucide-react';
+import { motion } from 'framer-motion';
+
+// Animation variants
+const fadeInUp = {
+  hidden: { opacity: 0, y: 60 },
+  visible: {
+    opacity: 1,
+    y: 0,
+    transition: { duration: 0.6 }
+  }
+};
+
+const fadeIn = {
+  hidden: { opacity: 0 },
+  visible: {
+    opacity: 1,
+    transition: { duration: 0.8 }
+  }
+};
+
+const scaleIn = {
+  hidden: { opacity: 0, scale: 0.8 },
+  visible: {
+    opacity: 1,
+    scale: 1,
+    transition: { duration: 0.5 }
+  }
+};
+
+const staggerContainer = {
+  hidden: { opacity: 0 },
+  visible: {
+    opacity: 1,
+    transition: {
+      staggerChildren: 0.2,
+      delayChildren: 0.1
+    }
+  }
+};
 
 export default function HomePage() {
   return (
-    <div className="space-y-12 md:space-y-20 pt-3 sm:pt-4 px-3 sm:px-6 pb-8 md:pb-12">
+    <div className="space-y-12 md:space-y-20 pt-3 sm:pt-4 px-3 sm:px-6 pb-8 md:pb-12 relative">
         {/* Hero Section */}
-        <div className="text-center space-y-6 py-8 md:py-12 max-w-5xl mx-auto">
-          <div className="inline-block">
+        <motion.div
+          initial="hidden"
+          animate="visible"
+          variants={staggerContainer}
+          className="text-center space-y-6 max-w-5xl mx-auto relative min-h-[calc(100vh-80px)] flex flex-col justify-center"
+        >
+
+          <motion.div variants={fadeIn} className="inline-block">
             <span className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-purple-500/10 border border-purple-500/20 text-purple-300 text-sm font-medium mb-4">
               <Zap className="w-4 h-4" />
               Community-Driven Token Validation
             </span>
-          </div>
+          </motion.div>
 
-          <h1 className="text-4xl font-bold tracking-tight sm:text-5xl md:text-6xl lg:text-7xl text-white leading-tight">
+          <motion.h1
+            variants={fadeInUp}
+            className="text-4xl font-bold tracking-tight sm:text-5xl md:text-6xl lg:text-7xl text-white leading-tight relative z-10"
+          >
+            {/* Glowing sun background effect */}
+            <div className="absolute inset-0 -z-10 flex items-center justify-center pointer-events-none" style={{ top: '60%' }}>
+              <div className="w-64 h-64 md:w-80 md:h-80 bg-gradient-to-r from-yellow-300 via-orange-300 to-yellow-200 rounded-full blur-3xl opacity-[0.02] animate-pulse"></div>
+            </div>
+
             Discover Ideas.
             <br />
             <span className="text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 via-blue-500 to-purple-600">
               Before VCs Do.
             </span>
-          </h1>
+          </motion.h1>
 
-          <p className="text-lg md:text-xl text-gray-300 max-w-3xl mx-auto leading-relaxed">
+          <motion.p
+            variants={fadeInUp}
+            className="text-lg md:text-xl text-gray-300 max-w-3xl mx-auto leading-relaxed"
+          >
             The first platform where <span className="text-cyan-400 font-semibold">community validates ideas</span> through prediction markets, giving you early access to tomorrow's breakthrough projects.
-          </p>
+          </motion.p>
 
-          <div className="flex flex-col sm:flex-row gap-4 justify-center pt-4">
+          <motion.div
+            variants={fadeInUp}
+            className="flex flex-col sm:flex-row gap-4 justify-center pt-4"
+          >
             <Button asChild size="lg" className="bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-600 hover:to-blue-700 text-white font-semibold text-base px-8 py-6 rounded-xl shadow-lg shadow-cyan-500/25">
               <Link href="/browse">
                 <TrendingUp className="w-5 h-5 mr-2" />
@@ -41,17 +102,44 @@ export default function HomePage() {
                 Launch Your Idea
               </Link>
             </Button>
-          </div>
-        </div>
+          </motion.div>
+        </motion.div>
 
         {/* Story Introduction */}
-        <div className="max-w-4xl mx-auto">
+        <motion.div
+          initial="hidden"
+          whileInView="visible"
+          viewport={{ once: false, amount: 0.3 }}
+          variants={scaleIn}
+          className="max-w-4xl mx-auto"
+        >
           <Card className="bg-gradient-to-br from-purple-500/10 to-blue-500/10 backdrop-blur-xl border-purple-400/30">
             <CardContent className="p-6 md:p-8">
               <div className="flex items-start gap-4 mb-4">
-                <div className="w-16 h-16 rounded-full bg-gradient-to-r from-cyan-500 to-blue-500 flex items-center justify-center text-2xl flex-shrink-0">
-                  🧑‍🔬
+                {/* Animated Nova Character */}
+                <div className="relative w-16 h-16 flex-shrink-0">
+                  {/* Outer glow animation */}
+                  <div className="absolute inset-0 rounded-full bg-gradient-to-r from-cyan-400 via-blue-500 to-purple-600 animate-pulse opacity-50 blur-md"></div>
+
+                  {/* Main avatar */}
+                  <div className="relative w-16 h-16 rounded-full bg-gradient-to-br from-cyan-500 via-blue-600 to-purple-700 flex items-center justify-center text-2xl border-2 border-cyan-300/50 overflow-hidden">
+                    {/* Animated background particles */}
+                    <div className="absolute inset-0">
+                      <div className="absolute top-2 left-2 w-1 h-1 bg-white rounded-full animate-ping opacity-75"></div>
+                      <div className="absolute bottom-3 right-3 w-1 h-1 bg-cyan-300 rounded-full animate-ping opacity-75" style={{ animationDelay: '0.5s' }}></div>
+                      <div className="absolute top-4 right-2 w-0.5 h-0.5 bg-purple-300 rounded-full animate-ping opacity-75" style={{ animationDelay: '1s' }}></div>
+                    </div>
+
+                    {/* Character face */}
+                    <div className="relative z-10 text-2xl filter drop-shadow-lg">
+                      🧑‍🔬
+                    </div>
+                  </div>
+
+                  {/* Rotating ring */}
+                  <div className="absolute inset-0 rounded-full border-2 border-transparent border-t-cyan-400 border-r-purple-400 animate-spin" style={{ animationDuration: '3s' }}></div>
                 </div>
+
                 <div>
                   <h3 className="text-2xl font-bold text-white mb-2">Meet Nova</h3>
                   <p className="text-gray-300 text-base leading-relaxed">
@@ -61,10 +149,16 @@ export default function HomePage() {
               </div>
             </CardContent>
           </Card>
-        </div>
+        </motion.div>
 
         {/* Phase 1: Community Validation */}
-        <div className="max-w-6xl mx-auto space-y-6">
+        <motion.div
+          initial="hidden"
+          whileInView="visible"
+          viewport={{ once: false, amount: 0.2 }}
+          variants={fadeInUp}
+          className="max-w-6xl mx-auto space-y-6"
+        >
           <div className="flex items-center justify-center gap-3">
             <div className="flex items-center justify-center w-12 h-12 rounded-xl bg-gradient-to-r from-cyan-500 to-blue-500 text-white text-xl font-bold shadow-lg shadow-cyan-500/50">
               1
@@ -170,10 +264,16 @@ export default function HomePage() {
               Market Closed: 82% YES - Validation Successful ✓
             </div>
           </div>
-        </div>
+        </motion.div>
 
         {/* Phase 2: Funding Round */}
-        <div className="max-w-6xl mx-auto space-y-6">
+        <motion.div
+          initial="hidden"
+          whileInView="visible"
+          viewport={{ once: false, amount: 0.2 }}
+          variants={fadeInUp}
+          className="max-w-6xl mx-auto space-y-6"
+        >
           <div className="flex items-center justify-center gap-3">
             <div className="flex items-center justify-center w-12 h-12 rounded-xl bg-gradient-to-r from-blue-500 to-purple-500 text-white text-xl font-bold shadow-lg shadow-blue-500/50">
               2
@@ -274,10 +374,16 @@ export default function HomePage() {
               </Card>
             </div>
           </div>
-        </div>
+        </motion.div>
 
         {/* Phase 3: Token Launch */}
-        <div className="max-w-6xl mx-auto space-y-6">
+        <motion.div
+          initial="hidden"
+          whileInView="visible"
+          viewport={{ once: false, amount: 0.2 }}
+          variants={fadeInUp}
+          className="max-w-6xl mx-auto space-y-6"
+        >
           <div className="flex items-center justify-center gap-3">
             <div className="flex items-center justify-center w-12 h-12 rounded-xl bg-gradient-to-r from-purple-500 to-pink-500 text-white text-xl font-bold shadow-lg shadow-purple-500/50">
               3
@@ -386,10 +492,16 @@ export default function HomePage() {
               </Card>
             </div>
           </div>
-        </div>
+        </motion.div>
 
         {/* How Token Distribution Works */}
-        <div className="max-w-5xl mx-auto">
+        <motion.div
+          initial="hidden"
+          whileInView="visible"
+          viewport={{ once: false, amount: 0.3 }}
+          variants={scaleIn}
+          className="max-w-5xl mx-auto"
+        >
           <Card className="bg-gradient-to-br from-gray-900/50 to-gray-800/30 backdrop-blur-xl border-white/10">
             <CardContent className="p-6 md:p-8">
               <div className="space-y-6">
@@ -418,39 +530,39 @@ export default function HomePage() {
                       <div className="flex items-start gap-2">
                         <div className="text-green-400 font-bold mt-0.5">1.</div>
                         <div>
-                          <h5 className="text-white font-semibold text-sm">Platform Fee (5%)</h5>
-                          <p className="text-gray-400 text-xs">Platform takes 5% of total pool for sustainability</p>
+                          <h5 className="text-white font-semibold text-sm">Token Launches on Pump.fun</h5>
+                          <p className="text-gray-400 text-xs">Up to 55 SOL from pool used to launch token</p>
                         </div>
                       </div>
 
                       <div className="flex items-start gap-2">
                         <div className="text-green-400 font-bold mt-0.5">2.</div>
                         <div>
-                          <h5 className="text-white font-semibold text-sm">YES Voters Get Tokens</h5>
-                          <p className="text-gray-400 text-xs">Receive tokens proportional to YES shares from 65% token allocation</p>
+                          <h5 className="text-white font-semibold text-sm">Token Distribution</h5>
+                          <p className="text-gray-400 text-xs">65% to YES voters, 33% to team, 2% to PNL platform</p>
                         </div>
                       </div>
 
                       <div className="flex items-start gap-2">
                         <div className="text-green-400 font-bold mt-0.5">3.</div>
                         <div>
-                          <h5 className="text-white font-semibold text-sm">Token Launches on Pump.fun</h5>
-                          <p className="text-gray-400 text-xs">Fair launch with remaining 35% for liquidity & team</p>
+                          <h5 className="text-white font-semibold text-sm">Platform Fee</h5>
+                          <p className="text-gray-400 text-xs">5% of SOL pool goes to platform for sustainability</p>
                         </div>
                       </div>
 
                       <div className="flex items-start gap-2">
                         <div className="text-green-400 font-bold mt-0.5">4.</div>
                         <div>
-                          <h5 className="text-white font-semibold text-sm">Founder Gets Capital</h5>
-                          <p className="text-gray-400 text-xs">Receives remaining pool (95%) to build the product</p>
+                          <h5 className="text-white font-semibold text-sm">Excess SOL (if pool exceeds 55)</h5>
+                          <p className="text-gray-400 text-xs">Founder can claim excess SOL with vesting schedule</p>
                         </div>
                       </div>
                     </div>
 
                     <div className="mt-4 pt-4 border-t border-green-500/20">
                       <div className="text-xs text-gray-300">
-                        <span className="text-green-400 font-semibold">Example:</span> If pool has 15 SOL, YES voters get 65% of launched tokens, platform gets 0.75 SOL, founder keeps 14.25 SOL
+                        <span className="text-green-400 font-semibold">Example:</span> Pool has 42.8 SOL. All 42.8 SOL used to launch $QCOMM on Pump.fun. Platform takes 2.14 SOL (5% fee). YES voters receive 65% of tokens, team gets 33%, PNL gets 2%.
                       </div>
                     </div>
                   </div>
@@ -503,24 +615,59 @@ export default function HomePage() {
 
                     <div className="mt-4 pt-4 border-t border-red-500/20">
                       <div className="text-xs text-gray-300">
-                        <span className="text-red-400 font-semibold">Example:</span> If pool has 15 SOL with 30% NO votes, platform gets 0.75 SOL, NO voters split 14.25 SOL (earning profit from YES voters)
+                        <span className="text-red-400 font-semibold">Example:</span> Pool has 20 SOL. Community votes NO (project rejected). Platform takes 1 SOL (5% fee). NO voters split 19 SOL proportionally based on their shares. YES voters lose their stake.
                       </div>
                     </div>
                   </div>
                 </div>
 
-                <div className="text-center pt-4">
+                <div className="text-center pt-4 space-y-4">
                   <p className="text-sm text-gray-400 max-w-2xl mx-auto">
                     This creates perfect incentive alignment: believers back good ideas, skeptics get rewarded for calling out bad ones. The market decides, not gatekeepers.
                   </p>
+
+                  {/* Payout Calculation */}
+                  <div className="pt-4 border-t border-white/10">
+                    <h4 className="text-base font-semibold text-white mb-3">How Payouts Work</h4>
+                    <div className="space-y-4 text-left max-w-3xl mx-auto">
+                      <div className="p-4 bg-white/5 rounded-lg border border-white/10">
+                        <h5 className="text-sm font-semibold text-cyan-400 mb-2">Share Calculation (On-Chain Bonding Curve)</h5>
+                        <p className="text-xs text-gray-300">
+                          When you buy YES or NO votes, your shares are calculated using a bonding curve - early buyers get more shares per SOL, later buyers pay more. These shares are recorded on-chain.
+                        </p>
+                      </div>
+
+                      <div className="grid md:grid-cols-2 gap-4">
+                        <div className="p-4 bg-green-500/5 rounded-lg border border-green-500/20">
+                          <h5 className="text-sm font-semibold text-green-400 mb-2">If YES Wins</h5>
+                          <p className="text-xs text-gray-300">
+                            Your on-chain YES shares determine your portion of the 65% token allocation
+                          </p>
+                        </div>
+
+                        <div className="p-4 bg-red-500/5 rounded-lg border border-red-500/20">
+                          <h5 className="text-sm font-semibold text-red-400 mb-2">If NO Wins</h5>
+                          <p className="text-xs text-gray-300">
+                            Your on-chain NO shares determine your portion of the 95% SOL pool
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
                 </div>
               </div>
             </CardContent>
           </Card>
-        </div>
+        </motion.div>
 
         {/* Value Props - For Founders & Community */}
-        <div className="max-w-6xl mx-auto space-y-8">
+        <motion.div
+          initial="hidden"
+          whileInView="visible"
+          viewport={{ once: false, amount: 0.2 }}
+          variants={fadeInUp}
+          className="max-w-6xl mx-auto space-y-8"
+        >
           <div className="text-center space-y-3">
             <h2 className="text-3xl md:text-4xl font-bold text-white">
               Why P&L?
@@ -601,10 +748,16 @@ export default function HomePage() {
               </CardContent>
             </Card>
           </div>
-        </div>
+        </motion.div>
 
         {/* CTA Section */}
-        <div className="text-center space-y-6 py-8 max-w-3xl mx-auto">
+        <motion.div
+          initial="hidden"
+          whileInView="visible"
+          viewport={{ once: false, amount: 0.3 }}
+          variants={scaleIn}
+          className="text-center space-y-6 py-8 max-w-3xl mx-auto"
+        >
           <h2 className="text-3xl md:text-4xl font-bold text-white">
             Your Turn
           </h2>
@@ -624,7 +777,7 @@ export default function HomePage() {
               </Link>
             </Button>
           </div>
-        </div>
+        </motion.div>
       </div>
   );
 }
