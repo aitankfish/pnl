@@ -94,6 +94,12 @@ pub struct Market {
     /// YES voter token allocation (65% of total supply, proportional distribution)
     pub yes_voter_tokens_allocated: u64,
 
+    /// Excess SOL allocated to founder (when pool > 50 SOL)
+    pub founder_excess_sol_allocated: u64,
+
+    /// Whether founder excess SOL vesting has been initialized
+    pub founder_vesting_initialized: bool,
+
     /// Platform treasury address
     pub treasury: Pubkey,
 
@@ -107,7 +113,8 @@ impl Market {
     /// + 8 (yes_pool) + 8 (no_pool) + 8 (total_yes_shares) + 8 (total_no_shares)
     /// + 8 (expiry_time) + 1 (phase enum) + 1 (resolution enum) + 200 (metadata_uri)
     /// + 33 (token_mint option) + 8 (platform_tokens_allocated) + 1 (platform_tokens_claimed)
-    /// + 8 (yes_voter_tokens_allocated) + 32 (treasury) + 1 (bump) = ~434 bytes
-    /// Adding padding for safety: 458 bytes
-    pub const SPACE: usize = 8 + 458;
+    /// + 8 (yes_voter_tokens_allocated) + 8 (founder_excess_sol_allocated) + 1 (founder_vesting_initialized)
+    /// + 32 (treasury) + 1 (bump) = ~443 bytes
+    /// Adding padding for safety: 472 bytes
+    pub const SPACE: usize = 8 + 472;
 }

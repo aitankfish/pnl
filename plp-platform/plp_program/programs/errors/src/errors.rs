@@ -46,4 +46,10 @@ pub enum ErrorCode {
     YesNotWinning,
     #[msg("Invalid or corrupted account data format.")]
     InvalidAccountData,
+    #[msg("No excess SOL available for founder vesting.")]
+    NoExcessSol,
+    #[msg("Founder vesting has already been initialized.")]
+    AlreadyInitialized,
+    #[msg("Nothing to claim at this time.")]
+    NothingToClaim,
 }

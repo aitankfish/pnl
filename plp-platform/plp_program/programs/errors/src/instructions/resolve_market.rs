@@ -185,23 +185,37 @@ pub fn handler(ctx: Context<ResolveMarket>) -> Result<()> {
             // Vault's actual balance is the source of truth for available SOL
             let vault_lamports = ctx.accounts.market_vault.lamports();
 
-            // Calculate 5% completion fee based on actual vault balance
+            // 1. Calculate 5% completion fee FIRST
             let completion_fee = (vault_lamports * COMPLETION_FEE_BPS) / BPS_DIVISOR;
 
-            // CRITICAL: Reserve rent-exempt balance for Market Vault PDA
-            // Pump.fun validates the buyer remains rent-exempt after purchase
-            let rent = Rent::get()?;
-            let vault_rent_exempt = rent.minimum_balance(0); // Vault has 0 bytes data
-
-            // Reserve: rent-exempt + completion fee
-            let total_reserved = vault_rent_exempt
-                .checked_add(completion_fee)
+            // 2. Calculate SOL available after fee
+            let sol_after_fee = vault_lamports
+                .checked_sub(completion_fee)
                 .ok_or(ErrorCode::MathError)?;
 
-            // Net amount for token purchase = vault_actual_balance - reserved
+            // 3. Determine SOL for token purchase (capped at 50 SOL)
+            let _sol_for_token_purchase = std::cmp::min(sol_after_fee, MAX_POOL_FOR_TOKEN_LAUNCH);
+
+            // 4. Calculate excess SOL (if pool > 50 SOL after fee)
+            let excess_sol = sol_after_fee.saturating_sub(MAX_POOL_FOR_TOKEN_LAUNCH);
+
+            // 5. Reserve rent-exempt for vault
+            let rent = Rent::get()?;
+            let vault_rent_exempt = rent.minimum_balance(0);
+
+            // 6. Calculate net amount for token purchase
+            let total_reserved = vault_rent_exempt + completion_fee + excess_sol;
             let net_amount_for_token = vault_lamports
                 .checked_sub(total_reserved)
                 .ok_or(ErrorCode::MathError)?;
+
+            msg!("💰 Pool allocation breakdown:");
+            msg!("   Total vault: {} lamports", vault_lamports);
+            msg!("   Completion fee (5%): {} lamports", completion_fee);
+            msg!("   SOL for token purchase: {} lamports", net_amount_for_token);
+            if excess_sol > 0 {
+                msg!("   Excess SOL for founder vesting: {} lamports", excess_sol);
+            }
 
             // -------------------------
             // Buy tokens on Pump.fun with remaining SOL
@@ -420,11 +434,53 @@ pub fn handler(ctx: Context<ResolveMarket>) -> Result<()> {
                 .checked_add(completion_fee)
                 .ok_or(ErrorCode::MathError)?;
 
+            // -------------------------
+            // Handle excess SOL if any (transfer to market account for founder vesting)
+            // -------------------------
+            if excess_sol > 0 {
+                // Calculate founder's immediate (8%) and vesting (92%) portions
+                let founder_immediate_sol = (excess_sol * FOUNDER_IMMEDIATE_SHARE_BPS) / BPS_DIVISOR;
+                let founder_vesting_sol = excess_sol
+                    .checked_sub(founder_immediate_sol)
+                    .ok_or(ErrorCode::MathError)?;
+
+                // Transfer excess SOL from vault to market account
+                // Market account will hold the SOL for founder vesting claims
+                let market_key = market.key();
+                let vault_seeds = &[
+                    b"market_vault",
+                    market_key.as_ref(),
+                    &[ctx.bumps.market_vault],
+                ];
+                let signer_seeds = &[&vault_seeds[..]];
+
+                anchor_lang::system_program::transfer(
+                    CpiContext::new_with_signer(
+                        ctx.accounts.system_program.to_account_info(),
+                        anchor_lang::system_program::Transfer {
+                            from: ctx.accounts.market_vault.to_account_info(),
+                            to: market.to_account_info(),
+                        },
+                        signer_seeds,
+                    ),
+                    excess_sol,
+                )?;
+
+                // Store allocation in market state
+                market.founder_excess_sol_allocated = excess_sol;
+                market.founder_vesting_initialized = false; // Will be initialized in separate instruction
+
+                msg!("💰 Excess SOL allocated to founder vesting:");
+                msg!("   Total excess: {} lamports", excess_sol);
+                msg!("   Immediate (8%): {} lamports", founder_immediate_sol);
+                msg!("   Vesting (92%): {} lamports over 12 months", founder_vesting_sol);
+            }
+
             // Set token mint in market state
             market.token_mint = Some(ctx.accounts.token_mint.key());
 
             // Update pool balance to rent-exempt amount (reserved for vault account)
-            // Total spent from vault: net_amount_for_token + completion_fee
+            // Total spent from vault: net_amount_for_token + completion_fee + excess_sol (if any)
             // Remaining in vault: vault_rent_exempt
             market.pool_balance = vault_rent_exempt;
 

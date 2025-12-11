@@ -43,3 +43,11 @@ pub const YES_VOTERS_TOKEN_SHARE_BPS: u64 = 6500; // 65%
 /// Market duration limits (in seconds)
 pub const MIN_MARKET_DURATION: i64 = 24 * 60 * 60; // 1 day minimum
 pub const MAX_MARKET_DURATION: i64 = 365 * 24 * 60 * 60; // 1 year maximum
+
+/// Maximum pool amount for token launch (50 SOL)
+/// Beyond this amount, excess SOL goes to founder with vesting
+pub const MAX_POOL_FOR_TOKEN_LAUNCH: u64 = 50_000_000_000; // 50 SOL in lamports
+
+/// Founder SOL vesting percentages (for excess SOL beyond 50)
+pub const FOUNDER_IMMEDIATE_SHARE_BPS: u64 = 800;  // 8% immediate
+pub const FOUNDER_VESTED_SHARE_BPS: u64 = 9200;     // 92% vested over 12 months

@@ -29,12 +29,16 @@ pub mod resolve_market;
 pub mod claim_rewards;
 pub mod init_team_vesting;
 pub mod claim_team_tokens;
+pub mod init_founder_vesting;
+pub mod claim_founder_sol;
 pub mod claim_platform_tokens;
 
 pub use resolve_market::*;
 pub use claim_rewards::*;
 pub use init_team_vesting::*;
 pub use claim_team_tokens::*;
+pub use init_founder_vesting::*;
+pub use claim_founder_sol::*;
 pub use claim_platform_tokens::*;
 
 // Account cleanup (rent recovery)

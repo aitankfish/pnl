@@ -148,6 +148,22 @@ pub mod plp_prediction_market {
         instructions::claim_team_tokens::handler(ctx)
     }
 
+    /// Initialize founder SOL vesting schedule after YES wins with excess pool
+    ///
+    /// Must be called after resolve_market when pool > 50 SOL
+    /// Sets up 12-month linear vesting for founder's excess SOL (8% immediate + 92% vested)
+    pub fn init_founder_vesting(ctx: Context<InitFounderVesting>) -> Result<()> {
+        instructions::init_founder_vesting::handler(ctx)
+    }
+
+    /// Claim vested founder SOL (linear 12-month vesting)
+    ///
+    /// Allows the founder to claim excess SOL based on vesting schedule
+    /// Can be called multiple times as SOL unlocks over time
+    pub fn claim_founder_sol(ctx: Context<ClaimFounderSol>) -> Result<()> {
+        instructions::claim_founder_sol::handler(ctx)
+    }
+
     /// Claim platform's 2% token allocation (immediate, no vesting)
     ///
     /// Transfers tokens to P&L wallet: 3MihVtsLsVuEccpmz4YG72Cr8CJWf1evRorTPdPiHeEQ
