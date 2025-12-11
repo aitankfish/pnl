@@ -61,8 +61,9 @@ export async function pushEvent(event: Omit<BlockchainEvent, 'id' | 'processed' 
 /**
  * Pop event from queue for processing
  * Uses BRPOP to block until event available
+ * Default 30s timeout reduces Redis requests by 6x (was 5s)
  */
-export async function popEvent(timeoutSeconds: number = 5): Promise<BlockchainEvent | null> {
+export async function popEvent(timeoutSeconds: number = 30): Promise<BlockchainEvent | null> {
   const redis = getRedisClient();
 
   const result = await redis.brpop(QUEUE_KEY, timeoutSeconds);

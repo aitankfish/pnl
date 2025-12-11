@@ -45,8 +45,8 @@ export class EventProcessor {
     // Main processing loop
     while (!this.stopRequested) {
       try {
-        // Pop event from queue (blocks for 5 seconds if empty)
-        const event = await popEvent(5);
+        // Pop event from queue (blocks for 30 seconds if empty, returns instantly when event arrives)
+        const event = await popEvent(30);
 
         if (!event) {
           // No events, continue loop

@@ -23,7 +23,14 @@ export function getRedisClient(): Redis {
     redisClient = new Redis(redisUrl, {
       maxRetriesPerRequest: 3,
       retryStrategy: (times) => {
-        const delay = Math.min(times * 50, 2000);
+        // Stop retrying after 10 attempts (was infinite, causing 80+ retry spam)
+        if (times > 10) {
+          logger.error(`❌ Redis connection failed after ${times} retries, giving up`);
+          return null; // Stop retrying
+        }
+
+        // Exponential backoff: 100ms, 200ms, 400ms, 800ms, 1600ms, 2000ms (capped)
+        const delay = Math.min(times * 100, 2000);
         logger.warn(`Redis connection retry ${times}, waiting ${delay}ms`);
         return delay;
       },
@@ -46,7 +53,7 @@ export function getRedisClient(): Redis {
     });
 
     redisClient.on('error', (err) => {
-      logger.error('❌ Redis error:', err);
+      logger.error('❌ Redis error:', { message: err.message, stack: err.stack });
     });
 
     redisClient.on('close', () => {
