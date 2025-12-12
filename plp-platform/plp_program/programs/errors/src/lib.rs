@@ -205,6 +205,14 @@ pub mod plp_prediction_market {
         instructions::emergency_drain_vault::handler(ctx)
     }
 
+    /// Migrate old Market accounts to new version with founder vesting fields
+    ///
+    /// Reallocates market account from 466 → 480 bytes
+    /// Callable by anyone, permissionless migration
+    pub fn migrate_market_v2(ctx: Context<MigrateMarketV2>) -> Result<()> {
+        instructions::migrate_market_v2::handler(ctx)
+    }
+
     // ========================================
     // LEGACY INSTRUCTIONS (DEPRECATED & REMOVED)
     // ========================================

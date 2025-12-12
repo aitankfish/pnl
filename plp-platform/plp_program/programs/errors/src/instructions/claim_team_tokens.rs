@@ -108,18 +108,18 @@ pub fn handler(ctx: Context<ClaimTeamTokens>) -> Result<()> {
         .checked_add(claimable)
         .ok_or(ErrorCode::MathError)?;
 
-    msg!("✅ TEAM TOKENS CLAIMED");
-    msg!("   Team wallet: {}", ctx.accounts.team_wallet.key());
-    msg!("   Claimed: {} tokens", claimable);
-    if includes_immediate {
-        msg!("   └─ Immediate (5%): {} tokens", team_vesting.immediate_tokens);
-        msg!("   └─ Vested: {} tokens", claimable - team_vesting.immediate_tokens);
-    }
-    msg!("   Total claimed: {} / {}", team_vesting.claimed_tokens, team_vesting.total_tokens);
-    msg!("   Vesting progress: {} / {} seconds",
-        current_time - team_vesting.vesting_start,
-        team_vesting.vesting_duration
-    );
+    // msg!("✅ TEAM TOKENS CLAIMED");
+    // msg!("   Team wallet: {}", ctx.accounts.team_wallet.key());
+    // msg!("   Claimed: {} tokens", claimable);
+    // if includes_immediate {
+    //     msg!("   └─ Immediate (5%): {} tokens", team_vesting.immediate_tokens);
+    //     msg!("   └─ Vested: {} tokens", claimable - team_vesting.immediate_tokens);
+    // }
+    // msg!("   Total claimed: {} / {}", team_vesting.claimed_tokens, team_vesting.total_tokens);
+    // msg!("   Vesting progress: {} / {} seconds",
+    //     current_time - team_vesting.vesting_start,
+    //     team_vesting.vesting_duration
+    // );
 
     Ok(())
 }

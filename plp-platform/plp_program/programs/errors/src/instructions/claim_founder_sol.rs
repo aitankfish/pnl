@@ -90,18 +90,18 @@ pub fn handler(ctx: Context<ClaimFounderSol>) -> Result<()> {
         .checked_add(claimable)
         .ok_or(ErrorCode::MathError)?;
 
-    msg!("✅ FOUNDER SOL CLAIMED");
-    msg!("   Founder wallet: {}", ctx.accounts.founder.key());
-    msg!("   Claimed: {} lamports", claimable);
-    if includes_immediate {
-        msg!("   └─ Immediate (8%): {} lamports", founder_vesting.immediate_sol);
-        msg!("   └─ Vested: {} lamports", claimable - founder_vesting.immediate_sol);
-    }
-    msg!("   Total claimed: {} / {} lamports", founder_vesting.claimed_sol, founder_vesting.total_sol);
-    msg!("   Vesting progress: {} / {} seconds",
-        current_time - founder_vesting.vesting_start,
-        founder_vesting.vesting_duration
-    );
+    // msg!("✅ FOUNDER SOL CLAIMED");
+    // msg!("   Founder wallet: {}", ctx.accounts.founder.key());
+    // msg!("   Claimed: {} lamports", claimable);
+    // if includes_immediate {
+    //     msg!("   └─ Immediate (8%): {} lamports", founder_vesting.immediate_sol);
+    //     msg!("   └─ Vested: {} lamports", claimable - founder_vesting.immediate_sol);
+    // }
+    // msg!("   Total claimed: {} / {} lamports", founder_vesting.claimed_sol, founder_vesting.total_sol);
+    // msg!("   Vesting progress: {} / {} seconds",
+    //     current_time - founder_vesting.vesting_start,
+    //     founder_vesting.vesting_duration
+    // );
 
     Ok(())
 }

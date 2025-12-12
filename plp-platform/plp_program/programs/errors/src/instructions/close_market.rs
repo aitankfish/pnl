@@ -65,27 +65,27 @@ pub fn handler(ctx: Context<CloseMarket>) -> Result<()> {
         let dust_amount = market.pool_balance;
         **market.to_account_info().try_borrow_mut_lamports()? -= dust_amount;
         **ctx.accounts.founder.to_account_info().try_borrow_mut_lamports()? += dust_amount;
-        msg!("   Dust transferred to founder: {} lamports ({} SOL)",
-             dust_amount,
-             dust_amount as f64 / 1_000_000_000.0);
+        // msg!("   Dust transferred to founder: {} lamports ({} SOL)",
+        //      dust_amount,
+        //      dust_amount as f64 / 1_000_000_000.0);
     }
 
-    msg!("🗑️  Closing market account");
-    msg!("   Founder: {}", ctx.accounts.founder.key());
-    msg!("   Market: {}", market.key());
-    msg!("   IPFS CID: {}", market.ipfs_cid);
-    msg!("   Resolution: {:?}", market.resolution);
-    msg!("   Pool Balance before close: {} lamports", market.pool_balance);
-    msg!("   Expiry: {}", market.expiry_time);
-    msg!("   Claim Deadline: {}", claim_deadline);
-    msg!("   Current Time: {}", clock.unix_timestamp);
+    // msg!("🗑️  Closing market account");
+    // msg!("   Founder: {}", ctx.accounts.founder.key());
+    // msg!("   Market: {}", market.key());
+    // msg!("   IPFS CID: {}", market.ipfs_cid);
+    // msg!("   Resolution: {:?}", market.resolution);
+    // msg!("   Pool Balance before close: {} lamports", market.pool_balance);
+    // msg!("   Expiry: {}", market.expiry_time);
+    // msg!("   Claim Deadline: {}", claim_deadline);
+    // msg!("   Current Time: {}", clock.unix_timestamp);
 
     // Anchor's `close` constraint will automatically:
     // - Zero out account data
     // - Transfer rent (~0.004 SOL) to founder
     // - Mark account for garbage collection
 
-    msg!("💰 Market closed - rent + dust recovered by founder");
+    // msg!("💰 Market closed - rent + dust recovered by founder");
 
     Ok(())
 }

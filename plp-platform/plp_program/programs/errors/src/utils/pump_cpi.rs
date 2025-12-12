@@ -29,30 +29,30 @@ use anchor_lang::prelude::*;
 /// - SDK: https://github.com/s6nqou/pump-anchor
 /// - Docs: https://pumpportal.fun/creation/
 pub fn pump_fun_create_and_buy_token(
-    name: &str,
-    symbol: &str,
-    metadata_uri: &str,
-    buy_amount_lamports: u64,
+    _name: &str,
+    _symbol: &str,
+    _metadata_uri: &str,
+    _buy_amount_lamports: u64,
 ) -> Result<(Pubkey, u64)> {
-    msg!("🚀 [STUB] Pump.fun launch + buy");
-    msg!("   Token name: {}", name);
-    msg!("   Token symbol: {}", symbol);
-    msg!("   Metadata URI: {}", metadata_uri);
-    msg!("   SOL to buy tokens: {} lamports ({} SOL)",
-        buy_amount_lamports,
-        buy_amount_lamports as f64 / 1_000_000_000.0
-    );
-    msg!("");
-    msg!("   ⚠️  TODO: Implement actual CPI calls");
-    msg!("   1. pump::cpi::create(name, symbol, metadata_uri, creator)");
-    msg!("   2. pump::cpi::buy(amount_lamports, max_slippage)");
-    msg!("   3. Return (token_mint pubkey, tokens_received)");
-    msg!("");
-    msg!("   📋 Required dependencies:");
-    msg!("   - Add 'pump-anchor' to Cargo.toml");
-    msg!("   - Import pump::cpi module");
-    msg!("   - Generate mint keypair in caller");
-    msg!("   - Pass all required Pump.fun accounts");
+    // msg!("🚀 [STUB] Pump.fun launch + buy");
+    // msg!("   Token name: {}", _name);
+    // msg!("   Token symbol: {}", _symbol);
+    // msg!("   Metadata URI: {}", _metadata_uri);
+    // msg!("   SOL to buy tokens: {} lamports ({} SOL)",
+    //     _buy_amount_lamports,
+    //     _buy_amount_lamports as f64 / 1_000_000_000.0
+    // );
+    // msg!("");
+    // msg!("   ⚠️  TODO: Implement actual CPI calls");
+    // msg!("   1. pump::cpi::create(name, symbol, metadata_uri, creator)");
+    // msg!("   2. pump::cpi::buy(amount_lamports, max_slippage)");
+    // msg!("   3. Return (token_mint pubkey, tokens_received)");
+    // msg!("");
+    // msg!("   📋 Required dependencies:");
+    // msg!("   - Add 'pump-anchor' to Cargo.toml");
+    // msg!("   - Import pump::cpi module");
+    // msg!("   - Generate mint keypair in caller");
+    // msg!("   - Pass all required Pump.fun accounts");
 
     // Return placeholder values (in real implementation, return actual mint address and token amount)
     // For stub: assume 1 billion tokens (common meme coin supply) for testing

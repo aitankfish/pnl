@@ -50,6 +50,10 @@ pub use close_position::*;
 pub use close_market::*;
 pub use emergency_drain_vault::*;
 
+// Migration
+pub mod migrate_market_v2;
+pub use migrate_market_v2::*;
+
 // Legacy instructions (deprecated - commented out for now)
 // TODO: Fix compatibility issues in legacy instructions if needed
 // These have been replaced by resolve_market + claim_rewards

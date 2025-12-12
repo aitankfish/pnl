@@ -54,15 +54,15 @@ pub fn handler(ctx: Context<ExtendMarket>) -> Result<()> {
 
     market.phase = MarketPhase::Funding;
 
-    msg!("✅ MARKET EXTENDED TO FUNDING PHASE");
-    msg!("   Market: {}", market.key());
-    msg!("   Founder: {}", ctx.accounts.founder.key());
-    msg!("   Current pool: {} lamports", market.pool_balance);
-    msg!("   Target pool: {} lamports", market.target_pool);
-    msg!("   YES shares: {}", market.total_yes_shares);
-    msg!("   NO shares: {}", market.total_no_shares);
-    msg!("   Votes are now FROZEN - outcome locked to YES");
-    msg!("   Trading continues for additional funding");
+    // msg!("✅ MARKET EXTENDED TO FUNDING PHASE");
+    // msg!("   Market: {}", market.key());
+    // msg!("   Founder: {}", ctx.accounts.founder.key());
+    // msg!("   Current pool: {} lamports", market.pool_balance);
+    // msg!("   Target pool: {} lamports", market.target_pool);
+    // msg!("   YES shares: {}", market.total_yes_shares);
+    // msg!("   NO shares: {}", market.total_no_shares);
+    // msg!("   Votes are now FROZEN - outcome locked to YES");
+    // msg!("   Trading continues for additional funding");
 
     Ok(())
 }

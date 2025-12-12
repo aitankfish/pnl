@@ -25,7 +25,7 @@ This document describes the **complete end-to-end infrastructure pipeline** for 
              │                             │
              ↓ (HTTP/WebSocket)            ↓ (Solana RPC)
 ┌────────────────────────┐   ┌─────────────────────────────────────┐
-│   BACKEND API SERVER   │   │      SOLANA BLOCKCHAIN              │
+│   BACKEND API SERVER sw  │   │      SOLANA BLOCKCHAIN              │
 │  • Next.js API Routes  │   │  • Devnet / Mainnet-Beta            │
 │  • MongoDB             │   │  • PLP Program (Smart Contract)     │
 │  • Socket.IO Server    │   │  • Market & Position PDAs           │

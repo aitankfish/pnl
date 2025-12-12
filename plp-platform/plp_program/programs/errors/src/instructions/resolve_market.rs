@@ -209,13 +209,13 @@ pub fn handler(ctx: Context<ResolveMarket>) -> Result<()> {
                 .checked_sub(total_reserved)
                 .ok_or(ErrorCode::MathError)?;
 
-            msg!("💰 Pool allocation breakdown:");
-            msg!("   Total vault: {} lamports", vault_lamports);
-            msg!("   Completion fee (5%): {} lamports", completion_fee);
-            msg!("   SOL for token purchase: {} lamports", net_amount_for_token);
-            if excess_sol > 0 {
-                msg!("   Excess SOL for founder vesting: {} lamports", excess_sol);
-            }
+            // msg!("💰 Pool allocation breakdown:");
+            // msg!("   Total vault: {} lamports", vault_lamports);
+            // msg!("   Completion fee (5%): {} lamports", completion_fee);
+            // msg!("   SOL for token purchase: {} lamports", net_amount_for_token);
+            // if excess_sol > 0 {
+            //     msg!("   Excess SOL for founder vesting: {} lamports", excess_sol);
+            // }
 
             // -------------------------
             // Buy tokens on Pump.fun with remaining SOL
@@ -301,8 +301,8 @@ pub fn handler(ctx: Context<ResolveMarket>) -> Result<()> {
                 .checked_div(100)
                 .ok_or(ErrorCode::MathError)? as u64;
 
-            msg!("Bonding curve calculation: {} lamports SOL -> {} tokens (exact: {}, with 1% slippage)",
-                 net_amount_for_token, token_amount, token_amount_exact);
+            // msg!("Bonding curve calculation: {} lamports SOL -> {} tokens (exact: {}, with 1% slippage)",
+            //      net_amount_for_token, token_amount, token_amount_exact);
 
             // Build buy instruction manually with CORRECT discriminator from IDL
             // Discriminator = [102, 6, 61, 18, 1, 218, 235, 234] (from pump.json IDL)
@@ -439,9 +439,9 @@ pub fn handler(ctx: Context<ResolveMarket>) -> Result<()> {
             // -------------------------
             if excess_sol > 0 {
                 // Calculate founder's immediate (8%) and vesting (92%) portions
-                let founder_immediate_sol = (excess_sol * FOUNDER_IMMEDIATE_SHARE_BPS) / BPS_DIVISOR;
-                let founder_vesting_sol = excess_sol
-                    .checked_sub(founder_immediate_sol)
+                let _founder_immediate_sol = (excess_sol * FOUNDER_IMMEDIATE_SHARE_BPS) / BPS_DIVISOR;
+                let _founder_vesting_sol = excess_sol
+                    .checked_sub(_founder_immediate_sol)
                     .ok_or(ErrorCode::MathError)?;
 
                 // Transfer excess SOL from vault to market account
@@ -470,10 +470,10 @@ pub fn handler(ctx: Context<ResolveMarket>) -> Result<()> {
                 market.founder_excess_sol_allocated = excess_sol;
                 market.founder_vesting_initialized = false; // Will be initialized in separate instruction
 
-                msg!("💰 Excess SOL allocated to founder vesting:");
-                msg!("   Total excess: {} lamports", excess_sol);
-                msg!("   Immediate (8%): {} lamports", founder_immediate_sol);
-                msg!("   Vesting (92%): {} lamports over 12 months", founder_vesting_sol);
+                // msg!("💰 Excess SOL allocated to founder vesting:");
+                // msg!("   Total excess: {} lamports", excess_sol);
+                // msg!("   Immediate (8%): {} lamports", _founder_immediate_sol);
+                // msg!("   Vesting (92%): {} lamports over 12 months", _founder_vesting_sol);
             }
 
             // Set token mint in market state
