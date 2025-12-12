@@ -22,23 +22,23 @@ interface SpaceBackgroundProps {
 const SpaceBackground = memo(function SpaceBackground({ constellation }: SpaceBackgroundProps) {
   return (
     <div className="absolute inset-0 pointer-events-none" style={{ willChange: 'transform' }}>
-      {/* Large Stars */}
-      {[...Array(10)].map((_, i) => (
+      {/* Large Stars - Very Bright */}
+      {[...Array(30)].map((_, i) => (
         <div key={`large-${i}`} className="star star-large bg-white" style={{ willChange: 'transform, opacity' }}></div>
       ))}
 
       {/* Medium Stars */}
-      {[...Array(20)].map((_, i) => (
+      {[...Array(60)].map((_, i) => (
         <div key={`medium-${i}`} className="star star-medium bg-white" style={{ willChange: 'transform, opacity' }}></div>
       ))}
 
       {/* Small Stars */}
-      {[...Array(30)].map((_, i) => (
+      {[...Array(80)].map((_, i) => (
         <div key={`small-${i}`} className="star star-small bg-white" style={{ willChange: 'transform, opacity' }}></div>
       ))}
 
-      {/* Sharp Twinkling Stars */}
-      {[...Array(8)].map((_, i) => (
+      {/* Sharp Twinkling Stars - Extra Bright */}
+      {[...Array(25)].map((_, i) => (
         <div key={`sharp-${i}`} className="star-sharp star-small bg-white" style={{ willChange: 'transform, opacity' }}></div>
       ))}
 
@@ -47,9 +47,9 @@ const SpaceBackground = memo(function SpaceBackground({ constellation }: SpaceBa
         <div key={`meteor-${i}`} className={`meteor meteor${i + 1}`} style={{ willChange: 'transform' }}></div>
       ))}
 
-      {/* Shooting Stars */}
-      {[...Array(5)].map((_, i) => (
-        <div key={`shooting-${i}`} className={`shooting-star shooting-star${i + 1}`} style={{ willChange: 'transform' }}></div>
+      {/* Shooting Stars - More for spectacular entrance */}
+      {[...Array(10)].map((_, i) => (
+        <div key={`shooting-${i}`} className={`shooting-star shooting-star${(i % 5) + 1}`} style={{ willChange: 'transform' }}></div>
       ))}
 
       {/* Comets */}

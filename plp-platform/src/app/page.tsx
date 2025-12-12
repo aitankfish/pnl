@@ -17,14 +17,6 @@ const fadeInUp = {
   }
 };
 
-const fadeIn = {
-  hidden: { opacity: 0 },
-  visible: {
-    opacity: 1,
-    transition: { duration: 0.8 }
-  }
-};
-
 const scaleIn = {
   hidden: { opacity: 0, scale: 0.8 },
   visible: {
@@ -34,60 +26,92 @@ const scaleIn = {
   }
 };
 
-const staggerContainer = {
-  hidden: { opacity: 0 },
-  visible: {
-    opacity: 1,
-    transition: {
-      staggerChildren: 0.2,
-      delayChildren: 0.1
-    }
-  }
-};
-
 export default function HomePage() {
   return (
     <div className="space-y-12 md:space-y-20 pt-3 sm:pt-4 px-3 sm:px-6 pb-8 md:pb-12 relative">
         {/* Hero Section */}
-        <motion.div
-          initial="hidden"
-          animate="visible"
-          variants={staggerContainer}
-          className="text-center space-y-6 max-w-5xl mx-auto relative min-h-[calc(100vh-80px)] flex flex-col justify-center"
-        >
+        <div className="text-center space-y-6 max-w-5xl mx-auto relative min-h-[calc(100vh-80px)] flex flex-col justify-center">
 
-          <motion.div variants={fadeIn} className="inline-block">
-            <span className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-purple-500/10 border border-purple-500/20 text-purple-300 text-sm font-medium mb-4">
+          <h1 className="text-4xl font-bold tracking-tight sm:text-5xl md:text-6xl lg:text-7xl text-white leading-tight relative z-10">
+            {/* Glowing sun background effect - Fades in slowly after constellation stars */}
+            <motion.div
+              className="absolute inset-0 -z-10 flex items-center justify-center pointer-events-none"
+              style={{ top: '75%' }}
+              initial={{ opacity: 0, scale: 0.5 }}
+              animate={{ opacity: 0.4, scale: 1.2 }}
+              transition={{ duration: 2, delay: 2.5, ease: 'easeOut' }}
+            >
+              <div className="w-80 h-80 md:w-[450px] md:h-[450px] bg-gradient-to-r from-yellow-200 via-orange-200 to-yellow-100 rounded-full blur-3xl animate-pulse"></div>
+            </motion.div>
+
+            {/* Headline text - Appears after glow with wave animation */}
+            <span>
+              <motion.span
+                className="text-transparent bg-clip-text cursor-pointer relative inline-block overflow-hidden"
+                style={{
+                  backgroundImage: 'linear-gradient(to right, rgb(107 114 128) 0%, rgb(209 213 219) 50%, rgb(107 114 128) 100%)',
+                  backgroundSize: '200% 100%',
+                  backgroundPosition: '0% 0%',
+                  filter: 'drop-shadow(0 0 20px rgba(160, 160, 160, 0.4)) drop-shadow(0 2px 4px rgba(0, 0, 0, 0.3))',
+                  WebkitTextStroke: '0.5px rgba(140, 140, 140, 0.3)',
+                  transition: 'background-position 0.3s ease, filter 0.3s ease',
+                }}
+                initial={{ opacity: 0, x: -50 }}
+                animate={{ opacity: 1, x: 0 }}
+                transition={{ duration: 0.8, delay: 5, ease: 'easeOut' }}
+                onMouseMove={(e) => {
+                  const rect = e.currentTarget.getBoundingClientRect();
+                  const x = ((e.clientX - rect.left) / rect.width) * 100;
+                  e.currentTarget.style.backgroundImage = 'linear-gradient(to right, rgb(107 114 128) 0%, rgb(230 230 230) 50%, rgb(107 114 128) 100%)';
+                  e.currentTarget.style.backgroundPosition = `${x}% 0%`;
+                  e.currentTarget.style.filter = 'drop-shadow(0 0 25px rgba(200, 200, 200, 0.5)) drop-shadow(0 0 12px rgba(180, 180, 180, 0.4))';
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.backgroundImage = 'linear-gradient(to right, rgb(107 114 128) 0%, rgb(209 213 219) 50%, rgb(107 114 128) 100%)';
+                  e.currentTarget.style.backgroundPosition = '0% 0%';
+                  e.currentTarget.style.filter = 'drop-shadow(0 0 20px rgba(160, 160, 160, 0.4)) drop-shadow(0 2px 4px rgba(0, 0, 0, 0.3))';
+                }}
+              >
+                Discover Ideas
+              </motion.span>
+              <br />
+              <motion.span
+                className="text-transparent bg-clip-text bg-gradient-to-r from-yellow-600 via-orange-500 to-amber-600 inline-block overflow-hidden"
+                initial={{ width: 0, opacity: 0 }}
+                animate={{ width: 'auto', opacity: 1 }}
+                transition={{ duration: 0.8, delay: 5.5, ease: 'easeInOut' }}
+                style={{ whiteSpace: 'nowrap' }}
+              >
+                In Their Genesis
+              </motion.span>
+            </span>
+          </h1>
+
+          <motion.div
+            initial={{ opacity: 0, scale: 0.9 }}
+            animate={{ opacity: 1, scale: 1 }}
+            transition={{ duration: 0.5, delay: 6.1 }}
+            className="flex justify-center"
+          >
+            <span className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-purple-500/10 border border-purple-500/20 text-purple-300 text-sm font-medium">
               <Zap className="w-4 h-4" />
-              Community-Driven Token Validation
+              Let the Market Decide
             </span>
           </motion.div>
 
-          <motion.h1
-            variants={fadeInUp}
-            className="text-4xl font-bold tracking-tight sm:text-5xl md:text-6xl lg:text-7xl text-white leading-tight relative z-10"
-          >
-            {/* Glowing sun background effect */}
-            <div className="absolute inset-0 -z-10 flex items-center justify-center pointer-events-none" style={{ top: '60%' }}>
-              <div className="w-64 h-64 md:w-80 md:h-80 bg-gradient-to-r from-yellow-300 via-orange-300 to-yellow-200 rounded-full blur-3xl opacity-[0.02] animate-pulse"></div>
-            </div>
-
-            Discover Ideas.
-            <br />
-            <span className="text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 via-blue-500 to-purple-600">
-              Before VCs Do.
-            </span>
-          </motion.h1>
-
           <motion.p
-            variants={fadeInUp}
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.6, delay: 6.5 }}
             className="text-lg md:text-xl text-gray-300 max-w-3xl mx-auto leading-relaxed"
           >
             The first platform where <span className="text-cyan-400 font-semibold">community validates ideas</span> through prediction markets, giving you early access to tomorrow's breakthrough projects.
           </motion.p>
 
           <motion.div
-            variants={fadeInUp}
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.6, delay: 6.9 }}
             className="flex flex-col sm:flex-row gap-4 justify-center pt-4"
           >
             <Button asChild size="lg" className="bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-600 hover:to-blue-700 text-white font-semibold text-base px-8 py-6 rounded-xl shadow-lg shadow-cyan-500/25">
@@ -103,7 +127,7 @@ export default function HomePage() {
               </Link>
             </Button>
           </motion.div>
-        </motion.div>
+        </div>
 
         {/* Story Introduction */}
         <motion.div
@@ -778,6 +802,6 @@ export default function HomePage() {
             </Button>
           </div>
         </motion.div>
-      </div>
+    </div>
   );
 }

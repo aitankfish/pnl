@@ -1,23 +1,27 @@
-/* Twinkling Stars Animation - Brighter */
+/* Twinkling Stars Animation - More Alive and Brighter */
 @keyframes twinkle {
   0%, 100% {
     opacity: 0.6;
     transform: scale(1);
+    filter: brightness(1);
   }
   50% {
     opacity: 1;
-    transform: scale(1.2);
+    transform: scale(1.3);
+    filter: brightness(1.5);
   }
 }
 
 @keyframes twinkleSlow {
   0%, 100% {
-    opacity: 0.5;
+    opacity: 0.6;
     transform: scale(1);
+    filter: brightness(1);
   }
   50% {
-    opacity: 0.9;
-    transform: scale(1.1);
+    opacity: 1;
+    transform: scale(1.2);
+    filter: brightness(1.4);
   }
 }
 
@@ -25,30 +29,40 @@
   0%, 100% {
     opacity: 0.7;
     transform: scale(1);
+    filter: brightness(1);
   }
   50% {
     opacity: 1;
-    transform: scale(1.3);
+    transform: scale(1.4);
+    filter: brightness(1.6);
   }
 }
 
-/* Enhanced Twinkling - Brighter */
+/* Enhanced Twinkling - Brighter and More Alive */
 @keyframes sharpTwinkle {
   0%, 100% {
-    opacity: 0.4;
-    transform: scale(0.5);
+    opacity: 0.5;
+    transform: scale(0.8);
+    filter: brightness(1);
+    box-shadow: 0 0 2px rgba(255, 255, 255, 0.5);
   }
   25% {
     opacity: 1;
-    transform: scale(1.5);
+    transform: scale(2);
+    filter: brightness(2);
+    box-shadow: 0 0 8px rgba(255, 255, 255, 1), 0 0 12px rgba(100, 200, 255, 0.6);
   }
   50% {
-    opacity: 0.6;
-    transform: scale(1);
+    opacity: 0.7;
+    transform: scale(1.2);
+    filter: brightness(1.3);
+    box-shadow: 0 0 4px rgba(255, 255, 255, 0.7);
   }
   75% {
-    opacity: 0.9;
-    transform: scale(1.2);
+    opacity: 0.95;
+    transform: scale(1.6);
+    filter: brightness(1.7);
+    box-shadow: 0 0 6px rgba(255, 255, 255, 0.9), 0 0 10px rgba(100, 200, 255, 0.5);
   }
 }
 
@@ -198,20 +212,22 @@
 }
 
 .star-large {
-  width: 2px;
-  height: 2px;
+  width: 3px;
+  height: 3px;
   animation: twinkleSlow 4s infinite;
+  box-shadow: 0 0 4px rgba(255, 255, 255, 0.8), 0 0 8px rgba(255, 255, 255, 0.4);
 }
 
 .star-medium {
-  width: 1px;
-  height: 1px;
+  width: 1.5px;
+  height: 1.5px;
   animation: twinkle 2.5s infinite;
+  box-shadow: 0 0 3px rgba(255, 255, 255, 0.6);
 }
 
 .star-small {
-  width: 0.5px;
-  height: 0.5px;
+  width: 1px;
+  height: 1px;
   animation: twinkleFast 1.8s infinite;
 }
 
@@ -238,17 +254,17 @@
 
 .meteor1 {
   animation: meteor 12s infinite linear;
-  animation-delay: 0s;
+  animation-delay: 0.5s;
 }
 
 .meteor2 {
   animation: meteor2 15s infinite linear;
-  animation-delay: 4s;
+  animation-delay: 1s;
 }
 
 .meteor3 {
   animation: meteor3 18s infinite linear;
-  animation-delay: 8s;
+  animation-delay: 1.5s;
 }
 
 .meteor4 {
@@ -258,19 +274,22 @@
 
 .meteor5 {
   animation: meteor2 16s infinite linear;
-  animation-delay: 6s;
+  animation-delay: 2.5s;
 }
 
 .meteor6 {
   animation: meteor3 20s infinite linear;
-  animation-delay: 10s;
+  animation-delay: 3s;
 }
 
-/* Sharp Twinkling Stars */
+/* Sharp Twinkling Stars - Larger and More Vibrant */
 .star-sharp {
   position: absolute;
   border-radius: 50%;
+  width: 2px;
+  height: 2px;
   animation: sharpTwinkle 2s infinite;
+  box-shadow: 0 0 4px rgba(255, 255, 255, 0.7), 0 0 8px rgba(100, 200, 255, 0.4);
 }
 
 /* Shooting Stars */
@@ -431,7 +450,17 @@
   position: absolute;
   border-radius: 50%;
   filter: blur(40px);
-  animation: nebulaFloat 60s infinite ease-in-out;
+  animation: nebulaFloat 60s infinite ease-in-out, nebulaEntrance 2s ease-in forwards;
+}
+
+/* Nebula entrance - start hidden, fade in after main animation */
+@keyframes nebulaEntrance {
+  0%, 80% {
+    opacity: 0;
+  }
+  100% {
+    opacity: 1;
+  }
 }
 
 .nebula1 {
@@ -440,7 +469,7 @@
   background: radial-gradient(circle, rgba(138, 43, 226, 0.15) 0%, transparent 70%);
   top: 10%;
   left: 15%;
-  animation-delay: 0s;
+  animation-delay: 0s, 6s;
 }
 
 .nebula2 {
@@ -449,7 +478,7 @@
   background: radial-gradient(circle, rgba(0, 191, 255, 0.12) 0%, transparent 70%);
   top: 60%;
   right: 20%;
-  animation-delay: 20s;
+  animation-delay: 20s, 7s;
 }
 
 .nebula3 {
@@ -458,7 +487,7 @@
   background: radial-gradient(circle, rgba(255, 20, 147, 0.1) 0%, transparent 70%);
   bottom: 15%;
   left: 40%;
-  animation-delay: 40s;
+  animation-delay: 40s, 8s;
 }
 
 /* Pulsars - Bright Pulsing Stars */
@@ -510,7 +539,7 @@
   width: 100%;
   height: 200px;
   filter: blur(30px);
-  animation: aurora 45s infinite ease-in-out;
+  animation: aurora 45s infinite ease-in-out, nebulaEntrance 2s ease-in forwards;
   pointer-events: none;
 }
 
@@ -522,7 +551,7 @@
     rgba(138, 43, 226, 0.1) 75%,
     transparent 100%);
   top: 20%;
-  animation-delay: 0s;
+  animation-delay: 0s, 7s;
 }
 
 .aurora2 {
@@ -532,7 +561,7 @@
     rgba(100, 150, 255, 0.1) 60%,
     transparent 100%);
   bottom: 30%;
-  animation-delay: 15s;
+  animation-delay: 15s, 8s;
 }
 
 /* Distant Galaxies - Spinning Spirals */
@@ -560,13 +589,13 @@
     rgba(200, 150, 255, 0.05) 30%,
     transparent 70%);
   filter: blur(20px);
-  animation: galaxySpin 120s infinite linear;
+  animation: galaxySpin 120s infinite linear, nebulaEntrance 2s ease-in forwards;
 }
 
 .galaxy1 {
   top: 15%;
   right: 10%;
-  animation-delay: 0s;
+  animation-delay: 0s, 9s;
 }
 
 .galaxy2 {
@@ -574,7 +603,7 @@
   left: 15%;
   width: 120px;
   height: 120px;
-  animation-delay: 40s;
+  animation-delay: 40s, 10s;
 }
 
 .galaxy3 {
@@ -582,10 +611,56 @@
   right: 30%;
   width: 100px;
   height: 100px;
-  animation-delay: 80s;
+  animation-delay: 80s, 11s;
 }
 
-/* Constellation Stars - Enhanced Twinkling */
+/* Constellation Stars - Entrance Animation (SPECTACULAR Grand Opening) */
+@keyframes constellationEntrance {
+  0% {
+    opacity: 0;
+    transform: scale(0.3);
+    filter: brightness(0);
+    box-shadow: 0 0 0px rgba(100, 200, 255, 0);
+  }
+  15% {
+    opacity: 1;
+    transform: scale(3);
+    filter: brightness(5);
+    box-shadow: 0 0 50px rgba(100, 200, 255, 1), 0 0 100px rgba(100, 200, 255, 1), 0 0 150px rgba(147, 51, 234, 0.6);
+  }
+  30% {
+    opacity: 0.95;
+    transform: scale(2);
+    filter: brightness(4);
+    box-shadow: 0 0 40px rgba(100, 200, 255, 0.95), 0 0 80px rgba(100, 200, 255, 0.9), 0 0 120px rgba(147, 51, 234, 0.5);
+  }
+  50% {
+    opacity: 1;
+    transform: scale(2.5);
+    filter: brightness(4.5);
+    box-shadow: 0 0 45px rgba(100, 200, 255, 1), 0 0 90px rgba(100, 200, 255, 0.95), 0 0 135px rgba(147, 51, 234, 0.55);
+  }
+  70% {
+    opacity: 0.9;
+    transform: scale(1.8);
+    filter: brightness(3.5);
+    box-shadow: 0 0 35px rgba(100, 200, 255, 0.9), 0 0 70px rgba(100, 200, 255, 0.8), 0 0 105px rgba(147, 51, 234, 0.45);
+  }
+  85% {
+    opacity: 0.85;
+    transform: scale(1.4);
+    filter: brightness(2.5);
+    box-shadow: 0 0 25px rgba(100, 200, 255, 0.85), 0 0 50px rgba(100, 200, 255, 0.7);
+  }
+  100% {
+    opacity: 0.8;
+    transform: scale(1);
+    filter: brightness(1);
+    box-shadow: 0 0 8px rgba(100, 200, 255, 0.8), 0 0 12px rgba(100, 200, 255, 0.5);
+  }
+}
+
+/* Constellation Stars - Enhanced Twinkling (after entrance) */
 @keyframes constellationTwinkle {
   0%, 100% {
     opacity: 0.8;
@@ -610,16 +685,56 @@
 }
 
 .constellation-star {
-  animation: constellationTwinkle 3s infinite ease-in-out;
+  animation: constellationEntrance 3.5s ease-out forwards, constellationTwinkle 3s 3.5s infinite ease-in-out;
 }
 
 .constellation-star:nth-child(odd) {
-  animation-delay: 0s;
+  animation-delay: 0s, 3.5s;
 }
 
 .constellation-star:nth-child(even) {
-  animation-delay: 1.5s;
+  animation-delay: 0.4s, 3.9s;
 }
+
+/* Add different intensity variations for constellation stars */
+.constellation-star:nth-child(3n) {
+  animation: constellationEntrance 3.5s ease-out forwards, constellationTwinkle 3s 3.5s infinite ease-in-out;
+  animation-delay: 0.2s, 3.7s;
+}
+
+.constellation-star:nth-child(5n) {
+  animation: constellationEntrance 3.8s ease-out forwards, constellationTwinkle 3s 3.8s infinite ease-in-out;
+  animation-delay: 0.6s, 4.4s;
+}
+
+/* Entrance Meteorite Showers - Special grand opening effect */
+@keyframes entranceMeteor {
+  0% {
+    transform: translateX(-200px) translateY(-200px);
+    opacity: 0;
+  }
+  10% {
+    opacity: 0.8;
+  }
+  90% {
+    opacity: 0.8;
+  }
+  100% {
+    transform: translateX(100vw) translateY(100vh);
+    opacity: 0;
+  }
+}
+
+.meteor.entrance-effect {
+  animation: entranceMeteor 1.5s ease-out;
+}
+
+.meteor1.entrance-effect { animation-delay: 0.5s; }
+.meteor2.entrance-effect { animation-delay: 1s; }
+.meteor3.entrance-effect { animation-delay: 1.5s; }
+.meteor4.entrance-effect { animation-delay: 2s; }
+.meteor5.entrance-effect { animation-delay: 2.5s; }
+.meteor6.entrance-effect { animation-delay: 3s; }
 
 /* Constellation Lines - Very Faint Pulse */
 @keyframes linePulse {
