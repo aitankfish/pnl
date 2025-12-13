@@ -135,103 +135,7 @@ export default function HomePage() {
   const router = useRouter();
   const [showOnboardingModal, setShowOnboardingModal] = useState(false);
   const [isSettingUpProfile, setIsSettingUpProfile] = useState(false);
-  const [isCheckingAuth, setIsCheckingAuth] = useState(true);
   const hasSetupProfileRef = useRef(false);
-
-  // If user is already authenticated on mount, redirect to browse immediately
-  useEffect(() => {
-    if (ready) {
-      if (authenticated && user) {
-        console.log('🎯 User already authenticated, redirecting to /browse');
-        router.push('/browse');
-      } else {
-        setIsCheckingAuth(false);
-      }
-    }
-  }, [ready, authenticated, user, router]);
-
-  // Show loading while checking authentication
-  if (!ready || isCheckingAuth) {
-    return (
-      <div className="min-h-screen bg-gradient-to-b from-purple-900/20 via-black to-black flex items-center justify-center relative overflow-hidden">
-        {/* Cosmic background stars */}
-        <div className="absolute inset-0 pointer-events-none">
-          {[...Array(150)].map((_, i) => (
-            <motion.div
-              key={i}
-              className="absolute rounded-full bg-white"
-              style={{
-                width: Math.random() > 0.5 ? '2px' : '1px',
-                height: Math.random() > 0.5 ? '2px' : '1px',
-                left: `${Math.random() * 100}%`,
-                top: `${Math.random() * 100}%`,
-              }}
-              animate={{
-                opacity: [0.2, 1, 0.2],
-                scale: [0.8, 1.2, 0.8],
-              }}
-              transition={{
-                duration: 2 + Math.random() * 2,
-                repeat: Infinity,
-                delay: Math.random() * 2,
-              }}
-            />
-          ))}
-        </div>
-
-        {/* Text expanding from center */}
-        <div className="text-center relative z-10 px-4">
-          <motion.h1
-            className="text-3xl md:text-4xl lg:text-5xl xl:text-6xl whitespace-nowrap"
-            initial={{ scaleX: 0, opacity: 0 }}
-            animate={{ scaleX: 1, opacity: 1 }}
-            transition={{
-              duration: 2.5,
-              ease: [0.22, 1, 0.36, 1],
-              delay: 0.5
-            }}
-            style={{
-              transformOrigin: 'center',
-              fontFamily: 'cursive',
-              fontWeight: 600,
-              background: 'linear-gradient(to right, rgb(192, 132, 252), rgb(34, 211, 238), rgb(192, 132, 252))',
-              WebkitBackgroundClip: 'text',
-              WebkitTextFillColor: 'transparent',
-              backgroundClip: 'text',
-              filter: 'drop-shadow(0 0 30px rgba(168, 85, 247, 0.6))',
-            }}
-          >
-            Welcome back to the Cosmic Hub
-          </motion.h1>
-
-          {/* Pulsing dots */}
-          <motion.div
-            className="flex justify-center gap-2 mt-8"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            transition={{ delay: 1.5 }}
-          >
-            {[0, 1, 2].map((i) => (
-              <motion.div
-                key={i}
-                className="w-2 h-2 rounded-full bg-cyan-400"
-                animate={{
-                  scale: [1, 1.5, 1],
-                  opacity: [0.5, 1, 0.5],
-                }}
-                transition={{
-                  duration: 1.5,
-                  repeat: Infinity,
-                  delay: i * 0.2,
-                  ease: "easeInOut"
-                }}
-              />
-            ))}
-          </motion.div>
-        </div>
-      </div>
-    );
-  }
 
   // Auto-setup profile after authentication
   useEffect(() => {
@@ -343,6 +247,14 @@ export default function HomePage() {
     router.push('/browse');
   };
 
+  // Check auth on mount - redirect authenticated users immediately
+  useEffect(() => {
+    if (ready && authenticated && user) {
+      console.log('🎯 User already authenticated, redirecting to /browse');
+      router.push('/browse');
+    }
+  }, [ready, authenticated, user, router]);
+
   return (
     <>
       <div className="space-y-12 md:space-y-20 pt-3 sm:pt-4 px-3 sm:px-6 pb-8 md:pb-12 relative overflow-hidden">
@@ -450,19 +362,20 @@ export default function HomePage() {
           initial={{ opacity: 1 }}
           animate={{ opacity: 1 }}
           style={{ opacity: heroOpacity, scale: heroScale }}
-          className="text-center space-y-6 max-w-5xl mx-auto relative min-h-[calc(100vh-80px)] flex flex-col justify-center z-10"
+          className="text-center space-y-6 max-w-5xl mx-auto relative min-h-screen flex flex-col justify-between z-10 -mt-20 md:mt-0 pb-24 md:pb-28"
         >
-
+          {/* Main content wrapper */}
+          <div className="flex-1 flex flex-col justify-center space-y-6">
           <h1 className="text-4xl font-bold tracking-tight sm:text-5xl md:text-6xl lg:text-7xl text-white leading-tight relative z-10">
             {/* Glowing sun background effect - Fades in first */}
             <motion.div
               className="absolute inset-0 -z-10 flex items-center justify-center pointer-events-none"
               style={{ top: '75%' }}
               initial={{ opacity: 0, scale: 0.3 }}
-              animate={{ opacity: 0.5, scale: 1.2 }}
+              animate={{ opacity: 0.25, scale: 1.2 }}
               transition={{ duration: 2.5, delay: 0.5, ease: 'easeOut' }}
             >
-              <div className="w-80 h-80 md:w-[450px] md:h-[450px] bg-gradient-to-r from-yellow-200 via-orange-200 to-yellow-100 rounded-full blur-3xl animate-pulse"></div>
+              <div className="w-80 h-80 md:w-[450px] md:h-[450px] bg-gradient-to-r from-yellow-200/60 via-orange-200/60 to-yellow-100/60 rounded-full blur-3xl animate-pulse"></div>
             </motion.div>
 
             {/* Headline text - Appears after glow */}
@@ -470,11 +383,11 @@ export default function HomePage() {
               <motion.span
                 className="text-transparent bg-clip-text cursor-pointer relative inline-block overflow-hidden"
                 style={{
-                  backgroundImage: 'linear-gradient(to right, rgb(209 213 219) 0%, rgb(255 255 255) 50%, rgb(209 213 219) 100%)',
+                  backgroundImage: 'linear-gradient(to right, rgb(156 163 175) 0%, rgb(209 213 219) 50%, rgb(156 163 175) 100%)',
                   backgroundSize: '200% 100%',
                   backgroundPosition: '0% 0%',
-                  filter: 'drop-shadow(0 0 30px rgba(255, 255, 255, 0.8)) drop-shadow(0 0 15px rgba(209, 213, 219, 0.6)) drop-shadow(0 2px 8px rgba(0, 0, 0, 0.4))',
-                  WebkitTextStroke: '0.5px rgba(200, 200, 200, 0.4)',
+                  filter: 'drop-shadow(0 0 12px rgba(209, 213, 219, 0.4)) drop-shadow(0 0 6px rgba(156, 163, 175, 0.3)) drop-shadow(0 2px 6px rgba(0, 0, 0, 0.3))',
+                  WebkitTextStroke: '0.5px rgba(180, 180, 180, 0.3)',
                   transition: 'background-position 0.3s ease, filter 0.3s ease',
                 }}
                 initial={{ opacity: 0, y: 30 }}
@@ -483,14 +396,14 @@ export default function HomePage() {
                 onMouseMove={(e) => {
                   const rect = e.currentTarget.getBoundingClientRect();
                   const x = ((e.clientX - rect.left) / rect.width) * 100;
-                  e.currentTarget.style.backgroundImage = 'linear-gradient(to right, rgb(209 213 219) 0%, rgb(255 255 255) 50%, rgb(209 213 219) 100%)';
+                  e.currentTarget.style.backgroundImage = 'linear-gradient(to right, rgb(209 213 219) 0%, rgb(243 244 246) 50%, rgb(209 213 219) 100%)';
                   e.currentTarget.style.backgroundPosition = `${x}% 0%`;
-                  e.currentTarget.style.filter = 'drop-shadow(0 0 40px rgba(255, 255, 255, 1)) drop-shadow(0 0 20px rgba(209, 213, 219, 0.8)) drop-shadow(0 2px 12px rgba(0, 0, 0, 0.5))';
+                  e.currentTarget.style.filter = 'drop-shadow(0 0 20px rgba(243, 244, 246, 0.6)) drop-shadow(0 0 10px rgba(209, 213, 219, 0.5)) drop-shadow(0 2px 8px rgba(0, 0, 0, 0.4))';
                 }}
                 onMouseLeave={(e) => {
-                  e.currentTarget.style.backgroundImage = 'linear-gradient(to right, rgb(209 213 219) 0%, rgb(255 255 255) 50%, rgb(209 213 219) 100%)';
+                  e.currentTarget.style.backgroundImage = 'linear-gradient(to right, rgb(156 163 175) 0%, rgb(209 213 219) 50%, rgb(156 163 175) 100%)';
                   e.currentTarget.style.backgroundPosition = '0% 0%';
-                  e.currentTarget.style.filter = 'drop-shadow(0 0 30px rgba(255, 255, 255, 0.8)) drop-shadow(0 0 15px rgba(209, 213, 219, 0.6)) drop-shadow(0 2px 8px rgba(0, 0, 0, 0.4))';
+                  e.currentTarget.style.filter = 'drop-shadow(0 0 12px rgba(209, 213, 219, 0.4)) drop-shadow(0 0 6px rgba(156, 163, 175, 0.3)) drop-shadow(0 2px 6px rgba(0, 0, 0, 0.3))';
                 }}
               >
                 Discover Ideas
@@ -558,8 +471,8 @@ export default function HomePage() {
           >
             <div className="relative group">
               {/* Outer cosmic glow - multiple layers */}
-              <div className="absolute -inset-2 bg-gradient-to-r from-violet-600 via-purple-500 to-fuchsia-600 rounded-2xl blur-2xl opacity-40 group-hover:opacity-70 transition duration-700"></div>
-              <div className="absolute -inset-1 bg-gradient-to-r from-cyan-400 via-blue-500 to-purple-600 rounded-2xl blur-xl opacity-30 group-hover:opacity-60 transition duration-500"></div>
+              <div className="absolute -inset-1 bg-gradient-to-r from-violet-600 via-purple-500 to-fuchsia-600 rounded-2xl blur-lg opacity-30 group-hover:opacity-50 transition duration-700"></div>
+              <div className="absolute -inset-0.5 bg-gradient-to-r from-cyan-400 via-blue-500 to-purple-600 rounded-2xl blur-md opacity-20 group-hover:opacity-40 transition duration-500"></div>
 
               {/* Button with transparent background */}
               <Button
@@ -649,13 +562,14 @@ export default function HomePage() {
               </Button>
             </div>
           </motion.div>
+          </div>
 
           {/* Scroll Indicator */}
           <motion.div
             initial={{ opacity: 0, y: -10 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.8, delay: 7.5, ease: [0.22, 1, 0.36, 1] }}
-            className="absolute bottom-12 left-0 right-0 flex justify-center"
+            className="flex justify-center"
           >
             <motion.div
               animate={{ y: [0, 8, 0] }}

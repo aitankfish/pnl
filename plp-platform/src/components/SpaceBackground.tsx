@@ -1,6 +1,7 @@
 'use client';
 
 import React, { memo } from 'react';
+import { motion } from 'framer-motion';
 import '../styles/starry-background.css';
 
 interface Star {
@@ -76,6 +77,60 @@ const SpaceBackground = memo(function SpaceBackground({ constellation }: SpaceBa
       {[...Array(3)].map((_, i) => (
         <div key={`galaxy-${i}`} className={`galaxy galaxy${i + 1}`} style={{ willChange: 'opacity' }}></div>
       ))}
+
+      {/* Dense twinkling colorful stars - Landing page style */}
+      {[...Array(400)].map((_, i) => {
+        // More size variety
+        const sizeRand = Math.random();
+        const size = sizeRand > 0.95 ? '3px' : sizeRand > 0.85 ? '2.5px' : sizeRand > 0.7 ? '2px' : sizeRand > 0.5 ? '1.5px' : '1px';
+
+        // More vibrant color variety with cosmic palette
+        const colors = [
+          '#ffffff',   // white
+          '#93c5fd',   // blue
+          '#c4b5fd',   // purple
+          '#fde047',   // yellow
+          '#7dd3fc',   // cyan
+          '#fbbf24',   // amber/gold
+          '#f9a8d4',   // pink
+          '#6ee7b7',   // emerald
+          '#d8b4fe',   // violet
+          '#fb923c',   // orange
+          '#60a5fa',   // bright blue
+          '#a78bfa',   // lavender
+        ];
+        const color = colors[Math.floor(Math.random() * colors.length)];
+
+        // More varied durations
+        const duration = 1.5 + Math.random() * 5;
+        const delay = Math.random() * 6;
+
+        return (
+          <motion.div
+            key={`colorful-star-${i}`}
+            className="absolute rounded-full"
+            style={{
+              width: size,
+              height: size,
+              background: color,
+              boxShadow: `0 0 ${size === '3px' ? '6px' : size === '2.5px' ? '5px' : size === '2px' ? '4px' : '2px'} ${color}`,
+              left: `${Math.random() * 100}%`,
+              top: `${Math.random() * 100}%`,
+            }}
+            initial={{ opacity: 0, scale: 0 }}
+            animate={{
+              opacity: [0, 0.4, 1, 0.4],
+              scale: [0, 0.8, 1.2, 0.8],
+            }}
+            transition={{
+              duration: duration,
+              repeat: Infinity,
+              delay: delay,
+              ease: 'easeInOut',
+            }}
+          />
+        );
+      })}
 
       {/* Daily Constellation */}
       {constellation && (
