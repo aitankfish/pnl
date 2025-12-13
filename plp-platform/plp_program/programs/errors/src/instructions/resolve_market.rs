@@ -272,12 +272,21 @@ pub fn handler(ctx: Context<ResolveMarket>) -> Result<()> {
             // Constant product AMM formula: k = virtual_token_reserves * virtual_sol_reserves
             // After buy: (vSOL + SOL_in) * (vTOKEN - TOKEN_out) = k
             // TOKEN_out = vTOKEN - (k / (vSOL + SOL_in))
+            //
+            // IMPORTANT: Pump.fun charges ~1% fee ON TOP of the bonding curve price
+            // So we calculate tokens based on 97% of our SOL to leave room for fees
+            let sol_for_calculation = (net_amount_for_token as u128)
+                .checked_mul(97)
+                .ok_or(ErrorCode::MathError)?
+                .checked_div(100)
+                .ok_or(ErrorCode::MathError)? as u64;
+
             let k = (virtual_token_reserves as u128)
                 .checked_mul(virtual_sol_reserves as u128)
                 .ok_or(ErrorCode::MathError)?;
 
             let new_virtual_sol_reserves = (virtual_sol_reserves as u128)
-                .checked_add(net_amount_for_token as u128)
+                .checked_add(sol_for_calculation as u128)
                 .ok_or(ErrorCode::MathError)?;
 
             let new_virtual_token_reserves = k
@@ -288,8 +297,7 @@ pub fn handler(ctx: Context<ResolveMarket>) -> Result<()> {
                 .checked_sub(new_virtual_token_reserves)
                 .ok_or(ErrorCode::MathError)? as u64;
 
-            // Apply 1% slippage buffer to account for rounding and ensure transaction succeeds
-            // This guarantees we don't request more tokens than our SOL can buy
+            // Apply additional 1% slippage buffer for rounding errors
             let token_amount = (token_amount_exact as u128)
                 .checked_mul(99)
                 .ok_or(ErrorCode::MathError)?
