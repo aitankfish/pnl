@@ -150,7 +150,7 @@ export async function POST(request: NextRequest) {
       keys: [
         // 1. market
         { pubkey: marketPubkey, isSigner: false, isWritable: true },
-        // 2. market_vault (holds all SOL) - THIS WAS MISSING!
+        // 2. market_vault (holds all SOL)
         { pubkey: marketVaultPda, isSigner: false, isWritable: true },
         // 3. treasury
         { pubkey: treasuryPda, isSigner: false, isWritable: true },
@@ -170,29 +170,27 @@ export async function POST(request: NextRequest) {
         { pubkey: pumpPDAs.eventAuthority, isSigner: false, isWritable: false },
         // 11. pump_program
         { pubkey: PUMP_PROGRAM_ID, isSigner: false, isWritable: false },
-        // 12. creator (marked mut to avoid borrow conflict when creator === caller)
-        { pubkey: callerPubkey, isSigner: false, isWritable: true },
-        // 13. creator_vault
+        // 12. creator_vault (creator account removed to fix AccountBorrowFailed)
         { pubkey: creatorVault, isSigner: false, isWritable: true },
-        // 14. global_volume_accumulator
+        // 13. global_volume_accumulator
         { pubkey: globalVolumeAccumulator, isSigner: false, isWritable: true },
-        // 15. user_volume_accumulator
+        // 14. user_volume_accumulator
         { pubkey: userVolumeAccumulator, isSigner: false, isWritable: true },
-        // 16. fee_config
+        // 15. fee_config
         { pubkey: feeConfig, isSigner: false, isWritable: false },
-        // 17. fee_program
+        // 16. fee_program
         { pubkey: PUMP_FEE_PROGRAM_ID, isSigner: false, isWritable: false },
-        // 18. caller (signer)
+        // 17. caller (signer)
         { pubkey: callerPubkey, isSigner: true, isWritable: true },
-        // 19. system_program
+        // 18. system_program
         { pubkey: SystemProgram.programId, isSigner: false, isWritable: false },
-        // 20. token_program
+        // 19. token_program
         { pubkey: TOKEN_PROGRAM_ID, isSigner: false, isWritable: false },
-        // 21. token_2022_program
+        // 20. token_2022_program
         { pubkey: TOKEN_2022_PROGRAM_ID, isSigner: false, isWritable: false },
-        // 22. associated_token_program
+        // 21. associated_token_program
         { pubkey: ASSOCIATED_TOKEN_PROGRAM_ID, isSigner: false, isWritable: false },
-        // 23. rent
+        // 22. rent
         { pubkey: SYSVAR_RENT_PUBKEY, isSigner: false, isWritable: false },
       ],
       programId: programId,

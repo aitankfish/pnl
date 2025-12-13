@@ -86,13 +86,6 @@ pub struct ResolveMarket<'info> {
     /// CHECK: Hardcoded to pump.fun program ID
     pub pump_program: UncheckedAccount<'info>,
 
-    /// Token creator (from bonding curve)
-    /// Used to derive creator_vault PDA
-    /// CHECK: Passed by client, validated by Pump.fun during buy
-    /// NOTE: Marked as mut to avoid borrow conflict when creator === caller
-    #[account(mut)]
-    pub creator: UncheckedAccount<'info>,
-
     /// Creator vault PDA (Pump.fun)
     /// Derived from ["creator-vault", creator]
     /// CHECK: Pump.fun program validates this
