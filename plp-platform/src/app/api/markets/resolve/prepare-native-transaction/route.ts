@@ -69,7 +69,10 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const creatorAddress = creator || callerWallet;
+    // IMPORTANT: creator must be the founder (who created the token), NOT the caller
+    // This prevents AccountBorrowFailed when caller === creator
+    // The token is created with founder as creator in createV2Instruction
+    const creatorAddress = creator || founderWallet;
 
     logger.info('[NATIVE] Preparing native atomic transaction for token launch + resolution', {
       marketAddress,
