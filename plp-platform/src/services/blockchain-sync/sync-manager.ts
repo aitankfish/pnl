@@ -273,6 +273,7 @@ export class SyncManager {
             totalNoStake: derived.totalNoStake,
             availableActions: derived.availableActions,
             tokenMint: marketData.tokenMint,
+            pumpFunTokenAddress: marketData.tokenMint, // Keep both for schema consistency
             platformTokensAllocated: marketData.platformTokensAllocated,
             platformTokensClaimed: marketData.platformTokensClaimed,
             yesVoterTokensAllocated: marketData.yesVoterTokensAllocated,
