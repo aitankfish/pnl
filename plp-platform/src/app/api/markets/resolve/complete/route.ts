@@ -82,22 +82,23 @@ export async function POST(request: NextRequest) {
     }
 
     // Determine resolution outcome
-    // Rust enum: 0=Unresolved, 1=YesWins, 2=NoWins, 3=Refund
+    // Anchor 0.30+ returns enums as objects like { yesWins: {} }
     let resolutionOutcome = 'Unknown';
-    if (marketAccount.resolution === 0) {
+    const resolutionKey = Object.keys(marketAccount.resolution)[0];
+    if (resolutionKey === 'unresolved') {
       resolutionOutcome = 'Unresolved';
-    } else if (marketAccount.resolution === 1) {
+    } else if (resolutionKey === 'yesWins') {
       resolutionOutcome = 'YesWins';
-    } else if (marketAccount.resolution === 2) {
+    } else if (resolutionKey === 'noWins') {
       resolutionOutcome = 'NoWins';
-    } else if (marketAccount.resolution === 3) {
+    } else if (resolutionKey === 'refund') {
       resolutionOutcome = 'Refund';
     }
 
     logger.info('Market resolved', {
       marketAddress,
       resolution: resolutionOutcome,
-      winningOption: marketAccount.winningOption,
+      resolutionKey,
     });
 
     // Connect to database first (outside retry loop so db is in scope for notifications)
@@ -114,10 +115,11 @@ export async function POST(request: NextRequest) {
         logger.info(`Database update attempt ${attempt}/${maxRetries}`);
 
         // Prepare update data
+        // Note: Market struct doesn't have marketState or winningOption fields
+        // Resolution outcome is derived from the resolution enum
         const updateData: any = {
-          marketState: marketAccount.marketState,
-          winningOption: marketAccount.winningOption,
           resolution: resolutionOutcome,
+          phase: Object.keys(marketAccount.phase)[0], // 'prediction' or 'funding'
           resolvedAt: new Date(),
           updatedAt: new Date(),
         };
@@ -185,7 +187,7 @@ export async function POST(request: NextRequest) {
             data: {
               signature,
               resolution: resolutionOutcome,
-              winningOption: marketAccount.winningOption,
+              tokenMint: marketAccount.tokenMint?.toBase58() || tokenMint || null,
               message: 'Market resolved successfully! (notifications skipped)',
             },
           });
@@ -274,7 +276,7 @@ export async function POST(request: NextRequest) {
       data: {
         signature,
         resolution: resolutionOutcome,
-        winningOption: marketAccount.winningOption,
+        tokenMint: marketAccount.tokenMint?.toBase58() || tokenMint || null,
         message: 'Market resolved successfully!',
       },
     });
