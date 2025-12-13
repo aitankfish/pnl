@@ -20,7 +20,7 @@ const logger = createClientLogger();
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { marketId, marketAddress, signature, tokenMint } = body;
+    const { marketId, marketAddress, signature, tokenMint, network } = body;
 
     // Validate inputs
     if (!marketId || !marketAddress || !signature) {
@@ -33,16 +33,22 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // Determine network (default to mainnet for production)
+    const targetNetwork = (network as 'devnet' | 'mainnet-beta') ||
+      (process.env.NEXT_PUBLIC_SOLANA_NETWORK as 'devnet' | 'mainnet-beta') ||
+      'mainnet-beta';
+
     logger.info('Updating database after market resolution', {
       marketId,
       marketAddress,
       signature,
       tokenMint,
+      network: targetNetwork,
     });
 
     // Fetch the updated market state from blockchain (with retry for RPC lag)
-    const connection = await getSolanaConnection();
-    const program = getProgram(); // getProgram creates its own connection, don't pass wallet for read-only
+    const connection = await getSolanaConnection(targetNetwork);
+    const program = getProgram(undefined, targetNetwork); // Pass network for correct RPC/program ID
     const marketPubkey = new PublicKey(marketAddress);
 
     logger.info('Fetching updated market state from blockchain...');

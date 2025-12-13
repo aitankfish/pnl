@@ -159,6 +159,7 @@ export function useResolution() {
           marketId: params.marketId,
           marketAddress: params.marketAddress,
           signature,
+          network,
         }),
       });
 
@@ -631,6 +632,7 @@ export function useResolution() {
           marketAddress: params.marketAddress,
           signature: txSignature,
           tokenMint: mintKeypair.publicKey.toBase58(),
+          network,
         }),
       });
 
