@@ -1,0 +1,14 @@
+<svg width="200" height="200" viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <radialGradient id="blackhole-grad">
+      <stop offset="0%" style="stop-color:#000000;stop-opacity:1" />
+      <stop offset="50%" style="stop-color:#7c3aed;stop-opacity:0.8" />
+      <stop offset="100%" style="stop-color:#f97316;stop-opacity:0.6" />
+    </radialGradient>
+  </defs>
+  <rect width="200" height="200" fill="#0a0520"/>
+  <circle cx="100" cy="100" r="90" fill="url(#blackhole-grad)" opacity="0.8"/>
+  <circle cx="100" cy="100" r="35" fill="#000000"/>
+  <ellipse cx="100" cy="100" rx="65" ry="20" fill="none" stroke="#f97316" stroke-width="2" opacity="0.7" transform="rotate(30 100 100)"/>
+  <ellipse cx="100" cy="100" rx="55" ry="15" fill="none" stroke="#7c3aed" stroke-width="2" opacity="0.6" transform="rotate(60 100 100)"/>
+</svg>

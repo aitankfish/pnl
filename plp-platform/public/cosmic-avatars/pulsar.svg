@@ -1,0 +1,15 @@
+<svg width="200" height="200" viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <radialGradient id="pulsar-grad">
+      <stop offset="0%" style="stop-color:#22d3ee;stop-opacity:1" />
+      <stop offset="50%" style="stop-color:#3b82f6;stop-opacity:0.8" />
+      <stop offset="100%" style="stop-color:#1e3a8a;stop-opacity:0.5" />
+    </radialGradient>
+  </defs>
+  <rect width="200" height="200" fill="#000a1a"/>
+  <circle cx="100" cy="100" r="75" fill="url(#pulsar-grad)" opacity="0.6"/>
+  <circle cx="100" cy="100" r="25" fill="#22d3ee" opacity="0.9"/>
+  <line x1="100" y1="30" x2="100" y2="70" stroke="#22d3ee" stroke-width="3" opacity="0.7"/>
+  <line x1="100" y1="130" x2="100" y2="170" stroke="#22d3ee" stroke-width="3" opacity="0.7"/>
+  <circle cx="100" cy="100" r="10" fill="#ffffff"/>
+</svg>

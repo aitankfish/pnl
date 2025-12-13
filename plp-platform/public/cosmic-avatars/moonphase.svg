@@ -1,0 +1,17 @@
+<svg width="200" height="200" viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <radialGradient id="moon-grad">
+      <stop offset="0%" style="stop-color:#e0e7ff;stop-opacity:1" />
+      <stop offset="70%" style="stop-color:#a5b4fc;stop-opacity:0.9" />
+      <stop offset="100%" style="stop-color:#6366f1;stop-opacity:0.6" />
+    </radialGradient>
+  </defs>
+  <rect width="200" height="200" fill="#0c0a20"/>
+  <circle cx="100" cy="100" r="70" fill="url(#moon-grad)" opacity="0.9"/>
+  <circle cx="85" cy="85" r="8" fill="#c7d2fe" opacity="0.4"/>
+  <circle cx="120" cy="110" r="12" fill="#c7d2fe" opacity="0.3"/>
+  <circle cx="95" cy="120" r="6" fill="#c7d2fe" opacity="0.35"/>
+  <circle cx="30" cy="40" r="1.5" fill="#ffffff"/>
+  <circle cx="170" cy="60" r="1.5" fill="#ffffff"/>
+  <circle cx="160" cy="140" r="2" fill="#ffffff"/>
+</svg>

@@ -4,16 +4,20 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import Link from 'next/link';
-import { TrendingUp, Users, Rocket, Shield, Zap, CheckCircle, ExternalLink, ArrowRight, XCircle } from 'lucide-react';
-import { motion } from 'framer-motion';
+import { Users, Rocket, Shield, Zap, CheckCircle, ExternalLink, ArrowRight, XCircle, ChevronDown } from 'lucide-react';
+import { motion, useScroll, useTransform, useInView } from 'framer-motion';
+import { useEffect, useRef, useState } from 'react';
+import { useWallet } from '@/hooks/useWallet';
+import { useRouter } from 'next/navigation';
+import CosmicOnboardingModal from '@/components/CosmicOnboardingModal';
 
-// Animation variants
+// Animation variants with smoother easing
 const fadeInUp = {
   hidden: { opacity: 0, y: 60 },
   visible: {
     opacity: 1,
     y: 0,
-    transition: { duration: 0.6 }
+    transition: { duration: 0.6, ease: [0.22, 1, 0.36, 1] }
   }
 };
 
@@ -22,112 +26,574 @@ const scaleIn = {
   visible: {
     opacity: 1,
     scale: 1,
-    transition: { duration: 0.5 }
+    transition: { duration: 0.5, ease: [0.22, 1, 0.36, 1] }
   }
 };
 
-export default function HomePage() {
+const staggerContainer = {
+  hidden: { opacity: 0 },
+  visible: {
+    opacity: 1,
+    transition: {
+      staggerChildren: 0.1,
+      delayChildren: 0.2
+    }
+  }
+};
+
+const staggerItem = {
+  hidden: { opacity: 0, y: 20 },
+  visible: {
+    opacity: 1,
+    y: 0,
+    transition: { duration: 0.5, ease: [0.22, 1, 0.36, 1] }
+  }
+};
+
+// Counter animation component
+function Counter({ end, duration = 2, suffix = '' }: { end: number; duration?: number; suffix?: string }) {
+  const [count, setCount] = useState(0);
+  const countRef = useRef(null);
+  const isInView = useInView(countRef, { once: true });
+
+  useEffect(() => {
+    if (!isInView) return;
+
+    let startTime: number | null = null;
+    const startValue = 0;
+
+    const animate = (currentTime: number) => {
+      if (!startTime) startTime = currentTime;
+      const elapsed = currentTime - startTime;
+      const progress = Math.min(elapsed / (duration * 1000), 1);
+
+      const easeOutQuart = 1 - Math.pow(1 - progress, 4);
+      const current = Math.floor(startValue + (end - startValue) * easeOutQuart);
+
+      setCount(current);
+
+      if (progress < 1) {
+        requestAnimationFrame(animate);
+      }
+    };
+
+    requestAnimationFrame(animate);
+  }, [isInView, end, duration]);
+
+  return <span ref={countRef}>{count}{suffix}</span>;
+}
+
+// 3D Tilt Card Component
+function TiltCard({ children, className = '' }: { children: React.ReactNode; className?: string }) {
+  const [rotateX, setRotateX] = useState(0);
+  const [rotateY, setRotateY] = useState(0);
+  const cardRef = useRef<HTMLDivElement>(null);
+
+  const handleMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
+    if (!cardRef.current) return;
+
+    const rect = cardRef.current.getBoundingClientRect();
+    const x = e.clientX - rect.left;
+    const y = e.clientY - rect.top;
+
+    const centerX = rect.width / 2;
+    const centerY = rect.height / 2;
+
+    const rotateXValue = (y - centerY) / 20;
+    const rotateYValue = (centerX - x) / 20;
+
+    setRotateX(rotateXValue);
+    setRotateY(rotateYValue);
+  };
+
+  const handleMouseLeave = () => {
+    setRotateX(0);
+    setRotateY(0);
+  };
+
   return (
-    <div className="space-y-12 md:space-y-20 pt-3 sm:pt-4 px-3 sm:px-6 pb-8 md:pb-12 relative">
-        {/* Hero Section */}
-        <div className="text-center space-y-6 max-w-5xl mx-auto relative min-h-[calc(100vh-80px)] flex flex-col justify-center">
+    <div
+      ref={cardRef}
+      onMouseMove={handleMouseMove}
+      onMouseLeave={handleMouseLeave}
+      style={{
+        transform: `perspective(1000px) rotateX(${rotateX}deg) rotateY(${rotateY}deg)`,
+        transition: 'transform 0.1s ease-out'
+      }}
+      className={className}
+    >
+      {children}
+    </div>
+  );
+}
+
+export default function HomePage() {
+  const { scrollYProgress } = useScroll();
+  const heroOpacity = useTransform(scrollYProgress, [0, 0.3], [1, 0]);
+  const heroScale = useTransform(scrollYProgress, [0, 0.3], [1, 0.95]);
+  const { authenticated, user, login } = useWallet();
+  const router = useRouter();
+  const [showOnboardingModal, setShowOnboardingModal] = useState(false);
+  const [isSettingUpProfile, setIsSettingUpProfile] = useState(false);
+  const hasSetupProfileRef = useRef(false);
+
+  // If user is already authenticated on mount, redirect to browse
+  useEffect(() => {
+    if (authenticated && user) {
+      console.log('🎯 User already authenticated on mount, redirecting to /browse');
+      router.push('/browse');
+    }
+  }, []);
+
+  // Auto-setup profile after authentication
+  useEffect(() => {
+    const setupProfile = async () => {
+      console.log('🔍 Auth state check:', { authenticated, hasUser: !!user, isSettingUpProfile, hasSaved: hasSetupProfileRef.current });
+
+      if (authenticated && user && !hasSetupProfileRef.current) {
+        const walletAddress = user.wallet?.address;
+        if (!walletAddress) {
+          router.push('/browse');
+          setShowOnboardingModal(false);
+          setIsSettingUpProfile(false);
+          return;
+        }
+
+        hasSetupProfileRef.current = true;
+
+        // Immediately redirect to browse - profile creation happens in background
+        console.log('🚀 User authenticated! Redirecting to /browse...');
+        setShowOnboardingModal(false);
+        setIsSettingUpProfile(false);
+        router.push('/browse');
+
+        // Background profile setup
+        try {
+          // Check if profile already exists and has username
+          const checkResponse = await fetch(`/api/profile/${walletAddress}`);
+          const checkResult = await checkResponse.json();
+
+          if (checkResult.success && checkResult.data?.username) {
+            // User already has a profile - nothing to do
+            console.log('✅ Existing user detected - profile already exists');
+            return;
+          }
+
+          // New user - generate random profile in background
+          console.log('🎲 New user detected, generating random profile in background...');
+
+          // Generate random username
+          const adjectives = ['Cosmic', 'Stellar', 'Lunar', 'Solar', 'Astral', 'Nebula', 'Galactic', 'Celestial', 'Orbit', 'Quantum'];
+          const nouns = ['Explorer', 'Voyager', 'Pioneer', 'Wanderer', 'Navigator', 'Traveler', 'Seeker', 'Dreamer', 'Rider', 'Hunter'];
+          const randomNum = Math.floor(Math.random() * 1000);
+          const randomUsername = `${adjectives[Math.floor(Math.random() * adjectives.length)]}${nouns[Math.floor(Math.random() * nouns.length)]}${randomNum}`;
+
+          // Random cosmic avatar
+          const cosmicAvatars = [
+            '/cosmic-avatars/nebula.svg',
+            '/cosmic-avatars/galaxy.svg',
+            '/cosmic-avatars/pulsar.svg',
+            '/cosmic-avatars/blackhole.svg',
+            '/cosmic-avatars/supernova.svg',
+            '/cosmic-avatars/quasar.svg',
+            '/cosmic-avatars/moonphase.svg',
+            '/cosmic-avatars/starcluster.svg',
+            '/cosmic-avatars/comet.svg'
+          ];
+          const randomAvatar = cosmicAvatars[Math.floor(Math.random() * cosmicAvatars.length)];
+
+          console.log('💾 Saving profile in background:', { username: randomUsername, avatar: randomAvatar });
+
+          // Save profile
+          const response = await fetch('/api/profile/update', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              walletAddress,
+              username: randomUsername,
+              profilePhotoUrl: randomAvatar,
+              email: user?.email,
+            }),
+          });
+
+          const result = await response.json();
+
+          if (result.success) {
+            console.log('✅ Background profile creation completed successfully');
+          } else {
+            console.error('❌ Background profile creation failed:', result);
+          }
+        } catch (error) {
+          console.error('💥 Error in background profile setup:', error);
+        }
+      }
+    };
+
+    setupProfile();
+  }, [authenticated, user, isSettingUpProfile, router]);
+
+  const handleLaunchClick = (e: React.MouseEvent) => {
+    e.preventDefault();
+    if (!authenticated) {
+      // User not logged in - show onboarding modal with choice
+      setShowOnboardingModal(true);
+    } else {
+      // User is authenticated - navigate to browse page
+      router.push('/browse');
+    }
+  };
+
+  const handleJoinUniverse = () => {
+    // Keep modal open, show it's processing, and trigger Privy login
+    setIsSettingUpProfile(true);
+    login();
+  };
+
+  const handleContinueAsGuest = () => {
+    // Close modal and go to browse without auth
+    setShowOnboardingModal(false);
+    router.push('/browse');
+  };
+
+  return (
+    <>
+      <div className="space-y-12 md:space-y-20 pt-3 sm:pt-4 px-3 sm:px-6 pb-8 md:pb-12 relative overflow-hidden">
+        {/* Cosmic gradient background */}
+        <div className="fixed inset-0 -z-10 bg-gradient-to-b from-purple-900/20 via-black to-black"></div>
+
+        {/* Dense twinkling starfield with varied colors and sizes */}
+        <div className="fixed inset-0 pointer-events-none z-0">
+          {[...Array(500)].map((_, i) => {
+            // More size variety
+            const sizeRand = Math.random();
+            const size = sizeRand > 0.95 ? '3px' : sizeRand > 0.85 ? '2.5px' : sizeRand > 0.7 ? '2px' : sizeRand > 0.5 ? '1.5px' : '1px';
+
+            // More vibrant color variety with cosmic palette
+            const colors = [
+              '#ffffff',   // white
+              '#93c5fd',   // blue
+              '#c4b5fd',   // purple
+              '#fde047',   // yellow
+              '#7dd3fc',   // cyan
+              '#fbbf24',   // amber/gold
+              '#f9a8d4',   // pink
+              '#6ee7b7',   // emerald
+              '#d8b4fe',   // violet
+              '#fb923c',   // orange
+              '#60a5fa',   // bright blue
+              '#a78bfa',   // lavender
+            ];
+            const color = colors[Math.floor(Math.random() * colors.length)];
+
+            // More varied durations
+            const duration = 1.5 + Math.random() * 5;
+            const delay = Math.random() * 6;
+
+            return (
+              <motion.div
+                key={i}
+                className="absolute rounded-full"
+                style={{
+                  width: size,
+                  height: size,
+                  background: color,
+                  boxShadow: `0 0 ${size === '3px' ? '6px' : size === '2.5px' ? '5px' : size === '2px' ? '4px' : '2px'} ${color}`,
+                  left: `${Math.random() * 100}%`,
+                  top: `${Math.random() * 100}%`,
+                }}
+                initial={{ opacity: 0, scale: 0 }}
+                animate={{
+                  opacity: [0, 0.4, 1, 0.4],
+                  scale: [0, 0.8, 1.2, 0.8],
+                }}
+                transition={{
+                  duration: duration,
+                  repeat: Infinity,
+                  delay: delay,
+                  ease: 'easeInOut',
+                }}
+              />
+            );
+          })}
+        </div>
+
+        {/* Subtle shooting stars in background */}
+        <div className="fixed inset-0 pointer-events-none z-0 opacity-30">
+          {[
+            { startX: 10, startY: 15, endX: 35, endY: 45, delay: 4 },
+            { startX: 90, startY: 25, endX: 60, endY: 55, delay: 12 },
+            { startX: 20, startY: 60, endX: 50, endY: 85, delay: 20 },
+          ].map((star, i) => (
+            <motion.div
+              key={`shooting-star-${i}`}
+              className="absolute"
+              style={{
+                left: `${star.startX}%`,
+                top: `${star.startY}%`,
+              }}
+              animate={{
+                x: [`0vw`, `${star.endX - star.startX}vw`],
+                y: [`0vh`, `${star.endY - star.startY}vh`],
+                opacity: [0, 0.6, 0],
+              }}
+              transition={{
+                duration: 2.5,
+                repeat: Infinity,
+                delay: star.delay,
+                repeatDelay: 25,
+                ease: 'linear',
+              }}
+            >
+              <div className="relative">
+                {/* Star head */}
+                <div className="w-[3px] h-[3px] bg-white rounded-full blur-[0.5px]" />
+                {/* Subtle tail */}
+                <div
+                  className="absolute top-0 left-0 w-[40px] h-[1px] bg-gradient-to-l from-white/40 to-transparent"
+                  style={{ transform: 'translateX(-40px)' }}
+                />
+              </div>
+            </motion.div>
+          ))}
+        </div>
+
+        {/* Hero Section with parallax */}
+        <motion.div
+          initial={{ opacity: 1 }}
+          animate={{ opacity: 1 }}
+          style={{ opacity: heroOpacity, scale: heroScale }}
+          className="text-center space-y-6 max-w-5xl mx-auto relative min-h-[calc(100vh-80px)] flex flex-col justify-center z-10"
+        >
 
           <h1 className="text-4xl font-bold tracking-tight sm:text-5xl md:text-6xl lg:text-7xl text-white leading-tight relative z-10">
-            {/* Glowing sun background effect - Fades in slowly after constellation stars */}
+            {/* Glowing sun background effect - Fades in first */}
             <motion.div
               className="absolute inset-0 -z-10 flex items-center justify-center pointer-events-none"
               style={{ top: '75%' }}
-              initial={{ opacity: 0, scale: 0.5 }}
-              animate={{ opacity: 0.4, scale: 1.2 }}
-              transition={{ duration: 2, delay: 2.5, ease: 'easeOut' }}
+              initial={{ opacity: 0, scale: 0.3 }}
+              animate={{ opacity: 0.5, scale: 1.2 }}
+              transition={{ duration: 2.5, delay: 0.5, ease: 'easeOut' }}
             >
               <div className="w-80 h-80 md:w-[450px] md:h-[450px] bg-gradient-to-r from-yellow-200 via-orange-200 to-yellow-100 rounded-full blur-3xl animate-pulse"></div>
             </motion.div>
 
-            {/* Headline text - Appears after glow with wave animation */}
-            <span>
+            {/* Headline text - Appears after glow */}
+            <div>
               <motion.span
                 className="text-transparent bg-clip-text cursor-pointer relative inline-block overflow-hidden"
                 style={{
-                  backgroundImage: 'linear-gradient(to right, rgb(107 114 128) 0%, rgb(209 213 219) 50%, rgb(107 114 128) 100%)',
+                  backgroundImage: 'linear-gradient(to right, rgb(209 213 219) 0%, rgb(255 255 255) 50%, rgb(209 213 219) 100%)',
                   backgroundSize: '200% 100%',
                   backgroundPosition: '0% 0%',
-                  filter: 'drop-shadow(0 0 20px rgba(160, 160, 160, 0.4)) drop-shadow(0 2px 4px rgba(0, 0, 0, 0.3))',
-                  WebkitTextStroke: '0.5px rgba(140, 140, 140, 0.3)',
+                  filter: 'drop-shadow(0 0 30px rgba(255, 255, 255, 0.8)) drop-shadow(0 0 15px rgba(209, 213, 219, 0.6)) drop-shadow(0 2px 8px rgba(0, 0, 0, 0.4))',
+                  WebkitTextStroke: '0.5px rgba(200, 200, 200, 0.4)',
                   transition: 'background-position 0.3s ease, filter 0.3s ease',
                 }}
-                initial={{ opacity: 0, x: -50 }}
-                animate={{ opacity: 1, x: 0 }}
-                transition={{ duration: 0.8, delay: 5, ease: 'easeOut' }}
+                initial={{ opacity: 0, y: 30 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 1, delay: 2.5, ease: 'easeOut' }}
                 onMouseMove={(e) => {
                   const rect = e.currentTarget.getBoundingClientRect();
                   const x = ((e.clientX - rect.left) / rect.width) * 100;
-                  e.currentTarget.style.backgroundImage = 'linear-gradient(to right, rgb(107 114 128) 0%, rgb(230 230 230) 50%, rgb(107 114 128) 100%)';
+                  e.currentTarget.style.backgroundImage = 'linear-gradient(to right, rgb(209 213 219) 0%, rgb(255 255 255) 50%, rgb(209 213 219) 100%)';
                   e.currentTarget.style.backgroundPosition = `${x}% 0%`;
-                  e.currentTarget.style.filter = 'drop-shadow(0 0 25px rgba(200, 200, 200, 0.5)) drop-shadow(0 0 12px rgba(180, 180, 180, 0.4))';
+                  e.currentTarget.style.filter = 'drop-shadow(0 0 40px rgba(255, 255, 255, 1)) drop-shadow(0 0 20px rgba(209, 213, 219, 0.8)) drop-shadow(0 2px 12px rgba(0, 0, 0, 0.5))';
                 }}
                 onMouseLeave={(e) => {
-                  e.currentTarget.style.backgroundImage = 'linear-gradient(to right, rgb(107 114 128) 0%, rgb(209 213 219) 50%, rgb(107 114 128) 100%)';
+                  e.currentTarget.style.backgroundImage = 'linear-gradient(to right, rgb(209 213 219) 0%, rgb(255 255 255) 50%, rgb(209 213 219) 100%)';
                   e.currentTarget.style.backgroundPosition = '0% 0%';
-                  e.currentTarget.style.filter = 'drop-shadow(0 0 20px rgba(160, 160, 160, 0.4)) drop-shadow(0 2px 4px rgba(0, 0, 0, 0.3))';
+                  e.currentTarget.style.filter = 'drop-shadow(0 0 30px rgba(255, 255, 255, 0.8)) drop-shadow(0 0 15px rgba(209, 213, 219, 0.6)) drop-shadow(0 2px 8px rgba(0, 0, 0, 0.4))';
                 }}
               >
                 Discover Ideas
               </motion.span>
               <br />
               <motion.span
-                className="text-transparent bg-clip-text bg-gradient-to-r from-yellow-600 via-orange-500 to-amber-600 inline-block overflow-hidden"
+                className="text-transparent bg-clip-text bg-gradient-to-r from-yellow-600 via-orange-500 to-amber-600 inline-block overflow-hidden cursor-pointer relative"
                 initial={{ width: 0, opacity: 0 }}
                 animate={{ width: 'auto', opacity: 1 }}
-                transition={{ duration: 0.8, delay: 5.5, ease: 'easeInOut' }}
-                style={{ whiteSpace: 'nowrap' }}
+                transition={{
+                  duration: 2.8,
+                  delay: 3.8,
+                  ease: [0.4, 0, 0.2, 1] // Natural flow - steady pace with smooth ending
+                }}
+                style={{
+                  whiteSpace: 'nowrap',
+                  filter: 'drop-shadow(0 0 20px rgba(251, 146, 60, 0.6))',
+                  transition: 'all 0.4s ease',
+                }}
+                whileHover={{
+                  scale: 1.05,
+                  filter: 'drop-shadow(0 0 40px rgba(251, 146, 60, 1)) drop-shadow(0 0 60px rgba(234, 179, 8, 0.8))',
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.backgroundImage = 'linear-gradient(to right, rgb(234 179 8) 0%, rgb(251 146 60) 50%, rgb(245 158 11) 100%)';
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.backgroundImage = '';
+                }}
               >
                 In Their Genesis
               </motion.span>
-            </span>
+            </div>
           </h1>
 
           <motion.div
             initial={{ opacity: 0, scale: 0.9 }}
             animate={{ opacity: 1, scale: 1 }}
-            transition={{ duration: 0.5, delay: 6.1 }}
+            transition={{ duration: 0.6, delay: 5.3 }}
             className="flex justify-center"
           >
-            <span className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-purple-500/10 border border-purple-500/20 text-purple-300 text-sm font-medium">
-              <Zap className="w-4 h-4" />
-              Let the Market Decide
-            </span>
+            <div className="relative group">
+              <div className="absolute -inset-0.5 bg-gradient-to-r from-purple-600 to-cyan-500 rounded-full blur opacity-40 group-hover:opacity-75 transition duration-500"></div>
+              <span className="relative inline-flex items-center gap-2 px-5 py-2.5 rounded-full bg-purple-900/40 backdrop-blur-sm border border-purple-400/30 text-purple-200 text-sm font-semibold">
+                <Zap className="w-4 h-4 text-cyan-400" />
+                Let the Market Decide
+              </span>
+            </div>
           </motion.div>
 
           <motion.p
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.6, delay: 6.5 }}
+            transition={{ duration: 0.7, delay: 5.8 }}
             className="text-lg md:text-xl text-gray-300 max-w-3xl mx-auto leading-relaxed"
           >
             The first platform where <span className="text-cyan-400 font-semibold">community validates ideas</span> through prediction markets, giving you early access to tomorrow's breakthrough projects.
           </motion.p>
 
           <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.6, delay: 6.9 }}
-            className="flex flex-col sm:flex-row gap-4 justify-center pt-4"
+            initial={{ opacity: 0, scale: 0.9 }}
+            animate={{ opacity: 1, scale: 1 }}
+            transition={{ duration: 0.8, delay: 6.4, ease: [0.22, 1, 0.36, 1] }}
+            className="flex justify-center pt-6"
           >
-            <Button asChild size="lg" className="bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-600 hover:to-blue-700 text-white font-semibold text-base px-8 py-6 rounded-xl shadow-lg shadow-cyan-500/25">
-              <Link href="/browse">
-                <TrendingUp className="w-5 h-5 mr-2" />
-                Explore Projects
-              </Link>
-            </Button>
-            <Button asChild size="lg" variant="outline" className="border-2 border-white/20 text-white hover:bg-white/10 font-semibold text-base px-8 py-6 rounded-xl">
-              <Link href="/create">
-                <Rocket className="w-5 h-5 mr-2" />
-                Launch Your Idea
-              </Link>
-            </Button>
+            <div className="relative group">
+              {/* Outer cosmic glow - multiple layers */}
+              <div className="absolute -inset-2 bg-gradient-to-r from-violet-600 via-purple-500 to-fuchsia-600 rounded-2xl blur-2xl opacity-40 group-hover:opacity-70 transition duration-700"></div>
+              <div className="absolute -inset-1 bg-gradient-to-r from-cyan-400 via-blue-500 to-purple-600 rounded-2xl blur-xl opacity-30 group-hover:opacity-60 transition duration-500"></div>
+
+              {/* Button with transparent background */}
+              <Button
+                onClick={handleLaunchClick}
+                size="lg"
+                className="relative overflow-hidden bg-transparent text-white font-bold text-xl px-14 py-8 rounded-2xl shadow-2xl transition-all hover:scale-105 border-2 border-purple-400/40 backdrop-blur-sm group-hover:border-cyan-400/60 group-hover:backdrop-blur-md"
+              >
+                <div className="flex items-center gap-4 relative z-10">
+                  {/* Twinkling stars inside the button */}
+                  <div className="absolute inset-0 overflow-hidden rounded-2xl pointer-events-none">
+                    {[...Array(25)].map((_, i) => {
+                      const size = Math.random() > 0.7 ? '2px' : '1.5px';
+                      const colors = ['#ffffff', '#93c5fd', '#c4b5fd', '#7dd3fc', '#a78bfa'];
+                      const color = colors[Math.floor(Math.random() * colors.length)];
+                      const duration = 1 + Math.random() * 3;
+                      const delay = Math.random() * 4;
+
+                      return (
+                        <motion.div
+                          key={i}
+                          className="absolute rounded-full"
+                          style={{
+                            width: size,
+                            height: size,
+                            background: color,
+                            boxShadow: `0 0 ${size === '2px' ? '4px' : '3px'} ${color}`,
+                            left: `${5 + Math.random() * 90}%`,
+                            top: `${10 + Math.random() * 80}%`,
+                          }}
+                          animate={{
+                            opacity: [0.2, 1, 0.2],
+                            scale: [0.8, 1.2, 0.8],
+                          }}
+                          transition={{
+                            duration: duration,
+                            repeat: Infinity,
+                            delay: delay,
+                            ease: 'easeInOut',
+                          }}
+                        />
+                      );
+                    })}
+                  </div>
+
+                  {/* Cosmic particles floating around rocket */}
+                  <div className="absolute -left-8 top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 transition-opacity duration-500">
+                    {[...Array(3)].map((_, i) => (
+                      <motion.div
+                        key={i}
+                        className="absolute w-1 h-1 bg-cyan-400 rounded-full"
+                        animate={{
+                          x: [-10, 0],
+                          y: [0, -8 * (i + 1), 0],
+                          opacity: [0, 1, 0],
+                          scale: [0, 1.5, 0],
+                        }}
+                        transition={{
+                          duration: 1.5,
+                          repeat: Infinity,
+                          delay: i * 0.3,
+                          ease: "easeOut",
+                        }}
+                      />
+                    ))}
+                  </div>
+
+                  <motion.div
+                    animate={{ rotate: [0, 10, -10, 0] }}
+                    transition={{ duration: 0.5, repeat: Infinity, repeatDelay: 3 }}
+                    className="relative"
+                  >
+                    <Rocket className="w-7 h-7 drop-shadow-[0_0_8px_rgba(6,182,212,0.8)]" />
+                  </motion.div>
+
+                  <span className="tracking-wide bg-gradient-to-r from-white via-cyan-100 to-purple-100 bg-clip-text text-transparent drop-shadow-[0_0_10px_rgba(255,255,255,0.5)]">
+                    Launch
+                  </span>
+
+                  <motion.div
+                    animate={{ x: [0, 5, 0] }}
+                    transition={{ duration: 1.5, repeat: Infinity, ease: "easeInOut" }}
+                    className="relative"
+                  >
+                    <ArrowRight className="w-7 h-7 drop-shadow-[0_0_8px_rgba(168,85,247,0.8)]" />
+                  </motion.div>
+                </div>
+              </Button>
+            </div>
           </motion.div>
-        </div>
+
+          {/* Scroll Indicator */}
+          <motion.div
+            initial={{ opacity: 0, y: -10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.8, delay: 7.5, ease: [0.22, 1, 0.36, 1] }}
+            className="absolute bottom-12 left-0 right-0 flex justify-center"
+          >
+            <motion.div
+              animate={{ y: [0, 8, 0] }}
+              transition={{
+                duration: 2,
+                repeat: Infinity,
+                ease: "easeInOut"
+              }}
+              className="flex flex-col items-center"
+            >
+              <span className="text-sm text-gray-400 mb-2 text-center">Scroll to explore</span>
+              <div className="w-6 h-10 border-2 border-gray-400/50 rounded-full flex items-start justify-center p-2">
+                <motion.div
+                  animate={{ y: [0, 12, 0], opacity: [0.5, 1, 0.5] }}
+                  transition={{
+                    duration: 2,
+                    repeat: Infinity,
+                    ease: "easeInOut"
+                  }}
+                  className="w-1.5 h-1.5 bg-gray-400 rounded-full"
+                />
+              </div>
+              <ChevronDown className="w-5 h-5 text-gray-400 mt-1" />
+            </motion.div>
+          </motion.div>
+        </motion.div>
 
         {/* Story Introduction */}
         <motion.div
@@ -232,8 +698,8 @@ export default function HomePage() {
             </div>
 
             {/* Market Card Mockup */}
-            <div>
-              <Card className="bg-gradient-to-br from-gray-900/50 to-gray-800/30 backdrop-blur-sm border-cyan-500/20 hover:border-cyan-400/40 transition-all">
+            <TiltCard>
+              <Card className="bg-gradient-to-br from-gray-900/50 to-gray-800/30 backdrop-blur-sm border-cyan-500/20 hover:border-cyan-400/40 transition-all shadow-xl hover:shadow-cyan-500/20">
                 <CardContent className="p-5">
                   <div className="flex items-start gap-3 mb-4">
                     <div className="w-12 h-12 bg-gradient-to-r from-cyan-500 to-blue-500 rounded-xl flex items-center justify-center text-xl">
@@ -279,7 +745,7 @@ export default function HomePage() {
                   </div>
                 </CardContent>
               </Card>
-            </div>
+            </TiltCard>
           </div>
 
           <div className="text-center">
@@ -802,6 +1268,17 @@ export default function HomePage() {
             </Button>
           </div>
         </motion.div>
-    </div>
+
+      </div>
+
+      {/* Cosmic Onboarding Modal */}
+      <CosmicOnboardingModal
+        isOpen={showOnboardingModal}
+        onClose={() => setShowOnboardingModal(false)}
+        onJoinUniverse={handleJoinUniverse}
+        onContinueAsGuest={handleContinueAsGuest}
+        isSettingUpProfile={isSettingUpProfile}
+      />
+    </>
   );
 }

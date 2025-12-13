@@ -1,0 +1,19 @@
+<svg width="200" height="200" viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <radialGradient id="cluster-grad">
+      <stop offset="0%" style="stop-color:#fde047;stop-opacity:1" />
+      <stop offset="50%" style="stop-color:#f472b6;stop-opacity:0.7" />
+      <stop offset="100%" style="stop-color:#6366f1;stop-opacity:0.4" />
+    </radialGradient>
+  </defs>
+  <rect width="200" height="200" fill="#030712"/>
+  <circle cx="100" cy="100" r="85" fill="url(#cluster-grad)" opacity="0.5"/>
+  <circle cx="100" cy="80" r="8" fill="#fde047"/>
+  <circle cx="85" cy="100" r="6" fill="#f472b6"/>
+  <circle cx="115" cy="100" r="6" fill="#60a5fa"/>
+  <circle cx="100" cy="120" r="7" fill="#a78bfa"/>
+  <circle cx="90" cy="90" r="4" fill="#ffffff"/>
+  <circle cx="110" cy="90" r="4" fill="#ffffff"/>
+  <circle cx="95" cy="110" r="3" fill="#ffffff"/>
+  <circle cx="105" cy="110" r="3" fill="#ffffff"/>
+</svg>
