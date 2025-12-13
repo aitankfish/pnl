@@ -1475,75 +1475,97 @@ export default function MarketDetailsPage() {
                             : 'Market expired with NO winning. NO voters can claim SOL rewards.'}
                       </p>
 
-                      {/* YES Wins - Show Launch Token button (requires token creation) */}
+                      {/* YES Wins - Show Launch Token button (only for founder) or waiting message (for others) */}
                       {onchainData.data.poolProgressPercentage >= 100 &&
                        Number(onchainData.data.totalYesShares) > Number(onchainData.data.totalNoShares) ? (
                         <div className="space-y-3">
                           <div className="bg-gradient-to-br from-green-500/10 via-cyan-500/10 to-blue-500/10 border border-green-400/30 rounded-lg p-4">
                             <h4 className="text-green-400 text-sm font-semibold mb-2">🎉 YES Wins - Token Launch Required!</h4>
-                            <p className="text-gray-300 text-xs mb-2">
-                              The market has expired with YES winning. Click below to create the {market.tokenSymbol} token and complete resolution.
-                            </p>
-                            <p className="text-cyan-300 text-xs italic mb-3">
-                              ✨ Token will have a branded PNL address ending with "pnl"
-                            </p>
-                            <Button
-                              onClick={async () => {
-                                const tokenMetadata = {
-                                  name: market.name,
-                                  symbol: market.tokenSymbol,
-                                  description: market.description,
-                                  imageUrl: market.projectImageUrl || '',
-                                  twitter: market.metadata?.socialLinks?.twitter || '',
-                                  telegram: market.metadata?.socialLinks?.telegram || '',
-                                  website: market.metadata?.socialLinks?.website || '',
-                                };
 
-                                const result = await resolve({
-                                  marketId: params.id as string,
-                                  marketAddress: market.marketAddress,
-                                  tokenMetadata,
-                                  needsTokenLaunch: true,
-                                });
+                            {/* Founder sees launch button */}
+                            {primaryWallet?.address === onchainData.data.founder ? (
+                              <>
+                                <p className="text-gray-300 text-xs mb-2">
+                                  The market has expired with YES winning. Click below to create the {market.tokenSymbol} token and complete resolution.
+                                </p>
+                                <p className="text-cyan-300 text-xs italic mb-3">
+                                  ✨ Token will have a branded PNL address ending with "pnl"
+                                </p>
+                                <Button
+                                  onClick={async () => {
+                                    const tokenMetadata = {
+                                      name: market.name,
+                                      symbol: market.tokenSymbol,
+                                      description: market.description,
+                                      imageUrl: market.projectImageUrl || '',
+                                      twitter: market.metadata?.socialLinks?.twitter || '',
+                                      telegram: market.metadata?.socialLinks?.telegram || '',
+                                      website: market.metadata?.socialLinks?.website || '',
+                                    };
 
-                                if (result.success) {
-                                  fetchMarketDetails(params.id as string);
-                                  refetchOnchainData();
-                                  refetchHistory();
-                                  refetchHolders();
+                                    const result = await resolve({
+                                      marketId: params.id as string,
+                                      marketAddress: market.marketAddress,
+                                      tokenMetadata,
+                                      needsTokenLaunch: true,
+                                    });
 
-                                  setToastMessage(`✅ ${market.tokenSymbol} token launched! YES voters can claim`);
-                                  setShowToast(true);
-                                  setTimeout(() => setShowToast(false), 3000);
-                                } else {
-                                  const parsedError = parseError(result.error);
-                                  setToastMessage(`❌ ${parsedError.title}: ${parsedError.message}`);
-                                  setShowToast(true);
-                                  setTimeout(() => setShowToast(false), 5000);
-                                }
-                              }}
-                              disabled={isResolving || !primaryWallet}
-                              className="w-full bg-gradient-to-r from-green-500 to-cyan-500 hover:from-green-600 hover:to-cyan-600 text-white font-bold py-2.5 px-6"
-                            >
-                              {isResolving ? (
-                                <div className="flex flex-col items-center justify-center space-y-1">
-                                  <div className="flex items-center">
-                                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                                    <span>Launching Token...</span>
-                                  </div>
-                                  <span className="text-xs text-gray-300 font-normal">
-                                    This may take 30-60 seconds
+                                    if (result.success) {
+                                      fetchMarketDetails(params.id as string);
+                                      refetchOnchainData();
+                                      refetchHistory();
+                                      refetchHolders();
+
+                                      setToastMessage(`✅ ${market.tokenSymbol} token launched! YES voters can claim`);
+                                      setShowToast(true);
+                                      setTimeout(() => setShowToast(false), 3000);
+                                    } else {
+                                      const parsedError = parseError(result.error);
+                                      setToastMessage(`❌ ${parsedError.title}: ${parsedError.message}`);
+                                      setShowToast(true);
+                                      setTimeout(() => setShowToast(false), 5000);
+                                    }
+                                  }}
+                                  disabled={isResolving || !primaryWallet}
+                                  className="w-full bg-gradient-to-r from-green-500 to-cyan-500 hover:from-green-600 hover:to-cyan-600 text-white font-bold py-2.5 px-6"
+                                >
+                                  {isResolving ? (
+                                    <div className="flex flex-col items-center justify-center space-y-1">
+                                      <div className="flex items-center">
+                                        <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                                        <span>Launching Token...</span>
+                                      </div>
+                                      <span className="text-xs text-gray-300 font-normal">
+                                        This may take 30-60 seconds
+                                      </span>
+                                    </div>
+                                  ) : (
+                                    <>
+                                      🚀 Launch ${market.tokenSymbol} Token
+                                    </>
+                                  )}
+                                </Button>
+                              </>
+                            ) : (
+                              /* Other users see waiting message */
+                              <>
+                                <p className="text-gray-300 text-xs mb-2">
+                                  The market has expired with YES winning! The {market.tokenSymbol} token will be launched soon.
+                                </p>
+                                <div className="flex items-center justify-center space-x-2 py-3 bg-purple-500/10 rounded-lg border border-purple-400/30">
+                                  <Loader2 className="w-4 h-4 text-purple-400 animate-spin" />
+                                  <span className="text-purple-300 text-sm font-medium">
+                                    Waiting for project founder to launch token...
                                   </span>
                                 </div>
-                              ) : (
-                                <>
-                                  🚀 Launch ${market.tokenSymbol} Token
-                                </>
-                              )}
-                            </Button>
+                                <p className="text-gray-400 text-xs mt-2 text-center">
+                                  Once launched, YES voters will be able to claim their token airdrop.
+                                </p>
+                              </>
+                            )}
                           </div>
-                          {!primaryWallet && (
-                            <p className="text-yellow-400 text-xs">Connect wallet to launch token</p>
+                          {!primaryWallet && primaryWallet?.address !== onchainData.data.founder && (
+                            <p className="text-yellow-400 text-xs">Connect wallet to see your position</p>
                           )}
                         </div>
                       ) : (
