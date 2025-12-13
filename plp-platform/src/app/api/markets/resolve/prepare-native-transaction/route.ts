@@ -218,8 +218,8 @@ export async function POST(request: NextRequest) {
         { pubkey: pumpPDAs.eventAuthority, isSigner: false, isWritable: false },
         // 11. pump_program
         { pubkey: PUMP_PROGRAM_ID, isSigner: false, isWritable: false },
-        // 12. creator
-        { pubkey: creatorPubkey, isSigner: false, isWritable: false },
+        // 12. creator (marked mut to avoid borrow conflict when creator === caller)
+        { pubkey: creatorPubkey, isSigner: false, isWritable: true },
         // 13. creator_vault
         { pubkey: creatorVault, isSigner: false, isWritable: true },
         // 14. global_volume_accumulator

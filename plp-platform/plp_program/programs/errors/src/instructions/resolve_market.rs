@@ -89,6 +89,8 @@ pub struct ResolveMarket<'info> {
     /// Token creator (from bonding curve)
     /// Used to derive creator_vault PDA
     /// CHECK: Passed by client, validated by Pump.fun during buy
+    /// NOTE: Marked as mut to avoid borrow conflict when creator === caller
+    #[account(mut)]
     pub creator: UncheckedAccount<'info>,
 
     /// Creator vault PDA (Pump.fun)
