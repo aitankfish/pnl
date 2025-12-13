@@ -46,27 +46,21 @@ export default function RootLayout({
         <WalletProvider>
           <NetworkProvider>
             <ToastProvider>
-              <AppLayoutWrapper>
-                <div className="min-h-screen flex flex-col">
-                  {/* Main Content */}
-                  <main className="flex-1">
-                    {children}
-                  </main>
-
-                  {/* Footer */}
-                  <footer className="py-6">
-                    <div className="container px-4 sm:px-6">
-                      <div className="flex flex-col md:flex-row items-center justify-center gap-2 md:gap-6">
-                        <p className="text-center text-sm leading-loose text-gray-400">
-                          Let the Market Decide - Built on Solana
-                        </p>
-                        <p className="text-center text-sm text-gray-400">
-                          © 2025 P&L Platform. All rights reserved.
-                        </p>
-                      </div>
+              <AppLayoutWrapper footer={
+                <footer className="py-6">
+                  <div className="container px-4 sm:px-6">
+                    <div className="flex flex-col md:flex-row items-center justify-center gap-2 md:gap-6">
+                      <p className="text-center text-sm leading-loose text-gray-400">
+                        Let the Market Decide - Built on Solana
+                      </p>
+                      <p className="text-center text-sm text-gray-400">
+                        © 2025 P&L Platform. All rights reserved.
+                      </p>
                     </div>
-                  </footer>
-                </div>
+                  </div>
+                </footer>
+              }>
+                {children}
               </AppLayoutWrapper>
             </ToastProvider>
           </NetworkProvider>

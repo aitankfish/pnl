@@ -5,10 +5,14 @@ import AppLayout from './AppLayout';
 
 interface AppLayoutWrapperProps {
   children: React.ReactNode;
+  footer?: React.ReactNode;
 }
 
-export default function AppLayoutWrapper({ children }: AppLayoutWrapperProps) {
+export default function AppLayoutWrapper({ children, footer }: AppLayoutWrapperProps) {
   const pathname = usePathname();
+
+  // Hide navbar and footer on the landing page
+  const isLandingPage = pathname === '/';
 
   // Map pathnames to page IDs for sidebar active state
   const getCurrentPage = (): string | undefined => {
@@ -22,9 +26,19 @@ export default function AppLayoutWrapper({ children }: AppLayoutWrapperProps) {
     return undefined;
   };
 
+  // If landing page, render children without AppLayout and footer
+  if (isLandingPage) {
+    return <div className="min-h-screen">{children}</div>;
+  }
+
   return (
-    <AppLayout currentPage={getCurrentPage()}>
-      {children}
-    </AppLayout>
+    <div className="min-h-screen flex flex-col">
+      <AppLayout currentPage={getCurrentPage()}>
+        <main className="flex-1">
+          {children}
+        </main>
+      </AppLayout>
+      {footer}
+    </div>
   );
 }
