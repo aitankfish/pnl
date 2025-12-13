@@ -1470,28 +1470,105 @@ export default function MarketDetailsPage() {
                       <p className="text-gray-300 text-xs mb-3">
                         {onchainData.data.poolProgressPercentage < 100
                           ? 'Market expired without reaching target pool. All participants will be refunded.'
-                          : 'Market expired after reaching target pool. Outcome will be determined.'}
+                          : Number(onchainData.data.totalYesShares) > Number(onchainData.data.totalNoShares)
+                            ? `Market expired with YES winning! ${market.tokenSymbol} token is ready to launch.`
+                            : 'Market expired with NO winning. NO voters can claim SOL rewards.'}
                       </p>
 
-                      {/* Only founder or anyone can resolve - permissionless */}
-                      <Button
-                        onClick={handleResolve}
-                        disabled={isResolving || !primaryWallet}
-                        className="bg-gradient-to-r from-orange-500 to-yellow-500 hover:from-orange-600 hover:to-yellow-600 text-white font-bold py-2.5 px-6"
-                      >
-                        {isResolving ? (
-                          <>
-                            <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                            Resolving Market...
-                          </>
-                        ) : (
-                          <>
-                            🔧 Resolve Market
-                          </>
-                        )}
-                      </Button>
-                      {!primaryWallet && (
-                        <p className="text-yellow-400 text-xs mt-2">Connect wallet to resolve this market</p>
+                      {/* YES Wins - Show Launch Token button (requires token creation) */}
+                      {onchainData.data.poolProgressPercentage >= 100 &&
+                       Number(onchainData.data.totalYesShares) > Number(onchainData.data.totalNoShares) ? (
+                        <div className="space-y-3">
+                          <div className="bg-gradient-to-br from-green-500/10 via-cyan-500/10 to-blue-500/10 border border-green-400/30 rounded-lg p-4">
+                            <h4 className="text-green-400 text-sm font-semibold mb-2">🎉 YES Wins - Token Launch Required!</h4>
+                            <p className="text-gray-300 text-xs mb-2">
+                              The market has expired with YES winning. Click below to create the {market.tokenSymbol} token and complete resolution.
+                            </p>
+                            <p className="text-cyan-300 text-xs italic mb-3">
+                              ✨ Token will have a branded PNL address ending with "pnl"
+                            </p>
+                            <Button
+                              onClick={async () => {
+                                const tokenMetadata = {
+                                  name: market.name,
+                                  symbol: market.tokenSymbol,
+                                  description: market.description,
+                                  imageUrl: market.projectImageUrl || '',
+                                  twitter: market.metadata?.socialLinks?.twitter || '',
+                                  telegram: market.metadata?.socialLinks?.telegram || '',
+                                  website: market.metadata?.socialLinks?.website || '',
+                                };
+
+                                const result = await resolve({
+                                  marketId: params.id as string,
+                                  marketAddress: market.marketAddress,
+                                  tokenMetadata,
+                                  needsTokenLaunch: true,
+                                });
+
+                                if (result.success) {
+                                  fetchMarketDetails(params.id as string);
+                                  refetchOnchainData();
+                                  refetchHistory();
+                                  refetchHolders();
+
+                                  setToastMessage(`✅ ${market.tokenSymbol} token launched! YES voters can claim`);
+                                  setShowToast(true);
+                                  setTimeout(() => setShowToast(false), 3000);
+                                } else {
+                                  const parsedError = parseError(result.error);
+                                  setToastMessage(`❌ ${parsedError.title}: ${parsedError.message}`);
+                                  setShowToast(true);
+                                  setTimeout(() => setShowToast(false), 5000);
+                                }
+                              }}
+                              disabled={isResolving || !primaryWallet}
+                              className="w-full bg-gradient-to-r from-green-500 to-cyan-500 hover:from-green-600 hover:to-cyan-600 text-white font-bold py-2.5 px-6"
+                            >
+                              {isResolving ? (
+                                <div className="flex flex-col items-center justify-center space-y-1">
+                                  <div className="flex items-center">
+                                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                                    <span>Launching Token...</span>
+                                  </div>
+                                  <span className="text-xs text-gray-300 font-normal">
+                                    This may take 30-60 seconds
+                                  </span>
+                                </div>
+                              ) : (
+                                <>
+                                  🚀 Launch ${market.tokenSymbol} Token
+                                </>
+                              )}
+                            </Button>
+                          </div>
+                          {!primaryWallet && (
+                            <p className="text-yellow-400 text-xs">Connect wallet to launch token</p>
+                          )}
+                        </div>
+                      ) : (
+                        /* NO Wins or Refund - Show regular Resolve button */
+                        <>
+                          <Button
+                            onClick={handleResolve}
+                            disabled={isResolving || !primaryWallet}
+                            className="bg-gradient-to-r from-orange-500 to-yellow-500 hover:from-orange-600 hover:to-yellow-600 text-white font-bold py-2.5 px-6"
+                          >
+                            {isResolving ? (
+                              <>
+                                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                                Resolving Market...
+                              </>
+                            ) : (
+                              <>
+                                🔧 Resolve Market
+                              </>
+                            )}
+                          </Button>
+                          {!primaryWallet && (
+                            <p className="text-yellow-400 text-xs mt-2">Connect wallet to resolve this market</p>
+                          )}
+                        </>
                       )}
                     </div>
                   )}
