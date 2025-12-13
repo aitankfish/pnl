@@ -131,19 +131,107 @@ export default function HomePage() {
   const { scrollYProgress } = useScroll();
   const heroOpacity = useTransform(scrollYProgress, [0, 0.3], [1, 0]);
   const heroScale = useTransform(scrollYProgress, [0, 0.3], [1, 0.95]);
-  const { authenticated, user, login } = useWallet();
+  const { authenticated, user, login, ready } = useWallet();
   const router = useRouter();
   const [showOnboardingModal, setShowOnboardingModal] = useState(false);
   const [isSettingUpProfile, setIsSettingUpProfile] = useState(false);
+  const [isCheckingAuth, setIsCheckingAuth] = useState(true);
   const hasSetupProfileRef = useRef(false);
 
-  // If user is already authenticated on mount, redirect to browse
+  // If user is already authenticated on mount, redirect to browse immediately
   useEffect(() => {
-    if (authenticated && user) {
-      console.log('🎯 User already authenticated on mount, redirecting to /browse');
-      router.push('/browse');
+    if (ready) {
+      if (authenticated && user) {
+        console.log('🎯 User already authenticated, redirecting to /browse');
+        router.push('/browse');
+      } else {
+        setIsCheckingAuth(false);
+      }
     }
-  }, []);
+  }, [ready, authenticated, user, router]);
+
+  // Show loading while checking authentication
+  if (!ready || isCheckingAuth) {
+    return (
+      <div className="min-h-screen bg-gradient-to-b from-purple-900/20 via-black to-black flex items-center justify-center relative overflow-hidden">
+        {/* Cosmic background stars */}
+        <div className="absolute inset-0 pointer-events-none">
+          {[...Array(150)].map((_, i) => (
+            <motion.div
+              key={i}
+              className="absolute rounded-full bg-white"
+              style={{
+                width: Math.random() > 0.5 ? '2px' : '1px',
+                height: Math.random() > 0.5 ? '2px' : '1px',
+                left: `${Math.random() * 100}%`,
+                top: `${Math.random() * 100}%`,
+              }}
+              animate={{
+                opacity: [0.2, 1, 0.2],
+                scale: [0.8, 1.2, 0.8],
+              }}
+              transition={{
+                duration: 2 + Math.random() * 2,
+                repeat: Infinity,
+                delay: Math.random() * 2,
+              }}
+            />
+          ))}
+        </div>
+
+        {/* Text expanding from center */}
+        <div className="text-center relative z-10 px-4">
+          <motion.h1
+            className="text-3xl md:text-4xl lg:text-5xl xl:text-6xl whitespace-nowrap"
+            initial={{ scaleX: 0, opacity: 0 }}
+            animate={{ scaleX: 1, opacity: 1 }}
+            transition={{
+              duration: 2.5,
+              ease: [0.22, 1, 0.36, 1],
+              delay: 0.5
+            }}
+            style={{
+              transformOrigin: 'center',
+              fontFamily: 'cursive',
+              fontWeight: 600,
+              background: 'linear-gradient(to right, rgb(192, 132, 252), rgb(34, 211, 238), rgb(192, 132, 252))',
+              WebkitBackgroundClip: 'text',
+              WebkitTextFillColor: 'transparent',
+              backgroundClip: 'text',
+              filter: 'drop-shadow(0 0 30px rgba(168, 85, 247, 0.6))',
+            }}
+          >
+            Welcome back to the Cosmic Hub
+          </motion.h1>
+
+          {/* Pulsing dots */}
+          <motion.div
+            className="flex justify-center gap-2 mt-8"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ delay: 1.5 }}
+          >
+            {[0, 1, 2].map((i) => (
+              <motion.div
+                key={i}
+                className="w-2 h-2 rounded-full bg-cyan-400"
+                animate={{
+                  scale: [1, 1.5, 1],
+                  opacity: [0.5, 1, 0.5],
+                }}
+                transition={{
+                  duration: 1.5,
+                  repeat: Infinity,
+                  delay: i * 0.2,
+                  ease: "easeInOut"
+                }}
+              />
+            ))}
+          </motion.div>
+        </div>
+      </div>
+    );
+  }
 
   // Auto-setup profile after authentication
   useEffect(() => {
