@@ -296,6 +296,10 @@ pub fn handler(ctx: Context<ResolveMarket>) -> Result<()> {
                 .checked_div(100)
                 .ok_or(ErrorCode::MathError)? as u64;
 
+            // CRITICAL: Drop the borrow before CPI to avoid AccountBorrowFailed
+            // The bonding_curve account will be borrowed again in invoke_signed
+            drop(bonding_curve_data);
+
             // msg!("Bonding curve calculation: {} lamports SOL -> {} tokens (exact: {}, with 1% slippage)",
             //      net_amount_for_token, token_amount, token_amount_exact);
 
