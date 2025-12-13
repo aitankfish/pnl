@@ -194,9 +194,10 @@ pub fn handler(ctx: Context<ResolveMarket>) -> Result<()> {
             // 4. Calculate excess SOL (if pool > 50 SOL after fee)
             let excess_sol = sol_after_fee.saturating_sub(MAX_POOL_FOR_TOKEN_LAUNCH);
 
-            // 5. Reserve rent-exempt for vault
+            // 5. Reserve rent-exempt for vault (with 2x safety margin)
+            // Extra buffer needed because Pump.fun may take slightly more than calculated
             let rent = Rent::get()?;
-            let vault_rent_exempt = rent.minimum_balance(0);
+            let vault_rent_exempt = rent.minimum_balance(0).saturating_mul(2);
 
             // 6. Calculate net amount for token purchase
             let total_reserved = vault_rent_exempt + completion_fee + excess_sol;
