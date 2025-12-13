@@ -16,20 +16,33 @@ import {
 } from '@solana/web3.js';
 import {
   TOKEN_PROGRAM_ID,
+  TOKEN_2022_PROGRAM_ID,
   ASSOCIATED_TOKEN_PROGRAM_ID,
   getAssociatedTokenAddress,
 } from '@solana/spl-token';
-import { getTreasuryPDA } from '@/lib/anchor-program';
+import { getTreasuryPDA, getMarketVaultPDA, getProgramIdForNetwork } from '@/lib/anchor-program';
 import { derivePumpPDAs, PUMP_PROGRAM_ID } from '@/lib/pumpfun';
 import { createClientLogger } from '@/lib/logger';
 import { getSolanaConnection } from '@/lib/solana';
+import {
+  GLOBAL_VOLUME_ACCUMULATOR_PDA,
+  PUMP_FEE_CONFIG_PDA,
+  userVolumeAccumulatorPda,
+  creatorVaultPda,
+} from '@pump-fun/pump-sdk';
+
+// Pump.fun fee program address (from official IDL)
+const PUMP_FEE_PROGRAM_ID = new PublicKey('pfeeUxB6jkeY1Hxd7CsFCAjcbHA9rWtchMGdZ6VojVZ');
+
+// Pump.fun fee recipient address (hardcoded)
+const PUMP_FEE_RECIPIENT = new PublicKey('CebN5WGQ4jvEPvsVU4EoHEpgzq1VV7AbicfhtW4xC9iM');
 
 const logger = createClientLogger();
 
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { marketAddress, callerWallet } = body;
+    const { marketAddress, callerWallet, network } = body;
 
     // Validate inputs
     if (!marketAddress || !callerWallet) {
@@ -45,14 +58,27 @@ export async function POST(request: NextRequest) {
     logger.info('Preparing market resolution transaction', {
       marketAddress,
       callerWallet,
+      network,
     });
 
     // Convert addresses to PublicKey
     const marketPubkey = new PublicKey(marketAddress);
     const callerPubkey = new PublicKey(callerWallet);
 
+    // Get network-specific program ID
+    const targetNetwork = (network as 'devnet' | 'mainnet-beta') || 'devnet';
+    const programId = getProgramIdForNetwork(targetNetwork);
+
     // Derive Treasury PDA
-    const [treasuryPda] = getTreasuryPDA();
+    const [treasuryPda] = getTreasuryPDA(targetNetwork);
+
+    // Derive Market Vault PDA (holds all SOL)
+    const [marketVaultPda] = getMarketVaultPDA(marketPubkey, targetNetwork);
+
+    logger.info('Derived market vault PDA', {
+      market: marketPubkey.toBase58(),
+      vault: marketVaultPda.toBase58(),
+    });
 
     // Create a dummy token mint for pump.fun accounts
     // These accounts are required by the Anchor struct but won't be used for NO wins
@@ -60,34 +86,49 @@ export async function POST(request: NextRequest) {
     // So we derive a PDA from the market as a dummy mint
     const [dummyMintPubkey] = PublicKey.findProgramAddressSync(
       [Buffer.from('dummy_mint'), marketPubkey.toBuffer()],
-      new PublicKey(await (await import('@/config/solana')).PROGRAM_ID)
+      programId
     );
 
     // Derive pump.fun PDAs (using dummy mint)
     const pumpPDAs = derivePumpPDAs(dummyMintPubkey);
 
-    // Get market's token account (ATA) for dummy mint
+    // Get market's token account (ATA) for dummy mint - using Token2022
     const marketTokenAccount = await getAssociatedTokenAddress(
       dummyMintPubkey,
       marketPubkey,
-      true // allowOwnerOffCurve
+      true, // allowOwnerOffCurve
+      TOKEN_2022_PROGRAM_ID
     );
 
-    // Get bonding curve's token account (ATA)
+    // Get bonding curve's token account (ATA) - using Token2022
     const bondingCurveTokenAccount = await getAssociatedTokenAddress(
       dummyMintPubkey,
       pumpPDAs.bondingCurve,
-      true
+      true,
+      TOKEN_2022_PROGRAM_ID
     );
+
+    // Derive additional Pump.fun PDAs using SDK functions
+    // For NO wins/Refund, we use caller as dummy creator
+    const creatorVault = creatorVaultPda(callerPubkey);
+    const globalVolumeAccumulator = GLOBAL_VOLUME_ACCUMULATOR_PDA;
+    // user_volume_accumulator must match the "user" in buy() CPI - market vault
+    const userVolumeAccumulator = userVolumeAccumulatorPda(marketVaultPda);
+    const feeConfig = PUMP_FEE_CONFIG_PDA;
 
     logger.info('Treasury PDA and pump.fun accounts derived', {
       treasuryPda: treasuryPda.toBase58(),
+      marketVaultPda: marketVaultPda.toBase58(),
       pumpGlobal: pumpPDAs.global.toBase58(),
       bondingCurve: pumpPDAs.bondingCurve.toBase58(),
+      creatorVault: creatorVault.toBase58(),
+      globalVolumeAccumulator: globalVolumeAccumulator.toBase58(),
+      userVolumeAccumulator: userVolumeAccumulator.toBase58(),
+      feeConfig: feeConfig.toBase58(),
     });
 
-    // Get connection
-    const connection = await getSolanaConnection();
+    // Get connection for the target network
+    const connection = await getSolanaConnection(network);
 
     // Build resolve_market instruction manually (since IDL is incomplete)
     // Calculate resolveMarket discriminator: sha256("global:resolve_market")[0..8]
@@ -102,36 +143,59 @@ export async function POST(request: NextRequest) {
     const data = Buffer.alloc(8);
     discriminator.copy(data, 0);
 
-    // Get program ID
-    const { PROGRAM_ID } = await import('@/config/solana');
-
-    // Create instruction with all accounts (same structure as prepare-native-transaction)
-    // Note: For NO wins, pump.fun accounts are dummy placeholders and won't be used
+    // Create instruction with all accounts matching ResolveMarket struct in Rust
+    // MUST match exact order from resolve_market.rs!
     const { TransactionInstruction } = await import('@solana/web3.js');
     const resolveIx = new TransactionInstruction({
       keys: [
-        // Original 4 accounts
-        { pubkey: marketPubkey, isSigner: false, isWritable: true },       // market
-        { pubkey: treasuryPda, isSigner: false, isWritable: true },        // treasury
-
-        // Pump.fun accounts (13 accounts - dummy for NO wins, required by Anchor struct)
-        { pubkey: dummyMintPubkey, isSigner: false, isWritable: true },    // token_mint
-        { pubkey: marketTokenAccount, isSigner: false, isWritable: true }, // market_token_account
-        { pubkey: pumpPDAs.global, isSigner: false, isWritable: true },    // pump_global
-        { pubkey: pumpPDAs.bondingCurve, isSigner: false, isWritable: true }, // bonding_curve
-        { pubkey: bondingCurveTokenAccount, isSigner: false, isWritable: true }, // bonding_curve_token_account
-        { pubkey: pumpPDAs.global, isSigner: false, isWritable: true },    // pump_fee_recipient (same as global)
-        { pubkey: pumpPDAs.eventAuthority, isSigner: false, isWritable: false }, // pump_event_authority
-        { pubkey: PUMP_PROGRAM_ID, isSigner: false, isWritable: false },   // pump_program
-
-        // Remaining accounts
-        { pubkey: callerPubkey, isSigner: true, isWritable: true },        // caller
-        { pubkey: SystemProgram.programId, isSigner: false, isWritable: false }, // system_program
-        { pubkey: TOKEN_PROGRAM_ID, isSigner: false, isWritable: false },  // token_program
-        { pubkey: ASSOCIATED_TOKEN_PROGRAM_ID, isSigner: false, isWritable: false }, // associated_token_program
-        { pubkey: SYSVAR_RENT_PUBKEY, isSigner: false, isWritable: false }, // rent
+        // 1. market
+        { pubkey: marketPubkey, isSigner: false, isWritable: true },
+        // 2. market_vault (holds all SOL) - THIS WAS MISSING!
+        { pubkey: marketVaultPda, isSigner: false, isWritable: true },
+        // 3. treasury
+        { pubkey: treasuryPda, isSigner: false, isWritable: true },
+        // 4. token_mint (dummy for NO wins)
+        { pubkey: dummyMintPubkey, isSigner: false, isWritable: true },
+        // 5. market_token_account (dummy for NO wins)
+        { pubkey: marketTokenAccount, isSigner: false, isWritable: true },
+        // 6. pump_global
+        { pubkey: pumpPDAs.global, isSigner: false, isWritable: false },
+        // 7. bonding_curve
+        { pubkey: pumpPDAs.bondingCurve, isSigner: false, isWritable: true },
+        // 8. bonding_curve_token_account
+        { pubkey: bondingCurveTokenAccount, isSigner: false, isWritable: true },
+        // 9. pump_fee_recipient
+        { pubkey: PUMP_FEE_RECIPIENT, isSigner: false, isWritable: true },
+        // 10. pump_event_authority
+        { pubkey: pumpPDAs.eventAuthority, isSigner: false, isWritable: false },
+        // 11. pump_program
+        { pubkey: PUMP_PROGRAM_ID, isSigner: false, isWritable: false },
+        // 12. creator (dummy for NO wins - use caller)
+        { pubkey: callerPubkey, isSigner: false, isWritable: false },
+        // 13. creator_vault
+        { pubkey: creatorVault, isSigner: false, isWritable: true },
+        // 14. global_volume_accumulator
+        { pubkey: globalVolumeAccumulator, isSigner: false, isWritable: true },
+        // 15. user_volume_accumulator
+        { pubkey: userVolumeAccumulator, isSigner: false, isWritable: true },
+        // 16. fee_config
+        { pubkey: feeConfig, isSigner: false, isWritable: false },
+        // 17. fee_program
+        { pubkey: PUMP_FEE_PROGRAM_ID, isSigner: false, isWritable: false },
+        // 18. caller (signer)
+        { pubkey: callerPubkey, isSigner: true, isWritable: true },
+        // 19. system_program
+        { pubkey: SystemProgram.programId, isSigner: false, isWritable: false },
+        // 20. token_program
+        { pubkey: TOKEN_PROGRAM_ID, isSigner: false, isWritable: false },
+        // 21. token_2022_program
+        { pubkey: TOKEN_2022_PROGRAM_ID, isSigner: false, isWritable: false },
+        // 22. associated_token_program
+        { pubkey: ASSOCIATED_TOKEN_PROGRAM_ID, isSigner: false, isWritable: false },
+        // 23. rent
+        { pubkey: SYSVAR_RENT_PUBKEY, isSigner: false, isWritable: false },
       ],
-      programId: PROGRAM_ID,
+      programId: programId,
       data,
     });
 
@@ -157,6 +221,7 @@ export async function POST(request: NextRequest) {
 
     logger.info('Market resolution transaction prepared successfully', {
       marketAddress: marketPubkey.toBase58(),
+      marketVaultPda: marketVaultPda.toBase58(),
       treasuryPda: treasuryPda.toBase58(),
       serializedLength: serializedTransaction.length,
       lastValidBlockHeight,
@@ -166,6 +231,7 @@ export async function POST(request: NextRequest) {
       success: true,
       data: {
         serializedTransaction,
+        marketVaultPda: marketVaultPda.toBase58(),
         treasuryPda: treasuryPda.toBase58(),
         lastValidBlockHeight,
       },
