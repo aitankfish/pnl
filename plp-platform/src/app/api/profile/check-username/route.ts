@@ -7,10 +7,12 @@ import { NextRequest, NextResponse } from 'next/server';
 import { connectToDatabase, getDatabase } from '@/lib/database/index';
 import { COLLECTIONS, UserProfile } from '@/lib/database/models';
 
+// Force dynamic rendering (this route depends on query params)
+export const dynamic = 'force-dynamic';
+
 export async function GET(request: NextRequest) {
   try {
-    const { searchParams } = new URL(request.url);
-    const username = searchParams.get('username');
+    const username = request.nextUrl.searchParams.get('username');
 
     if (!username) {
       return NextResponse.json(

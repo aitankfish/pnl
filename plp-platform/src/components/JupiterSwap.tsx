@@ -150,21 +150,41 @@ export function JupiterSwap({ isOpen, onClose }: JupiterSwapProps) {
         })
         .map(acc => acc.account.data.parsed.info.mint);
 
-      // Get token info from Jupiter
+      // Get token info from our internal API (uses Helius DAS - more reliable)
       let tokenMetadata: Record<string, any> = {};
       if (tokenMints.length > 0) {
         try {
-          const metadataResponse = await fetch(
-            `https://tokens.jup.ag/tokens?tags=verified,community&mint=${tokenMints.join(',')}`,
-            { headers: { 'Accept': 'application/json' } }
-          );
-          if (metadataResponse.ok) {
-            const data = await metadataResponse.json();
-            tokenMetadata = data.reduce((acc: Record<string, any>, token: any) => {
-              acc[token.address] = token;
-              return acc;
-            }, {});
-          }
+          // Fetch metadata for each token using our internal API
+          const metadataPromises = tokenMints.map(async (mint) => {
+            try {
+              const response = await fetch('/api/tokens/metadata', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ mint }),
+              });
+              if (response.ok) {
+                const data = await response.json();
+                if (data.success && data.metadata) {
+                  return { mint, metadata: data.metadata };
+                }
+              }
+              return { mint, metadata: null };
+            } catch {
+              return { mint, metadata: null };
+            }
+          });
+
+          const results = await Promise.all(metadataPromises);
+          tokenMetadata = results.reduce((acc: Record<string, any>, { mint, metadata }) => {
+            if (metadata) {
+              acc[mint] = {
+                symbol: metadata.symbol,
+                name: metadata.name,
+                logoURI: metadata.logoURI,
+              };
+            }
+            return acc;
+          }, {});
         } catch (e) {
           console.warn('Failed to fetch token metadata:', e);
         }
