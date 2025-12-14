@@ -42,7 +42,8 @@ export interface PredictionMarket {
   expiryTime: Date;
   finalizationDeadline: Date;
   marketState: number; // 0=Active, 1=Resolved, 2=Canceled, 3=AutoCanceled
-  winningOption?: boolean; // true=YES wins, false=NO wins, null=unresolved
+  winningOption?: boolean; // true=YES wins, false=NO wins, null=unresolved (legacy)
+  resolution?: string; // 'YesWins', 'NoWins', 'Refund', 'Unresolved' (from blockchain sync)
   targetPool: number; // 5 SOL in lamports
   platformFee: number; // 0.5 SOL in lamports
   yesVoteCost: number; // 0.05 SOL in lamports
@@ -51,6 +52,7 @@ export interface PredictionMarket {
   yesVoteCount: number;
   noVoteCount: number;
   pumpFunTokenAddress?: string; // Set when token is created
+  tokenSymbol?: string; // Token symbol
   autoLaunch: boolean;
   launchWindowEnd?: Date; // For manual launch option
   resolvedAt?: Date;

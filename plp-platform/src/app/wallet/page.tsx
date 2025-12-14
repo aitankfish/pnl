@@ -1629,12 +1629,76 @@ export default function WalletPage() {
                 </div>
               )}
 
-              {/* Resolved but not claimable positions */}
-              {positionsData.data.resolved.filter((p: any) => !p.canClaim).length > 0 && (
+              {/* Already Claimed Positions (Won and claimed) */}
+              {positionsData.data.resolved.filter((p: any) => p.isWinner && p.claimed).length > 0 && (
+                <div className="space-y-3 mt-6">
+                  <h4 className="text-sm font-medium text-gray-400">Claimed Rewards</h4>
+                  <div className="grid gap-4 sm:grid-cols-2">
+                    {positionsData.data.resolved.filter((p: any) => p.isWinner && p.claimed).map((position: any) => (
+                      <Card key={position.marketId} className="bg-green-500/5 border-green-500/20 opacity-80 hover:opacity-100 transition-opacity">
+                        <CardContent className="p-3 sm:p-4">
+                          <a href={`/market/${position.marketId}`} className="block group">
+                            <div className="mb-3">
+                              <div className="flex items-start gap-2 sm:gap-3 mb-2">
+                                {position.marketImage ? (
+                                  <img
+                                    src={position.marketImage}
+                                    alt={position.marketName}
+                                    className="w-9 h-9 sm:w-10 sm:h-10 rounded-lg object-cover flex-shrink-0"
+                                  />
+                                ) : (
+                                  <div className="w-9 h-9 sm:w-10 sm:h-10 bg-gradient-to-r from-green-500 to-emerald-500 rounded-lg flex items-center justify-center flex-shrink-0">
+                                    <Trophy className="w-4 h-4 sm:w-5 sm:h-5 text-white" />
+                                  </div>
+                                )}
+                                <div className="flex-1 min-w-0">
+                                  <h4 className="text-sm sm:text-base text-white font-semibold group-hover:text-cyan-400 transition-colors truncate">
+                                    {position.marketName}
+                                  </h4>
+                                  <p className="text-xs text-gray-400">{position.tokenSymbol || 'TKN'}</p>
+                                </div>
+                              </div>
+                              <div className="ml-11 sm:ml-[52px]">
+                                <span className="inline-block px-2 py-0.5 sm:py-1 rounded text-xs border bg-green-500/20 text-green-400 border-green-400/30 whitespace-nowrap">
+                                  CLAIMED
+                                </span>
+                              </div>
+                            </div>
+
+                            <div className="grid grid-cols-2 gap-3 text-sm">
+                              <div className="bg-white/5 rounded p-2 border border-white/10">
+                                <div className="text-gray-400 text-xs">Your Stake</div>
+                                <div className="font-semibold text-white">
+                                  {position.totalAmount.toFixed(2)} SOL
+                                </div>
+                                <div className="text-xs text-gray-500">
+                                  {position.voteType.toUpperCase()} vote
+                                </div>
+                              </div>
+                              <div className="bg-white/5 rounded p-2 border border-white/10">
+                                <div className="text-gray-400 text-xs">Resolution</div>
+                                <div className="font-semibold text-green-400">
+                                  {position.resolution || 'YesWins'}
+                                </div>
+                                <div className="text-xs text-gray-500">
+                                  Rewards claimed
+                                </div>
+                              </div>
+                            </div>
+                          </a>
+                        </CardContent>
+                      </Card>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Lost Positions (Not winner) */}
+              {positionsData.data.resolved.filter((p: any) => !p.isWinner).length > 0 && (
                 <div className="space-y-3 mt-6">
                   <h4 className="text-sm font-medium text-gray-400">Resolved Positions</h4>
                   <div className="grid gap-4 sm:grid-cols-2">
-                    {positionsData.data.resolved.filter((p: any) => !p.canClaim).map((position: any) => (
+                    {positionsData.data.resolved.filter((p: any) => !p.isWinner).map((position: any) => (
                       <Card key={position.marketId} className="bg-white/5 border-white/10 opacity-70 hover:opacity-100 transition-opacity">
                         <CardContent className="p-3 sm:p-4">
                           <a href={`/market/${position.marketId}`} className="block group">

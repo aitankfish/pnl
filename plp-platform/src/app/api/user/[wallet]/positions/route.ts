@@ -23,10 +23,14 @@ interface UserPosition {
   currentYesPrice: number;
   currentNoPrice: number;
   marketState: number;
-  winningOption?: boolean;
-  canClaim: boolean;
+  resolution?: string; // 'YesWins', 'NoWins', 'Refund', 'Unresolved'
+  canClaim: boolean; // Can claim rewards (won and not yet claimed)
+  isWinner: boolean; // Did the user win this position?
+  claimed: boolean; // Has the user already claimed?
   expiryTime: Date;
   projectImageUrl?: string; // Add project image for display
+  marketImage?: string; // Market/project image
+  tokenSymbol?: string; // Token symbol for display
 }
 
 export async function GET(
@@ -115,6 +119,19 @@ export async function GET(
     // Create market map for quick lookup
     const marketMap = new Map(markets.map((m) => [m._id!.toString(), m]));
 
+    // Fetch participant data to check claimed status
+    const participants = await db
+      .collection(COLLECTIONS.PREDICTION_PARTICIPANTS)
+      .find({
+        marketId: { $in: marketIds.map((id) => new (require('mongodb').ObjectId)(id)) },
+        participantWallet: wallet,
+      })
+      .toArray();
+    console.log('[Positions API] Found participants:', participants.length);
+
+    // Create participant map for quick lookup (marketId -> participant)
+    const participantMap = new Map(participants.map((p) => [p.marketId.toString(), p]));
+
     // Fetch project data for all markets
     const projectIds = [...new Set(markets.map((m) => m.projectId).filter(Boolean))];
     console.log('[Positions API] Fetching projects:', projectIds.length);
@@ -162,16 +179,29 @@ export async function GET(
         const yesPrice = total > 0 ? (totalYes / total) * 100 : 50;
         const noPrice = 100 - yesPrice;
 
-        // Check if position can be claimed
-        const canClaim =
-          market.marketState === 1 && // Market is resolved
-          market.winningOption !== undefined &&
-          ((market.winningOption && position.voteType === 'yes') ||
-            (!market.winningOption && position.voteType === 'no'));
-
         // Get project for image
         const project = projectMap.get(market.projectId?.toString() || '');
         const projectImageUrl = convertToGatewayUrl(project?.projectImageUrl);
+
+        // Get participant data for claimed status
+        const participant = participantMap.get(position.marketId);
+        const claimed = participant?.claimed === true;
+
+        // Determine if user won based on resolution and their vote type
+        const resolution = market.resolution || 'Unresolved';
+        const isResolved = market.marketState === 1 || resolution !== 'Unresolved';
+
+        // User wins if:
+        // - YesWins and they voted YES
+        // - NoWins and they voted NO
+        // - Refund (everyone can claim refund)
+        const isWinner =
+          (resolution === 'YesWins' && position.voteType === 'yes') ||
+          (resolution === 'NoWins' && position.voteType === 'no') ||
+          resolution === 'Refund';
+
+        // Can claim if resolved, user is a winner, AND hasn't claimed yet
+        const canClaim = isResolved && isWinner && !claimed;
 
         return {
           marketId: position.marketId,
@@ -188,10 +218,14 @@ export async function GET(
           currentYesPrice: yesPrice,
           currentNoPrice: noPrice,
           marketState: market.marketState,
-          winningOption: market.winningOption,
+          resolution,
           canClaim,
+          isWinner,
+          claimed,
           expiryTime: market.expiryTime,
-          projectImageUrl, // Add project image for simple display
+          projectImageUrl,
+          marketImage: projectImageUrl,
+          tokenSymbol: project?.tokenSymbol || market.tokenSymbol || 'TKN',
         };
       })
       .filter((p): p is UserPosition => p !== null);
