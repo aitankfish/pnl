@@ -105,12 +105,15 @@ export function JupiterSwap({ isOpen, onClose }: JupiterSwapProps) {
       // Default input to SOL or first token with balance
       const solToken = userTokens.find(t => t.symbol === 'SOL');
       const firstWithBalance = userTokens.find(t => t.balance > 0);
-      setInputToken(solToken || firstWithBalance || userTokens[0]);
+      const defaultInput = solToken || firstWithBalance || userTokens[0];
+      setInputToken(defaultInput);
 
       // Default output to USDC if user has SOL, otherwise SOL
+      const usdcInfo = POPULAR_TOKENS.find(t => t.symbol === 'USDC');
       const usdcToken = userTokens.find(t => t.symbol === 'USDC') ||
-        { ...POPULAR_TOKENS.find(t => t.symbol === 'USDC')!, balance: 0 };
-      if (solToken && inputToken?.symbol !== 'USDC') {
+        (usdcInfo ? { ...usdcInfo, balance: 0 } : null);
+
+      if (defaultInput?.symbol === 'SOL' && usdcToken) {
         setOutputToken(usdcToken);
       } else {
         setOutputToken({ ...SOL_TOKEN, balance: solToken?.balance || 0 });
