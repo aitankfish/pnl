@@ -301,7 +301,30 @@ export default function WhitepaperPage() {
                     <li>• <strong className="text-purple-400">PNL Platform: 2%</strong></li>
                   </ul>
                 </div>
+                <div className="bg-gradient-to-br from-emerald-500/10 to-teal-500/10 backdrop-blur-xl rounded p-4 mb-3 border border-emerald-400/30">
+                  <p className="text-white font-semibold mb-2">Pool Cap & Excess SOL:</p>
+                  <ul className="text-gray-300 space-y-1">
+                    <li>• <strong className="text-emerald-400">Maximum for launch: 50 SOL</strong> (goes to Pump.fun)</li>
+                    <li>• <strong className="text-teal-400">Excess SOL</strong> (if pool &gt; 50 SOL) goes to founder:</li>
+                    <li className="ml-4">└── 8% immediate + 92% vested over 12 months</li>
+                  </ul>
+                </div>
                 <p className="text-gray-300">Token trades on Pump.fun bonding curve, may graduate to Raydium DEX.</p>
+              </div>
+
+              <div className="bg-gradient-to-br from-indigo-500/10 to-violet-500/10 backdrop-blur-xl rounded-lg p-6 border border-indigo-400/30">
+                <h3 className="text-xl font-semibold text-indigo-400 mb-3">Optional: Funding Phase Extension</h3>
+                <p className="text-gray-300 mb-3">After YES wins, founders can extend the market to collect additional funds:</p>
+                <div className="bg-black/30 rounded p-4 font-mono text-sm text-gray-300 border border-indigo-400/20">
+                  <p>Funding Phase:</p>
+                  <p className="ml-4">├── YES voting: <span className="text-green-400">Enabled</span> (supporters can add more)</p>
+                  <p className="ml-4">├── NO voting: <span className="text-red-400">Locked</span> (outcome already decided)</p>
+                  <p className="ml-4">├── Pool grows beyond original target</p>
+                  <p className="ml-4">└── Founder launches token when ready</p>
+                </div>
+                <p className="text-gray-400 text-sm mt-3 italic">
+                  This allows successful projects to raise more capital while maintaining community validation.
+                </p>
               </div>
             </div>
           </section>
@@ -351,6 +374,15 @@ export default function WhitepaperPage() {
                 </ul>
               </div>
 
+              <div>
+                <h3 className="text-xl font-semibold text-emerald-400 mb-2">SOL Distribution</h3>
+                <ul className="text-gray-300 space-y-2">
+                  <li>• <strong className="text-white">Token Launch:</strong> Up to 50 SOL goes to Pump.fun</li>
+                  <li>• <strong className="text-white">Excess SOL:</strong> If pool &gt; 50 SOL, excess goes to founder</li>
+                  <li className="ml-4 text-sm">└── 8% immediate + 92% vested over 12 months</li>
+                </ul>
+              </div>
+
               <div className="bg-black/30 rounded p-4 border border-purple-400/20">
                 <p className="text-white font-semibold mb-2">All fees go to platform treasury for:</p>
                 <ul className="text-gray-300 text-sm space-y-1 ml-4">
@@ -384,7 +416,7 @@ export default function WhitepaperPage() {
                   <li>✅ Early access (VC-level opportunities)</li>
                   <li>✅ Collective intelligence advantage</li>
                   <li>✅ Downside protection (refunds if NO wins)</li>
-                  <li>✅ Portfolio diversification ($2 minimum)</li>
+                  <li>✅ Portfolio diversification (0.01 SOL minimum)</li>
                 </ul>
               </div>
             </div>
@@ -442,7 +474,7 @@ export default function WhitepaperPage() {
                   <ul className="text-gray-300 space-y-1 ml-4">
                     <li>• Solana (high throughput, low fees)</li>
                     <li>• Anchor framework (Rust)</li>
-                    <li>• Program ID: <code className="text-xs">C5mVE2Bw...9bi4MzVj86</code></li>
+                    <li>• Program ID: <code className="text-xs break-all">C5mVE2BwSehWJNkNvhpsoepyKwZkvSLZx29bi4MzVj86</code></li>
                   </ul>
                 </div>
 
@@ -472,6 +504,70 @@ export default function WhitepaperPage() {
                     <li>• Automatic Raydium graduation</li>
                   </ul>
                 </div>
+              </div>
+            </div>
+          </section>
+
+          {/* Community & Links */}
+          <section className="mb-12">
+            <h2 className="text-3xl font-bold text-white mb-6">Community & Links</h2>
+
+            <div className="bg-gradient-to-br from-blue-500/10 to-purple-500/10 backdrop-blur-xl rounded-lg p-6 border border-blue-400/30">
+              <p className="text-gray-300 mb-6">
+                Join our community and follow our development progress:
+              </p>
+
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <a
+                  href="https://x.com/prelaunchmarket"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex items-center gap-3 bg-black/30 hover:bg-black/50 transition-colors rounded-lg p-4 border border-gray-600/30 hover:border-blue-400/50"
+                >
+                  <div className="p-2 bg-blue-500/20 rounded-full">
+                    <svg className="w-5 h-5 text-blue-400" fill="currentColor" viewBox="0 0 24 24">
+                      <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z" />
+                    </svg>
+                  </div>
+                  <div>
+                    <p className="text-white font-semibold">X (Twitter)</p>
+                    <p className="text-gray-400 text-sm">@prelaunchmarket</p>
+                  </div>
+                </a>
+
+                <a
+                  href="https://discord.gg/Ygknrrtn4"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex items-center gap-3 bg-black/30 hover:bg-black/50 transition-colors rounded-lg p-4 border border-gray-600/30 hover:border-indigo-400/50"
+                >
+                  <div className="p-2 bg-indigo-500/20 rounded-full">
+                    <svg className="w-5 h-5 text-indigo-400" fill="currentColor" viewBox="0 0 24 24">
+                      <path d="M20.317 4.3698a19.7913 19.7913 0 00-4.8851-1.5152.0741.0741 0 00-.0785.0371c-.211.3753-.4447.8648-.6083 1.2495-1.8447-.2762-3.68-.2762-5.4868 0-.1636-.3933-.4058-.8742-.6177-1.2495a.077.077 0 00-.0785-.037 19.7363 19.7363 0 00-4.8852 1.515.0699.0699 0 00-.0321.0277C.5334 9.0458-.319 13.5799.0992 18.0578a.0824.0824 0 00.0312.0561c2.0528 1.5076 4.0413 2.4228 5.9929 3.0294a.0777.0777 0 00.0842-.0276c.4616-.6304.8731-1.2952 1.226-1.9942a.076.076 0 00-.0416-.1057c-.6528-.2476-1.2743-.5495-1.8722-.8923a.077.077 0 01-.0076-.1277c.1258-.0943.2517-.1923.3718-.2914a.0743.0743 0 01.0776-.0105c3.9278 1.7933 8.18 1.7933 12.0614 0a.0739.0739 0 01.0785.0095c.1202.099.246.1981.3728.2924a.077.077 0 01-.0066.1276 12.2986 12.2986 0 01-1.873.8914.0766.0766 0 00-.0407.1067c.3604.698.7719 1.3628 1.225 1.9932a.076.076 0 00.0842.0286c1.961-.6067 3.9495-1.5219 6.0023-3.0294a.077.077 0 00.0313-.0552c.5004-5.177-.8382-9.6739-3.5485-13.6604a.061.061 0 00-.0312-.0286zM8.02 15.3312c-1.1825 0-2.1569-1.0857-2.1569-2.419 0-1.3332.9555-2.4189 2.157-2.4189 1.2108 0 2.1757 1.0952 2.1568 2.419 0 1.3332-.9555 2.4189-2.1569 2.4189zm7.9748 0c-1.1825 0-2.1569-1.0857-2.1569-2.419 0-1.3332.9554-2.4189 2.1569-2.4189 1.2108 0 2.1757 1.0952 2.1568 2.419 0 1.3332-.946 2.4189-2.1568 2.4189z" />
+                    </svg>
+                  </div>
+                  <div>
+                    <p className="text-white font-semibold">Discord</p>
+                    <p className="text-gray-400 text-sm">Join our community</p>
+                  </div>
+                </a>
+
+                <a
+                  href="https://github.com/aitankfish/PnL"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex items-center gap-3 bg-black/30 hover:bg-black/50 transition-colors rounded-lg p-4 border border-gray-600/30 hover:border-gray-400/50"
+                >
+                  <div className="p-2 bg-gray-500/20 rounded-full">
+                    <svg className="w-5 h-5 text-gray-300" fill="currentColor" viewBox="0 0 24 24">
+                      <path fillRule="evenodd" clipRule="evenodd" d="M12 2C6.477 2 2 6.484 2 12.017c0 4.425 2.865 8.18 6.839 9.504.5.092.682-.217.682-.483 0-.237-.008-.868-.013-1.703-2.782.605-3.369-1.343-3.369-1.343-.454-1.158-1.11-1.466-1.11-1.466-.908-.62.069-.608.069-.608 1.003.07 1.531 1.032 1.531 1.032.892 1.53 2.341 1.088 2.91.832.092-.647.35-1.088.636-1.338-2.22-.253-4.555-1.113-4.555-4.951 0-1.093.39-1.988 1.029-2.688-.103-.253-.446-1.272.098-2.65 0 0 .84-.27 2.75 1.026A9.564 9.564 0 0112 6.844c.85.004 1.705.115 2.504.337 1.909-1.296 2.747-1.027 2.747-1.027.546 1.379.202 2.398.1 2.651.64.7 1.028 1.595 1.028 2.688 0 3.848-2.339 4.695-4.566 4.943.359.309.678.92.678 1.855 0 1.338-.012 2.419-.012 2.747 0 .268.18.58.688.482A10.019 10.019 0 0022 12.017C22 6.484 17.522 2 12 2z" />
+                    </svg>
+                  </div>
+                  <div>
+                    <p className="text-white font-semibold">GitHub</p>
+                    <p className="text-gray-400 text-sm">View source code</p>
+                  </div>
+                </a>
               </div>
             </div>
           </section>
