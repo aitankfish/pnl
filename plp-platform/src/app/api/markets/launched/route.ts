@@ -105,12 +105,29 @@ export async function GET(_request: NextRequest) {
       const marketIdStr = participant.marketId.toString();
       const stakes = stakeTotalsMap.get(marketIdStr) || { totalYesStake: 0, totalNoStake: 0 };
 
+      // Try to get shares from new fields first
       const yesShares = BigInt(participant.yesShares || '0');
       const noShares = BigInt(participant.noShares || '0');
 
-      // Convert from lamports to SOL
-      stakes.totalYesStake += Number(yesShares) / 1_000_000_000;
-      stakes.totalNoStake += Number(noShares) / 1_000_000_000;
+      // If new fields have data, use them
+      if (yesShares > 0 || noShares > 0) {
+        // Convert from lamports to SOL
+        stakes.totalYesStake += Number(yesShares) / 1_000_000_000;
+        stakes.totalNoStake += Number(noShares) / 1_000_000_000;
+      } else {
+        // Fallback to legacy stakeAmount field
+        const stakeAmount = participant.stakeAmount || participant.totalInvested || 0;
+        const stakeInSol = typeof stakeAmount === 'string'
+          ? Number(BigInt(stakeAmount)) / 1_000_000_000
+          : stakeAmount / 1_000_000_000;
+
+        // Use voteOption to determine which side
+        if (participant.voteOption === true) {
+          stakes.totalYesStake += stakeInSol;
+        } else {
+          stakes.totalNoStake += stakeInSol;
+        }
+      }
 
       stakeTotalsMap.set(marketIdStr, stakes);
     }
@@ -144,7 +161,22 @@ export async function GET(_request: NextRequest) {
         totalNoStake: 0,
       };
 
-      const totalRaised = stakeTotals.totalYesStake + stakeTotals.totalNoStake;
+      // Use calculated participant stakes, or fallback to market's blockchain-synced values
+      let totalRaised = stakeTotals.totalYesStake + stakeTotals.totalNoStake;
+
+      // If participant calculation is too low, use market's blockchain-synced stake values
+      const marketYesStake = (market.totalYesStake || 0) / 1_000_000_000;
+      const marketNoStake = (market.totalNoStake || 0) / 1_000_000_000;
+      const marketTotalStake = marketYesStake + marketNoStake;
+
+      if (marketTotalStake > totalRaised) {
+        totalRaised = marketTotalStake;
+        logger.debug('Using market stake values instead of participant calculation', {
+          marketId: market._id.toString(),
+          participantTotal: stakeTotals.totalYesStake + stakeTotals.totalNoStake,
+          marketTotal: marketTotalStake,
+        });
+      }
 
       const poolRaised = totalRaised > 0
         ? totalRaised.toFixed(2) // Already in SOL
