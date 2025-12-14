@@ -12,6 +12,17 @@ import { calculateVoteCounts } from '@/lib/vote-counts';
 
 const logger = createClientLogger();
 
+// Staleness threshold in milliseconds (2 minutes)
+const STALENESS_THRESHOLD_MS = 2 * 60 * 1000;
+
+// Helper function to check if market data is stale
+function isMarketDataStale(lastSyncedAt: Date | null | undefined): boolean {
+  if (!lastSyncedAt) return true; // No sync data = consider stale
+  const now = new Date().getTime();
+  const lastSync = new Date(lastSyncedAt).getTime();
+  return (now - lastSync) > STALENESS_THRESHOLD_MS;
+}
+
 // Helper function to format project age
 function formatProjectAge(createdAt: Date): string {
   const now = new Date();
@@ -340,6 +351,7 @@ export async function GET(
       availableActions: market.availableActions,
       lastSyncedAt: market.lastSyncedAt,
       syncStatus: market.syncStatus,
+      isStale: isMarketDataStale(market.lastSyncedAt),
 
       // Project owner and age
       founderWallet,

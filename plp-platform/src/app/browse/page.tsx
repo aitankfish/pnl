@@ -48,6 +48,17 @@ interface Market {
   isNoVoteEnabled?: boolean;
   yesVoteDisabledReason?: string;
   noVoteDisabledReason?: string;
+  // Sync status (for staleness detection)
+  lastSyncedAt?: string | null;
+  isStale?: boolean;
+  syncStatus?: string;
+}
+
+interface SyncHealth {
+  healthy: boolean;
+  staleCount: number;
+  totalCount: number;
+  message: string;
 }
 
 // Format category and stage for proper display
@@ -108,6 +119,7 @@ export default function BrowsePage() {
   const [error, setError] = useState<string | null>(null);
   const [votingState, setVotingState] = useState<{ marketId: string; voteType: 'yes' | 'no' } | null>(null);
   const [selectedCategory, setSelectedCategory] = useState<string>('All');
+  const [syncHealth, setSyncHealth] = useState<SyncHealth | null>(null);
   const { vote } = useVoting();
 
   // Socket.IO for real-time updates
@@ -170,6 +182,10 @@ export default function BrowsePage() {
 
       if (result.success) {
         setMarkets(result.data.markets);
+        // Track sync health for staleness detection
+        if (result.data.syncHealth) {
+          setSyncHealth(result.data.syncHealth);
+        }
       } else {
         setError(result.error || 'Failed to load markets');
       }
@@ -450,7 +466,24 @@ export default function BrowsePage() {
         {/* Projects List */}
         <div className="space-y-4 sm:space-y-6">
           <div className="flex items-center justify-between flex-wrap gap-3 sm:gap-4">
-            <h2 className="text-xl sm:text-3xl font-bold text-white">Live Markets</h2>
+            <div className="flex items-center gap-3">
+              <h2 className="text-xl sm:text-3xl font-bold text-white">Live Markets</h2>
+              {/* Sync Health Indicator */}
+              {syncHealth && !syncHealth.healthy && (
+                <div className="flex items-center gap-1.5 px-2 py-1 bg-yellow-500/20 border border-yellow-500/30 rounded-full">
+                  <div className="w-2 h-2 bg-yellow-400 rounded-full animate-pulse" />
+                  <span className="text-xs text-yellow-400 font-medium">
+                    {syncHealth.staleCount} stale
+                  </span>
+                </div>
+              )}
+              {syncHealth?.healthy && isConnected && (
+                <div className="flex items-center gap-1.5 px-2 py-1 bg-green-500/20 border border-green-500/30 rounded-full">
+                  <div className="w-2 h-2 bg-green-400 rounded-full" />
+                  <span className="text-xs text-green-400 font-medium">Live</span>
+                </div>
+              )}
+            </div>
 
             {/* Category Filter Dropdown */}
             <div className="flex items-center gap-2 sm:gap-3">

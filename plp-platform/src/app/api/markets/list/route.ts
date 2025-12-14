@@ -12,6 +12,17 @@ import { calculateVoteCountsForMarkets } from '@/lib/vote-counts';
 
 const logger = createClientLogger();
 
+// Staleness threshold in milliseconds (2 minutes)
+const STALENESS_THRESHOLD_MS = 2 * 60 * 1000;
+
+// Helper function to check if market data is stale
+function isMarketDataStale(lastSyncedAt: Date | undefined): boolean {
+  if (!lastSyncedAt) return true; // No sync data = consider stale
+  const now = new Date().getTime();
+  const lastSync = new Date(lastSyncedAt).getTime();
+  return (now - lastSync) > STALENESS_THRESHOLD_MS;
+}
+
 // Helper function to convert IPFS URL to gateway URL
 function convertToGatewayUrl(imageUrl: string | undefined): string | undefined {
   if (!imageUrl) return undefined;
@@ -268,10 +279,31 @@ export async function GET(_request: NextRequest) {
         isNoVoteEnabled,
         yesVoteDisabledReason,
         noVoteDisabledReason,
+
+        // Sync status (for staleness detection)
+        lastSyncedAt: market.lastSyncedAt || null,
+        isStale: isMarketDataStale(market.lastSyncedAt),
+        syncStatus: market.syncStatus || 'unknown',
       };
     });
 
-    logger.info('Fetched markets', { count: marketsWithProjects.length });
+    // Calculate overall sync health
+    const staleCount = marketsWithProjects.filter((m: any) => m.isStale).length;
+    const syncHealthy = staleCount === 0;
+    const syncHealth = {
+      healthy: syncHealthy,
+      staleCount,
+      totalCount: marketsWithProjects.length,
+      message: syncHealthy
+        ? 'All markets synced'
+        : `${staleCount} market(s) may have stale data`,
+    };
+
+    logger.info('Fetched markets', {
+      count: marketsWithProjects.length,
+      staleCount,
+      syncHealthy,
+    });
 
     return NextResponse.json(
       {
@@ -279,6 +311,7 @@ export async function GET(_request: NextRequest) {
         data: {
           markets: marketsWithProjects,
           total: marketsWithProjects.length,
+          syncHealth,
         }
       },
       {
@@ -291,7 +324,7 @@ export async function GET(_request: NextRequest) {
     );
 
   } catch (error) {
-    logger.error('Failed to fetch markets:', error);
+    logger.error('Failed to fetch markets:', error as any);
 
     return NextResponse.json(
       {

@@ -95,6 +95,10 @@ interface MarketDetails {
   founderUsername?: string | null;
   founderDisplayName?: string;
   projectAge?: string;
+  // Sync status (for staleness detection)
+  lastSyncedAt?: string | null;
+  isStale?: boolean;
+  syncStatus?: string;
 }
 
 // Format category and stage for proper display
@@ -990,6 +994,17 @@ export default function MarketDetailsPage() {
                           : 'bg-blue-500/20 text-blue-300 border-blue-400/30'
                       }`}>
                         {onchainData.data.phase === 'Funding' ? '💰 Funding' : '📊 Prediction'}
+                      </Badge>
+                    )}
+                    {/* Data Source Indicator */}
+                    {market.isStale && onchainData?.success && (
+                      <Badge className="text-xs bg-cyan-500/20 text-cyan-300 border-cyan-400/30">
+                        ⛓️ Live
+                      </Badge>
+                    )}
+                    {market.isStale && !onchainData?.success && (
+                      <Badge className="text-xs bg-yellow-500/20 text-yellow-300 border-yellow-400/30 animate-pulse">
+                        ⚠️ Syncing
                       </Badge>
                     )}
                   </div>
