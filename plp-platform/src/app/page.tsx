@@ -1023,7 +1023,7 @@ export default function HomePage() {
                         <div className="text-green-400 font-bold mt-0.5">1.</div>
                         <div>
                           <h5 className="text-white font-semibold text-sm">Token Launches on Pump.fun</h5>
-                          <p className="text-gray-400 text-xs">Up to 55 SOL from pool used to launch token</p>
+                          <p className="text-gray-400 text-xs">Up to 50 SOL from pool used to launch token</p>
                         </div>
                       </div>
 
