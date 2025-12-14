@@ -142,9 +142,10 @@ export function JupiterSwap({ isOpen, onClose }: JupiterSwapProps) {
         amountInSmallestUnit
       });
 
-      // Call Jupiter Quote API
+      // Call Jupiter Quote API (using public API endpoint)
+      // Note: quote-api.jup.ag was deprecated, now using public.jupiterapi.com
       const quoteResponse = await fetch(
-        `https://quote-api.jup.ag/v6/quote?inputMint=${inputMint}&outputMint=${outputMint}&amount=${amountInSmallestUnit}&slippageBps=50`,
+        `https://public.jupiterapi.com/quote?inputMint=${inputMint}&outputMint=${outputMint}&amount=${amountInSmallestUnit}&slippageBps=50`,
         {
           headers: {
             'Accept': 'application/json',
@@ -218,8 +219,8 @@ export function JupiterSwap({ isOpen, onClose }: JupiterSwapProps) {
 
       console.log('Getting swap transaction from Jupiter...');
 
-      // Get swap transaction from Jupiter
-      const swapResponse = await fetch('https://quote-api.jup.ag/v6/swap', {
+      // Get swap transaction from Jupiter (using public API endpoint)
+      const swapResponse = await fetch('https://public.jupiterapi.com/swap', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -426,7 +427,7 @@ export function JupiterSwap({ isOpen, onClose }: JupiterSwapProps) {
           </Button>
 
           <p className="text-gray-500 text-xs text-center mt-4">
-            Powered by Jupiter • Network: {network}
+            Powered by Jupiter • Network: {network} • 0.2% fee
           </p>
         </div>
       </div>
