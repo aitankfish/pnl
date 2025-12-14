@@ -572,6 +572,121 @@ export default function WhitepaperPage() {
             </div>
           </section>
 
+          {/* Future Roadmap */}
+          <section className="mb-12">
+            <h2 className="text-3xl font-bold text-white mb-6">Future Roadmap</h2>
+
+            <div className="bg-gradient-to-br from-violet-500/10 to-fuchsia-500/10 backdrop-blur-xl rounded-lg p-6 border border-violet-400/30 mb-6">
+              <p className="text-gray-300 mb-6">
+                PNL is continuously evolving. Here&apos;s what we&apos;re building next to create the ultimate
+                community-driven token launch experience:
+              </p>
+
+              <div className="space-y-4">
+                <div className="bg-black/30 rounded-lg p-4 border border-violet-400/20">
+                  <div className="flex items-center gap-3 mb-2">
+                    <div className="p-2 bg-violet-500/20 rounded-full">
+                      <svg className="w-5 h-5 text-violet-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z" />
+                      </svg>
+                    </div>
+                    <h3 className="text-xl font-semibold text-violet-400">Infrastructure Pipeline</h3>
+                  </div>
+                  <p className="text-gray-300 text-sm">
+                    Streamlining our deployment and operations pipeline for faster iteration, improved reliability,
+                    and seamless scaling as the platform grows.
+                  </p>
+                </div>
+
+                <div className="bg-black/30 rounded-lg p-4 border border-fuchsia-400/20">
+                  <div className="flex items-center gap-3 mb-2">
+                    <div className="p-2 bg-fuchsia-500/20 rounded-full">
+                      <svg className="w-5 h-5 text-fuchsia-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                      </svg>
+                    </div>
+                    <h3 className="text-xl font-semibold text-fuchsia-400">System Upgrades</h3>
+                  </div>
+                  <p className="text-gray-300 text-sm">
+                    Continuous improvements to smart contracts, frontend performance, and user experience
+                    based on community feedback and usage patterns.
+                  </p>
+                </div>
+
+                <div className="bg-black/30 rounded-lg p-4 border border-pink-400/20">
+                  <div className="flex items-center gap-3 mb-2">
+                    <div className="p-2 bg-pink-500/20 rounded-full">
+                      <svg className="w-5 h-5 text-pink-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
+                      </svg>
+                    </div>
+                    <h3 className="text-xl font-semibold text-pink-400">Community Chat System</h3>
+                  </div>
+                  <p className="text-gray-300 text-sm mb-2">
+                    Transform every market details page into a vibrant classroom where users, founders, and
+                    supporters can connect and collaborate:
+                  </p>
+                  <ul className="text-gray-400 text-sm space-y-1 ml-4">
+                    <li>• Real-time text chat for discussions and Q&A</li>
+                    <li>• Voice chat rooms for live community calls</li>
+                    <li>• Direct founder-to-community communication</li>
+                    <li>• Moderation tools for healthy conversations</li>
+                  </ul>
+                </div>
+
+                <div className="bg-black/30 rounded-lg p-4 border border-cyan-400/20">
+                  <div className="flex items-center gap-3 mb-2">
+                    <div className="p-2 bg-cyan-500/20 rounded-full">
+                      <svg className="w-5 h-5 text-cyan-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
+                      </svg>
+                    </div>
+                    <h3 className="text-xl font-semibold text-cyan-400">AI Review Analysis</h3>
+                  </div>
+                  <p className="text-gray-300 text-sm mb-2">
+                    Intelligent AI-powered analysis to help voters make informed decisions:
+                  </p>
+                  <ul className="text-gray-400 text-sm space-y-1 ml-4">
+                    <li>• Automated project assessment and risk scoring</li>
+                    <li>• Tokenomics analysis and comparison</li>
+                    <li>• Team credibility evaluation</li>
+                    <li>• Market sentiment aggregation</li>
+                  </ul>
+                </div>
+
+                <div className="bg-black/30 rounded-lg p-4 border border-emerald-400/20">
+                  <div className="flex items-center gap-3 mb-2">
+                    <div className="p-2 bg-emerald-500/20 rounded-full">
+                      <svg className="w-5 h-5 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
+                      </svg>
+                    </div>
+                    <h3 className="text-xl font-semibold text-emerald-400">Community Development</h3>
+                  </div>
+                  <p className="text-gray-300 text-sm">
+                    Tools and features to help projects build engaged communities from day one—gamification,
+                    reputation systems, contributor rewards, and community governance features.
+                  </p>
+                </div>
+
+                <div className="bg-black/30 rounded-lg p-4 border border-amber-400/20">
+                  <div className="flex items-center gap-3 mb-2">
+                    <div className="p-2 bg-amber-500/20 rounded-full">
+                      <svg className="w-5 h-5 text-amber-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
+                      </svg>
+                    </div>
+                    <h3 className="text-xl font-semibold text-amber-400">Team Formation</h3>
+                  </div>
+                  <p className="text-gray-300 text-sm">
+                    Connect founders with talented developers, designers, marketers, and advisors.
+                    Build your dream team through our talent marketplace and collaboration tools.
+                  </p>
+                </div>
+              </div>
+            </div>
+          </section>
+
           {/* Conclusion */}
           <section className="mb-12">
             <h2 className="text-3xl font-bold text-white mb-6">Conclusion</h2>
