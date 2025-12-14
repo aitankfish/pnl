@@ -34,8 +34,10 @@ import {
   History
 } from 'lucide-react';
 import { Connection, PublicKey, LAMPORTS_PER_SOL, SystemProgram, VersionedTransaction, TransactionMessage } from '@solana/web3.js';
+import { getAssociatedTokenAddressSync, createTransferInstruction, createAssociatedTokenAccountInstruction, TOKEN_PROGRAM_ID, TOKEN_2022_PROGRAM_ID } from '@solana/spl-token';
 import { RPC_ENDPOINT, SOLANA_NETWORK } from '@/config/solana';
 import { getSolanaConnection } from '@/lib/solana';
+import type { TokenBalance } from '@/lib/hooks/useAllTokenBalances';
 import { ipfsUtils } from '@/lib/ipfs';
 import useSWR from 'swr';
 import { useUserSocket, useMarketSocket } from '@/lib/hooks/useSocket';
@@ -369,20 +371,83 @@ function MyProjectCard({ project }: { project: any }) {
   );
 }
 
+// Token option for sending (includes SOL as native)
+interface SendableToken {
+  mint: string;
+  symbol: string;
+  name: string;
+  decimals: number;
+  balance: number;
+  logoURI?: string;
+  programId?: string;
+  isNative?: boolean;
+}
+
 interface SendModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onSend: (recipientAddress: string, amount: number) => Promise<void>;
-  balance: number;
+  onSend: (recipientAddress: string, amount: number, token: SendableToken) => Promise<void>;
+  solBalance: number;
+  tokens: TokenBalance[];
 }
 
-function SendModal({ isOpen, onClose, onSend, balance }: SendModalProps) {
+function SendModal({ isOpen, onClose, onSend, solBalance, tokens }: SendModalProps) {
   const [recipient, setRecipient] = useState('');
   const [amount, setAmount] = useState('');
   const [isSending, setIsSending] = useState(false);
   const [error, setError] = useState('');
+  const [showTokenSelector, setShowTokenSelector] = useState(false);
+  const [tokenSearch, setTokenSearch] = useState('');
 
-  const handleSend = async () => {
+  // Build sendable tokens list with SOL as first option
+  const sendableTokens: SendableToken[] = React.useMemo(() => {
+    const solToken: SendableToken = {
+      mint: 'So11111111111111111111111111111111111111112',
+      symbol: 'SOL',
+      name: 'Solana',
+      decimals: 9,
+      balance: solBalance,
+      logoURI: 'https://raw.githubusercontent.com/solana-labs/token-list/main/assets/mainnet/So11111111111111111111111111111111111111112/logo.png',
+      isNative: true,
+    };
+
+    const splTokens: SendableToken[] = tokens.map((t) => ({
+      mint: t.mint,
+      symbol: t.symbol || t.mint.slice(0, 4) + '...',
+      name: t.name || 'Unknown Token',
+      decimals: t.decimals,
+      balance: t.uiAmount,
+      logoURI: t.logoURI,
+      programId: t.programId,
+      isNative: false,
+    }));
+
+    return [solToken, ...splTokens];
+  }, [solBalance, tokens]);
+
+  const [selectedToken, setSelectedToken] = useState<SendableToken>(sendableTokens[0]);
+
+  // Update selected token when sendableTokens changes
+  React.useEffect(() => {
+    if (sendableTokens.length > 0) {
+      // Try to keep the same token selected if it still exists
+      const currentToken = sendableTokens.find((t) => t.mint === selectedToken.mint);
+      if (currentToken) {
+        setSelectedToken(currentToken);
+      } else {
+        setSelectedToken(sendableTokens[0]);
+      }
+    }
+  }, [sendableTokens]);
+
+  // Filter tokens by search
+  const filteredTokens = sendableTokens.filter((token) =>
+    token.symbol.toLowerCase().includes(tokenSearch.toLowerCase()) ||
+    token.name.toLowerCase().includes(tokenSearch.toLowerCase()) ||
+    token.mint.toLowerCase().includes(tokenSearch.toLowerCase())
+  );
+
+  const handleSendClick = async () => {
     setError('');
 
     if (!recipient || !amount) {
@@ -396,14 +461,22 @@ function SendModal({ isOpen, onClose, onSend, balance }: SendModalProps) {
       return;
     }
 
-    if (amountNum > balance) {
-      setError('Insufficient balance');
+    if (amountNum > selectedToken.balance) {
+      setError(`Insufficient ${selectedToken.symbol} balance`);
+      return;
+    }
+
+    // Validate recipient address
+    try {
+      new PublicKey(recipient);
+    } catch {
+      setError('Invalid Solana address');
       return;
     }
 
     try {
       setIsSending(true);
-      await onSend(recipient, amountNum);
+      await onSend(recipient, amountNum, selectedToken);
       setRecipient('');
       setAmount('');
       onClose();
@@ -414,6 +487,15 @@ function SendModal({ isOpen, onClose, onSend, balance }: SendModalProps) {
     }
   };
 
+  const handleMaxClick = () => {
+    if (selectedToken.isNative) {
+      // Reserve some SOL for transaction fees
+      setAmount(Math.max(0, selectedToken.balance - 0.01).toString());
+    } else {
+      setAmount(selectedToken.balance.toString());
+    }
+  };
+
   if (!isOpen) return null;
 
   return (
@@ -421,16 +503,100 @@ function SendModal({ isOpen, onClose, onSend, balance }: SendModalProps) {
       <Card className="w-full max-w-md bg-gray-900 border-white/20 text-white">
         <CardContent className="p-6 space-y-4">
           <div className="flex items-center justify-between mb-4">
-            <h3 className="text-xl font-semibold">Withdraw SOL / USDC</h3>
+            <h3 className="text-xl font-semibold">Send Tokens</h3>
             <button onClick={onClose} className="text-gray-400 hover:text-white">
               <X className="w-5 h-5" />
             </button>
           </div>
 
-          <div className="p-3 bg-cyan-500/10 border border-cyan-500/20 rounded-lg text-cyan-400 text-sm">
-            <p className="text-xs">
-              💡 This form withdraws SOL only. To withdraw USDC, use the <span className="font-semibold">Swap</span> feature to convert USDC to SOL first, then withdraw SOL.
-            </p>
+          {/* Token Selector */}
+          <div className="space-y-2">
+            <Label className="text-white">Select Token</Label>
+            <button
+              onClick={() => setShowTokenSelector(!showTokenSelector)}
+              className="w-full flex items-center justify-between p-3 bg-white/5 border border-white/10 rounded-lg hover:bg-white/10 transition-colors"
+            >
+              <div className="flex items-center gap-3">
+                {selectedToken.logoURI ? (
+                  <img
+                    src={selectedToken.logoURI}
+                    alt={selectedToken.symbol}
+                    className="w-8 h-8 rounded-full"
+                    onError={(e) => {
+                      (e.target as HTMLImageElement).src = 'https://raw.githubusercontent.com/solana-labs/token-list/main/assets/mainnet/So11111111111111111111111111111111111111112/logo.png';
+                    }}
+                  />
+                ) : (
+                  <div className="w-8 h-8 rounded-full bg-gradient-to-r from-purple-500 to-pink-500 flex items-center justify-center text-xs font-bold">
+                    {selectedToken.symbol.slice(0, 2)}
+                  </div>
+                )}
+                <div className="text-left">
+                  <p className="font-medium">{selectedToken.symbol}</p>
+                  <p className="text-xs text-gray-400">{selectedToken.name}</p>
+                </div>
+              </div>
+              <div className="text-right">
+                <p className="text-sm text-gray-400">Balance</p>
+                <p className="font-medium">{selectedToken.balance.toFixed(4)}</p>
+              </div>
+            </button>
+
+            {/* Token Selector Dropdown */}
+            {showTokenSelector && (
+              <div className="absolute z-10 mt-1 w-[calc(100%-3rem)] bg-gray-800 border border-white/10 rounded-lg shadow-xl max-h-64 overflow-hidden">
+                <div className="p-2 border-b border-white/10">
+                  <Input
+                    placeholder="Search tokens..."
+                    value={tokenSearch}
+                    onChange={(e) => setTokenSearch(e.target.value)}
+                    className="bg-white/5 border-white/10 text-white placeholder:text-gray-500"
+                  />
+                </div>
+                <div className="max-h-48 overflow-y-auto">
+                  {filteredTokens.length === 0 ? (
+                    <div className="p-4 text-center text-gray-400">No tokens found</div>
+                  ) : (
+                    filteredTokens.map((token) => (
+                      <button
+                        key={token.mint}
+                        onClick={() => {
+                          setSelectedToken(token);
+                          setShowTokenSelector(false);
+                          setTokenSearch('');
+                          setAmount(''); // Reset amount when token changes
+                        }}
+                        className={`w-full flex items-center justify-between p-3 hover:bg-white/5 transition-colors ${
+                          token.mint === selectedToken.mint ? 'bg-white/10' : ''
+                        }`}
+                      >
+                        <div className="flex items-center gap-3">
+                          {token.logoURI ? (
+                            <img
+                              src={token.logoURI}
+                              alt={token.symbol}
+                              className="w-6 h-6 rounded-full"
+                              onError={(e) => {
+                                (e.target as HTMLImageElement).style.display = 'none';
+                              }}
+                            />
+                          ) : (
+                            <div className="w-6 h-6 rounded-full bg-gradient-to-r from-purple-500 to-pink-500 flex items-center justify-center text-[10px] font-bold">
+                              {token.symbol.slice(0, 2)}
+                            </div>
+                          )}
+                          <div className="text-left">
+                            <p className="font-medium text-sm">{token.symbol}</p>
+                            <p className="text-xs text-gray-400 truncate max-w-[120px]">{token.name}</p>
+                          </div>
+                        </div>
+                        <p className="text-sm">{token.balance.toFixed(4)}</p>
+                      </button>
+                    ))
+                  )}
+                </div>
+              </div>
+            )}
           </div>
 
           <div className="space-y-2">
@@ -445,25 +611,27 @@ function SendModal({ isOpen, onClose, onSend, balance }: SendModalProps) {
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="amount" className="text-white">Amount (SOL)</Label>
+            <Label htmlFor="amount" className="text-white">Amount ({selectedToken.symbol})</Label>
             <div className="relative">
               <Input
                 id="amount"
                 type="number"
-                step="0.001"
+                step="any"
                 placeholder="0.00"
                 value={amount}
                 onChange={(e) => setAmount(e.target.value)}
                 className="bg-white/5 border-white/10 text-white placeholder:text-gray-500"
               />
               <button
-                onClick={() => setAmount(Math.max(0, balance - 0.01).toString())}
+                onClick={handleMaxClick}
                 className="absolute right-2 top-1/2 -translate-y-1/2 text-xs text-cyan-400 hover:text-cyan-300"
               >
                 MAX
               </button>
             </div>
-            <p className="text-xs text-gray-400">Available: {balance.toFixed(4)} SOL</p>
+            <p className="text-xs text-gray-400">
+              Available: {selectedToken.balance.toFixed(4)} {selectedToken.symbol}
+            </p>
           </div>
 
           {error && (
@@ -481,11 +649,11 @@ function SendModal({ isOpen, onClose, onSend, balance }: SendModalProps) {
               Cancel
             </Button>
             <Button
-              onClick={handleSend}
+              onClick={handleSendClick}
               disabled={isSending}
               className="flex-1 bg-gradient-to-r from-cyan-500 to-blue-500 hover:from-cyan-600 hover:to-blue-600"
             >
-              {isSending ? 'Sending...' : 'Withdraw'}
+              {isSending ? 'Sending...' : `Send ${selectedToken.symbol}`}
             </Button>
           </div>
         </CardContent>
@@ -1016,19 +1184,77 @@ export default function WalletPage() {
     input.click();
   };
 
-  const handleSend = async (recipientAddress: string, amount: number) => {
+  const handleSend = async (recipientAddress: string, amount: number, token: SendableToken) => {
     if (!primaryWallet) throw new Error('No wallet connected');
 
     const connection = await getSolanaConnection();
     const fromPubkey = new PublicKey(primaryWallet.address);
     const toPubkey = new PublicKey(recipientAddress);
 
-    // Create transfer instruction
-    const transferInstruction = SystemProgram.transfer({
-      fromPubkey,
-      toPubkey,
-      lamports: amount * LAMPORTS_PER_SOL,
-    });
+    const instructions: any[] = [];
+
+    if (token.isNative) {
+      // SOL transfer
+      instructions.push(
+        SystemProgram.transfer({
+          fromPubkey,
+          toPubkey,
+          lamports: Math.floor(amount * LAMPORTS_PER_SOL),
+        })
+      );
+    } else {
+      // SPL Token transfer
+      const mintPubkey = new PublicKey(token.mint);
+
+      // Determine the token program to use
+      const tokenProgram = token.programId === TOKEN_2022_PROGRAM_ID.toBase58()
+        ? TOKEN_2022_PROGRAM_ID
+        : TOKEN_PROGRAM_ID;
+
+      // Get source and destination associated token accounts
+      const sourceAta = getAssociatedTokenAddressSync(
+        mintPubkey,
+        fromPubkey,
+        false,
+        tokenProgram
+      );
+
+      const destinationAta = getAssociatedTokenAddressSync(
+        mintPubkey,
+        toPubkey,
+        false,
+        tokenProgram
+      );
+
+      // Check if destination ATA exists, if not create it
+      const destinationAtaInfo = await connection.getAccountInfo(destinationAta);
+      if (!destinationAtaInfo) {
+        instructions.push(
+          createAssociatedTokenAccountInstruction(
+            fromPubkey, // payer
+            destinationAta, // ata
+            toPubkey, // owner
+            mintPubkey, // mint
+            tokenProgram
+          )
+        );
+      }
+
+      // Calculate amount in token's smallest unit (based on decimals)
+      const tokenAmount = Math.floor(amount * Math.pow(10, token.decimals));
+
+      // Add transfer instruction
+      instructions.push(
+        createTransferInstruction(
+          sourceAta, // source
+          destinationAta, // destination
+          fromPubkey, // owner
+          BigInt(tokenAmount), // amount
+          [], // multi-signers (empty for single signer)
+          tokenProgram
+        )
+      );
+    }
 
     // Get latest blockhash
     const { blockhash } = await connection.getLatestBlockhash();
@@ -1037,7 +1263,7 @@ export default function WalletPage() {
     const messageV0 = new TransactionMessage({
       payerKey: fromPubkey,
       recentBlockhash: blockhash,
-      instructions: [transferInstruction],
+      instructions,
     }).compileToV0Message();
 
     const transaction = new VersionedTransaction(messageV0);
@@ -1076,7 +1302,7 @@ export default function WalletPage() {
     // Wait for confirmation
     await connection.confirmTransaction(signature, 'confirmed');
 
-    // Update balance
+    // Update SOL balance
     const balance = await connection.getBalance(fromPubkey);
     setSolBalance(balance / LAMPORTS_PER_SOL);
   };
@@ -1872,7 +2098,8 @@ export default function WalletPage() {
         isOpen={showSendModal}
         onClose={() => setShowSendModal(false)}
         onSend={handleSend}
-        balance={solBalance}
+        solBalance={solBalance}
+        tokens={allTokens}
       />
       <DepositModal
         isOpen={showDepositModal}
