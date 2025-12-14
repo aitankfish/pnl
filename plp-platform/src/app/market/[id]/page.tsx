@@ -590,10 +590,11 @@ export default function MarketDetailsPage() {
 
     if (result.success) {
       // Format the claim amount for display
-      const claimAmountSOL = result.claimAmount ? (result.claimAmount / 1e9).toFixed(4) : '0';
+      const claimAmountFormatted = result.claimAmount ? (result.claimAmount / 1e9).toFixed(4) : '0';
+      const assetType = result.claimType === 'token' ? 'tokens' : 'SOL';
 
       // Show success toast with claim amount
-      setToastMessage(`✅ Claimed ${claimAmountSOL} SOL successfully!`);
+      setToastMessage(`✅ Claimed ${claimAmountFormatted} ${assetType} successfully!`);
       setShowToast(true);
       setTimeout(() => setShowToast(false), 3000);
 

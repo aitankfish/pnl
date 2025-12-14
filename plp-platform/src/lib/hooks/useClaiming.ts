@@ -24,7 +24,7 @@ export function useClaiming() {
   const claim = async (params: {
     marketId: string;
     marketAddress: string;
-  }): Promise<{ success: boolean; signature?: string; claimAmount?: number; error?: any }> => {
+  }): Promise<{ success: boolean; signature?: string; claimAmount?: number; claimType?: 'sol' | 'token'; error?: any }> => {
     if (!primaryWallet) {
       return { success: false, error: 'No wallet connected' };
     }
@@ -55,6 +55,7 @@ export function useClaiming() {
 
       let signature: string;
       let claimableAmount: number = 0;
+      let claimType: 'sol' | 'token' = 'sol';
 
       try {
         // STEP 2: Get serialized transaction
@@ -108,7 +109,7 @@ export function useClaiming() {
         console.log('📊 Parsing actual claim amount from transaction...');
         const parseResult = await parseClaimAmount(connection, signature);
         claimableAmount = parseResult.amount;
-        const claimType = parseResult.type;
+        claimType = parseResult.type;
         console.log(`✅ Actual claim amount: ${claimableAmount} ${claimType === 'sol' ? 'lamports' : 'tokens'} (${(claimableAmount / 1e9).toFixed(4)} ${claimType === 'sol' ? 'SOL' : 'tokens'})`);
 
       } catch (signerError: unknown) {
@@ -141,6 +142,7 @@ export function useClaiming() {
         success: true,
         signature,
         claimAmount: claimableAmount,
+        claimType,
       };
 
     } catch (error) {
