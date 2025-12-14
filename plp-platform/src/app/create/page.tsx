@@ -605,7 +605,7 @@ export default function CreatePage() {
                     <label
                       htmlFor="projectImage"
                       className={`
-                        relative flex flex-col items-center justify-center p-6
+                        relative flex flex-col items-center justify-center p-4
                         border-2 border-dashed rounded-xl cursor-pointer
                         transition-all duration-200 group
                         ${formData.projectImage
@@ -627,15 +627,22 @@ export default function CreatePage() {
                         className="hidden"
                       />
                       {formData.projectImage ? (
-                        <>
-                          <div className="p-3 bg-green-500/20 rounded-full mb-2">
-                            <svg className="w-6 h-6 text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                            </svg>
+                        <div className="flex flex-col items-center">
+                          <div className="relative w-24 h-24 mb-2 rounded-lg overflow-hidden border border-green-500/30">
+                            <img
+                              src={URL.createObjectURL(formData.projectImage)}
+                              alt="Preview"
+                              className="w-full h-full object-cover"
+                            />
+                            <div className="absolute top-1 right-1 p-1 bg-green-500 rounded-full">
+                              <svg className="w-3 h-3 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
+                              </svg>
+                            </div>
                           </div>
-                          <p className="text-sm text-green-400 font-medium">{formData.projectImage.name}</p>
-                          <p className="text-xs text-white/50 mt-1">Click to change</p>
-                        </>
+                          <p className="text-xs text-green-400 font-medium truncate max-w-full">{formData.projectImage.name}</p>
+                          <p className="text-xs text-white/50 mt-0.5">Click to change</p>
+                        </div>
                       ) : (
                         <>
                           <div className="p-3 bg-blue-500/20 rounded-full mb-2 group-hover:bg-blue-500/30 transition-colors">
@@ -656,7 +663,7 @@ export default function CreatePage() {
                     <label
                       htmlFor="projectDocument"
                       className={`
-                        relative flex flex-col items-center justify-center p-6
+                        relative flex flex-col items-center justify-center p-4
                         border-2 border-dashed rounded-xl cursor-pointer
                         transition-all duration-200 group
                         ${formData.projectDocument
@@ -683,15 +690,34 @@ export default function CreatePage() {
                         className="hidden"
                       />
                       {formData.projectDocument ? (
-                        <>
-                          <div className="p-3 bg-green-500/20 rounded-full mb-2">
-                            <svg className="w-6 h-6 text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                            </svg>
+                        <div className="flex flex-col items-center">
+                          <div className="relative w-20 h-24 mb-2 rounded-lg overflow-hidden border border-green-500/30 bg-slate-800 flex items-center justify-center">
+                            {/* Document type icon */}
+                            {formData.projectDocument.name.toLowerCase().endsWith('.pdf') ? (
+                              <div className="text-center">
+                                <svg className="w-10 h-10 text-red-400 mx-auto" fill="currentColor" viewBox="0 0 24 24">
+                                  <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8l-6-6zm-1 2l5 5h-5V4zM8.5 13h1.1l.5 2.5.5-2.5h1.1l-.9 4h-1l-.5-2.5-.5 2.5h-1l-.9-4zm5 0h1.4c.6 0 1.1.4 1.1 1v2c0 .6-.5 1-1.1 1H13.5v-4z"/>
+                                </svg>
+                                <span className="text-[10px] text-red-400 font-bold mt-1">PDF</span>
+                              </div>
+                            ) : (
+                              <div className="text-center">
+                                <svg className="w-10 h-10 text-blue-400 mx-auto" fill="currentColor" viewBox="0 0 24 24">
+                                  <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8l-6-6zm-1 2l5 5h-5V4zM9 13h6v1H9v-1zm0 2h6v1H9v-1zm0 2h4v1H9v-1z"/>
+                                </svg>
+                                <span className="text-[10px] text-blue-400 font-bold mt-1">DOC</span>
+                              </div>
+                            )}
+                            <div className="absolute top-1 right-1 p-0.5 bg-green-500 rounded-full">
+                              <svg className="w-2.5 h-2.5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
+                              </svg>
+                            </div>
                           </div>
-                          <p className="text-sm text-green-400 font-medium">{formData.projectDocument.name}</p>
-                          <p className="text-xs text-white/50 mt-1">Click to change</p>
-                        </>
+                          <p className="text-xs text-green-400 font-medium truncate max-w-full">{formData.projectDocument.name}</p>
+                          <p className="text-[10px] text-white/40">{(formData.projectDocument.size / 1024 / 1024).toFixed(2)} MB</p>
+                          <p className="text-xs text-white/50 mt-0.5">Click to change</p>
+                        </div>
                       ) : (
                         <>
                           <div className="p-3 bg-teal-500/20 rounded-full mb-2 group-hover:bg-teal-500/30 transition-colors">
