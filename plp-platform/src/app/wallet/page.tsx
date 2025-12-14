@@ -1421,12 +1421,22 @@ export default function WalletPage() {
                         </p>
                       </div>
                     </div>
-                    <div className="text-right flex-shrink-0 ml-2">
+                    <div className="text-right flex-shrink-0 ml-2 flex flex-col gap-1">
+                      <a
+                        href={`https://pump.fun/${token.mint}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-[11px] text-green-400 hover:text-green-300 flex items-center gap-0.5 justify-end"
+                        onClick={(e) => e.stopPropagation()}
+                        title="Trade on Pump.fun"
+                      >
+                        <TrendingUp className="w-2.5 h-2.5" /> Trade
+                      </a>
                       <a
                         href={`https://orb.helius.dev/address/${token.mint}${SOLANA_NETWORK === 'devnet' ? '?cluster=devnet' : ''}`}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="text-[11px] text-cyan-400 hover:text-cyan-300 flex items-center gap-0.5"
+                        className="text-[11px] text-cyan-400 hover:text-cyan-300 flex items-center gap-0.5 justify-end"
                         onClick={(e) => e.stopPropagation()}
                       >
                         View <ExternalLink className="w-2.5 h-2.5" />
