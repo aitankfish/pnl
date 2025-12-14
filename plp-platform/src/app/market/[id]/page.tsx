@@ -90,6 +90,11 @@ interface MarketDetails {
   isNoVoteEnabled?: boolean;
   yesVoteDisabledReason?: string;
   noVoteDisabledReason?: string;
+  // Project owner and age
+  founderWallet?: string;
+  founderUsername?: string | null;
+  founderDisplayName?: string;
+  projectAge?: string;
 }
 
 // Format category and stage for proper display
@@ -1008,6 +1013,27 @@ export default function MarketDetailsPage() {
                     <Badge className="bg-white/10 text-white border-white/20 text-xs">
                       {formatLabel(market.stage)}
                     </Badge>
+
+                    {/* Project Owner */}
+                    {market.founderWallet && (
+                      <Link
+                        href={`/profile/${market.founderWallet}`}
+                        className="flex items-center gap-1 px-2 sm:px-3 py-1 sm:py-1.5 bg-gradient-to-r from-amber-500/20 to-orange-500/20 hover:from-amber-500/30 hover:to-orange-500/30 border border-amber-400/30 rounded-lg transition-all hover:scale-105"
+                        title={`View ${market.founderDisplayName || 'owner'}'s profile`}
+                      >
+                        <Users className="w-3 h-3 sm:w-4 sm:h-4 text-amber-400" />
+                        <span className="text-white text-xs sm:text-sm font-medium">
+                          {market.founderDisplayName || 'Unknown'}
+                        </span>
+                      </Link>
+                    )}
+
+                    {/* Project Age */}
+                    {market.projectAge && (
+                      <div className="flex items-center gap-1 px-2 sm:px-3 py-1 sm:py-1.5 bg-white/5 rounded-lg border border-white/10">
+                        <span className="text-xs sm:text-sm text-gray-400">{market.projectAge}</span>
+                      </div>
+                    )}
 
                     {/* Documentation Link */}
                     {market.documentUrls && market.documentUrls.length > 0 && (
