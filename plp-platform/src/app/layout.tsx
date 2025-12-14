@@ -57,6 +57,15 @@ export default function RootLayout({
                       {/* Social Links */}
                       <div className="flex items-center gap-4">
                         <a
+                          href="/whitepaper"
+                          className="text-gray-400 hover:text-blue-400 transition-colors"
+                          aria-label="Whitepaper"
+                        >
+                          <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
+                            <path fillRule="evenodd" clipRule="evenodd" d="M5 4a2 2 0 012-2h6l6 6v12a2 2 0 01-2 2H7a2 2 0 01-2-2V4zm7 0H7v16h10V9h-4a1 1 0 01-1-1V4zm3.586 4L13 5.414V8h2.586z" />
+                          </svg>
+                        </a>
+                        <a
                           href="https://x.com/prelaunchmarket"
                           target="_blank"
                           rel="noopener noreferrer"
