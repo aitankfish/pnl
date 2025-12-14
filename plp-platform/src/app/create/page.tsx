@@ -435,7 +435,8 @@ export default function CreatePage() {
                     <select
                       value={formData.category}
                       onChange={(e) => handleInputChange('category', e.target.value)}
-                      className={`h-10 w-full bg-white/10 border border-white/20 text-white text-sm rounded-md px-3 py-2 focus:ring-2 focus:ring-blue-500/50 transition-all ${errors.category ? 'border-red-500' : ''}`}
+                      className={`h-10 w-full bg-slate-800 border border-white/20 text-white text-sm rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500/50 transition-all appearance-none cursor-pointer ${errors.category ? 'border-red-500' : ''}`}
+                      style={{ backgroundImage: `url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%239ca3af' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='M6 8l4 4 4-4'/%3e%3c/svg%3e")`, backgroundPosition: 'right 0.5rem center', backgroundRepeat: 'no-repeat', backgroundSize: '1.5em 1.5em', paddingRight: '2.5rem' }}
                     >
                       <option value="" className="bg-slate-800">Select</option>
                       <optgroup label="Web3 & Crypto" className="bg-slate-800">
@@ -476,7 +477,8 @@ export default function CreatePage() {
                     <select
                       value={formData.projectType}
                       onChange={(e) => handleInputChange('projectType', e.target.value)}
-                      className={`h-10 w-full bg-white/10 border border-white/20 text-white text-sm rounded-md px-3 py-2 focus:ring-2 focus:ring-purple-500/50 transition-all ${errors.projectType ? 'border-red-500' : ''}`}
+                      className={`h-10 w-full bg-slate-800 border border-white/20 text-white text-sm rounded-lg px-3 py-2 focus:ring-2 focus:ring-purple-500/50 focus:border-purple-500/50 transition-all appearance-none cursor-pointer ${errors.projectType ? 'border-red-500' : ''}`}
+                      style={{ backgroundImage: `url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%239ca3af' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='M6 8l4 4 4-4'/%3e%3c/svg%3e")`, backgroundPosition: 'right 0.5rem center', backgroundRepeat: 'no-repeat', backgroundSize: '1.5em 1.5em', paddingRight: '2.5rem' }}
                     >
                       <option value="" className="bg-slate-800">Select</option>
                       <option value="protocol" className="bg-slate-800">Protocol</option>
@@ -498,7 +500,8 @@ export default function CreatePage() {
                     <select
                       value={formData.projectStage}
                       onChange={(e) => handleInputChange('projectStage', e.target.value)}
-                      className={`h-10 w-full bg-white/10 border border-white/20 text-white text-sm rounded-md px-3 py-2 focus:ring-2 focus:ring-green-500/50 transition-all ${errors.projectStage ? 'border-red-500' : ''}`}
+                      className={`h-10 w-full bg-slate-800 border border-white/20 text-white text-sm rounded-lg px-3 py-2 focus:ring-2 focus:ring-green-500/50 focus:border-green-500/50 transition-all appearance-none cursor-pointer ${errors.projectStage ? 'border-red-500' : ''}`}
+                      style={{ backgroundImage: `url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%239ca3af' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='M6 8l4 4 4-4'/%3e%3c/svg%3e")`, backgroundPosition: 'right 0.5rem center', backgroundRepeat: 'no-repeat', backgroundSize: '1.5em 1.5em', paddingRight: '2.5rem' }}
                     >
                       <option value="" className="bg-slate-800">Select</option>
                       <option value="idea" className="bg-slate-800">Idea</option>
@@ -745,7 +748,8 @@ export default function CreatePage() {
                           handleInputChange('targetPool', value);
                         }
                       }}
-                      className={`w-full bg-white/10 border border-white/20 text-white rounded-md px-3 py-2 ${errors.targetPool ? 'border-red-500' : ''}`}
+                      className={`w-full h-10 bg-slate-800 border border-white/20 text-white rounded-lg px-3 py-2 focus:ring-2 focus:ring-purple-500/50 focus:border-purple-500/50 transition-all appearance-none cursor-pointer ${errors.targetPool ? 'border-red-500' : ''}`}
+                      style={{ backgroundImage: `url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%239ca3af' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='M6 8l4 4 4-4'/%3e%3c/svg%3e")`, backgroundPosition: 'right 0.5rem center', backgroundRepeat: 'no-repeat', backgroundSize: '1.5em 1.5em', paddingRight: '2.5rem' }}
                     >
                       <option value="" className="bg-slate-800">Choose target pool size...</option>
                       <option value="5000000000" className="bg-slate-800">5 SOL (Small Project)</option>
@@ -792,7 +796,8 @@ export default function CreatePage() {
                     <select
                       value={formData.marketDuration}
                       onChange={(e) => handleInputChange('marketDuration', e.target.value)}
-                      className={`w-full bg-white/10 border border-white/20 text-white rounded-md px-3 py-2 ${errors.marketDuration ? 'border-red-500' : ''}`}
+                      className={`w-full h-10 bg-slate-800 border border-white/20 text-white rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500/50 transition-all appearance-none cursor-pointer ${errors.marketDuration ? 'border-red-500' : ''}`}
+                      style={{ backgroundImage: `url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%239ca3af' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='M6 8l4 4 4-4'/%3e%3c/svg%3e")`, backgroundPosition: 'right 0.5rem center', backgroundRepeat: 'no-repeat', backgroundSize: '1.5em 1.5em', paddingRight: '2.5rem' }}
                     >
                       <option value="" className="bg-slate-800">Choose market duration...</option>
                       <option value="1" className="bg-slate-800">1 Day</option>
