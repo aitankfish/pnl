@@ -328,13 +328,45 @@ export default function CreatePage() {
     <div className="p-4 md:p-6">
         <div className="max-w-7xl mx-auto">
           {/* Header */}
-          <div className="mb-6 text-center">
-            <h1 className="text-3xl md:text-4xl font-bold text-white mb-2">
-              Create New Project
-            </h1>
-            <p className="text-white/70">
-              Fill in the details to launch your project prediction market
-            </p>
+          <div className="mb-8 text-center relative">
+            {/* Decorative background glow */}
+            <div className="absolute inset-0 -top-20 flex justify-center pointer-events-none">
+              <div className="w-96 h-96 bg-purple-500/20 rounded-full blur-3xl"></div>
+              <div className="w-72 h-72 bg-blue-500/20 rounded-full blur-3xl -ml-32"></div>
+            </div>
+
+            <div className="relative">
+              <h1 className="text-4xl md:text-5xl font-bold mb-3">
+                <span className="bg-gradient-to-r from-purple-400 via-pink-400 to-blue-400 bg-clip-text text-transparent">
+                  Create New Project
+                </span>
+              </h1>
+              <p className="text-lg text-white/70 max-w-xl mx-auto">
+                Launch your prediction market and let the community decide
+              </p>
+
+              {/* Quick stats */}
+              <div className="flex items-center justify-center gap-6 mt-4 text-sm">
+                <div className="flex items-center gap-2 text-white/50">
+                  <svg className="w-4 h-4 text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                  <span>0.015 SOL to create</span>
+                </div>
+                <div className="flex items-center gap-2 text-white/50">
+                  <svg className="w-4 h-4 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                  <span>1-30 day markets</span>
+                </div>
+                <div className="flex items-center gap-2 text-white/50">
+                  <svg className="w-4 h-4 text-purple-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
+                  </svg>
+                  <span>Community validated</span>
+                </div>
+              </div>
+            </div>
           </div>
 
           {/* Two Column Layout: Progress Sidebar + Form */}
@@ -437,10 +469,17 @@ export default function CreatePage() {
             <div className="flex-1 min-w-0">
               <form onSubmit={handleSubmit} className="space-y-6">
             {/* Basic Information */}
-            <Card className="bg-white/10 backdrop-blur-xl border-white/20 text-white overflow-visible">
+            <Card className="bg-gradient-to-br from-white/10 to-white/5 backdrop-blur-xl border-white/20 text-white overflow-visible hover:border-blue-500/30 transition-colors">
               <CardHeader>
-                <CardTitle>Basic Information</CardTitle>
-                <CardDescription className="text-white/70">
+                <CardTitle className="flex items-center gap-3">
+                  <div className="p-2 bg-blue-500/20 rounded-lg">
+                    <svg className="w-5 h-5 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                  </div>
+                  Basic Information
+                </CardTitle>
+                <CardDescription className="text-white/70 ml-12">
                   Tell us about your project
                 </CardDescription>
               </CardHeader>
@@ -480,16 +519,21 @@ export default function CreatePage() {
                   {errors.description && <p className="text-sm text-red-400">{errors.description}</p>}
                 </div>
 
-                {/* All project metadata in one row - 5 columns */}
-                <div className="grid grid-cols-1 md:grid-cols-5 gap-2">
+                {/* Project metadata grid - responsive 2/3 columns */}
+                <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
                   <div className="space-y-2">
-                    <Label className="text-sm">Category *</Label>
+                    <Label className="text-sm flex items-center gap-1.5">
+                      <svg className="w-3.5 h-3.5 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z" />
+                      </svg>
+                      Category *
+                    </Label>
                     <select
                       value={formData.category}
                       onChange={(e) => handleInputChange('category', e.target.value)}
-                      className={`h-10 w-full bg-white/10 border border-white/20 text-white text-sm rounded-md px-3 py-2 ${errors.category ? 'border-red-500' : ''}`}
+                      className={`h-10 w-full bg-white/10 border border-white/20 text-white text-sm rounded-md px-3 py-2 focus:ring-2 focus:ring-blue-500/50 transition-all ${errors.category ? 'border-red-500' : ''}`}
                     >
-                      <option value="" className="bg-slate-800">Select category</option>
+                      <option value="" className="bg-slate-800">Select</option>
                       <optgroup label="Web3 & Crypto" className="bg-slate-800">
                         <option value="defi" className="bg-slate-800">DeFi</option>
                         <option value="nft" className="bg-slate-800">NFT</option>
@@ -501,7 +545,7 @@ export default function CreatePage() {
                         <option value="meme" className="bg-slate-800">Meme</option>
                         <option value="creator" className="bg-slate-800">Creator</option>
                       </optgroup>
-                      <optgroup label="Traditional Markets" className="bg-slate-800">
+                      <optgroup label="Traditional" className="bg-slate-800">
                         <option value="healthcare" className="bg-slate-800">Healthcare</option>
                         <option value="science" className="bg-slate-800">Science</option>
                         <option value="education" className="bg-slate-800">Education</option>
@@ -515,77 +559,103 @@ export default function CreatePage() {
                       </optgroup>
                       <option value="other" className="bg-slate-800">Other</option>
                     </select>
-                    {errors.category && <p className="text-sm text-red-400">{errors.category}</p>}
+                    {errors.category && <p className="text-xs text-red-400 mt-1">{errors.category}</p>}
                   </div>
 
                   <div className="space-y-2">
-                    <Label className="text-sm">Type *</Label>
+                    <Label className="text-sm flex items-center gap-1.5">
+                      <svg className="w-3.5 h-3.5 text-purple-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
+                      </svg>
+                      Type *
+                    </Label>
                     <select
                       value={formData.projectType}
                       onChange={(e) => handleInputChange('projectType', e.target.value)}
-                      className={`h-10 w-full bg-white/10 border border-white/20 text-white text-sm rounded-md px-3 py-2 ${errors.projectType ? 'border-red-500' : ''}`}
+                      className={`h-10 w-full bg-white/10 border border-white/20 text-white text-sm rounded-md px-3 py-2 focus:ring-2 focus:ring-purple-500/50 transition-all ${errors.projectType ? 'border-red-500' : ''}`}
                     >
-                      <option value="" className="bg-slate-800">Select type</option>
+                      <option value="" className="bg-slate-800">Select</option>
                       <option value="protocol" className="bg-slate-800">Protocol</option>
                       <option value="application" className="bg-slate-800">Application</option>
                       <option value="platform" className="bg-slate-800">Platform</option>
                       <option value="service" className="bg-slate-800">Service</option>
                       <option value="tool" className="bg-slate-800">Tool</option>
                     </select>
-                    {errors.projectType && <p className="text-sm text-red-400">{errors.projectType}</p>}
+                    {errors.projectType && <p className="text-xs text-red-400 mt-1">{errors.projectType}</p>}
                   </div>
 
                   <div className="space-y-2">
-                    <Label className="text-sm">Stage *</Label>
+                    <Label className="text-sm flex items-center gap-1.5">
+                      <svg className="w-3.5 h-3.5 text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+                      </svg>
+                      Stage *
+                    </Label>
                     <select
                       value={formData.projectStage}
                       onChange={(e) => handleInputChange('projectStage', e.target.value)}
-                      className={`h-10 w-full bg-white/10 border border-white/20 text-white text-sm rounded-md px-3 py-2 ${errors.projectStage ? 'border-red-500' : ''}`}
+                      className={`h-10 w-full bg-white/10 border border-white/20 text-white text-sm rounded-md px-3 py-2 focus:ring-2 focus:ring-green-500/50 transition-all ${errors.projectStage ? 'border-red-500' : ''}`}
                     >
-                      <option value="" className="bg-slate-800">Select stage</option>
-                      <option value="idea" className="bg-slate-800">Idea Stage</option>
+                      <option value="" className="bg-slate-800">Select</option>
+                      <option value="idea" className="bg-slate-800">Idea</option>
                       <option value="prototype" className="bg-slate-800">Prototype</option>
                       <option value="mvp" className="bg-slate-800">MVP</option>
-                      <option value="beta" className="bg-slate-800">Beta Testing</option>
+                      <option value="beta" className="bg-slate-800">Beta</option>
                       <option value="launched" className="bg-slate-800">Launched</option>
                     </select>
-                    {errors.projectStage && <p className="text-sm text-red-400">{errors.projectStage}</p>}
+                    {errors.projectStage && <p className="text-xs text-red-400 mt-1">{errors.projectStage}</p>}
                   </div>
 
                   <div className="space-y-2">
-                    <Label htmlFor="location" className="text-sm">Location</Label>
+                    <Label htmlFor="location" className="text-sm flex items-center gap-1.5">
+                      <svg className="w-3.5 h-3.5 text-cyan-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+                      </svg>
+                      Location
+                    </Label>
                     <Input
                       id="location"
-                      placeholder="Location"
+                      placeholder="e.g., Global"
                       value={formData.location}
                       onChange={(e) => handleInputChange('location', e.target.value)}
-                      className="h-10 bg-white/10 border-white/20 text-white text-sm placeholder:text-white/50"
+                      className="h-10 bg-white/10 border-white/20 text-white text-sm placeholder:text-white/50 focus:ring-2 focus:ring-cyan-500/50 transition-all"
                     />
                   </div>
 
                   <div className="space-y-2">
-                    <Label htmlFor="teamSize" className="text-sm">Team Size *</Label>
+                    <Label htmlFor="teamSize" className="text-sm flex items-center gap-1.5">
+                      <svg className="w-3.5 h-3.5 text-amber-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
+                      </svg>
+                      Team *
+                    </Label>
                     <Input
                       id="teamSize"
                       type="number"
                       min="1"
-                      placeholder="Team size"
+                      placeholder="Size"
                       value={formData.teamSize}
                       onChange={(e) => handleInputChange('teamSize', e.target.value)}
-                      className={`h-10 bg-white/10 border-white/20 text-white text-sm placeholder:text-white/50 ${errors.teamSize ? 'border-red-500' : ''}`}
+                      className={`h-10 bg-white/10 border-white/20 text-white text-sm placeholder:text-white/50 focus:ring-2 focus:ring-amber-500/50 transition-all ${errors.teamSize ? 'border-red-500' : ''}`}
                     />
-                    {errors.teamSize && <p className="text-sm text-red-400">{errors.teamSize}</p>}
+                    {errors.teamSize && <p className="text-xs text-red-400 mt-1">{errors.teamSize}</p>}
                   </div>
                 </div>
               </CardContent>
             </Card>
 
             {/* Token Information - Collapsible */}
-            <Card className="bg-white/10 backdrop-blur-xl border-white/20 text-white overflow-visible">
+            <Card className="bg-gradient-to-br from-white/10 to-white/5 backdrop-blur-xl border-white/20 text-white overflow-visible hover:border-purple-500/30 transition-colors">
               <CardHeader className="cursor-pointer" onClick={() => setIsTokenSectionExpanded(!isTokenSectionExpanded)}>
                 <div className="flex items-center justify-between">
                   <div>
-                    <CardTitle className="flex items-center gap-2">
+                    <CardTitle className="flex items-center gap-3">
+                      <div className="p-2 bg-purple-500/20 rounded-lg">
+                        <svg className="w-5 h-5 text-purple-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                        </svg>
+                      </div>
                       Token & Market Configuration
                       {(formData.tokenSymbol && formData.targetPool && formData.marketDuration) && (
                         <svg className="w-5 h-5 text-green-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -593,7 +663,7 @@ export default function CreatePage() {
                         </svg>
                       )}
                     </CardTitle>
-                    <CardDescription className="text-white/70">
+                    <CardDescription className="text-white/70 ml-12">
                       Token details and market settings
                     </CardDescription>
                   </div>
@@ -624,64 +694,109 @@ export default function CreatePage() {
                   </div>
 
                   <div className="space-y-2">
-                    <Label htmlFor="projectImage">Project Image</Label>
-                    <div className="relative flex flex-col items-center">
-                      <Input
+                    <Label htmlFor="projectImage">Project Image *</Label>
+                    <label
+                      htmlFor="projectImage"
+                      className={`
+                        relative flex flex-col items-center justify-center p-6
+                        border-2 border-dashed rounded-xl cursor-pointer
+                        transition-all duration-200 group
+                        ${formData.projectImage
+                          ? 'border-green-500/50 bg-green-500/5'
+                          : 'border-white/20 bg-white/5 hover:border-blue-500/50 hover:bg-blue-500/5'
+                        }
+                      `}
+                    >
+                      <input
                         id="projectImage"
                         type="file"
                         accept="image/*"
                         onChange={(e) => {
                           const file = e.target.files?.[0];
                           if (file) {
-                            // Store file for upload to IPFS
                             setFormData(prev => ({ ...prev, projectImage: file }));
                           }
                         }}
-                        className="bg-white/10 border-white/20 text-white text-center file:mx-auto file:py-2.5 file:px-6 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-blue-500 file:text-white hover:file:bg-blue-600 file:cursor-pointer file:leading-none file:flex file:items-center file:justify-center cursor-pointer"
+                        className="hidden"
                       />
-                      <p className="text-xs text-white/60 mt-2 text-center">
-                        Upload a logo or image for your project (required)
-                      </p>
-                      {formData.projectImage && (
-                        <p className="text-xs text-green-400 mt-2 text-center">
-                          ✓ {formData.projectImage.name} selected
-                        </p>
+                      {formData.projectImage ? (
+                        <>
+                          <div className="p-3 bg-green-500/20 rounded-full mb-2">
+                            <svg className="w-6 h-6 text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                            </svg>
+                          </div>
+                          <p className="text-sm text-green-400 font-medium">{formData.projectImage.name}</p>
+                          <p className="text-xs text-white/50 mt-1">Click to change</p>
+                        </>
+                      ) : (
+                        <>
+                          <div className="p-3 bg-blue-500/20 rounded-full mb-2 group-hover:bg-blue-500/30 transition-colors">
+                            <svg className="w-6 h-6 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                            </svg>
+                          </div>
+                          <p className="text-sm text-white/70 group-hover:text-white transition-colors">Click to upload image</p>
+                          <p className="text-xs text-white/40 mt-1">PNG, JPG, GIF up to 10MB</p>
+                        </>
                       )}
-                      {errors.projectImage && <p className="text-sm text-red-400 mt-1 text-center">{String(errors.projectImage)}</p>}
-                    </div>
+                    </label>
+                    {errors.projectImage && <p className="text-sm text-red-400 mt-1 text-center">{String(errors.projectImage)}</p>}
                   </div>
 
                   <div className="space-y-2">
                     <Label htmlFor="projectDocument">Project Documentation</Label>
-                    <div className="relative flex flex-col items-center">
-                      <Input
+                    <label
+                      htmlFor="projectDocument"
+                      className={`
+                        relative flex flex-col items-center justify-center p-6
+                        border-2 border-dashed rounded-xl cursor-pointer
+                        transition-all duration-200 group
+                        ${formData.projectDocument
+                          ? 'border-green-500/50 bg-green-500/5'
+                          : 'border-white/20 bg-white/5 hover:border-teal-500/50 hover:bg-teal-500/5'
+                        }
+                      `}
+                    >
+                      <input
                         id="projectDocument"
                         type="file"
                         accept=".pdf,.doc,.docx,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
                         onChange={(e) => {
                           const file = e.target.files?.[0];
                           if (file) {
-                            // Validate file size (max 10MB)
                             if (file.size > 10 * 1024 * 1024) {
                               alert('Document must be less than 10MB');
                               e.target.value = '';
                               return;
                             }
-                            // Store file for upload to IPFS
                             setFormData(prev => ({ ...prev, projectDocument: file }));
                           }
                         }}
-                        className="bg-white/10 border-white/20 text-white text-center file:mx-auto file:py-2.5 file:px-6 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-teal-500 file:text-white hover:file:bg-teal-600 file:cursor-pointer file:leading-none file:flex file:items-center file:justify-center cursor-pointer"
+                        className="hidden"
                       />
-                      <p className="text-xs text-white/60 mt-2 text-center">
-                        Upload project documentation, whitepaper, or pitch deck (PDF or Word, max 10MB, optional)
-                      </p>
-                      {formData.projectDocument && (
-                        <p className="text-xs text-green-400 mt-2 text-center">
-                          ✓ {formData.projectDocument.name} selected
-                        </p>
+                      {formData.projectDocument ? (
+                        <>
+                          <div className="p-3 bg-green-500/20 rounded-full mb-2">
+                            <svg className="w-6 h-6 text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                            </svg>
+                          </div>
+                          <p className="text-sm text-green-400 font-medium">{formData.projectDocument.name}</p>
+                          <p className="text-xs text-white/50 mt-1">Click to change</p>
+                        </>
+                      ) : (
+                        <>
+                          <div className="p-3 bg-teal-500/20 rounded-full mb-2 group-hover:bg-teal-500/30 transition-colors">
+                            <svg className="w-6 h-6 text-teal-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                            </svg>
+                          </div>
+                          <p className="text-sm text-white/70 group-hover:text-white transition-colors">Click to upload document</p>
+                          <p className="text-xs text-white/40 mt-1">PDF or Word, max 10MB (optional)</p>
+                        </>
                       )}
-                    </div>
+                    </label>
                   </div>
                 </div>
 
@@ -793,79 +908,116 @@ export default function CreatePage() {
             </Card>
 
             {/* Social Media Links */}
-            <Card className="bg-white/10 backdrop-blur-xl border-white/20 text-white">
+            <Card className="bg-gradient-to-br from-white/10 to-white/5 backdrop-blur-xl border-white/20 text-white hover:border-cyan-500/30 transition-colors">
               <CardHeader>
-                <CardTitle>Social Media Links</CardTitle>
-                <CardDescription className="text-white/70">
+                <CardTitle className="flex items-center gap-3">
+                  <div className="p-2 bg-cyan-500/20 rounded-lg">
+                    <svg className="w-5 h-5 text-cyan-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" />
+                    </svg>
+                  </div>
+                  Social Media Links
+                </CardTitle>
+                <CardDescription className="text-white/70 ml-12">
                   Add your project&apos;s social media presence (optional)
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
-                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
                   <div className="space-y-2">
-                    <Label htmlFor="website">Website</Label>
+                    <Label htmlFor="website" className="flex items-center gap-2">
+                      <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 12a9 9 0 01-9 9m9-9a9 9 0 00-9-9m9 9H3m9 9a9 9 0 01-9-9m9 9c1.657 0 3-4.03 3-9s-1.343-9-3-9m0 18c-1.657 0-3-4.03-3-9s1.343-9 3-9m-9 9a9 9 0 019-9" />
+                      </svg>
+                      Website
+                    </Label>
                     <Input
                       id="website"
                       type="url"
                       placeholder="https://yourwebsite.com"
                       value={formData.socialLinks.website}
                       onChange={(e) => handleSocialLinkChange('website', e.target.value)}
-                      className="bg-white/10 border-white/20 text-white placeholder:text-white/50"
+                      className="bg-white/10 border-white/20 text-white placeholder:text-white/50 focus:ring-2 focus:ring-cyan-500/50 transition-all"
                     />
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="github">GitHub</Label>
+                    <Label htmlFor="github" className="flex items-center gap-2">
+                      <svg className="w-4 h-4 text-gray-400" fill="currentColor" viewBox="0 0 24 24">
+                        <path fillRule="evenodd" clipRule="evenodd" d="M12 2C6.477 2 2 6.484 2 12.017c0 4.425 2.865 8.18 6.839 9.504.5.092.682-.217.682-.483 0-.237-.008-.868-.013-1.703-2.782.605-3.369-1.343-3.369-1.343-.454-1.158-1.11-1.466-1.11-1.466-.908-.62.069-.608.069-.608 1.003.07 1.531 1.032 1.531 1.032.892 1.53 2.341 1.088 2.91.832.092-.647.35-1.088.636-1.338-2.22-.253-4.555-1.113-4.555-4.951 0-1.093.39-1.988 1.029-2.688-.103-.253-.446-1.272.098-2.65 0 0 .84-.27 2.75 1.026A9.564 9.564 0 0112 6.844c.85.004 1.705.115 2.504.337 1.909-1.296 2.747-1.027 2.747-1.027.546 1.379.202 2.398.1 2.651.64.7 1.028 1.595 1.028 2.688 0 3.848-2.339 4.695-4.566 4.943.359.309.678.92.678 1.855 0 1.338-.012 2.419-.012 2.747 0 .268.18.58.688.482A10.019 10.019 0 0022 12.017C22 6.484 17.522 2 12 2z" />
+                      </svg>
+                      GitHub
+                    </Label>
                     <Input
                       id="github"
                       type="url"
                       placeholder="https://github.com/yourproject"
                       value={formData.socialLinks.github}
                       onChange={(e) => handleSocialLinkChange('github', e.target.value)}
-                      className="bg-white/10 border-white/20 text-white placeholder:text-white/50"
+                      className="bg-white/10 border-white/20 text-white placeholder:text-white/50 focus:ring-2 focus:ring-cyan-500/50 transition-all"
                     />
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="linkedin">LinkedIn</Label>
-                    <Input
-                      id="linkedin"
-                      type="url"
-                      placeholder="https://linkedin.com/company/yourproject"
-                      value={formData.socialLinks.linkedin}
-                      onChange={(e) => handleSocialLinkChange('linkedin', e.target.value)}
-                      className="bg-white/10 border-white/20 text-white placeholder:text-white/50"
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="twitter">Twitter</Label>
+                    <Label htmlFor="twitter" className="flex items-center gap-2">
+                      <svg className="w-4 h-4 text-gray-400" fill="currentColor" viewBox="0 0 24 24">
+                        <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z" />
+                      </svg>
+                      X (Twitter)
+                    </Label>
                     <Input
                       id="twitter"
                       type="url"
-                      placeholder="https://twitter.com/yourproject"
+                      placeholder="https://x.com/yourproject"
                       value={formData.socialLinks.twitter}
                       onChange={(e) => handleSocialLinkChange('twitter', e.target.value)}
-                      className="bg-white/10 border-white/20 text-white placeholder:text-white/50"
+                      className="bg-white/10 border-white/20 text-white placeholder:text-white/50 focus:ring-2 focus:ring-cyan-500/50 transition-all"
                     />
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="telegram">Telegram</Label>
-                    <Input
-                      id="telegram"
-                      type="url"
-                      placeholder="https://t.me/yourproject"
-                      value={formData.socialLinks.telegram}
-                      onChange={(e) => handleSocialLinkChange('telegram', e.target.value)}
-                      className="bg-white/10 border-white/20 text-white placeholder:text-white/50"
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="discord">Discord</Label>
+                    <Label htmlFor="discord" className="flex items-center gap-2">
+                      <svg className="w-4 h-4 text-gray-400" fill="currentColor" viewBox="0 0 24 24">
+                        <path d="M20.317 4.3698a19.7913 19.7913 0 00-4.8851-1.5152.0741.0741 0 00-.0785.0371c-.211.3753-.4447.8648-.6083 1.2495-1.8447-.2762-3.68-.2762-5.4868 0-.1636-.3933-.4058-.8742-.6177-1.2495a.077.077 0 00-.0785-.037 19.7363 19.7363 0 00-4.8852 1.515.0699.0699 0 00-.0321.0277C.5334 9.0458-.319 13.5799.0992 18.0578a.0824.0824 0 00.0312.0561c2.0528 1.5076 4.0413 2.4228 5.9929 3.0294a.0777.0777 0 00.0842-.0276c.4616-.6304.8731-1.2952 1.226-1.9942a.076.076 0 00-.0416-.1057c-.6528-.2476-1.2743-.5495-1.8722-.8923a.077.077 0 01-.0076-.1277c.1258-.0943.2517-.1923.3718-.2914a.0743.0743 0 01.0776-.0105c3.9278 1.7933 8.18 1.7933 12.0614 0a.0739.0739 0 01.0785.0095c.1202.099.246.1981.3728.2924a.077.077 0 01-.0066.1276 12.2986 12.2986 0 01-1.873.8914.0766.0766 0 00-.0407.1067c.3604.698.7719 1.3628 1.225 1.9932a.076.076 0 00.0842.0286c1.961-.6067 3.9495-1.5219 6.0023-3.0294a.077.077 0 00.0313-.0552c.5004-5.177-.8382-9.6739-3.5485-13.6604a.061.061 0 00-.0312-.0286zM8.02 15.3312c-1.1825 0-2.1569-1.0857-2.1569-2.419 0-1.3332.9555-2.4189 2.157-2.4189 1.2108 0 2.1757 1.0952 2.1568 2.419 0 1.3332-.9555 2.4189-2.1569 2.4189zm7.9748 0c-1.1825 0-2.1569-1.0857-2.1569-2.419 0-1.3332.9554-2.4189 2.1569-2.4189 1.2108 0 2.1757 1.0952 2.1568 2.419 0 1.3332-.946 2.4189-2.1568 2.4189z" />
+                      </svg>
+                      Discord
+                    </Label>
                     <Input
                       id="discord"
                       type="url"
                       placeholder="https://discord.gg/yourproject"
                       value={formData.socialLinks.discord}
                       onChange={(e) => handleSocialLinkChange('discord', e.target.value)}
-                      className="bg-white/10 border-white/20 text-white placeholder:text-white/50"
+                      className="bg-white/10 border-white/20 text-white placeholder:text-white/50 focus:ring-2 focus:ring-cyan-500/50 transition-all"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="telegram" className="flex items-center gap-2">
+                      <svg className="w-4 h-4 text-gray-400" fill="currentColor" viewBox="0 0 24 24">
+                        <path d="M11.944 0A12 12 0 0 0 0 12a12 12 0 0 0 12 12 12 12 0 0 0 12-12A12 12 0 0 0 12 0a12 12 0 0 0-.056 0zm4.962 7.224c.1-.002.321.023.465.14a.506.506 0 0 1 .171.325c.016.093.036.306.02.472-.18 1.898-.96 6.504-1.36 8.629-.168.9-.499 1.201-.82 1.23-.696.065-1.225-.46-1.9-.902-1.056-.693-1.653-1.124-2.678-1.8-1.185-.78-.417-1.21.258-1.91.177-.184 3.247-2.977 3.307-3.23.007-.032.014-.15-.056-.212s-.174-.041-.249-.024c-.106.024-1.793 1.14-5.061 3.345-.48.33-.913.49-1.302.48-.428-.008-1.252-.241-1.865-.44-.752-.245-1.349-.374-1.297-.789.027-.216.325-.437.893-.663 3.498-1.524 5.83-2.529 6.998-3.014 3.332-1.386 4.025-1.627 4.476-1.635z"/>
+                      </svg>
+                      Telegram
+                    </Label>
+                    <Input
+                      id="telegram"
+                      type="url"
+                      placeholder="https://t.me/yourproject"
+                      value={formData.socialLinks.telegram}
+                      onChange={(e) => handleSocialLinkChange('telegram', e.target.value)}
+                      className="bg-white/10 border-white/20 text-white placeholder:text-white/50 focus:ring-2 focus:ring-cyan-500/50 transition-all"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="linkedin" className="flex items-center gap-2">
+                      <svg className="w-4 h-4 text-gray-400" fill="currentColor" viewBox="0 0 24 24">
+                        <path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433c-1.144 0-2.063-.926-2.063-2.065 0-1.138.92-2.063 2.063-2.063 1.14 0 2.064.925 2.064 2.063 0 1.139-.925 2.065-2.064 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z"/>
+                      </svg>
+                      LinkedIn
+                    </Label>
+                    <Input
+                      id="linkedin"
+                      type="url"
+                      placeholder="https://linkedin.com/company/yourproject"
+                      value={formData.socialLinks.linkedin}
+                      onChange={(e) => handleSocialLinkChange('linkedin', e.target.value)}
+                      className="bg-white/10 border-white/20 text-white placeholder:text-white/50 focus:ring-2 focus:ring-cyan-500/50 transition-all"
                     />
                   </div>
                 </div>
@@ -873,10 +1025,17 @@ export default function CreatePage() {
             </Card>
 
             {/* What This Project Has to Offer */}
-            <Card className="bg-white/10 backdrop-blur-xl border-white/20 text-white">
+            <Card className="bg-gradient-to-br from-white/10 to-white/5 backdrop-blur-xl border-white/20 text-white hover:border-emerald-500/30 transition-colors">
               <CardHeader>
-                <CardTitle>What This Project Has to Offer</CardTitle>
-                <CardDescription className="text-white/70">
+                <CardTitle className="flex items-center gap-3">
+                  <div className="p-2 bg-emerald-500/20 rounded-lg">
+                    <svg className="w-5 h-5 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
+                    </svg>
+                  </div>
+                  What This Project Has to Offer
+                </CardTitle>
+                <CardDescription className="text-white/70 ml-12">
                   Describe the unique value, features, or benefits your project brings to users (optional)
                 </CardDescription>
               </CardHeader>
@@ -896,8 +1055,77 @@ export default function CreatePage() {
               </CardContent>
             </Card>
 
-            {/* Submit Buttons */}
-            <div className="flex justify-center space-x-4 pt-6">
+            {/* Submit Area with Summary */}
+            <div className="bg-gradient-to-br from-purple-500/10 via-blue-500/10 to-cyan-500/10 backdrop-blur-xl rounded-xl border border-white/20 p-6">
+              {/* Summary Row */}
+              <div className="flex flex-wrap items-center justify-center gap-4 md:gap-8 mb-6 pb-6 border-b border-white/10">
+                {/* Wallet Balance */}
+                <div className="flex items-center gap-2">
+                  <div className="p-2 bg-green-500/20 rounded-lg">
+                    <svg className="w-4 h-4 text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z" />
+                    </svg>
+                  </div>
+                  <div className="text-sm">
+                    <p className="text-white/50">Balance</p>
+                    <p className="font-semibold text-white">
+                      {isCheckingBalance ? (
+                        <span className="text-white/50">Loading...</span>
+                      ) : walletBalance !== null ? (
+                        <span className={walletBalance < 0.02 ? 'text-red-400' : 'text-green-400'}>
+                          {walletBalance.toFixed(4)} SOL
+                        </span>
+                      ) : (
+                        <span className="text-white/50">Connect wallet</span>
+                      )}
+                    </p>
+                  </div>
+                </div>
+
+                {/* Creation Fee */}
+                <div className="flex items-center gap-2">
+                  <div className="p-2 bg-blue-500/20 rounded-lg">
+                    <svg className="w-4 h-4 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                  </div>
+                  <div className="text-sm">
+                    <p className="text-white/50">Creation Fee</p>
+                    <p className="font-semibold text-white">0.015 SOL</p>
+                  </div>
+                </div>
+
+                {/* Target Pool */}
+                <div className="flex items-center gap-2">
+                  <div className="p-2 bg-purple-500/20 rounded-lg">
+                    <svg className="w-4 h-4 text-purple-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
+                    </svg>
+                  </div>
+                  <div className="text-sm">
+                    <p className="text-white/50">Target Pool</p>
+                    <p className="font-semibold text-white">
+                      {formData.targetPool ? `${(parseInt(formData.targetPool) / 1e9).toFixed(0)} SOL` : '-'}
+                    </p>
+                  </div>
+                </div>
+
+                {/* Completion */}
+                <div className="flex items-center gap-2">
+                  <div className="p-2 bg-cyan-500/20 rounded-lg">
+                    <svg className="w-4 h-4 text-cyan-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                  </div>
+                  <div className="text-sm">
+                    <p className="text-white/50">Form</p>
+                    <p className="font-semibold text-white">{Math.round(completionPercentage)}% complete</p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Submit Button */}
+              <div className="flex justify-center">
               {/* Direct Submit Button - Bypass Form */}
               <Button
                 type="button"
@@ -1204,6 +1432,7 @@ export default function CreatePage() {
                   <div className="absolute inset-0 bg-gradient-to-r from-purple-600 to-pink-600 animate-pulse"></div>
                 )}
               </Button>
+              </div>
             </div>
               </form>
             </div>
