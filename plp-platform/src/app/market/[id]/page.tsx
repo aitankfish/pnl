@@ -955,8 +955,27 @@ export default function MarketDetailsPage() {
                   <div className="flex flex-wrap items-start gap-1 sm:gap-2 mb-2">
                     <CardTitle className="text-lg sm:text-2xl text-white line-clamp-2">{market.name}</CardTitle>
 
-                    {/* Share and Favorite Icons */}
-                    <div className="flex items-center gap-1 ml-auto sm:ml-0">
+                    {/* Creator, Age, Share and Favorite */}
+                    <div className="flex items-center gap-2 ml-auto sm:ml-0">
+                      {/* Project Owner */}
+                      {market.founderWallet && (
+                        <Link
+                          href={`/profile/${market.founderWallet}`}
+                          className="flex items-center gap-1 px-2 py-1 bg-gradient-to-r from-amber-500/20 to-orange-500/20 hover:from-amber-500/30 hover:to-orange-500/30 border border-amber-400/30 rounded-lg transition-all hover:scale-105"
+                          title={`View ${market.founderDisplayName || 'owner'}'s profile`}
+                        >
+                          <Users className="w-3 h-3 text-amber-400" />
+                          <span className="text-white text-xs font-medium">
+                            {market.founderDisplayName || 'Unknown'}
+                          </span>
+                        </Link>
+                      )}
+                      {/* Project Age */}
+                      {market.projectAge && (
+                        <div className="flex items-center gap-1 px-2 py-1 bg-white/5 rounded-lg border border-white/10">
+                          <span className="text-xs text-gray-400">{market.projectAge}</span>
+                        </div>
+                      )}
                       <button
                         onClick={handleShare}
                         className="p-1.5 sm:p-2 hover:bg-white/10 rounded-lg transition-colors group"
@@ -1028,27 +1047,6 @@ export default function MarketDetailsPage() {
                     <Badge className="bg-white/10 text-white border-white/20 text-xs">
                       {formatLabel(market.stage)}
                     </Badge>
-
-                    {/* Project Owner */}
-                    {market.founderWallet && (
-                      <Link
-                        href={`/profile/${market.founderWallet}`}
-                        className="flex items-center gap-1 px-2 sm:px-3 py-1 sm:py-1.5 bg-gradient-to-r from-amber-500/20 to-orange-500/20 hover:from-amber-500/30 hover:to-orange-500/30 border border-amber-400/30 rounded-lg transition-all hover:scale-105"
-                        title={`View ${market.founderDisplayName || 'owner'}'s profile`}
-                      >
-                        <Users className="w-3 h-3 sm:w-4 sm:h-4 text-amber-400" />
-                        <span className="text-white text-xs sm:text-sm font-medium">
-                          {market.founderDisplayName || 'Unknown'}
-                        </span>
-                      </Link>
-                    )}
-
-                    {/* Project Age */}
-                    {market.projectAge && (
-                      <div className="flex items-center gap-1 px-2 sm:px-3 py-1 sm:py-1.5 bg-white/5 rounded-lg border border-white/10">
-                        <span className="text-xs sm:text-sm text-gray-400">{market.projectAge}</span>
-                      </div>
-                    )}
 
                     {/* Documentation Link */}
                     {market.documentUrls && market.documentUrls.length > 0 && (
