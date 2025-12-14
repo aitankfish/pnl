@@ -179,8 +179,10 @@ export async function POST(request: NextRequest) {
     try {
       await connectMongoose();
 
-      // Fetch all participants for this market
-      const participants = await PredictionParticipant.find({ marketId }).lean();
+      // Fetch all participants for this market (convert marketId string to ObjectId)
+      const marketObjectId = new ObjectId(marketId);
+      const participants = await PredictionParticipant.find({ marketId: marketObjectId }).lean();
+      logger.info(`Found ${participants.length} participants for market ${marketId}`);
 
       if (participants.length > 0) {
         logger.info(`Creating notifications for ${participants.length} participants`);
@@ -211,13 +213,21 @@ export async function POST(request: NextRequest) {
             let title = '';
             let message = '';
             let priority: 'high' | 'medium' | 'low' = 'high';
+            let notificationType = 'market_resolved';
+
+            // Determine if this participant won
+            const isWinner =
+              (resolutionOutcome === 'YesWins' && participant.voteOption === true) ||
+              (resolutionOutcome === 'NoWins' && participant.voteOption === false) ||
+              resolutionOutcome === 'Refund';
 
             if (resolutionOutcome === 'YesWins') {
               if (participant.voteOption === true) {
-                // YES voter won
-                title = `You Won! ${marketName}`;
-                message = `Congratulations! Your YES vote was correct. Token airdrop is being processed!`;
+                // YES voter won - can claim tokens
+                title = `🎉 You Won! ${marketName}`;
+                message = `Congratulations! Your YES vote was correct. Claim your token airdrop now!`;
                 priority = 'high';
+                notificationType = 'claim_ready';
               } else {
                 // NO voter lost
                 title = `Market Resolved - ${marketName}`;
@@ -226,10 +236,11 @@ export async function POST(request: NextRequest) {
               }
             } else if (resolutionOutcome === 'NoWins') {
               if (participant.voteOption === false) {
-                // NO voter won
-                title = `You Won! ${marketName}`;
-                message = `Congratulations! Your NO vote was correct. You'll receive SOL rewards!`;
+                // NO voter won - can claim SOL
+                title = `🎉 You Won! ${marketName}`;
+                message = `Congratulations! Your NO vote was correct. Claim your SOL rewards now!`;
                 priority = 'high';
+                notificationType = 'claim_ready';
               } else {
                 // YES voter lost
                 title = `Market Resolved - ${marketName}`;
@@ -237,9 +248,10 @@ export async function POST(request: NextRequest) {
                 priority = 'medium';
               }
             } else if (resolutionOutcome === 'Refund') {
-              title = `Market Refunded - ${marketName}`;
-              message = `The market was refunded. You can claim your original stake back.`;
+              title = `↩️ Market Refunded - ${marketName}`;
+              message = `The market was refunded. Claim your original stake back.`;
               priority = 'medium';
+              notificationType = 'claim_ready';
             } else {
               // Unresolved or Unknown
               title = `Market Status Update - ${marketName}`;
@@ -249,18 +261,17 @@ export async function POST(request: NextRequest) {
 
             return {
               userId: participant.participantWallet,
-              type: 'market_resolved',
+              type: notificationType,
               title,
               message,
               priority,
-              marketId: new ObjectId(marketId),
+              marketId: marketObjectId,
               actionUrl: `/market/${marketId}`,
               metadata: {
                 resolution: resolutionOutcome,
                 voteOption: participant.voteOption ? 'yes' : 'no',
-                won: (resolutionOutcome === 'YesWins' && participant.voteOption) ||
-                     (resolutionOutcome === 'NoWins' && !participant.voteOption),
-                action: 'claim_reward',
+                won: isWinner,
+                action: isWinner ? 'claim_reward' : 'view_result',
               },
             };
           });

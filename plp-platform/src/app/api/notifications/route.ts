@@ -234,13 +234,18 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Validate type
+    // Validate type (must match Notification schema enum in mongodb.ts)
     const validTypes = [
-      'claim_ready',
+      'vote_result',
       'token_launched',
-      'market_resolved',
+      'vote_reminder',
+      'reward_earned',
+      'project_update',
       'weekly_digest',
       'community_milestone',
+      'market_resolved',
+      'claim_ready',
+      'pool_complete',
     ];
     if (!validTypes.includes(type)) {
       return NextResponse.json(

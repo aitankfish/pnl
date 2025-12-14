@@ -424,7 +424,18 @@ const NotificationSchema = new mongoose.Schema({
   type: {
     type: String,
     required: true,
-    enum: ['vote_result', 'token_launched', 'vote_reminder', 'reward_earned', 'project_update', 'weekly_digest', 'community_milestone', 'market_resolved'],
+    enum: [
+      'vote_result',
+      'token_launched',
+      'vote_reminder',
+      'reward_earned',
+      'project_update',
+      'weekly_digest',
+      'community_milestone',
+      'market_resolved',
+      'claim_ready',
+      'pool_complete',
+    ],
   },
   title: {
     type: String,
