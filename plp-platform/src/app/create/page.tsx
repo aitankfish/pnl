@@ -369,104 +369,8 @@ export default function CreatePage() {
             </div>
           </div>
 
-          {/* Two Column Layout: Progress Sidebar + Form */}
-          <div className="flex flex-col lg:flex-row gap-6">
-            {/* Left Sidebar - Vertical Progress */}
-            <div className="lg:w-64 flex-shrink-0">
-              <Card className="bg-white/10 backdrop-blur-xl border-white/20 text-white lg:sticky lg:top-24">
-                <CardHeader className="pb-3">
-                  <CardTitle className="text-lg">Form Progress</CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  {/* Circular Progress with Gradient */}
-                  <div className="flex flex-col items-center py-4">
-                    <div className="relative w-32 h-32">
-                      <svg className="w-32 h-32 transform -rotate-90">
-                        {/* Background Circle */}
-                        <circle
-                          cx="64"
-                          cy="64"
-                          r="56"
-                          stroke="currentColor"
-                          strokeWidth="8"
-                          fill="transparent"
-                          className="text-white/10"
-                        />
-                        {/* Gradient Definition */}
-                        <defs>
-                          <linearGradient id="progressGradient" x1="0%" y1="0%" x2="100%" y2="100%">
-                            <stop offset="0%" stopColor="#22d3ee" />
-                            <stop offset="50%" stopColor="#3b82f6" />
-                            <stop offset="100%" stopColor="#a855f7" />
-                          </linearGradient>
-                        </defs>
-                        {/* Progress Circle with Gradient */}
-                        <circle
-                          cx="64"
-                          cy="64"
-                          r="56"
-                          stroke="url(#progressGradient)"
-                          strokeWidth="8"
-                          fill="transparent"
-                          strokeDasharray={`${2 * Math.PI * 56}`}
-                          strokeDashoffset={`${2 * Math.PI * 56 * (1 - completionPercentage / 100)}`}
-                          className="transition-all duration-500"
-                          strokeLinecap="round"
-                        />
-                      </svg>
-                      <div className="absolute inset-0 flex items-center justify-center">
-                        <span className="text-3xl font-bold bg-gradient-to-r from-cyan-400 via-blue-500 to-purple-600 bg-clip-text text-transparent">
-                          {Math.round(completionPercentage)}%
-                        </span>
-                      </div>
-                    </div>
-                    <p className="text-xs text-white/50 mt-3 text-center">
-                      {completedFields} of {requiredFields.length} fields completed
-                    </p>
-                  </div>
-
-                  {/* Form Sections Checklist - Enhanced */}
-                  <div className="space-y-2 pt-2 border-t border-white/10">
-                    <p className="text-xs text-white/40 font-medium uppercase tracking-wider">Sections</p>
-                    <div className="space-y-2 text-sm">
-                      <div className={`flex items-center gap-2 px-2 py-1.5 rounded-md transition-all ${formData.name && formData.description ? 'bg-green-500/10' : 'bg-white/5'}`}>
-                        {formData.name && formData.description ? (
-                          <svg className="w-4 h-4 text-green-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                          </svg>
-                        ) : (
-                          <div className="w-4 h-4 rounded-full border-2 border-white/30"></div>
-                        )}
-                        <span className={formData.name && formData.description ? 'text-green-400 font-medium' : 'text-white/50'}>Basic Info</span>
-                      </div>
-                      <div className={`flex items-center gap-2 px-2 py-1.5 rounded-md transition-all ${formData.category && formData.projectType && formData.projectStage ? 'bg-green-500/10' : 'bg-white/5'}`}>
-                        {formData.category && formData.projectType && formData.projectStage ? (
-                          <svg className="w-4 h-4 text-green-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                          </svg>
-                        ) : (
-                          <div className="w-4 h-4 rounded-full border-2 border-white/30"></div>
-                        )}
-                        <span className={formData.category && formData.projectType && formData.projectStage ? 'text-green-400 font-medium' : 'text-white/50'}>Project Details</span>
-                      </div>
-                      <div className={`flex items-center gap-2 px-2 py-1.5 rounded-md transition-all ${formData.tokenSymbol && formData.targetPool && formData.marketDuration ? 'bg-green-500/10' : 'bg-white/5'}`}>
-                        {formData.tokenSymbol && formData.targetPool && formData.marketDuration ? (
-                          <svg className="w-4 h-4 text-green-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                          </svg>
-                        ) : (
-                          <div className="w-4 h-4 rounded-full border-2 border-white/30"></div>
-                        )}
-                        <span className={formData.tokenSymbol && formData.targetPool && formData.marketDuration ? 'text-green-400 font-medium' : 'text-white/50'}>Market Settings</span>
-                      </div>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-            </div>
-
-            {/* Right Content - Form */}
-            <div className="flex-1 min-w-0">
+          {/* Form */}
+          <div className="max-w-4xl mx-auto">
               <form onSubmit={handleSubmit} className="space-y-6">
             {/* Basic Information */}
             <Card className="bg-gradient-to-br from-white/10 to-white/5 backdrop-blur-xl border-white/20 text-white overflow-visible hover:border-blue-500/30 transition-colors">
@@ -1435,7 +1339,6 @@ export default function CreatePage() {
               </div>
             </div>
               </form>
-            </div>
           </div>
         </div>
       </div>
