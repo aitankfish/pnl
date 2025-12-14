@@ -14,6 +14,7 @@ import { useClaiming } from '@/lib/hooks/useClaiming';
 import { useResolution } from '@/lib/hooks/useResolution';
 import { useExtend } from '@/lib/hooks/useExtend';
 import { useTeamVesting } from '@/lib/hooks/useTeamVesting';
+import { useFounderSolVesting } from '@/lib/hooks/useFounderSolVesting';
 import { useClose } from '@/lib/hooks/useClose';
 import { useNetwork } from '@/lib/hooks/useNetwork';
 import { getPositionPDA, getMarketVaultPDA } from '@/lib/anchor-program';
@@ -218,6 +219,7 @@ export default function MarketDetailsPage() {
   const { resolve, isResolving } = useResolution();
   const { extend, isExtending } = useExtend();
   const { initVesting, isInitializing, claimTeamTokens, isClaiming: isClaimingTeamTokens } = useTeamVesting();
+  const { initFounderSolVesting, isInitializing: isInitializingFounderSol, claimFounderSol, isClaiming: isClaimingFounderSol } = useFounderSolVesting();
   const { closePosition, isClosingPosition, closeMarket, isClosingMarket } = useClose();
   // Note: claimed status is now tracked in the database via positionData.data.claimed
   // No need for local state
@@ -815,6 +817,48 @@ export default function MarketDetailsPage() {
       refetchOnchainData();
 
       setToastMessage('✅ Team tokens claimed successfully!');
+      setShowToast(true);
+      setTimeout(() => setShowToast(false), 3000);
+    } else {
+      const parsedError = parseError(result.error);
+      setToastMessage(`❌ ${parsedError.title}: ${parsedError.message}`);
+      setShowToast(true);
+      setTimeout(() => setShowToast(false), 5000);
+    }
+  };
+
+  const handleInitFounderSolVesting = async () => {
+    if (!market || !onchainData?.success || !primaryWallet) return;
+
+    const result = await initFounderSolVesting({
+      marketAddress: market.marketAddress,
+    });
+
+    if (result.success) {
+      refetchOnchainData();
+
+      setToastMessage('✅ Founder SOL vesting initialized! You can now claim your excess SOL');
+      setShowToast(true);
+      setTimeout(() => setShowToast(false), 3000);
+    } else {
+      const parsedError = parseError(result.error);
+      setToastMessage(`❌ ${parsedError.title}: ${parsedError.message}`);
+      setShowToast(true);
+      setTimeout(() => setShowToast(false), 5000);
+    }
+  };
+
+  const handleClaimFounderSol = async () => {
+    if (!market || !onchainData?.success) return;
+
+    const result = await claimFounderSol({
+      marketAddress: market.marketAddress,
+    });
+
+    if (result.success) {
+      refetchOnchainData();
+
+      setToastMessage('✅ Founder SOL claimed successfully!');
       setShowToast(true);
       setTimeout(() => setShowToast(false), 3000);
     } else {
@@ -1744,6 +1788,77 @@ export default function MarketDetailsPage() {
 
                           <p className="text-xs text-gray-400 italic">
                             Note: First initialize vesting, then claim your tokens (8% immediate + vested amount).
+                          </p>
+                        </div>
+                      )}
+
+                      {/* Founder SOL Vesting Section - Only for founder when pool > 50 SOL */}
+                      {primaryWallet?.address === onchainData.data.founder && onchainData.data.hasExcessSol && (
+                        <div className="bg-gradient-to-br from-emerald-500/10 via-teal-500/10 to-cyan-500/10 border border-emerald-400/30 rounded-lg p-4 text-left space-y-3">
+                          <div className="flex items-center space-x-2">
+                            <div className="p-2 bg-emerald-500/20 rounded-full">
+                              <Target className="w-4 h-4 text-emerald-400" />
+                            </div>
+                            <h4 className="text-emerald-400 text-sm font-semibold">Excess SOL Allocation</h4>
+                          </div>
+
+                          <div className="space-y-2">
+                            <div className="flex justify-between text-xs">
+                              <span className="text-gray-400">Total Excess SOL</span>
+                              <span className="text-emerald-300 font-semibold">{onchainData.data.excessSolInSol?.toFixed(4)} SOL</span>
+                            </div>
+                            <div className="flex justify-between text-xs">
+                              <span className="text-gray-400">Immediate (8%)</span>
+                              <span className="text-teal-300 font-semibold">{(onchainData.data.excessSolInSol * 0.08)?.toFixed(4)} SOL</span>
+                            </div>
+                            <div className="flex justify-between text-xs">
+                              <span className="text-gray-400">Vested (92%)</span>
+                              <span className="text-cyan-300 font-semibold">{(onchainData.data.excessSolInSol * 0.92)?.toFixed(4)} SOL over 12 months</span>
+                            </div>
+                          </div>
+
+                          {/* Initialize SOL Vesting Button */}
+                          {!onchainData.data.founderVestingInitialized && (
+                            <Button
+                              onClick={handleInitFounderSolVesting}
+                              disabled={isInitializingFounderSol}
+                              className="w-full bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-600 hover:to-teal-600 text-white font-semibold"
+                            >
+                              {isInitializingFounderSol ? (
+                                <>
+                                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                                  Initializing...
+                                </>
+                              ) : (
+                                <>
+                                  🔧 Initialize SOL Vesting
+                                </>
+                              )}
+                            </Button>
+                          )}
+
+                          {/* Claim SOL Button - Only after vesting is initialized */}
+                          {onchainData.data.founderVestingInitialized && (
+                            <Button
+                              onClick={handleClaimFounderSol}
+                              disabled={isClaimingFounderSol}
+                              className="w-full bg-gradient-to-r from-teal-500 to-cyan-500 hover:from-teal-600 hover:to-cyan-600 text-white font-semibold"
+                            >
+                              {isClaimingFounderSol ? (
+                                <>
+                                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                                  Claiming...
+                                </>
+                              ) : (
+                                <>
+                                  💰 Claim SOL
+                                </>
+                              )}
+                            </Button>
+                          )}
+
+                          <p className="text-xs text-gray-400 italic">
+                            Pool exceeded 50 SOL. 50 SOL was used for token launch, the rest is yours with vesting.
                           </p>
                         </div>
                       )}

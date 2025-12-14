@@ -29,6 +29,8 @@ interface MarketAccount {
   platformTokensAllocated: bigint;
   platformTokensClaimed: boolean;
   yesVoterTokensAllocated: bigint;
+  founderExcessSolAllocated: bigint;
+  founderVestingInitialized: boolean;
   treasury: PublicKey;
   bump: number;
 }
@@ -198,10 +200,12 @@ export async function GET(
       let platformTokensAllocated = BigInt(0);
       let platformTokensClaimed = false;
       let yesVoterTokensAllocated = BigInt(0);
+      let founderExcessSolAllocated = BigInt(0);
+      let founderVestingInitialized = false;
       let bump = 0;
 
-      // Check if there's enough data left for new fields (minimum 8 + 1 + 8 + 32 + 1 = 50 bytes)
-      if (offset + 50 <= dataWithoutDiscriminator.length) {
+      // Check if there's enough data left for new fields (minimum 8 + 1 + 8 + 8 + 1 + 32 + 1 = 59 bytes)
+      if (offset + 59 <= dataWithoutDiscriminator.length) {
         try {
           // Read platform_tokens_allocated (8 bytes - u64)
           platformTokensAllocated = dataWithoutDiscriminator.readBigUInt64LE(offset);
@@ -214,6 +218,14 @@ export async function GET(
           // Read yes_voter_tokens_allocated (8 bytes - u64)
           yesVoterTokensAllocated = dataWithoutDiscriminator.readBigUInt64LE(offset);
           offset += 8;
+
+          // Read founder_excess_sol_allocated (8 bytes - u64)
+          founderExcessSolAllocated = dataWithoutDiscriminator.readBigUInt64LE(offset);
+          offset += 8;
+
+          // Read founder_vesting_initialized (1 byte - bool)
+          founderVestingInitialized = dataWithoutDiscriminator[offset] !== 0;
+          offset += 1;
 
           // Read treasury (32 bytes - PublicKey)
           const treasury = new PublicKey(dataWithoutDiscriminator.slice(offset, offset + 32));
@@ -256,6 +268,8 @@ export async function GET(
         platformTokensAllocated,
         platformTokensClaimed,
         yesVoterTokensAllocated,
+        founderExcessSolAllocated,
+        founderVestingInitialized,
         treasury,
         bump,
       };
@@ -342,6 +356,8 @@ export async function GET(
       platformTokensAllocated: marketAccount.platformTokensAllocated.toString(),
       platformTokensClaimed: marketAccount.platformTokensClaimed,
       yesVoterTokensAllocated: marketAccount.yesVoterTokensAllocated.toString(),
+      founderExcessSolAllocated: marketAccount.founderExcessSolAllocated.toString(),
+      founderVestingInitialized: marketAccount.founderVestingInitialized,
       treasury: marketAccount.treasury.toBase58(),
       bump: marketAccount.bump,
 
@@ -354,6 +370,9 @@ export async function GET(
       ),
       isExpired: currentTime >= expiryTimeNumber,
       isResolved: resolutionStatus !== 'Unresolved',
+      // Founder SOL vesting - calculated from excess SOL
+      hasExcessSol: Number(marketAccount.founderExcessSolAllocated) > 0,
+      excessSolInSol: Number(marketAccount.founderExcessSolAllocated) / 1_000_000_000,
     };
 
     return NextResponse.json(
@@ -370,7 +389,7 @@ export async function GET(
     );
 
   } catch (error) {
-    logger.error('Failed to fetch on-chain market data:', error);
+    logger.error('Failed to fetch on-chain market data:', error as any);
 
     return NextResponse.json(
       {
