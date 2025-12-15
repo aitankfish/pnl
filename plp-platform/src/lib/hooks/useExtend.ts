@@ -100,6 +100,29 @@ export function useExtend() {
         await connection.confirmTransaction(signature, 'confirmed');
         console.log('✅ Transaction confirmed on blockchain!');
 
+        // Step 3: Call complete endpoint to update database and create notifications
+        console.log('📝 Updating database and creating notifications...');
+        try {
+          const completeResponse = await fetch('/api/markets/extend/complete', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              marketId: params.marketId,
+              marketAddress: params.marketAddress,
+              signature,
+            }),
+          });
+
+          const completeResult = await completeResponse.json();
+          if (completeResult.success) {
+            console.log('✅ Database updated and notifications created');
+          } else {
+            console.warn('⚠️ Complete endpoint failed (non-fatal):', completeResult.error);
+          }
+        } catch (completeError) {
+          console.warn('⚠️ Failed to call complete endpoint (non-fatal):', completeError);
+        }
+
       } catch (signerError: unknown) {
         const errorMessage = signerError instanceof Error ? signerError.message : 'Unknown error';
         console.error('❌ Transaction failed:', errorMessage);

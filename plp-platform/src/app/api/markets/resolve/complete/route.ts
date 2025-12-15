@@ -179,11 +179,20 @@ export async function POST(request: NextRequest) {
     // Create notifications for all participants
     try {
       await connectMongoose();
+      logger.info('Connected to Mongoose for notifications');
 
       // Fetch all participants for this market (convert marketId string to ObjectId)
       const marketObjectId = new ObjectId(marketId);
+      logger.info('Querying participants', {
+        marketId,
+        marketObjectId: marketObjectId.toString(),
+        collection: 'PredictionParticipant'
+      });
+
       const participants = await PredictionParticipant.find({ marketId: marketObjectId }).lean();
-      logger.info(`Found ${participants.length} participants for market ${marketId}`);
+      logger.info(`Found ${participants.length} participants for market ${marketId}`, {
+        participantWallets: participants.slice(0, 5).map((p: any) => p.participantWallet?.slice(0, 8) + '...')
+      });
 
       if (participants.length > 0) {
         logger.info(`Creating notifications for ${participants.length} participants`);
