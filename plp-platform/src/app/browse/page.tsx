@@ -1,6 +1,7 @@
 'use client';
 
-import React, { useEffect, useState } from 'react';
+import React, { useMemo, useState } from 'react';
+import useSWR from 'swr';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -14,6 +15,9 @@ import CountdownTimer from '@/components/CountdownTimer';
 import ErrorDialog from '@/components/ErrorDialog';
 import { parseError } from '@/lib/utils/errorParser';
 import { Skeleton } from '@/components/ui/skeleton';
+
+// SWR fetcher
+const fetcher = (url: string) => fetch(url).then(res => res.json());
 
 interface Market {
   id: string;
@@ -114,16 +118,46 @@ function getVoteDisabledReason(market: Market, voteType: 'yes' | 'no'): string {
 }
 
 export default function BrowsePage() {
-  const [markets, setMarkets] = useState<Market[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
   const [votingState, setVotingState] = useState<{ marketId: string; voteType: 'yes' | 'no' } | null>(null);
   const [selectedCategory, setSelectedCategory] = useState<string>('All');
-  const [syncHealth, setSyncHealth] = useState<SyncHealth | null>(null);
   const { vote } = useVoting();
 
   // Socket.IO for real-time updates
   const { marketUpdates, isConnected } = useAllMarketsSocket();
+
+  // Reduce polling when Socket.IO is connected
+  const pollInterval = isConnected ? 60000 : 15000; // 60s when connected, 15s when not
+
+  // Use SWR for data fetching with caching and auto-refresh
+  const { data: marketsResponse, error: fetchError, mutate: refetchMarkets } = useSWR(
+    '/api/markets/list',
+    fetcher,
+    {
+      refreshInterval: pollInterval,
+      revalidateOnFocus: true,
+      dedupingInterval: 5000,
+      keepPreviousData: true,
+    }
+  );
+
+  // Extract markets and sync health from SWR response
+  const loading = !marketsResponse && !fetchError;
+  const error = fetchError ? 'Failed to load markets' : (marketsResponse?.success === false ? marketsResponse.error : null);
+  const syncHealth = marketsResponse?.data?.syncHealth || null;
+
+  // Merge socket updates with SWR data using useMemo
+  const markets = useMemo(() => {
+    const baseMarkets: Market[] = marketsResponse?.data?.markets || [];
+    if (marketUpdates.size === 0) return baseMarkets;
+
+    return baseMarkets.map((market) => {
+      const update = marketUpdates.get(market.marketAddress);
+      if (update) {
+        return { ...market, ...update };
+      }
+      return market;
+    });
+  }, [marketsResponse?.data?.markets, marketUpdates]);
 
   // Error dialog state
   const [errorDialog, setErrorDialog] = useState<{
@@ -151,52 +185,6 @@ export default function BrowsePage() {
   // Minimum vote amount from config
   const QUICK_VOTE_AMOUNT = FEES.MINIMUM_INVESTMENT / 1_000_000_000; // 0.01 SOL
 
-  useEffect(() => {
-    fetchMarkets();
-  }, []);
-
-  // Merge socket updates into markets state for real-time updates
-  useEffect(() => {
-    if (marketUpdates.size === 0) return;
-
-    setMarkets((prevMarkets) => {
-      return prevMarkets.map((market) => {
-        const update = marketUpdates.get(market.marketAddress);
-        if (update) {
-          // Merge socket update with existing market data
-          return {
-            ...market,
-            ...update,
-          };
-        }
-        return market;
-      });
-    });
-  }, [marketUpdates]);
-
-  const fetchMarkets = async () => {
-    try {
-      setLoading(true);
-      const response = await fetch('/api/markets/list');
-      const result = await response.json();
-
-      if (result.success) {
-        setMarkets(result.data.markets);
-        // Track sync health for staleness detection
-        if (result.data.syncHealth) {
-          setSyncHealth(result.data.syncHealth);
-        }
-      } else {
-        setError(result.error || 'Failed to load markets');
-      }
-    } catch (err) {
-      console.error('Error fetching markets:', err);
-      setError('Failed to load markets');
-    } finally {
-      setLoading(false);
-    }
-  };
-
   const handleQuickVote = async (market: Market, voteType: 'yes' | 'no') => {
     setVotingState({ marketId: market.id, voteType });
 
@@ -223,8 +211,8 @@ export default function BrowsePage() {
       });
     }
   };
-  // Get hot projects - prioritize live/active markets, top 2 by votes
-  const getHotProjects = () => {
+  // Get hot projects - memoized to avoid recalculation on every render
+  const hotProjects = useMemo(() => {
     if (markets.length === 0) return [];
 
     // First try to get active/live markets
@@ -244,24 +232,26 @@ export default function BrowsePage() {
     const marketsToUse = activeMarkets.length > 0 ? activeMarkets : markets;
 
     // Return top 2
-    return marketsToUse.sort(sortByVotes).slice(0, 2);
-  };
+    return [...marketsToUse].sort(sortByVotes).slice(0, 2);
+  }, [markets]);
 
-  const hotProjects = getHotProjects();
+  // Filter out hot projects and apply category filter - memoized
+  const regularMarkets = useMemo(() => {
+    const hotProjectIds = hotProjects.map(p => p.id);
+    let filtered = markets.filter(m => !hotProjectIds.includes(m.id));
 
-  // Filter out hot projects from regular markets list
-  const hotProjectIds = hotProjects.map(p => p.id);
-  let regularMarkets = markets.filter(m => !hotProjectIds.includes(m.id));
+    // Apply category filter
+    if (selectedCategory !== 'All') {
+      filtered = filtered.filter(m => {
+        const categoryLower = m.category.toLowerCase();
+        const selectedLower = selectedCategory.toLowerCase();
+        return categoryLower === selectedLower ||
+               (selectedCategory === 'AI/ML' && (categoryLower === 'ai/ml' || categoryLower === 'ai'));
+      });
+    }
 
-  // Apply category filter
-  if (selectedCategory !== 'All') {
-    regularMarkets = regularMarkets.filter(m => {
-      const categoryLower = m.category.toLowerCase();
-      const selectedLower = selectedCategory.toLowerCase();
-      return categoryLower === selectedLower ||
-             (selectedCategory === 'AI/ML' && (categoryLower === 'ai/ml' || categoryLower === 'ai'));
-    });
-  }
+    return filtered;
+  }, [markets, hotProjects, selectedCategory]);
 
   return (
     <div className="pt-2 sm:pt-3 px-3 sm:px-6 pb-6 space-y-6 sm:space-y-8">
@@ -546,7 +536,7 @@ export default function BrowsePage() {
           {error && !loading && (
             <div className="text-center py-12">
               <p className="text-red-400 mb-4">{error}</p>
-              <Button onClick={fetchMarkets} variant="outline" className="border-white/20 text-white hover:bg-white/10">
+              <Button onClick={() => refetchMarkets()} variant="outline" className="border-white/20 text-white hover:bg-white/10">
                 Retry
               </Button>
             </div>

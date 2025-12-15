@@ -161,3 +161,147 @@ export function getCacheHeaders(maxAge: number = 60, staleWhileRevalidate: numbe
     'Cache-Control': `public, s-maxage=${maxAge}, stale-while-revalidate=${staleWhileRevalidate}`,
   };
 }
+
+/**
+ * Market status calculation input
+ */
+export interface MarketStatusInput {
+  resolution?: string;
+  phase?: number;
+  poolProgressPercentage?: number;
+  expiryTime: Date | string;
+  tokenMint?: string | null;
+  pumpFunTokenAddress?: string | null;
+}
+
+/**
+ * Market display status result
+ */
+export interface MarketDisplayStatus {
+  displayStatus: string;
+  badgeClass: string;
+  isExpired: boolean;
+  hasTokenLaunched: boolean;
+}
+
+/**
+ * Vote button states result
+ */
+export interface VoteButtonStates {
+  isYesVoteEnabled: boolean;
+  isNoVoteEnabled: boolean;
+  yesVoteDisabledReason: string;
+  noVoteDisabledReason: string;
+}
+
+/**
+ * Calculate market display status (single source of truth)
+ * Used by both list and detail APIs
+ */
+export function getMarketDisplayStatus(market: MarketStatusInput): MarketDisplayStatus {
+  const now = new Date();
+  const expiryTime = new Date(market.expiryTime);
+  const resolution = market.resolution || 'Unresolved';
+  const phase = market.phase ?? 0;
+  const poolProgressPercentage = market.poolProgressPercentage || 0;
+  const isExpired = now.getTime() > expiryTime.getTime();
+  const hasTokenLaunched = !!(market.tokenMint || market.pumpFunTokenAddress);
+
+  let displayStatus = '✅ Active';
+  let badgeClass = 'bg-green-500/20 text-green-300 border-green-400/30';
+
+  // Resolved states
+  if (resolution === 'YesWins') {
+    if (hasTokenLaunched) {
+      displayStatus = '🚀 Token Launched';
+      badgeClass = 'bg-cyan-500/20 text-cyan-300 border-cyan-400/30';
+    } else if (phase === 1) {
+      displayStatus = '💰 Funding Phase';
+      badgeClass = 'bg-purple-500/20 text-purple-300 border-purple-400/30';
+    } else {
+      displayStatus = '🎉 YES Wins';
+      badgeClass = 'bg-green-500/20 text-green-300 border-green-400/30';
+    }
+  } else if (resolution === 'NoWins') {
+    displayStatus = '❌ NO Wins';
+    badgeClass = 'bg-red-500/20 text-red-300 border-red-400/30';
+  } else if (resolution === 'Refund') {
+    displayStatus = '↩️ Refund';
+    badgeClass = 'bg-yellow-500/20 text-yellow-300 border-yellow-400/30';
+  } else if (resolution === 'Unresolved') {
+    if (isExpired) {
+      displayStatus = '⏳ Awaiting Resolution';
+      badgeClass = 'bg-orange-500/20 text-orange-300 border-orange-400/30';
+    } else if (phase === 1) {
+      displayStatus = '💰 Funding Phase';
+      badgeClass = 'bg-purple-500/20 text-purple-300 border-purple-400/30';
+    } else if (poolProgressPercentage >= 100) {
+      displayStatus = '🎯 Pool Complete';
+      badgeClass = 'bg-cyan-500/20 text-cyan-300 border-cyan-400/30';
+    }
+  }
+
+  return { displayStatus, badgeClass, isExpired, hasTokenLaunched };
+}
+
+/**
+ * Calculate vote button states (single source of truth)
+ * Used by both list and detail APIs
+ */
+export function getVoteButtonStates(market: MarketStatusInput): VoteButtonStates {
+  const { isExpired, hasTokenLaunched } = getMarketDisplayStatus(market);
+  const resolution = market.resolution || 'Unresolved';
+  const phase = market.phase ?? 0;
+  const poolProgressPercentage = market.poolProgressPercentage || 0;
+
+  let isYesVoteEnabled = true;
+  let isNoVoteEnabled = true;
+  let yesVoteDisabledReason = '';
+  let noVoteDisabledReason = '';
+
+  if (hasTokenLaunched) {
+    isYesVoteEnabled = false;
+    isNoVoteEnabled = false;
+    yesVoteDisabledReason = '🚀 Token Launched';
+    noVoteDisabledReason = '🚀 Token Launched';
+  } else if (isExpired) {
+    isYesVoteEnabled = false;
+    isNoVoteEnabled = false;
+    yesVoteDisabledReason = '⏰ Market Expired';
+    noVoteDisabledReason = '⏰ Market Expired';
+  } else if (resolution === 'NoWins') {
+    isYesVoteEnabled = false;
+    isNoVoteEnabled = false;
+    yesVoteDisabledReason = 'NO Won';
+    noVoteDisabledReason = 'NO Won';
+  } else if (resolution === 'Refund') {
+    isYesVoteEnabled = false;
+    isNoVoteEnabled = false;
+    yesVoteDisabledReason = 'Refunded';
+    noVoteDisabledReason = 'Refunded';
+  } else if (resolution === 'YesWins') {
+    if (phase === 0) {
+      isYesVoteEnabled = false;
+      isNoVoteEnabled = false;
+      yesVoteDisabledReason = 'Awaiting Extension';
+      noVoteDisabledReason = 'Awaiting Extension';
+    } else if (phase === 1) {
+      isYesVoteEnabled = true;
+      isNoVoteEnabled = false;
+      noVoteDisabledReason = 'YES Locked';
+    }
+  } else if (resolution === 'Unresolved') {
+    if (phase === 1) {
+      isYesVoteEnabled = true;
+      isNoVoteEnabled = false;
+      noVoteDisabledReason = 'YES Locked';
+    } else if (phase === 0 && poolProgressPercentage >= 100) {
+      isYesVoteEnabled = false;
+      isNoVoteEnabled = false;
+      yesVoteDisabledReason = 'Pool Complete';
+      noVoteDisabledReason = 'Pool Complete';
+    }
+  }
+
+  return { isYesVoteEnabled, isNoVoteEnabled, yesVoteDisabledReason, noVoteDisabledReason };
+}
