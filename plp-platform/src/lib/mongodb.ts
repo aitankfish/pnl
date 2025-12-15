@@ -552,8 +552,7 @@ const UserProfileSchema = new mongoose.Schema({
   },
 });
 
-// Indexes for UserProfile
-UserProfileSchema.index({ walletAddress: 1 });
+// Indexes for UserProfile (walletAddress already has index: true in schema)
 UserProfileSchema.index({ reputationScore: -1 });
 UserProfileSchema.index({ followerCount: -1 });
 
