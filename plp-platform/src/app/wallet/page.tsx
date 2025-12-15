@@ -975,7 +975,10 @@ export default function WalletPage() {
   const { data: positionsData, isLoading: positionsLoading, mutate: mutatePositions } = useSWR(
     primaryWallet?.address ? `/api/user/${primaryWallet.address}/positions` : null,
     fetcher,
-    { refreshInterval: 30000 } // Refresh every 30 seconds
+    {
+      refreshInterval: 15000, // Refresh every 15 seconds
+      revalidateOnFocus: true, // Refresh when user switches back to tab
+    }
   );
 
   // Fetch user's created projects
