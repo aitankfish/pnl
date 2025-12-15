@@ -15,6 +15,9 @@ import {
   getVoteButtonStates
 } from '@/lib/api-utils';
 
+// Disable Next.js caching for this route - data changes frequently
+export const dynamic = 'force-dynamic';
+
 const logger = createClientLogger();
 
 export async function GET(_request: NextRequest) {

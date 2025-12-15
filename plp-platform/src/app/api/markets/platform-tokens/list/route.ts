@@ -10,6 +10,9 @@ import { NextRequest, NextResponse } from 'next/server';
 import { connectToDatabase, PredictionMarket } from '@/lib/mongodb';
 import { createClientLogger } from '@/lib/logger';
 
+// Disable Next.js caching for this route
+export const dynamic = 'force-dynamic';
+
 const logger = createClientLogger();
 
 export async function GET(request: NextRequest) {

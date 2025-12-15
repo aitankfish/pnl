@@ -5,6 +5,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { connectToDatabase, PredictionMarket } from '@/lib/mongodb';
 
+// Disable Next.js caching for this route
+export const dynamic = 'force-dynamic';
+
 export async function GET(_request: NextRequest) {
   try {
     await connectToDatabase();

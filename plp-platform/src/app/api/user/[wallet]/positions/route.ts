@@ -6,6 +6,9 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
+
+// Disable Next.js caching for this route
+export const dynamic = 'force-dynamic';
 import { connectToDatabase, getDatabase } from '@/lib/database/index';
 import { COLLECTIONS } from '@/lib/database/models';
 import { createClientLogger } from '@/lib/logger';

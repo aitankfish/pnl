@@ -7,6 +7,9 @@ import { NextRequest, NextResponse } from 'next/server';
 import { connectToDatabase, getDatabase } from '@/lib/database/index';
 import { COLLECTIONS, UserProfile } from '@/lib/database/models';
 
+// Disable Next.js caching for this route
+export const dynamic = 'force-dynamic';
+
 export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ wallet: string }> }

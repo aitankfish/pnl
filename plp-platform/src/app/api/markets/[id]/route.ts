@@ -11,6 +11,9 @@ import { createClientLogger } from '@/lib/logger';
 import { calculateVoteCounts } from '@/lib/vote-counts';
 import { isMarketDataStale, formatProjectAge, truncateWallet } from '@/lib/api-utils';
 
+// Disable Next.js caching for this route - market data changes frequently
+export const dynamic = 'force-dynamic';
+
 const logger = createClientLogger();
 
 export async function GET(
