@@ -1221,6 +1221,27 @@ export default function CreatePage() {
                         // Convert to Buffer for signAndSendTransaction
                         const txBuffer = Buffer.from(rawTx, 'base64');
 
+                        // Simulate transaction first to surface any errors
+                        console.log('🔍 Simulating transaction to check for errors...');
+                        try {
+                          const connection = await getSolanaConnection();
+                          const { Transaction } = await import('@solana/web3.js');
+                          const tx = Transaction.from(txBuffer);
+                          const simulation = await connection.simulateTransaction(tx);
+                          if (simulation.value.err) {
+                            console.error('❌ Simulation failed:', JSON.stringify(simulation.value.err, null, 2));
+                            console.error('Simulation logs:', simulation.value.logs);
+                            throw new Error(`Transaction simulation failed: ${JSON.stringify(simulation.value.err)}`);
+                          }
+                          console.log('✅ Simulation passed, logs:', simulation.value.logs?.slice(-5));
+                        } catch (simError: any) {
+                          console.error('❌ Simulation error:', simError.message);
+                          if (simError.logs) {
+                            console.error('Program logs:', simError.logs);
+                          }
+                          throw simError;
+                        }
+
                         console.log('🔄 Transaction ready for signing and sending');
 
                         // Get Solana wallet - try external wallets first, then embedded wallets

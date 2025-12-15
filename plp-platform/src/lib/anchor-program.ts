@@ -22,7 +22,7 @@ type PlpPredictionMarket = typeof idlJson;
 export function getProgramIdForNetwork(network?: 'devnet' | 'mainnet-beta'): PublicKey {
   const targetNetwork = network || 'devnet';
   const PROGRAM_ID_DEVNET_STR = process.env.NEXT_PUBLIC_PLP_PROGRAM_ID_DEVNET || '2CjwEvY3gkErkEmM5wnLpRv9fq3msHjnPDVPQmaWhF3G';
-  const PROGRAM_ID_MAINNET_STR = process.env.NEXT_PUBLIC_PLP_PROGRAM_ID_MAINNET || '6kK2SVaj6yW7mAjTsw1rxMDNeby8A9ojv3UyhVPofmZL';
+  const PROGRAM_ID_MAINNET_STR = process.env.NEXT_PUBLIC_PLP_PROGRAM_ID_MAINNET || '';
   const programIdString = targetNetwork === 'mainnet-beta' ? PROGRAM_ID_MAINNET_STR : PROGRAM_ID_DEVNET_STR;
 
   if (!programIdString) {
@@ -178,7 +178,7 @@ export async function buildCreateMarketTransaction(params: {
 
   // Get program ID based on network parameter (not from static import)
   const PROGRAM_ID_DEVNET_STR = process.env.NEXT_PUBLIC_PLP_PROGRAM_ID_DEVNET || '2CjwEvY3gkErkEmM5wnLpRv9fq3msHjnPDVPQmaWhF3G';
-  const PROGRAM_ID_MAINNET_STR = process.env.NEXT_PUBLIC_PLP_PROGRAM_ID_MAINNET || '6kK2SVaj6yW7mAjTsw1rxMDNeby8A9ojv3UyhVPofmZL';
+  const PROGRAM_ID_MAINNET_STR = process.env.NEXT_PUBLIC_PLP_PROGRAM_ID_MAINNET || '';
   const programIdString = network === 'mainnet-beta' ? PROGRAM_ID_MAINNET_STR : PROGRAM_ID_DEVNET_STR;
 
   if (!programIdString) {
