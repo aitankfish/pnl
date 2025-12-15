@@ -40,40 +40,9 @@ yarn-error.log*
 *.tsbuildinfo
 next-env.d.ts
 
-# Debug scripts with sensitive data
-scripts/check-vote-counts.ts
-scripts/sync-position-manually.ts
-scripts/check-position-account.ts
-scripts/check-claims-manual.ts
-scripts/audit-all-markets.ts
-scripts/check-backend-activity.ts
-scripts/check-collections.ts
-scripts/check-failing-market.ts
-scripts/check-format-timeline.ts
-scripts/check-market-debug.ts
-scripts/check-market-sync.ts
-scripts/check-mongo-activity.ts
-scripts/compare-account-structures.ts
-scripts/detailed-parse.ts
-scripts/fetch-program-idl.ts
-scripts/final-field-analysis.ts
-scripts/identify-missing-field.ts
-scripts/reverse-hypothesis.ts
-scripts/test-new-market-parsing.ts
-scripts/test-old-market-parsing.ts
-
-# Test scripts with wallets/keypairs (NEVER commit these!)
-scripts/test-jito-bundle.ts
-scripts/test-pumpfun-launch.ts
-scripts/test-wallet.json
-scripts/*-wallet*.json
-scripts/*-keypair*.json
-
-# Scripts with potential keypair/sensitive data
-scripts/extend-alt.ts
-scripts/create-alt.ts
-scripts/generate-vanity-mint.ts
-scripts/init-treasury*.ts
+# Scripts - local testing only (except post-build.js needed for deployment)
+scripts/*
+!scripts/post-build.js
 
 # Session notes and planning docs (local only)
 SESSION_NOTES*.md
