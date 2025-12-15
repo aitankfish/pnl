@@ -143,6 +143,144 @@ When a market resolves with YES winning, tokens purchased on pump.fun are distri
 - **NO Wins**: Proportional SOL distribution from 95% of pool (after 5% completion fee)
 - **Refund**: Full invested amount returned (no fees deducted)
 
+## ⛓️ Smart Contract (Solana Program)
+
+### Program Overview
+
+The PLP Prediction Market program is built with Anchor Framework and deployed on Solana.
+
+**Program ID:** `C5mVE2BwSehWJNkNvhpsoepyKwZkvSLZx29bi4MzVj86`
+
+### Instructions
+
+| Instruction | Description | Access |
+|-------------|-------------|--------|
+| `init_treasury` | Initialize global treasury PDA | Deployer only (one-time) |
+| `set_admin` | Change treasury admin (DAO/multisig) | Current admin |
+| `withdraw_fees` | Withdraw platform fees | Admin |
+| `create_market` | Create new prediction market | Anyone |
+| `buy_yes` | Buy YES shares with SOL | Anyone |
+| `buy_no` | Buy NO shares with SOL | Anyone |
+| `extend_market` | Extend market for additional funding | Founder only |
+| `resolve_market` | Resolve market after expiry | Platform authority |
+| `claim_rewards` | Claim rewards (tokens/SOL/refund) | Position holders |
+| `init_team_vesting` | Initialize team token vesting | After YES wins |
+| `claim_team_tokens` | Claim vested team tokens | Team |
+| `init_founder_vesting` | Initialize founder SOL vesting | After YES wins (pool > 50 SOL) |
+| `claim_founder_sol` | Claim vested founder SOL | Founder |
+| `claim_platform_tokens` | Claim platform's 2% tokens | Anyone |
+| `close_position` | Close position, recover rent | Position holder |
+| `close_market` | Close market, recover rent | Founder (after claim period) |
+| `emergency_drain_vault` | Emergency vault drain | Admin only |
+
+### Constants & Rules
+
+```rust
+// Fees
+CREATION_FEE:        0.015 SOL    // Per market creation
+TRADE_FEE:           1.5%         // On every YES/NO purchase
+COMPLETION_FEE:      5%           // When market resolves YES or NO
+
+// Trading
+MIN_INVESTMENT:      0.01 SOL     // Minimum per trade
+TARGET_POOLS:        5/10/15 SOL  // Allowed target pool sizes
+MAX_POOL_FOR_LAUNCH: 50 SOL       // Beyond this, excess goes to founder
+
+// Market Duration
+MIN_DURATION:        1 day
+MAX_DURATION:        1 year
+
+// Token Distribution (YES Wins)
+YES_VOTERS:          65%          // Proportional to shares, immediate
+TEAM_TOTAL:          33%          // 8% immediate + 25% vested (12 months)
+PLATFORM:            2%           // Immediate
+
+// Founder SOL Vesting (when pool > 50 SOL)
+IMMEDIATE:           8%
+VESTED:              92%          // Linear over 12 months
+```
+
+### Market Lifecycle
+
+```
+┌─────────────────────────────────────────────────────────────────────┐
+│                         MARKET LIFECYCLE                             │
+├─────────────────────────────────────────────────────────────────────┤
+│                                                                      │
+│  1. CREATE MARKET                                                    │
+│     └─> Founder pays 0.015 SOL creation fee                         │
+│     └─> Market enters PREDICTION phase                              │
+│                                                                      │
+│  2. TRADING (Prediction Phase)                                       │
+│     └─> Users buy YES or NO shares (1.5% fee per trade)             │
+│     └─> One position per wallet (can't hold both YES and NO)        │
+│     └─> Constant Product AMM: prices always sum to 1.0              │
+│                                                                      │
+│  3. TARGET REACHED                                                   │
+│     └─> If YES winning: Founder can EXTEND to Funding phase         │
+│     └─> If NO winning: Wait for expiry                              │
+│                                                                      │
+│  4. FUNDING PHASE (Optional)                                         │
+│     └─> Only YES votes allowed (NO locked)                          │
+│     └─> Pool can exceed target_pool                                 │
+│                                                                      │
+│  5. EXPIRY                                                           │
+│     └─> No more trading allowed                                     │
+│     └─> Platform authority calls resolve_market                      │
+│                                                                      │
+│  6. RESOLUTION                                                       │
+│     ├─> YES_WINS (total_yes_shares > total_no_shares)               │
+│     │   └─> 5% completion fee taken                                 │
+│     │   └─> Token created via Pump.fun                              │
+│     │   └─> 65% to YES voters, 33% to team, 2% to platform          │
+│     │                                                                │
+│     ├─> NO_WINS (total_no_shares > total_yes_shares)                │
+│     │   └─> 5% completion fee taken                                 │
+│     │   └─> 95% of pool distributed to NO voters proportionally     │
+│     │                                                                │
+│     └─> REFUND (tie or insufficient activity)                       │
+│         └─> No fees taken                                           │
+│         └─> Full refund to all participants                         │
+│                                                                      │
+│  7. CLAIM REWARDS                                                    │
+│     └─> Users call claim_rewards                                    │
+│     └─> Position PDA closed, rent returned                          │
+│                                                                      │
+│  8. CLEANUP (30+ days after expiry)                                  │
+│     └─> Founder can close_market to recover rent                    │
+│                                                                      │
+└─────────────────────────────────────────────────────────────────────┘
+```
+
+### Error Codes
+
+| Code | Message |
+|------|---------|
+| `MarketExpired` | Market has already expired |
+| `MarketNotExpired` | Market is not yet expired |
+| `AlreadyResolved` | Market has already been resolved |
+| `AlreadyHasPosition` | User already has position on opposite side |
+| `InvestmentTooSmall` | Below minimum 0.01 SOL |
+| `CapReached` | Target pool has been filled |
+| `AlreadyClaimed` | Reward has already been claimed |
+| `Unauthorized` | Only platform authority can perform this |
+| `InvalidTargetPool` | Must be 5, 10, or 15 SOL |
+| `YesNotWinning` | YES must be winning to extend market |
+| `TargetNotReached` | Cannot extend before target reached |
+| `ClaimPeriodNotOver` | Cannot close market yet (30 days) |
+| `PoolNotEmpty` | Cannot close market with unclaimed funds |
+
+### PDAs (Program Derived Addresses)
+
+```
+Market PDA:      seeds = ["market", founder, ipfs_cid]
+Position PDA:    seeds = ["position", market, user]
+Treasury PDA:    seeds = ["treasury"]
+Vault PDA:       seeds = ["vault", market]
+Team Vesting:    seeds = ["team_vesting", market]
+Founder Vesting: seeds = ["founder_vesting", market]
+```
+
 ## 📁 Project Structure
 
 ```
