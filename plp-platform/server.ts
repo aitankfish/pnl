@@ -9,6 +9,9 @@
 import { config as dotenvConfig } from 'dotenv';
 dotenvConfig(); // Load .env file
 
+// Mark that we're running with unified server (skip instrumentation.ts)
+process.env.UNIFIED_SERVER = 'true';
+
 import { createServer } from 'http';
 import { parse } from 'url';
 import next from 'next';

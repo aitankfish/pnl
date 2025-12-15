@@ -1,10 +1,19 @@
 /**
  * Next.js Instrumentation Hook
- * Initializes Socket.IO server and Blockchain Sync when Next.js starts
- * Works with standard `next dev` and `next start` commands
+ *
+ * NOTE: This is ONLY used when running `next start` directly.
+ * When using `npm run start:unified` (server.ts), this is SKIPPED
+ * because server.ts already handles Socket.IO and blockchain sync.
  */
 
 export async function register() {
+  // Skip if running with unified server (server.ts handles everything)
+  // server.ts sets this env var before starting Next.js
+  if (process.env.UNIFIED_SERVER === 'true') {
+    console.log('ℹ️  Instrumentation skipped (unified server handles Socket.IO and sync)');
+    return;
+  }
+
   if (process.env.NEXT_RUNTIME === 'nodejs') {
     const { createServer } = await import('http');
     const { initializeSocketServer } = await import('./services/socket/socket-server');
