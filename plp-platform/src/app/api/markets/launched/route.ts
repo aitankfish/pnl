@@ -2,70 +2,82 @@
  * API endpoint for fetching successfully launched tokens
  *
  * Returns markets that were resolved with YES outcome and have pump.fun tokens created
+ * Optimized with MongoDB aggregation pipeline for single-query data fetching
  */
 
 import { NextRequest, NextResponse } from 'next/server';
-import { connectToDatabase, PredictionMarket, Project } from '@/lib/mongodb';
+import { connectToDatabase, PredictionMarket } from '@/lib/mongodb';
 import { createClientLogger } from '@/lib/logger';
-import { calculateVoteCountsForMarkets } from '@/lib/vote-counts';
+import { convertToGatewayUrl } from '@/lib/api-utils';
 
 const logger = createClientLogger();
-
-// Helper function to convert IPFS URL to gateway URL
-function convertToGatewayUrl(imageUrl: string | undefined): string | undefined {
-  if (!imageUrl) return undefined;
-
-  const gatewayUrl = process.env.PINATA_GATEWAY_URL;
-  if (!gatewayUrl) return imageUrl.startsWith('http') ? imageUrl : undefined;
-
-  // If it's an IPFS URL (ipfs://...), convert to gateway URL
-  if (imageUrl.startsWith('ipfs://')) {
-    const ipfsHash = imageUrl.replace('ipfs://', '');
-    return `https://${gatewayUrl}/ipfs/${ipfsHash}`;
-  }
-
-  // If it's already a full URL, keep it as is
-  if (imageUrl.startsWith('http')) {
-    return imageUrl;
-  }
-
-  // If it's just a hash (bafyXXX or QmXXX), add gateway
-  return `https://${gatewayUrl}/ipfs/${imageUrl}`;
-}
 
 export async function GET(_request: NextRequest) {
   try {
     // Connect to MongoDB
     await connectToDatabase();
 
-    // Fetch all resolved markets with YES outcome
-    // Include both markets with token address AND recently resolved markets
-    // (to catch edge cases where sync hasn't completed yet)
-    const markets = await PredictionMarket.find({
-      marketState: 1, // 1 = Resolved
-      resolution: 'YesWins', // YES won the prediction
-      $or: [
-        { pumpFunTokenAddress: { $exists: true, $ne: null, $ne: '' } }, // Has token address
-        { resolvedAt: { $gte: new Date(Date.now() - 60000) } }, // Resolved in last 60 seconds
-      ]
-    })
-      .populate('projectId') // Populate project data
-      .sort({ resolvedAt: -1 }) // Most recent launches first
-      .lean();
+    // Use aggregation pipeline to fetch markets + projects + stake calculations in one query
+    const marketsWithData = await PredictionMarket.aggregate([
+      // Match resolved YesWins markets with token address
+      {
+        $match: {
+          marketState: 1, // 1 = Resolved
+          resolution: 'YesWins', // YES won the prediction
+          pumpFunTokenAddress: { $exists: true, $nin: [null, ''] },
+        }
+      },
+      // Sort by resolution date (most recent first)
+      { $sort: { resolvedAt: -1 } },
+      // Join with projects collection
+      {
+        $lookup: {
+          from: 'projects',
+          localField: 'projectId',
+          foreignField: '_id',
+          as: 'project'
+        }
+      },
+      { $unwind: { path: '$project', preserveNullAndEmptyArrays: true } },
+      // Join with participants to calculate stake totals and vote counts
+      {
+        $lookup: {
+          from: 'predictionparticipants',
+          localField: '_id',
+          foreignField: 'marketId',
+          as: 'participants'
+        }
+      },
+      // Calculate stake totals and vote counts from participants
+      {
+        $addFields: {
+          calculatedYesStake: {
+            $divide: [
+              { $sum: { $map: { input: '$participants', as: 'p', in: { $toLong: { $ifNull: ['$$p.yesShares', '0'] } } } } },
+              1000000000
+            ]
+          },
+          calculatedNoStake: {
+            $divide: [
+              { $sum: { $map: { input: '$participants', as: 'p', in: { $toLong: { $ifNull: ['$$p.noShares', '0'] } } } } },
+              1000000000
+            ]
+          },
+          calculatedYesVotes: {
+            $size: { $filter: { input: '$participants', as: 'p', cond: { $gt: [{ $toLong: { $ifNull: ['$$p.yesShares', '0'] } }, 0] } } }
+          },
+          calculatedNoVotes: {
+            $size: { $filter: { input: '$participants', as: 'p', cond: { $gt: [{ $toLong: { $ifNull: ['$$p.noShares', '0'] } }, 0] } } }
+          }
+        }
+      },
+      // Remove participants array from output (we only needed it for calculations)
+      { $project: { participants: 0 } }
+    ]);
 
-    // Log warning for markets missing token address (shouldn't happen with immediate write)
-    const missingToken = markets.filter(m => !m.pumpFunTokenAddress);
-    if (missingToken.length > 0) {
-      logger.warn('Found YesWins markets without token address', {
-        count: missingToken.length,
-        marketAddresses: missingToken.map(m => m.marketAddress),
-      });
-    }
+    logger.debug('Launched markets aggregation completed', { count: marketsWithData.length });
 
-    // Filter out markets without token address for final response
-    const validMarkets = markets.filter(m => m.pumpFunTokenAddress);
-
-    if (validMarkets.length === 0) {
+    if (marketsWithData.length === 0) {
       return NextResponse.json(
         {
           success: true,
@@ -82,122 +94,46 @@ export async function GET(_request: NextRequest) {
       );
     }
 
-    // Calculate vote counts from MongoDB for all valid markets
-    const marketIds = validMarkets.map(m => m._id);
-    const voteCountsMap = await calculateVoteCountsForMarkets(marketIds);
-
-    // Calculate stake totals from participants for all markets
-    const { PredictionParticipant } = await import('@/lib/mongodb');
-    const participants = await PredictionParticipant.find({
-      marketId: { $in: marketIds }
-    }).lean();
-
-    // Build map of stake totals per market
-    const stakeTotalsMap = new Map<string, { totalYesStake: number; totalNoStake: number }>();
-
-    // Initialize all markets with 0 stakes
-    for (const marketId of marketIds) {
-      stakeTotalsMap.set(marketId.toString(), { totalYesStake: 0, totalNoStake: 0 });
-    }
-
-    // Calculate stakes from participants
-    for (const participant of participants) {
-      const marketIdStr = participant.marketId.toString();
-      const stakes = stakeTotalsMap.get(marketIdStr) || { totalYesStake: 0, totalNoStake: 0 };
-
-      // Try to get shares from new fields first
-      const yesShares = BigInt(participant.yesShares || '0');
-      const noShares = BigInt(participant.noShares || '0');
-
-      // If new fields have data, use them
-      if (yesShares > 0 || noShares > 0) {
-        // Convert from lamports to SOL
-        stakes.totalYesStake += Number(yesShares) / 1_000_000_000;
-        stakes.totalNoStake += Number(noShares) / 1_000_000_000;
-      } else {
-        // Fallback to legacy stakeAmount field
-        const stakeAmount = participant.stakeAmount || participant.totalInvested || 0;
-        const stakeInSol = typeof stakeAmount === 'string'
-          ? Number(BigInt(stakeAmount)) / 1_000_000_000
-          : stakeAmount / 1_000_000_000;
-
-        // Use voteOption to determine which side
-        if (participant.voteOption === true) {
-          stakes.totalYesStake += stakeInSol;
-        } else {
-          stakes.totalNoStake += stakeInSol;
-        }
-      }
-
-      stakeTotalsMap.set(marketIdStr, stakes);
-    }
-
-    logger.info('Calculated stake totals for launched markets', {
-      marketCount: marketIds.length,
-      participantCount: participants.length
-    });
-
-    // Transform data for frontend
-    const launchedTokens = validMarkets.map((market) => {
-      const project = market.projectId as any; // populated project
-
-      // Get calculated vote counts (fallback to MongoDB fields if calculation failed)
-      const voteCounts = voteCountsMap.get(market._id.toString()) || {
-        yesVoteCount: market.yesVoteCount || 0,
-        noVoteCount: market.noVoteCount || 0,
+    // Format category properly (first letter capital, handle special cases)
+    const formatCategory = (cat: string): string => {
+      if (!cat) return 'Other';
+      const lowerCat = cat.toLowerCase();
+      const specialCases: { [key: string]: string } = {
+        'dao': 'DAO',
+        'nft': 'NFT',
+        'ai': 'AI/ML',
+        'defi': 'DeFi',
+        'realestate': 'Real Estate',
       };
+      if (specialCases[lowerCat]) return specialCases[lowerCat];
+      return cat.charAt(0).toUpperCase() + cat.slice(1).toLowerCase();
+    };
 
-      const totalVotes = voteCounts.yesVoteCount + voteCounts.noVoteCount;
+    // Transform aggregation results for frontend
+    const launchedTokens = marketsWithData.map((market: any) => {
+      const project = market.project;
+
+      // Use calculated values from aggregation, fallback to market fields
+      const yesVotes = market.calculatedYesVotes || market.yesVoteCount || 0;
+      const noVotes = market.calculatedNoVotes || market.noVoteCount || 0;
+      const totalVotes = yesVotes + noVotes;
 
       // Use sharesYesPercentage (from blockchain AMM) as single source of truth
-      // This is consistent with browse page and reflects actual market outcome
       const yesPercentage = market.sharesYesPercentage ?? market.yesPercentage ?? 50;
 
-      // Get calculated stake totals (actual SOL raised from all participants)
-      // After token launch, poolBalance becomes 0 (used for token creation)
-      // So we calculate from participants' yesShares and noShares
-      const stakeTotals = stakeTotalsMap.get(market._id.toString()) || {
-        totalYesStake: 0,
-        totalNoStake: 0,
-      };
+      // Get calculated stake totals from aggregation
+      let totalRaised = (market.calculatedYesStake || 0) + (market.calculatedNoStake || 0);
 
-      // Use calculated participant stakes, or fallback to market's blockchain-synced values
-      let totalRaised = stakeTotals.totalYesStake + stakeTotals.totalNoStake;
-
-      // If participant calculation is too low, use market's blockchain-synced stake values
+      // If aggregation calculation is too low, use market's blockchain-synced stake values
       const marketYesStake = (market.totalYesStake || 0) / 1_000_000_000;
       const marketNoStake = (market.totalNoStake || 0) / 1_000_000_000;
       const marketTotalStake = marketYesStake + marketNoStake;
 
       if (marketTotalStake > totalRaised) {
         totalRaised = marketTotalStake;
-        logger.debug('Using market stake values instead of participant calculation', {
-          marketId: market._id.toString(),
-          participantTotal: stakeTotals.totalYesStake + stakeTotals.totalNoStake,
-          marketTotal: marketTotalStake,
-        });
       }
 
-      const poolRaised = totalRaised > 0
-        ? totalRaised.toFixed(2) // Already in SOL
-        : '0.00';
-
-      // Format category properly (first letter capital, handle special cases)
-      const formatCategory = (cat: string): string => {
-        if (!cat) return 'Other';
-        const lowerCat = cat.toLowerCase();
-        // Special cases
-        const specialCases: { [key: string]: string } = {
-          'dao': 'DAO',
-          'nft': 'NFT',
-          'ai': 'AI/ML',
-          'defi': 'DeFi',
-          'realestate': 'Real Estate',
-        };
-        if (specialCases[lowerCat]) return specialCases[lowerCat];
-        // Capitalize first letter
-        return cat.charAt(0).toUpperCase() + cat.slice(1).toLowerCase();
-      };
+      const poolRaised = totalRaised > 0 ? totalRaised.toFixed(2) : '0.00';
 
       // Truncate description to 150 characters
       const description = project?.description || '';
@@ -218,8 +154,8 @@ export async function GET(_request: NextRequest) {
 
         // Vote statistics
         totalVotes,
-        yesVotes: voteCounts.yesVoteCount,
-        noVotes: voteCounts.noVoteCount,
+        yesVotes,
+        noVotes,
         yesPercentage,
 
         // Pool information
@@ -252,7 +188,7 @@ export async function GET(_request: NextRequest) {
     );
 
   } catch (error) {
-    logger.error('Failed to fetch launched tokens:', error);
+    logger.error('Failed to fetch launched tokens:', error as any);
 
     return NextResponse.json(
       {
