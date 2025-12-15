@@ -12,7 +12,12 @@ import {
   VersionedTransaction,
   ComputeBudgetProgram,
 } from '@solana/web3.js';
-import { TOKEN_PROGRAM_ID, getAssociatedTokenAddressSync } from '@solana/spl-token';
+import {
+  getAssociatedTokenAddressSync,
+  TOKEN_2022_PROGRAM_ID,
+  createAssociatedTokenAccountIdempotentInstruction,
+  ASSOCIATED_TOKEN_PROGRAM_ID,
+} from '@solana/spl-token';
 import { createClientLogger } from '@/lib/logger';
 import { getSolanaConnection } from '@/lib/solana';
 
@@ -55,16 +60,19 @@ export async function POST(request: NextRequest) {
       PROGRAM_ID
     );
 
-    // Get associated token accounts
+    // Get associated token accounts (using Token2022 for Pump.fun tokens)
     const marketTokenAccount = getAssociatedTokenAddressSync(
       tokenMintPubkey,
       marketPubkey,
-      true // allowOwnerOffCurve - market is a PDA
+      true, // allowOwnerOffCurve - market is a PDA
+      TOKEN_2022_PROGRAM_ID // Pump.fun uses Token2022
     );
 
     const teamTokenAccount = getAssociatedTokenAddressSync(
       tokenMintPubkey,
-      teamWalletPubkey
+      teamWalletPubkey,
+      false,
+      TOKEN_2022_PROGRAM_ID // Pump.fun uses Token2022
     );
 
     logger.info('Token accounts derived', {
@@ -98,7 +106,8 @@ export async function POST(request: NextRequest) {
         { pubkey: marketTokenAccount, isSigner: false, isWritable: true },     // market_token_account
         { pubkey: teamTokenAccount, isSigner: false, isWritable: true },       // team_token_account
         { pubkey: teamWalletPubkey, isSigner: true, isWritable: true },        // team_wallet
-        { pubkey: TOKEN_PROGRAM_ID, isSigner: false, isWritable: false },      // token_program
+        { pubkey: tokenMintPubkey, isSigner: false, isWritable: false },       // token_mint
+        { pubkey: TOKEN_2022_PROGRAM_ID, isSigner: false, isWritable: false }, // token_program (Token2022 for Pump.fun)
       ],
       programId: PROGRAM_ID,
       data,
@@ -109,6 +118,16 @@ export async function POST(request: NextRequest) {
       units: 300_000,
     });
 
+    // Create team token account if it doesn't exist (idempotent - safe to call even if exists)
+    const createTeamTokenAccountIx = createAssociatedTokenAccountIdempotentInstruction(
+      teamWalletPubkey,    // payer
+      teamTokenAccount,    // associated token account address
+      teamWalletPubkey,    // owner
+      tokenMintPubkey,     // mint
+      TOKEN_2022_PROGRAM_ID,
+      ASSOCIATED_TOKEN_PROGRAM_ID
+    );
+
     // Get recent blockhash
     const { blockhash, lastValidBlockHeight } = await connection.getLatestBlockhash('confirmed');
 
@@ -116,7 +135,7 @@ export async function POST(request: NextRequest) {
     const messageV0 = new TransactionMessage({
       payerKey: teamWalletPubkey,
       recentBlockhash: blockhash,
-      instructions: [computeBudgetIx, claimTeamTokensIx],
+      instructions: [computeBudgetIx, createTeamTokenAccountIx, claimTeamTokensIx],
     }).compileToV0Message();
 
     const transaction = new VersionedTransaction(messageV0);
@@ -143,7 +162,9 @@ export async function POST(request: NextRequest) {
     });
 
   } catch (error) {
-    logger.error('Failed to prepare claim team tokens transaction:', error);
+    logger.error('Failed to prepare claim team tokens transaction:', {
+      error: error instanceof Error ? error.message : String(error)
+    });
 
     console.error('=== FULL ERROR DETAILS ===');
     console.error('Error:', error);
