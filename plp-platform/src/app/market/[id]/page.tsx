@@ -349,17 +349,53 @@ export default function MarketDetailsPage() {
     }
   };
 
-  // Fetch trade history with SWR for live updates (pass network parameter)
-  const { data: historyData, error: historyError, mutate: refetchHistory } = useSWR(
-    params.id ? `/api/markets/${params.id}/history?network=${network}` : null,
+  // Real-time Socket.IO updates for vote counts and percentages
+  // Placed before SWR hooks so socketConnected can control polling
+  const { marketData: socketMarketData, isConnected: socketConnected } = useMarketSocket(
+    market?.marketAddress || null
+  );
+
+  // Reduce polling when Socket.IO is connected (real-time updates handle it)
+  const activityPollInterval = socketConnected ? 60000 : 20000; // 60s when connected, 20s when not
+  const onchainPollInterval = socketConnected ? 60000 : 20000;
+
+  // Fetch combined activity data (history + holders) in a single request
+  const { data: activityData, mutate: refetchActivity } = useSWR(
+    params.id ? `/api/markets/${params.id}/activity?network=${network}` : null,
     fetcher,
     {
-      refreshInterval: 20000, // Poll every 20 seconds (reduced from 10s)
+      refreshInterval: activityPollInterval,
       revalidateOnFocus: true,
-      dedupingInterval: 10000, // Dedupe requests within 10s
-      keepPreviousData: true, // Prevent flicker during refetch - keeps old data visible
+      dedupingInterval: 10000,
+      keepPreviousData: true,
     }
   );
+
+  // Extract history and holders data from combined response
+  const historyData = activityData?.success ? {
+    success: true,
+    data: {
+      chartData: activityData.data.chartData,
+      recentTrades: activityData.data.recentTrades,
+      totalTrades: activityData.data.totalTrades,
+    }
+  } : null;
+
+  const holdersData = activityData?.success ? {
+    success: true,
+    data: {
+      yesHolders: activityData.data.yesHolders,
+      noHolders: activityData.data.noHolders,
+      totalYesStake: activityData.data.totalYesStake,
+      totalNoStake: activityData.data.totalNoStake,
+      totalHolders: activityData.data.totalHolders,
+      uniqueHolders: activityData.data.uniqueHolders,
+    }
+  } : null;
+
+  // Alias for backward compatibility with existing code
+  const refetchHistory = refetchActivity;
+  const refetchHolders = refetchActivity;
 
   // Fetch user's position on this market
   const { data: positionData, mutate: refetchPosition } = useSWR(
@@ -373,31 +409,15 @@ export default function MarketDetailsPage() {
     }
   );
 
-  // Fetch market holders with SWR for live updates (pass network parameter)
-  const { data: holdersData, mutate: refetchHolders } = useSWR(
-    params.id ? `/api/markets/${params.id}/holders?network=${network}` : null,
-    fetcher,
-    {
-      refreshInterval: 30000, // Poll every 30 seconds (reduced from 10s)
-      revalidateOnFocus: true,
-      dedupingInterval: 15000, // Dedupe requests within 15s
-    }
-  );
-
   // Fetch on-chain market data (resolution status, pool progress)
   const { data: onchainData, mutate: refetchOnchainData } = useSWR(
     market?.marketAddress ? `/api/markets/${market.marketAddress}/onchain?network=${network}` : null,
     fetcher,
     {
-      refreshInterval: 20000, // Poll every 20 seconds (reduced from 15s)
+      refreshInterval: onchainPollInterval,
       revalidateOnFocus: true,
-      dedupingInterval: 10000, // Dedupe requests within 10s
+      dedupingInterval: 10000,
     }
-  );
-
-  // Real-time Socket.IO updates for vote counts and percentages
-  const { marketData: socketMarketData, isConnected: socketConnected } = useMarketSocket(
-    market?.marketAddress || null
   );
 
   useEffect(() => {

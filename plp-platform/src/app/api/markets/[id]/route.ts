@@ -6,7 +6,7 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
-import { connectToDatabase, PredictionMarket, PredictionParticipant, Project, UserProfile } from '@/lib/mongodb';
+import { connectToDatabase, PredictionMarket, PredictionParticipant } from '@/lib/mongodb';
 import { createClientLogger } from '@/lib/logger';
 import { calculateVoteCounts } from '@/lib/vote-counts';
 import { isMarketDataStale, formatProjectAge, truncateWallet } from '@/lib/api-utils';
@@ -23,38 +23,58 @@ export async function GET(
     // Connect to MongoDB
     await connectToDatabase();
 
-    // Fetch market by ID
-    const market = await PredictionMarket.findById(id).lean();
+    // Use aggregation pipeline to fetch market + project + founder profile in a single query
+    const mongoose = await import('mongoose');
+    const marketAggregation = await PredictionMarket.aggregate([
+      // Match the market by ID
+      { $match: { _id: new mongoose.Types.ObjectId(id) } },
+      // Join with project collection
+      {
+        $lookup: {
+          from: 'projects',
+          localField: 'projectId',
+          foreignField: '_id',
+          as: 'project'
+        }
+      },
+      { $unwind: { path: '$project', preserveNullAndEmptyArrays: false } },
+      // Join with user_profiles to get founder username
+      {
+        $lookup: {
+          from: 'user_profiles',
+          localField: 'project.founderWallet',
+          foreignField: 'walletAddress',
+          as: 'founderProfile'
+        }
+      },
+      { $unwind: { path: '$founderProfile', preserveNullAndEmptyArrays: true } },
+      // Project fields we need
+      {
+        $addFields: {
+          founderUsername: '$founderProfile.username',
+          founderWallet: '$project.founderWallet'
+        }
+      }
+    ]);
 
-    if (!market) {
+    if (!marketAggregation || marketAggregation.length === 0) {
       return NextResponse.json(
         { success: false, error: 'Market not found' },
         { status: 404 }
       );
     }
 
-    // Fetch associated project
-    const project = await Project.findById(market.projectId).lean();
+    const marketWithRelations = marketAggregation[0];
+    const market = marketWithRelations;
+    const project = marketWithRelations.project;
+    const founderUsername = marketWithRelations.founderUsername || null;
+    const founderWallet = marketWithRelations.founderWallet;
 
     if (!project) {
       return NextResponse.json(
         { success: false, error: 'Associated project not found' },
         { status: 404 }
       );
-    }
-
-    // Fetch founder's profile for username display
-    let founderUsername: string | null = null;
-    const founderWallet = (project as any).founderWallet;
-    if (founderWallet) {
-      try {
-        const founderProfile = await UserProfile.findOne({ walletAddress: founderWallet }).lean();
-        if (founderProfile && (founderProfile as any).username) {
-          founderUsername = (founderProfile as any).username;
-        }
-      } catch (error) {
-        logger.warn('Failed to fetch founder profile', { founderWallet, error });
-      }
     }
 
     // Calculate project age from market creation date
@@ -107,40 +127,59 @@ export async function GET(
       });
     }
 
-    // Calculate vote counts from MongoDB
-    const voteCounts = await calculateVoteCounts(market._id);
+    // Run vote counts and participant stake calculations in parallel
+    const [voteCounts, stakeResult] = await Promise.all([
+      calculateVoteCounts(market._id),
+      // Calculate total stakes from participants using aggregation
+      PredictionParticipant.aggregate([
+        { $match: { marketId: market._id } },
+        {
+          $group: {
+            _id: null,
+            totalYesShares: { $sum: { $toLong: { $ifNull: ['$yesShares', '0'] } } },
+            totalNoShares: { $sum: { $toLong: { $ifNull: ['$noShares', '0'] } } },
+            participantCount: { $sum: 1 }
+          }
+        }
+      ])
+    ]);
 
-    // Calculate total stakes from participants (fresh data, not stale MongoDB fields)
+    // Extract stake totals from aggregation result
     let totalYesStake = 0;
     let totalNoStake = 0;
-    try {
-      const participants = await PredictionParticipant.find({ marketId: market._id }).lean();
-
-      for (const participant of participants) {
-        const yesShares = BigInt(participant.yesShares || '0');
-        const noShares = BigInt(participant.noShares || '0');
-
-        // Convert from lamports to SOL for stake totals
-        totalYesStake += Number(yesShares) / 1_000_000_000;
-        totalNoStake += Number(noShares) / 1_000_000_000;
-      }
-
-      logger.info('Calculated stake totals from participants', {
+    if (stakeResult && stakeResult.length > 0) {
+      const result = stakeResult[0];
+      totalYesStake = Number(result.totalYesShares || 0) / 1_000_000_000;
+      totalNoStake = Number(result.totalNoShares || 0) / 1_000_000_000;
+      logger.debug('Calculated stake totals', {
         marketId: market._id.toString(),
         totalYesStake,
         totalNoStake,
-        participantCount: participants.length
+        participantCount: result.participantCount
       });
-    } catch (error) {
-      logger.error('Failed to calculate stake totals from participants:', error);
-      // Fallback to MongoDB fields if calculation fails
+    } else {
+      // Fallback to MongoDB fields if aggregation returns empty
       totalYesStake = market.totalYesStake || 0;
       totalNoStake = market.totalNoStake || 0;
     }
 
-    // Fetch metadata from IPFS if available
+    // Get metadata - use cached version if available, otherwise fetch from IPFS
     let metadata = null;
-    if (market.metadataUri) {
+    const METADATA_CACHE_TTL_MS = 24 * 60 * 60 * 1000; // 24 hours
+
+    // Check if we have valid cached metadata
+    const hasCachedMetadata = market.cachedMetadata && market.metadataCachedAt;
+    const cacheAge = hasCachedMetadata && market.metadataCachedAt
+      ? Date.now() - new Date(market.metadataCachedAt).getTime()
+      : Infinity;
+    const isCacheValid = cacheAge < METADATA_CACHE_TTL_MS;
+
+    if (hasCachedMetadata && isCacheValid) {
+      // Use cached metadata
+      metadata = market.cachedMetadata;
+      logger.debug('Using cached metadata', { marketId: id, cacheAge: Math.floor(cacheAge / 1000) + 's' });
+    } else if (market.metadataUri) {
+      // Fetch from IPFS and cache
       try {
         let metadataUrl = market.metadataUri;
 
@@ -152,10 +191,26 @@ export async function GET(
 
         logger.info('Fetching metadata from IPFS', { metadataUrl });
 
-        const metadataResponse = await fetch(metadataUrl);
+        const metadataResponse = await fetch(metadataUrl, {
+          signal: AbortSignal.timeout(5000), // 5 second timeout
+        });
+
         if (metadataResponse.ok) {
           metadata = await metadataResponse.json();
-          logger.info('Successfully fetched metadata', { metadata });
+          logger.info('Successfully fetched metadata from IPFS', { marketId: id });
+
+          // Cache metadata in MongoDB (fire and forget - don't block response)
+          PredictionMarket.updateOne(
+            { _id: market._id },
+            {
+              $set: {
+                cachedMetadata: metadata,
+                metadataCachedAt: new Date()
+              }
+            }
+          ).exec().catch(err => {
+            logger.warn('Failed to cache metadata', { error: err.message });
+          });
         } else {
           logger.warn('Failed to fetch metadata', {
             status: metadataResponse.status,
@@ -163,7 +218,7 @@ export async function GET(
           });
         }
       } catch (error) {
-        logger.error('Error fetching metadata from IPFS:', error);
+        logger.error('Error fetching metadata from IPFS:', { error: error instanceof Error ? error.message : String(error) });
       }
     }
 

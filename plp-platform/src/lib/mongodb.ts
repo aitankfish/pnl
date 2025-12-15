@@ -181,6 +181,14 @@ const PredictionMarketSchema = new mongoose.Schema({
   metadataUri: {
     type: String,
   },
+  // Cached IPFS metadata to avoid fetching on every request
+  cachedMetadata: {
+    type: mongoose.Schema.Types.Mixed,
+    default: null,
+  },
+  metadataCachedAt: {
+    type: Date,
+  },
   expiryTime: {
     type: Date,
     required: true,
