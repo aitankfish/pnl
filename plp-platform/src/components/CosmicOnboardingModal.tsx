@@ -1,9 +1,9 @@
 'use client';
 
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, Mail, Sparkles, Rocket, Zap, ArrowRight, UserCircle } from 'lucide-react';
+import { Sparkles, Rocket, ArrowRight, UserCircle } from 'lucide-react';
 import { usePrivy } from '@privy-io/react-auth';
-import { useState, useEffect, useMemo, useRef } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { ipfsUtils } from '@/lib/ipfs';
 
@@ -250,91 +250,11 @@ export default function CosmicOnboardingModal({ isOpen, onClose, onJoinUniverse,
     }
   };
 
-  // Memoize the background so it doesn't re-render - creates cinematic effect
-  const milkyWayBackground = useMemo(() => {
-    // Generate static random values for dust lanes
-    const dustLanes = Array.from({ length: 12 }, (_, i) => ({
-      rotation: 20 + (i * 8),
-      width: 200 + Math.random() * 400,
-      height: 60 + Math.random() * 120,
-      x: 30 + Math.random() * 40,
-      y: 25 + Math.random() * 50,
-      opacity: 0.3 + Math.random() * 0.4,
-    }));
-
-    // Generate static random values for nebula clouds
-    const nebulaClouds = Array.from({ length: 20 }, () => ({
-      x: 20 + Math.random() * 60,
-      y: 20 + Math.random() * 60,
-      size: 100 + Math.random() * 250,
-      color: ['rgba(150, 180, 255, 0.15)', 'rgba(180, 150, 255, 0.12)', 'rgba(120, 150, 230, 0.1)', 'rgba(200, 170, 255, 0.08)'][Math.floor(Math.random() * 4)],
-    }));
-
-    // Generate static random values for stars
-    const stars = Array.from({ length: 8000 }, () => {
-      const x = Math.random() * 100;
-      const y = Math.random() * 100;
-      const bandCenterY = ((100 - x) * 0.6) + 20;
-      const distanceFromBand = Math.abs(y - bandCenterY);
-
-      const inSuperCoreBand = distanceFromBand < 8;
-      const inCoreBand = distanceFromBand >= 8 && distanceFromBand < 18;
-      const inDenseBand = distanceFromBand >= 18 && distanceFromBand < 28;
-      const inModerateBand = distanceFromBand >= 28 && distanceFromBand < 38;
-      const inSparseBand = distanceFromBand >= 38 && distanceFromBand < 48;
-
-      let renderChance;
-      if (inSuperCoreBand) renderChance = 1;
-      else if (inCoreBand) renderChance = 0.98;
-      else if (inDenseBand) renderChance = 0.85;
-      else if (inModerateBand) renderChance = 0.5;
-      else if (inSparseBand) renderChance = 0.2;
-      else renderChance = 0.04;
-
-      if (Math.random() > renderChance) return null;
-
-      const rand = Math.random();
-      const size = rand > 0.99 ? '3px' : rand > 0.96 ? '2px' : rand > 0.88 ? '1.5px' : rand > 0.70 ? '1px' : '0.8px';
-
-      let colors;
-      if (inSuperCoreBand || inCoreBand) {
-        colors = ['#ffffff', '#fffef8', '#fff8f0', '#ffe8d0', '#ffd8c0', '#d0e0ff', '#e8f0ff', '#c8d8ff', '#b8c8ff', '#a0b8ff', '#ffd0e8', '#ffe0f0', '#f0d8ff', '#e8e8ff', '#f8f8ff', '#f0f8ff'];
-      } else if (inDenseBand) {
-        colors = ['#ffffff', '#fff8ff', '#e6f0ff', '#d8e8ff', '#c0d0ff', '#b0c8ff', '#ffeef8', '#f0e8ff'];
-      } else if (inModerateBand) {
-        colors = ['#ffffff', '#f0f5ff', '#e8f0ff', '#d8e8ff', '#c8d8ff'];
-      } else {
-        colors = ['#ffffff', '#f5f8ff', '#e8f0ff'];
-      }
-
-      const color = colors[Math.floor(Math.random() * colors.length)];
-      const opacity = inSuperCoreBand ? 0.7 + Math.random() * 0.3 : inCoreBand ? 0.6 + Math.random() * 0.4 : inDenseBand ? 0.5 + Math.random() * 0.4 : inModerateBand ? 0.3 + Math.random() * 0.4 : 0.2 + Math.random() * 0.3;
-      const shouldTwinkle = Math.random() > 0.7;
-
-      return { x, y, size, color, opacity, shouldTwinkle };
-    }).filter(Boolean);
-
-    // Generate static random values for bright stars
-    const brightStars = Array.from({ length: 120 }, () => ({
-      x: Math.random() * 100,
-      y: Math.random() * 100,
-      size: Math.random() > 0.5 ? '3px' : '2.5px',
-      color: ['#ffffff', '#fff8f0', '#d0e0ff', '#ffd0e8', '#e8d8ff'][Math.floor(Math.random() * 5)],
-      animationDuration: 1 + Math.random() * 2,
-      animationDelay: Math.random() * 2,
-    }));
-
-    return { dustLanes, nebulaClouds, stars, brightStars };
-  }, []); // Empty deps = only generate once
-
-  // Determine if we should show full cosmic background (only during greeting)
-  const showFullCosmicBackground = step === 'greeting';
-
   return (
     <AnimatePresence mode="wait">
       {isOpen && (
         <>
-          {/* Background Layer - Full cosmic for greeting, transparent overlay for others */}
+          {/* Background Layer - Consistent dark overlay for all steps */}
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
@@ -342,147 +262,10 @@ export default function CosmicOnboardingModal({ isOpen, onClose, onJoinUniverse,
             transition={{ duration: 0.8, ease: [0.16, 1, 0.3, 1] }}
             className="fixed inset-0 z-50 overflow-hidden"
             style={{
-              background: showFullCosmicBackground
-                ? 'linear-gradient(to bottom, #000308 0%, #00010a 50%, #000308 100%)'
-                : 'rgba(0, 0, 0, 0.85)',
-              backdropFilter: showFullCosmicBackground ? 'none' : 'blur(8px)',
-              transition: 'background 0.8s ease-in-out, backdrop-filter 0.8s ease-in-out',
+              background: 'rgba(0, 0, 0, 0.85)',
+              backdropFilter: 'blur(8px)',
             }}
-          >
-            {/* Cosmic elements - only render during greeting for performance */}
-            {showFullCosmicBackground && (
-              <>
-                {/* Main Milky Way Band - Blue/Purple Glow */}
-                <motion.div
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1 }}
-                  exit={{ opacity: 0 }}
-                  transition={{ duration: 0.8 }}
-                  className="absolute inset-0"
-                  style={{
-                    background: `
-                      radial-gradient(
-                        ellipse 140% 60% at 50% 45%,
-                        rgba(100, 120, 200, 0.25) 0%,
-                        rgba(120, 100, 220, 0.2) 15%,
-                        rgba(80, 100, 180, 0.15) 25%,
-                        rgba(60, 80, 150, 0.1) 35%,
-                        transparent 50%
-                      )
-                    `,
-                    filter: 'blur(40px)',
-                  }}
-                />
-
-                {/* Bright Galactic Core - Pink/Orange center */}
-                <div
-                  className="absolute"
-                  style={{
-                    top: '40%',
-                    left: '55%',
-                    transform: 'translate(-50%, -50%)',
-                    width: '400px',
-                    height: '300px',
-                    background: 'radial-gradient(ellipse, rgba(255, 150, 200, 0.4) 0%, rgba(255, 180, 150, 0.3) 15%, rgba(200, 150, 255, 0.2) 30%, rgba(150, 120, 255, 0.1) 50%, transparent 70%)',
-                    filter: 'blur(60px)',
-                  }}
-                />
-
-                {/* Secondary core glow - more blue */}
-                <div
-                  className="absolute"
-                  style={{
-                    top: '45%',
-                    left: '45%',
-                    transform: 'translate(-50%, -50%)',
-                    width: '500px',
-                    height: '350px',
-                    background: 'radial-gradient(ellipse, rgba(150, 180, 255, 0.2) 0%, rgba(120, 150, 255, 0.15) 30%, transparent 60%)',
-                    filter: 'blur(70px)',
-                  }}
-                />
-
-                {/* Dark dust lanes */}
-                {milkyWayBackground.dustLanes.map((lane, i) => (
-                  <div
-                    key={`dust-lane-${i}`}
-                    className="absolute"
-                    style={{
-                      background: 'radial-gradient(ellipse, rgba(0, 0, 0, 0.8) 0%, rgba(0, 0, 10, 0.6) 30%, transparent 70%)',
-                      width: `${lane.width}px`,
-                      height: `${lane.height}px`,
-                      left: `${lane.x}%`,
-                      top: `${lane.y}%`,
-                      transform: `rotate(${lane.rotation}deg)`,
-                      filter: 'blur(30px)',
-                      opacity: lane.opacity,
-                    }}
-                  />
-                ))}
-
-                {/* Bright nebula clouds - purple/blue */}
-                {milkyWayBackground.nebulaClouds.map((cloud, i) => (
-                  <div
-                    key={`nebula-${i}`}
-                    className="absolute rounded-full"
-                    style={{
-                      background: `radial-gradient(circle, ${cloud.color} 0%, transparent 70%)`,
-                      width: `${cloud.size}px`,
-                      height: `${cloud.size}px`,
-                      left: `${cloud.x}%`,
-                      top: `${cloud.y}%`,
-                      transform: 'translate(-50%, -50%)',
-                      filter: 'blur(50px)',
-                    }}
-                  />
-                ))}
-
-                {/* Dense star field forming Milky Way band */}
-                {milkyWayBackground.stars.map((star: any, i) => (
-                  <div
-                    key={`star-${i}`}
-                    className={`absolute rounded-full ${star.shouldTwinkle ? 'animate-pulse' : ''}`}
-                    style={{
-                      width: star.size,
-                      height: star.size,
-                      background: star.color,
-                      boxShadow: star.size === '3px'
-                        ? `0 0 6px ${star.color}, 0 0 10px ${star.color}`
-                        : star.size === '2px'
-                          ? `0 0 4px ${star.color}`
-                          : star.size === '1.5px'
-                            ? `0 0 2px ${star.color}`
-                            : `0 0 1px ${star.color}`,
-                      left: `${star.x}%`,
-                      top: `${star.y}%`,
-                      opacity: star.opacity,
-                      animationDuration: star.shouldTwinkle ? `${1 + Math.random() * 3}s` : undefined,
-                      animationDelay: star.shouldTwinkle ? `${Math.random() * 2}s` : undefined,
-                    }}
-                  />
-                ))}
-
-                {/* Extra bright prominent twinkling stars */}
-                {milkyWayBackground.brightStars.map((star, i) => (
-                  <div
-                    key={`bright-star-${i}`}
-                    className="absolute rounded-full animate-pulse"
-                    style={{
-                      width: star.size,
-                      height: star.size,
-                      background: star.color,
-                      boxShadow: `0 0 10px ${star.color}, 0 0 20px ${star.color}, 0 0 30px rgba(255, 255, 255, 0.3)`,
-                      left: `${star.x}%`,
-                      top: `${star.y}%`,
-                      opacity: 0.9,
-                      animationDuration: `${star.animationDuration}s`,
-                      animationDelay: `${star.animationDelay}s`,
-                    }}
-                  />
-                ))}
-              </>
-            )}
-          </motion.div>
+          />
 
           {/* Full-Screen Loading Overlay for Auth/Save */}
           {(isWaitingForAuth || isSavingProfile || isSettingUpProfile) && (
