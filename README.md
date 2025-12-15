@@ -147,35 +147,42 @@ When a market resolves with YES winning, tokens purchased on pump.fun are distri
 
 ```
 src/
-├── app/                 # Next.js app router
-│   ├── api/            # API routes
-│   │   ├── markets/    # Market creation, listing, and management
-│   │   ├── notifications/ # Notification system
-│   │   ├── projects/   # Project creation and management
-│   │   ├── search/     # Global search for users and markets
-│   │   └── users/      # User profiles and management
-│   ├── browse/         # Browse and filter active markets
-│   ├── create/         # Project creation form with IPFS upload
-│   ├── market/[id]/    # Individual market details and trading
-│   ├── launchpad/      # Platform landing page
-│   ├── launched/       # Successfully launched projects
-│   ├── notifications/  # User notifications page
-│   ├── wallet/         # Wallet management and portfolio
-│   └── profile/[address]/ # User profile pages
-├── components/          # Reusable UI components
-│   ├── ui/             # shadcn/ui components
-│   ├── Sidebar.tsx     # Main navigation bar
-│   ├── UserInfo.tsx    # User wallet info display
-│   ├── GlobalSearch.tsx # Global search component
-│   └── ...             # Other reusable components
-├── lib/                # Utility functions and configs
-│   ├── hooks/          # Custom React hooks (useWallet, useNotifications, etc.)
-│   ├── services/       # Blockchain sync services
-│   ├── database/       # MongoDB utilities
-│   ├── ipfs.ts         # IPFS/Pinata integration
-│   └── solana.ts       # Solana connection and utilities
-├── types/              # TypeScript type definitions
-└── config/             # Configuration files
+├── app/                    # Next.js 14 App Router
+│   ├── api/               # API routes (optimized with MongoDB aggregation)
+│   │   ├── markets/       # Market CRUD, voting, claiming rewards
+│   │   ├── projects/      # Project creation and management
+│   │   ├── profile/       # User profiles, follow system, favorites
+│   │   ├── user/          # User positions, history, stats
+│   │   ├── search/        # Global search for users and markets
+│   │   ├── admin/         # Admin tools (treasury, market fixes)
+│   │   └── health/        # Health check endpoints
+│   ├── browse/            # Browse and filter active markets
+│   ├── create/            # Project creation with IPFS upload
+│   ├── market/[id]/       # Market details, trading, activity
+│   ├── launched/          # Successfully launched projects
+│   ├── launchpad/         # Platform dashboard
+│   ├── wallet/            # Wallet, portfolio, positions
+│   ├── profile/[wallet]/  # User profiles with followers/following
+│   └── whitepaper/        # Platform whitepaper
+├── components/             # Reusable UI components
+│   ├── ui/                # shadcn/ui components
+│   ├── providers/         # React context providers
+│   ├── Sidebar.tsx        # Main navigation
+│   ├── GlobalSearch.tsx   # Search component
+│   └── CosmicOnboardingModal.tsx  # Onboarding flow
+├── services/               # Backend services
+│   ├── blockchain-sync/   # Helius WebSocket, event processing
+│   └── socket/            # Socket.IO server for real-time updates
+├── lib/                    # Utilities and shared code
+│   ├── hooks/             # React hooks (useSocket, useWallet, etc.)
+│   ├── database/          # MongoDB models and connection
+│   ├── redis/             # Redis queue and caching
+│   ├── solana/            # Solana RPC and program interactions
+│   ├── api-utils.ts       # Shared API utilities
+│   ├── mongodb.ts         # Mongoose models
+│   └── ipfs.ts            # IPFS/Pinata integration
+├── contexts/               # React context providers
+└── types/                  # TypeScript type definitions
 ```
 
 ## 🔄 Real-Time Architecture
@@ -228,6 +235,59 @@ All pages are fully optimized for mobile devices with a mobile-first approach:
 6. Set up environment variables on your hosting platform
 7. Deploy to Vercel, Railway, or your preferred Node.js hosting platform
 8. Ensure WebSocket support is enabled for real-time updates
+
+## 🔧 Troubleshooting
+
+### Common Issues
+
+**Markets not updating in real-time**
+- Check if Socket.IO is connected (green indicator in UI)
+- Verify `NEXT_PUBLIC_SOCKET_PORT` matches your server configuration
+- Check browser console for WebSocket connection errors
+- Ensure Redis is running for event queue processing
+
+**IPFS images not loading**
+- Verify `PINATA_GATEWAY_URL` is set correctly (without `https://` prefix)
+- Check if the Pinata gateway is accessible
+- Ensure `NEXT_PUBLIC_PINATA_JWT` is valid
+
+**Blockchain sync not working**
+- Verify Helius API key is valid and has sufficient credits
+- Check `HELIUS_WS_MAINNET` or `HELIUS_WS_DEVNET` WebSocket URLs
+- Look for connection errors in server logs
+- Ensure `AUTO_START_SYNC=true` for automatic sync on startup
+
+**MongoDB connection issues**
+- Verify `MONGODB_URI` is correct and accessible
+- Check IP whitelist in MongoDB Atlas
+- Ensure the correct database name is set (`MONGODB_DEV_DATABASE` or `MONGODB_PROD_DATABASE`)
+
+**Privy authentication not working**
+- Verify `NEXT_PUBLIC_PRIVY_APP_ID` is correct
+- Check Privy dashboard for allowed domains
+- Ensure cookies are enabled in the browser
+
+### Debug Commands
+
+```bash
+# Check health endpoints
+curl http://localhost:3000/api/health
+
+# View server logs
+npm run dev:unified 2>&1 | tee server.log
+
+# Check MongoDB connection
+npm run db:test
+
+# Verify environment variables
+npm run env:check
+```
+
+### Performance Issues
+
+- **Slow API responses**: APIs use MongoDB aggregation pipelines for optimal performance. Check database indexes.
+- **High memory usage**: Reduce `stars` count in landing page if needed (currently 500).
+- **Stale data**: Check `lastSyncedAt` timestamps in market responses. Data older than 2 minutes may be stale.
 
 ## 📄 License
 
