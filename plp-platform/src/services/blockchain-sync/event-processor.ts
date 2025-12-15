@@ -360,7 +360,10 @@ export class EventProcessor {
         ? `https://mainnet.helius-rpc.com/?api-key=${heliusApiKey}`
         : `https://devnet.helius-rpc.com/?api-key=${heliusApiKey}`;
 
-      const connection = new Connection(rpcEndpoint, 'confirmed');
+      const connection = new Connection(rpcEndpoint, {
+        commitment: 'confirmed',
+        confirmTransactionInitialTimeout: 30000, // 30 second timeout
+      });
       const marketPubkey = new PublicKey(positionData.market);
       const marketAccountInfo = await connection.getAccountInfo(marketPubkey);
 

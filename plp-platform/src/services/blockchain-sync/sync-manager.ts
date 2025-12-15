@@ -200,13 +200,17 @@ export class SyncManager {
         ? `https://devnet.helius-rpc.com/?api-key=${heliusApiKey}`
         : `https://mainnet.helius-rpc.com/?api-key=${heliusApiKey}`;
 
-      const connection = new Connection(rpcEndpoint, 'confirmed');
+      // Configure connection with better timeout and retry settings
+      const connection = new Connection(rpcEndpoint, {
+        commitment: 'confirmed',
+        confirmTransactionInitialTimeout: 60000, // 60 second timeout
+      });
 
       let syncedCount = 0;
       let errorCount = 0;
 
-      // Process markets in parallel batches for faster sync
-      const BATCH_SIZE = 10; // Process 10 markets concurrently
+      // Process markets in smaller batches to avoid rate limiting
+      const BATCH_SIZE = 5; // Reduced from 10 to avoid rate limits
       const validMarkets = markets.filter(m => m.marketAddress);
 
       for (let i = 0; i < validMarkets.length; i += BATCH_SIZE) {
@@ -285,6 +289,11 @@ export class SyncManager {
 
         // Log progress after each batch
         logger.info(`📊 Initial sync progress: ${syncedCount}/${validMarkets.length} markets synced`);
+
+        // Add delay between batches to avoid rate limiting (500ms)
+        if (i + BATCH_SIZE < validMarkets.length) {
+          await new Promise(resolve => setTimeout(resolve, 500));
+        }
       }
 
       logger.info(`✅ Initial sync complete: ${syncedCount} markets synced, ${errorCount} errors`);
