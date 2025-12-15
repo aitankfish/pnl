@@ -34,6 +34,7 @@ export async function GET() {
         hasHeliusDevnet: !!process.env.NEXT_PUBLIC_HELIUS_DEVNET_RPC,
         hasHeliusMainnet: !!process.env.NEXT_PUBLIC_HELIUS_MAINNET_RPC,
         hasHeliusApiKey: !!process.env.HELIUS_API_KEY, // Required for WebSocket
+        hasRedisUrl: !!process.env.REDIS_URL, // Required for event queue
       },
     };
 
@@ -46,11 +47,16 @@ export async function GET() {
           const syncStatus = await manager.getStatus();
           health.sync = {
             enabled: true,
+            isRunning: syncStatus.isRunning,
             heliusConnected: syncStatus.heliusConnected,
             processorRunning: syncStatus.processorRunning,
             subscriptions: syncStatus.subscriptionCount,
             queueLength: syncStatus.queueStats.queueLength,
             processing: syncStatus.queueStats.processingCount,
+            // If not running, indicate sync hasn't started
+            status: syncStatus.isRunning
+              ? (syncStatus.heliusConnected ? 'connected' : 'reconnecting')
+              : 'not_started',
           };
         } else {
           health.sync = {
