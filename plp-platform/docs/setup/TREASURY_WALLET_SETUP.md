@@ -112,7 +112,7 @@ Total Fees: 0 SOL
 **Result**:
 ```
 ✅ Admin changed
-Old Admin: Djw83UQZaEmrmd3YCW9kCHv6ZJUY9V2LGNrcSuUXwB7c
+Old Admin: <previous deployer wallet>
 New Admin: <your operational wallet>
 ```
 
@@ -387,10 +387,12 @@ Access at: **`/admin/treasury`**
 
 | Wallet Type | Address | Purpose | Security Level |
 |------------|---------|---------|----------------|
-| **Deployer** | `Djw83UQZaEmrmd3YCW9kCHv6ZJUY9V2LGNrcSuUXwB7c` | Initialize treasury, emergency admin recovery | Cold Storage |
+| **Deployer** | *(Use default Solana CLI wallet or set DEPLOY_WALLET_PATH)* | Initialize treasury, emergency admin recovery | Cold Storage |
 | **Operational** | *(TBD - Set during setup)* | Daily fee withdrawals | Warm Storage |
 | **Platform Tokens** | `3MihVtsLsVuEccpmz4YG72Cr8CJWf1evRorTPdPiHeEQ` | Receive 1% token allocation | Warm Storage |
 | **Treasury PDA** | *(Derived: seeds=[b"treasury"])* | Hold accumulated fees | Program-controlled |
+
+> **⚠️ DEPRECATED:** The old deployer wallet `Djw83UQZaEmrmd3YCW9kCHv6ZJUY9V2LGNrcSuUXwB7c` was compromised (private key exposed in git history). Do NOT use this wallet for any purpose.
 
 ---
 

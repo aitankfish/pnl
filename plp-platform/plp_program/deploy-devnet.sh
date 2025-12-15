@@ -15,9 +15,10 @@ YELLOW='\033[1;33m'
 RED='\033[0;31m'
 NC='\033[0m'
 
-# Wallet info
-WALLET_PATH="devnet-deploy-wallet.json"
-WALLET_ADDRESS="Djw83UQZaEmrmd3YCW9kCHv6ZJUY9V2LGNrcSuUXwB7c"
+# Wallet info - uses default Solana CLI wallet
+# To use a specific wallet, set: export DEPLOY_WALLET_PATH=/path/to/wallet.json
+WALLET_PATH="${DEPLOY_WALLET_PATH:-~/.config/solana/id.json}"
+WALLET_ADDRESS=$(solana-keygen pubkey "$WALLET_PATH" 2>/dev/null || echo "unknown")
 
 echo -e "${YELLOW}📋 Using Devnet Deploy Wallet${NC}"
 echo "   Address: $WALLET_ADDRESS"
@@ -107,8 +108,8 @@ else
 fi
 echo ""
 
-# Get program info
-PROGRAM_ID="3jGpj7HYo3jctBApnjwZGW54hJCpNHooFfu5533WvXr4"
+# Get program info from Anchor.toml or use current deployed ID
+PROGRAM_ID="${PLP_PROGRAM_ID:-C5mVE2BwSehWJNkNvhpsoepyKwZkvSLZx29bi4MzVj86}"
 
 echo -e "${YELLOW}📊 Deployment Details:${NC}"
 echo "   Program ID: $PROGRAM_ID"
