@@ -7,9 +7,13 @@ import { HeliusClient } from './helius-client';
 import { getEventProcessor } from './event-processor';
 import { createClientLogger } from '@/lib/logger';
 import { getQueueStats } from '@/lib/redis/queue';
+import { getRedisClient } from '@/lib/redis/client';
 import { connectToDatabase, getDatabase } from '@/lib/database';
 import { PublicKey, Connection } from '@solana/web3.js';
 import { parseMarketAccount, calculateDerivedFields } from './account-parser';
+
+// Redis key for storing sync status (shared across processes)
+const SYNC_STATUS_KEY = 'sync:status';
 
 const logger = createClientLogger();
 
@@ -354,7 +358,29 @@ export class SyncManager {
   }
 
   /**
-   * Get sync status
+   * Save sync status to Redis (shared across processes)
+   */
+  private async saveSyncStatus(): Promise<void> {
+    try {
+      const redis = getRedisClient();
+      const status = {
+        isRunning: this.isRunning,
+        heliusConnected: this.heliusClient?.isConnected() || false,
+        processorRunning: this.eventProcessor.isProcessorRunning(),
+        subscriptionCount: this.heliusClient?.getSubscriptionCount() || 0,
+        lastUpdated: Date.now(),
+      };
+      await redis.set(SYNC_STATUS_KEY, JSON.stringify(status), 'EX', 120); // Expire in 2 minutes
+      logger.debug('Saved sync status to Redis');
+    } catch (error) {
+      logger.error('Failed to save sync status to Redis:', {
+        error: error instanceof Error ? error.message : String(error)
+      });
+    }
+  }
+
+  /**
+   * Get sync status (from Redis for cross-process access, or local if available)
    */
   async getStatus(): Promise<{
     isRunning: boolean;
@@ -365,11 +391,46 @@ export class SyncManager {
   }> {
     const queueStats = await getQueueStats();
 
+    // If this instance is running, return local status
+    if (this.isRunning) {
+      return {
+        isRunning: this.isRunning,
+        heliusConnected: this.heliusClient?.isConnected() || false,
+        processorRunning: this.eventProcessor.isProcessorRunning(),
+        subscriptionCount: this.heliusClient?.getSubscriptionCount() || 0,
+        queueStats,
+      };
+    }
+
+    // Otherwise, try to get status from Redis (another process may be running sync)
+    try {
+      const redis = getRedisClient();
+      const statusJson = await redis.get(SYNC_STATUS_KEY);
+      if (statusJson) {
+        const status = JSON.parse(statusJson);
+        // Check if status is recent (within last 2 minutes)
+        if (Date.now() - status.lastUpdated < 120000) {
+          return {
+            isRunning: status.isRunning,
+            heliusConnected: status.heliusConnected,
+            processorRunning: status.processorRunning,
+            subscriptionCount: status.subscriptionCount,
+            queueStats,
+          };
+        }
+      }
+    } catch (error) {
+      logger.warn('Failed to get sync status from Redis:', {
+        error: error instanceof Error ? error.message : String(error)
+      });
+    }
+
+    // Fallback to local status (not running)
     return {
-      isRunning: this.isRunning,
-      heliusConnected: this.heliusClient?.isConnected() || false,
-      processorRunning: this.eventProcessor.isProcessorRunning(),
-      subscriptionCount: this.heliusClient?.getSubscriptionCount() || 0,
+      isRunning: false,
+      heliusConnected: false,
+      processorRunning: false,
+      subscriptionCount: 0,
       queueStats,
     };
   }
@@ -378,8 +439,14 @@ export class SyncManager {
    * Start monitoring stats (logs every 30 seconds)
    */
   private startStatsMonitoring(): void {
+    // Save initial status to Redis
+    this.saveSyncStatus();
+
     this.statsInterval = setInterval(async () => {
       try {
+        // Save status to Redis for cross-process access
+        await this.saveSyncStatus();
+
         const status = await this.getStatus();
 
         logger.info('📊 Sync Stats:', {
