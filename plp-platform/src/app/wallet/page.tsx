@@ -763,8 +763,6 @@ function SettingsModal({ isOpen, onClose, wallet, onLogout, primaryWallet, expor
       setIsExporting(true);
       setExportError('');
 
-      console.log('Exporting wallet with address:', primaryWallet.address);
-
       // Use Privy's Solana-specific export wallet function
       // Must pass the wallet address parameter
       await exportWallet({ address: primaryWallet.address });
@@ -992,34 +990,13 @@ export default function WalletPage() {
     primaryWallet?.address || null
   );
 
-  // Debug: Log positions data
-  useEffect(() => {
-    if (positionsData) {
-      console.log('[Wallet Page] Positions API Response:', positionsData);
-      console.log('[Wallet Page] Success:', positionsData.success);
-      console.log('[Wallet Page] Total Positions:', positionsData.data?.all?.length || 0);
-      console.log('[Wallet Page] Active:', positionsData.data?.active?.length || 0);
-      console.log('[Wallet Page] Claimable:', positionsData.data?.claimable?.length || 0);
-    }
-  }, [positionsData]);
-
   // Real-time position updates - revalidate SWR cache when Socket.IO updates arrive
   useEffect(() => {
     if (realtimePositions && realtimePositions.size > 0) {
-      console.log('🔄 Real-time position update received, revalidating...');
-      mutatePositions(); // Trigger SWR revalidation
-      mutateProjects(); // Also refresh projects (in case pool balance changed)
+      mutatePositions();
+      mutateProjects();
     }
   }, [realtimePositions, mutatePositions, mutateProjects]);
-
-  // Log Socket.IO connection status
-  useEffect(() => {
-    if (socketConnected) {
-      console.log('✅ Socket.IO connected - real-time updates enabled');
-    } else {
-      console.log('⚠️ Socket.IO disconnected - using polling fallback');
-    }
-  }, [socketConnected]);
 
   // Fetch SOL balance
   useEffect(() => {
@@ -1272,10 +1249,8 @@ export default function WalletPage() {
     let solanaWallet;
 
     if (wallets && wallets.length > 0) {
-      console.log('Using external Solana wallet');
       solanaWallet = wallets[0];
     } else if (standardWallets && standardWallets.length > 0) {
-      console.log('Using embedded Solana wallet');
       const privyWallet = standardWallets.find((w: any) => w.isPrivyWallet || w.name === 'Privy');
       if (!privyWallet) {
         throw new Error('No Privy wallet found');
@@ -1297,7 +1272,6 @@ export default function WalletPage() {
 
     // Extract signature from result and convert to base58 (Solana standard format)
     const signature = bs58.encode(result.signature);
-    console.log('✅ Transaction signed and sent:', signature);
 
     // Wait for confirmation
     await connection.confirmTransaction(signature, 'confirmed');

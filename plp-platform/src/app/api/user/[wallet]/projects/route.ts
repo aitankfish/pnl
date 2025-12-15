@@ -1,35 +1,15 @@
 /**
  * GET /api/user/[wallet]/projects
  * Fetch markets created by a specific user (founder)
+ * Optimized with MongoDB aggregation pipeline for single-query data fetching
  */
 
 import { NextRequest, NextResponse } from 'next/server';
-import { connectToDatabase, PredictionMarket, Project } from '@/lib/mongodb';
+import { connectToDatabase, Project } from '@/lib/mongodb';
 import { createClientLogger } from '@/lib/logger';
+import { convertToGatewayUrl } from '@/lib/api-utils';
 
 const logger = createClientLogger();
-
-// Helper function to convert IPFS URL to gateway URL
-function convertToGatewayUrl(imageUrl: string | undefined): string | undefined {
-  if (!imageUrl) return undefined;
-
-  const gatewayUrl = process.env.PINATA_GATEWAY_URL;
-  if (!gatewayUrl) return imageUrl.startsWith('http') ? imageUrl : undefined;
-
-  // If it's an IPFS URL (ipfs://...), convert to gateway URL
-  if (imageUrl.startsWith('ipfs://')) {
-    const ipfsHash = imageUrl.replace('ipfs://', '');
-    return `https://${gatewayUrl}/ipfs/${ipfsHash}`;
-  }
-
-  // If it's already a full URL, keep it as is
-  if (imageUrl.startsWith('http')) {
-    return imageUrl;
-  }
-
-  // If it's just a hash (bafyXXX or QmXXX), add gateway
-  return `https://${gatewayUrl}/ipfs/${imageUrl}`;
-}
 
 export async function GET(
   request: NextRequest,
@@ -47,10 +27,26 @@ export async function GET(
 
     await connectToDatabase();
 
-    // First, find all projects created by this founder
-    const projects = await Project.find({ founderWallet: wallet }).lean();
+    // Use aggregation pipeline to fetch projects + markets in a single query
+    const projectsWithMarkets = await Project.aggregate([
+      // Match projects by founder wallet
+      { $match: { founderWallet: wallet } },
+      // Lookup associated markets
+      {
+        $lookup: {
+          from: 'predictionmarkets',
+          localField: '_id',
+          foreignField: 'projectId',
+          as: 'market',
+        },
+      },
+      // Unwind to get one document per market
+      { $unwind: { path: '$market', preserveNullAndEmptyArrays: false } },
+      // Sort by market creation date
+      { $sort: { 'market.createdAt': -1 } },
+    ]);
 
-    if (!projects || projects.length === 0) {
+    if (projectsWithMarkets.length === 0) {
       logger.info('No projects found for founder', { wallet });
       return NextResponse.json({
         success: true,
@@ -61,22 +57,15 @@ export async function GET(
       });
     }
 
-    const projectIds = projects.map(p => p._id);
-
-    // Fetch all markets for these projects
-    const markets = await PredictionMarket.find({ projectId: { $in: projectIds } })
-      .populate('projectId')
-      .sort({ createdAt: -1 }) // Most recent first
-      .lean();
-
     logger.info('Fetched projects for founder', {
       wallet,
-      count: markets.length,
+      count: projectsWithMarkets.length,
     });
 
-    // Transform markets into a user-friendly format
-    const userProjects = markets.map((market) => {
-      const project = market.projectId as any;
+    // Transform aggregation results into user-friendly format
+    const userProjects = projectsWithMarkets.map((item: any) => {
+      const project = item;
+      const market = item.market;
 
       // Calculate time left or expired status
       const now = new Date();
@@ -113,11 +102,11 @@ export async function GET(
       return {
         id: market._id.toString(),
         marketAddress: market.marketAddress,
-        name: project?.name || 'Unknown Project',
-        description: project?.description || '',
-        category: project?.category || 'Other',
-        tokenSymbol: project?.tokenSymbol || 'TKN',
-        projectImageUrl: convertToGatewayUrl(project?.projectImageUrl),
+        name: project.name || 'Unknown Project',
+        description: project.description || '',
+        category: project.category || 'Other',
+        tokenSymbol: project.tokenSymbol || 'TKN',
+        projectImageUrl: convertToGatewayUrl(project.projectImageUrl),
 
         // Market stats
         targetPool: (market.targetPool || 0) / 1e9,
