@@ -44,6 +44,8 @@ export class SocketServer {
     allowedOrigins.push('http://localhost:3000', 'http://localhost:3001');
     // Allow Render URLs
     allowedOrigins.push(/\.onrender\.com$/);
+    // Allow production domain
+    allowedOrigins.push('https://pnl.market', 'https://www.pnl.market');
 
     this.io = new SocketIOServer(httpServer, {
       cors: {
