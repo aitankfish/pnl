@@ -25,6 +25,8 @@ export interface ParsedMarketAccount {
   platformTokensAllocated: string;
   platformTokensClaimed: boolean;
   yesVoterTokensAllocated: string;
+  founderExcessSolAllocated: string;
+  founderVestingInitialized: boolean;
   distributionPool: string;
   treasury: string;
   bump: number;
@@ -129,6 +131,14 @@ export function parseMarketAccount(base64Data: string): ParsedMarketAccount {
     const yesVoterTokensAllocated = dataWithoutDiscriminator.readBigUInt64LE(offset);
     offset += 8;
 
+    // Read founder_excess_sol_allocated (8 bytes - u64)
+    const founderExcessSolAllocated = dataWithoutDiscriminator.readBigUInt64LE(offset);
+    offset += 8;
+
+    // Read founder_vesting_initialized (1 byte - bool)
+    const founderVestingInitialized = dataWithoutDiscriminator[offset] !== 0;
+    offset += 1;
+
     // Read treasury (32 bytes - PublicKey)
     const treasury = new PublicKey(dataWithoutDiscriminator.slice(offset, offset + 32));
     offset += 32;
@@ -154,6 +164,8 @@ export function parseMarketAccount(base64Data: string): ParsedMarketAccount {
       platformTokensAllocated: platformTokensAllocated.toString(),
       platformTokensClaimed,
       yesVoterTokensAllocated: yesVoterTokensAllocated.toString(),
+      founderExcessSolAllocated: founderExcessSolAllocated.toString(),
+      founderVestingInitialized,
       treasury: treasury.toBase58(),
       bump,
     };

@@ -812,11 +812,19 @@ export default function MarketDetailsPage() {
     });
 
     if (result.success) {
-      refetchOnchainData();
-
       setToastMessage('✅ Team vesting initialized! Founder can claim tokens');
       setShowToast(true);
       setTimeout(() => setShowToast(false), 3000);
+
+      // Wait for RPC to catch up, then refetch with retries
+      setTimeout(async () => {
+        await refetchOnchainData();
+        // Retry to ensure RPC has caught up
+        for (let i = 0; i < 3; i++) {
+          await new Promise(resolve => setTimeout(resolve, 2000));
+          await refetchOnchainData();
+        }
+      }, 1000);
     } else {
       const parsedError = parseError(result.error);
       setToastMessage(`❌ ${parsedError.title}: ${parsedError.message}`);
