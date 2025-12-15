@@ -114,6 +114,15 @@
   }
 }
 
+@keyframes shimmer {
+  0% {
+    background-position: 200% 0;
+  }
+  100% {
+    background-position: -200% 0;
+  }
+}
+
 /* Custom styling for Dynamic wallet modal - MUST be outside @layer to have higher specificity */
 /* Target Dynamic's shadow DOM wrapper and portal */
 dynamic-widget,

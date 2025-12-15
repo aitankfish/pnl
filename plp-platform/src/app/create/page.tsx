@@ -73,6 +73,7 @@ export default function CreatePage() {
   const [formData, setFormData] = useState<ProjectFormData>(initialFormData);
   const [errors, setErrors] = useState<Partial<ProjectFormData>>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [submissionStep, setSubmissionStep] = useState<'idle' | 'uploading' | 'preparing' | 'signing' | 'confirming' | 'completing'>('idle');
   const [isMounted, setIsMounted] = useState(false);
   const [isTokenSectionExpanded, setIsTokenSectionExpanded] = useState(true);
   const [isCustomPoolAmount, setIsCustomPoolAmount] = useState(false);
@@ -1107,7 +1108,8 @@ export default function CreatePage() {
                   console.log('Primary wallet:', primaryWallet);
 
                   setIsSubmitting(true);
-                  
+                  setSubmissionStep('uploading');
+
                   try {
                     // Step 1: Prepare project data for server-side IPFS upload and transaction creation
                     console.log('Preparing project data for server-side processing');
@@ -1153,6 +1155,8 @@ export default function CreatePage() {
                     
                     console.log('Project created and metadata uploaded to IPFS:', projectResult.data);
 
+                    setSubmissionStep('preparing');
+
                     // Step 3: Prepare transaction for client-side signing
                     console.log('Preparing transaction for client-side wallet signing');
 
@@ -1191,11 +1195,14 @@ export default function CreatePage() {
           console.log('❌ User not authenticated or wallet not connected');
           alert('Please connect your wallet first.');
           setIsSubmitting(false);
+          setSubmissionStep('idle');
           return;
         }
 
         console.log('✅ User is authenticated, proceeding with transaction signing...');
-        
+
+        setSubmissionStep('signing');
+
         // Step 4.6: Sign transaction with Privy wallet
         console.log('🔐 Signing transaction with Privy wallet...');
 
@@ -1244,6 +1251,8 @@ export default function CreatePage() {
                         signature = bs58.encode(result.signature);
                         console.log('✅ Transaction signed and sent:', signature);
 
+                        setSubmissionStep('confirming');
+
                         // Wait for confirmation
                         console.log('⏳ Waiting for transaction confirmation...');
                         const connection = await getSolanaConnection();
@@ -1263,12 +1272,15 @@ export default function CreatePage() {
                         // Show error to user
                         alert(`Failed to sign/send transaction: ${errorMessage}`);
                         setIsSubmitting(false);
+                        setSubmissionStep('idle');
                         return;
                     }
 
                     console.log('✅ Transaction flow completed!');
                     console.log('✅ Transaction signature:', signature);
-                    
+
+                    setSubmissionStep('completing');
+
                     // Step 4: Complete market creation in database
                     console.log('Completing market creation in database...');
                     
@@ -1336,36 +1348,84 @@ export default function CreatePage() {
                     });
                   } finally {
                     setIsSubmitting(false);
+                    setSubmissionStep('idle');
                   }
                 }}
                 className={`
                   relative overflow-hidden
-                  bg-gradient-to-r from-purple-500 to-pink-500 
-                  hover:from-purple-600 hover:to-pink-600 
+                  bg-gradient-to-r from-purple-500 to-pink-500
+                  hover:from-purple-600 hover:to-pink-600
                   active:from-purple-700 active:to-pink-700
-                  text-white px-8 py-3
+                  text-white px-8 py-4
                   font-semibold text-lg
-                  rounded-lg
-                  shadow-lg hover:shadow-xl
-                  transition-all duration-200 ease-in-out
-                  transform hover:scale-105 active:scale-95
-                  ${isSubmitting ? 'cursor-not-allowed opacity-75' : 'cursor-pointer'}
+                  rounded-xl
+                  shadow-lg hover:shadow-xl hover:shadow-purple-500/25
+                  transition-all duration-300 ease-out
+                  transform hover:scale-[1.02] active:scale-[0.98]
+                  ${isSubmitting ? 'cursor-not-allowed' : 'cursor-pointer'}
                   ${!isMounted ? 'opacity-50' : ''}
+                  ${isSubmitting ? 'min-w-[320px]' : ''}
                 `}
               >
-                <span className="relative z-10 flex items-center space-x-2">
-                  {isSubmitting && (
-                    <div className="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent"></div>
-                  )}
-                  <span>
-                    {!isMounted ? 'Loading...' : (isSubmitting ? 'Launching Market...' : 'Launch Prediction Market')}
-                  </span>
-                </span>
-                
-                {/* Animated background effect */}
+                {/* Animated gradient background when submitting */}
                 {isSubmitting && (
-                  <div className="absolute inset-0 bg-gradient-to-r from-purple-600 to-pink-600 animate-pulse"></div>
+                  <div className="absolute inset-0 bg-gradient-to-r from-purple-600 via-pink-500 to-purple-600 bg-[length:200%_100%] animate-[shimmer_2s_ease-in-out_infinite]"></div>
                 )}
+
+                {/* Pulsing glow effect when submitting */}
+                {isSubmitting && (
+                  <div className="absolute -inset-1 bg-gradient-to-r from-purple-500 to-pink-500 rounded-xl blur opacity-40 animate-pulse"></div>
+                )}
+
+                <span className="relative z-10 flex items-center justify-center gap-3">
+                  {isSubmitting ? (
+                    <>
+                      {/* Animated spinner */}
+                      <div className="relative">
+                        <div className="w-5 h-5 border-2 border-white/30 rounded-full"></div>
+                        <div className="absolute top-0 left-0 w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                      </div>
+
+                      {/* Step-based text with animation */}
+                      <span className="animate-pulse">
+                        {submissionStep === 'uploading' && 'Uploading to IPFS...'}
+                        {submissionStep === 'preparing' && 'Preparing Transaction...'}
+                        {submissionStep === 'signing' && 'Waiting for Signature...'}
+                        {submissionStep === 'confirming' && 'Confirming on Chain...'}
+                        {submissionStep === 'completing' && 'Finalizing Market...'}
+                        {submissionStep === 'idle' && 'Processing...'}
+                      </span>
+
+                      {/* Step indicator dots */}
+                      <div className="flex gap-1.5 ml-2">
+                        {['uploading', 'preparing', 'signing', 'confirming', 'completing'].map((step, index) => {
+                          const steps = ['uploading', 'preparing', 'signing', 'confirming', 'completing'];
+                          const currentIndex = steps.indexOf(submissionStep);
+                          const isCompleted = index < currentIndex;
+                          const isCurrent = step === submissionStep;
+
+                          return (
+                            <div
+                              key={step}
+                              className={`
+                                w-2 h-2 rounded-full transition-all duration-300
+                                ${isCompleted ? 'bg-green-400' : isCurrent ? 'bg-white animate-pulse' : 'bg-white/30'}
+                              `}
+                            />
+                          );
+                        })}
+                      </div>
+                    </>
+                  ) : (
+                    <>
+                      {/* Rocket icon */}
+                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.59 14.37a6 6 0 01-5.84 7.38v-4.8m5.84-2.58a14.98 14.98 0 006.16-12.12A14.98 14.98 0 009.631 8.41m5.96 5.96a14.926 14.926 0 01-5.841 2.58m-.119-8.54a6 6 0 00-7.381 5.84h4.8m2.581-5.84a14.927 14.927 0 00-2.58 5.84m2.699 2.7c-.103.021-.207.041-.311.06a15.09 15.09 0 01-2.448-2.448 14.9 14.9 0 01.06-.312m-2.24 2.39a4.493 4.493 0 00-1.757 4.306 4.493 4.493 0 004.306-1.758M16.5 9a1.5 1.5 0 11-3 0 1.5 1.5 0 013 0z" />
+                      </svg>
+                      <span>{!isMounted ? 'Loading...' : 'Launch Prediction Market'}</span>
+                    </>
+                  )}
+                </span>
               </Button>
               </div>
             </div>
