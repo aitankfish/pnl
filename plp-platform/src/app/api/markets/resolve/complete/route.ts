@@ -9,8 +9,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createClientLogger } from '@/lib/logger';
 import { getSolanaConnection } from '@/lib/solana';
 import { PublicKey } from '@solana/web3.js';
-import { getProgram } from '@/lib/anchor-program';
 import { connectToDatabase, getDatabase } from '@/lib/database/index';
+import { parseMarketAccount } from '@/services/blockchain-sync/account-parser';
 import { COLLECTIONS } from '@/lib/database/models';
 import { ObjectId } from 'mongodb';
 import { connectToDatabase as connectMongoose, Notification, PredictionParticipant } from '@/lib/mongodb';
@@ -48,20 +48,28 @@ export async function POST(request: NextRequest) {
 
     // Fetch the updated market state from blockchain (with retry for RPC lag)
     const connection = await getSolanaConnection(targetNetwork);
-    const program = getProgram(undefined, targetNetwork); // Pass network for correct RPC/program ID
     const marketPubkey = new PublicKey(marketAddress);
 
     logger.info('Fetching updated market state from blockchain...');
 
     // Retry fetching market account to handle RPC lag after transaction
-    let marketAccount: any = null;
+    let marketAccount: ReturnType<typeof parseMarketAccount> | null = null;
     const maxFetchRetries = 5;
 
     for (let attempt = 1; attempt <= maxFetchRetries; attempt++) {
       try {
         logger.info(`Fetching market account (attempt ${attempt}/${maxFetchRetries})...`);
-        marketAccount = await program.account.market.fetch(marketPubkey);
-        logger.info('✅ Market account fetched successfully', {
+
+        // Use raw RPC + manual parsing instead of Anchor's fetch (avoids IDL discriminator issues)
+        const accountInfo = await connection.getAccountInfo(marketPubkey);
+        if (!accountInfo || !accountInfo.data) {
+          throw new Error('Account not found or has no data');
+        }
+
+        const base64Data = accountInfo.data.toString('base64');
+        marketAccount = parseMarketAccount(base64Data);
+
+        logger.info('Market account fetched successfully', {
           resolution: marketAccount.resolution,
           phase: marketAccount.phase,
           attempt,
@@ -88,23 +96,14 @@ export async function POST(request: NextRequest) {
     }
 
     // Determine resolution outcome
-    // Anchor 0.30+ returns enums as objects like { yesWins: {} }
-    let resolutionOutcome = 'Unknown';
-    const resolutionKey = Object.keys(marketAccount.resolution)[0];
-    if (resolutionKey === 'unresolved') {
-      resolutionOutcome = 'Unresolved';
-    } else if (resolutionKey === 'yesWins') {
-      resolutionOutcome = 'YesWins';
-    } else if (resolutionKey === 'noWins') {
-      resolutionOutcome = 'NoWins';
-    } else if (resolutionKey === 'refund') {
-      resolutionOutcome = 'Refund';
-    }
+    // parseMarketAccount returns resolution as number: 0=Unresolved, 1=YesWins, 2=NoWins, 3=Refund
+    const resolutionMap = ['Unresolved', 'YesWins', 'NoWins', 'Refund'];
+    const resolutionOutcome = resolutionMap[marketAccount.resolution] || 'Unknown';
 
     logger.info('Market resolved', {
       marketAddress,
       resolution: resolutionOutcome,
-      resolutionKey,
+      resolutionValue: marketAccount.resolution,
     });
 
     // Connect to database first (outside retry loop so db is in scope for notifications)
@@ -123,9 +122,11 @@ export async function POST(request: NextRequest) {
         // Prepare update data
         // Note: Market struct doesn't have marketState or winningOption fields
         // Resolution outcome is derived from the resolution enum
+        // parseMarketAccount returns phase as number: 0=Prediction, 1=Funding
+        const phaseMap = ['prediction', 'funding'];
         const updateData: any = {
           resolution: resolutionOutcome,
-          phase: Object.keys(marketAccount.phase)[0], // 'prediction' or 'funding'
+          phase: phaseMap[marketAccount.phase] || 'prediction',
           resolvedAt: new Date(),
           updatedAt: new Date(),
         };
@@ -195,7 +196,7 @@ export async function POST(request: NextRequest) {
             data: {
               signature,
               resolution: resolutionOutcome,
-              tokenMint: marketAccount.tokenMint?.toBase58() || tokenMint || null,
+              tokenMint: marketAccount.tokenMint || tokenMint || null,
               message: 'Market resolved successfully! (notifications skipped)',
             },
           });
@@ -293,13 +294,15 @@ export async function POST(request: NextRequest) {
       data: {
         signature,
         resolution: resolutionOutcome,
-        tokenMint: marketAccount.tokenMint?.toBase58() || tokenMint || null,
+        tokenMint: marketAccount.tokenMint || tokenMint || null,
         message: 'Market resolved successfully!',
       },
     });
 
   } catch (error) {
-    logger.error('Failed to update database after resolution:', error);
+    logger.error('Failed to update database after resolution:', {
+      error: error instanceof Error ? error.message : String(error)
+    });
 
     return NextResponse.json(
       {
