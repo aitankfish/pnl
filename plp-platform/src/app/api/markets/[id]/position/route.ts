@@ -11,6 +11,9 @@ import { COLLECTIONS } from '@/lib/database/models';
 import { ObjectId } from 'mongodb';
 import { createClientLogger } from '@/lib/logger';
 
+// Force dynamic rendering - this route uses request.url
+export const dynamic = 'force-dynamic';
+
 const logger = createClientLogger();
 
 export async function GET(

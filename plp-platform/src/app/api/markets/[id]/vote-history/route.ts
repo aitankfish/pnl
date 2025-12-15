@@ -9,6 +9,9 @@ import { connectToDatabase, getDatabase } from '@/lib/database/index';
 import { COLLECTIONS } from '@/lib/database/models';
 import { createClientLogger } from '@/lib/logger';
 
+// Force dynamic rendering - this route uses request.url
+export const dynamic = 'force-dynamic';
+
 const logger = createClientLogger();
 
 export async function GET(

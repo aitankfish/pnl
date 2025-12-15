@@ -12,6 +12,9 @@ import { COLLECTIONS } from '@/lib/database/models';
 import { createClientLogger } from '@/lib/logger';
 import { SOLANA_NETWORK } from '@/config/solana';
 
+// Force dynamic rendering - this route uses request.url
+export const dynamic = 'force-dynamic';
+
 const logger = createClientLogger();
 
 interface PositionHolder {

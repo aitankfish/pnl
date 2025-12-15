@@ -6,6 +6,9 @@ import { NextRequest, NextResponse } from 'next/server';
 import { connectToDatabase, Project, PredictionMarket } from '@/lib/mongodb';
 import { createClientLogger } from '@/lib/logger';
 
+// Force dynamic rendering - this route uses request.url
+export const dynamic = 'force-dynamic';
+
 const logger = createClientLogger();
 
 export async function GET(request: NextRequest) {
