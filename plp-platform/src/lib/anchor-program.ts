@@ -194,9 +194,12 @@ export async function buildCreateMarketTransaction(params: {
     );
   }
 
-  // Calculate expiry time (current time + market duration)
+  // Calculate expiry time (current time + market duration + buffer)
+  // Add 5-minute buffer to account for transaction propagation delay
+  // This prevents "InvalidMarketPhase" error when duration check runs on-chain
   const now = Math.floor(Date.now() / 1000);
-  const expiryTime = now + (params.marketDuration * 24 * 60 * 60);
+  const BUFFER_SECONDS = 5 * 60; // 5 minutes
+  const expiryTime = now + (params.marketDuration * 24 * 60 * 60) + BUFFER_SECONDS;
 
   // Derive PDAs
   const [treasuryPda] = getTreasuryPDA(network);
