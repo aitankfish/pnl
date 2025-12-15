@@ -335,7 +335,6 @@ export class EventProcessor {
     );
 
     // 4. Update vote counts if this is a new voter
-    let updatedMarket = market;
     if (updateResult.upsertedCount > 0) {
       // Determine vote type based on which shares are greater than 0
       const voteType = BigInt(positionData.yesShares) > BigInt(0) ? 'yes' : 'no';
@@ -347,22 +346,76 @@ export class EventProcessor {
       );
 
       logger.info(`📊 Incremented ${voteType} vote count for market ${market.marketAddress.slice(0, 8)}...`);
+    }
 
-      // Fetch updated market with new vote counts for broadcast
-      updatedMarket = await this.db.collection('predictionmarkets').findOne({
+    // 5. Recalculate percentages from all participants and broadcast
+    // This ensures percentages update for both new and existing voters
+    try {
+      const participants = await this.db.collection('predictionparticipants').find({
+        marketId: market._id
+      }).toArray();
+
+      let totalYesStake = 0;
+      let totalNoStake = 0;
+
+      for (const participant of participants) {
+        const yesShares = BigInt(participant.yesShares || '0');
+        const noShares = BigInt(participant.noShares || '0');
+        totalYesStake += Number(yesShares);
+        totalNoStake += Number(noShares);
+      }
+
+      const totalStake = totalYesStake + totalNoStake;
+      const yesPercentage = totalStake > 0 ? Math.round((totalYesStake / totalStake) * 100) : 50;
+      const noPercentage = totalStake > 0 ? Math.round((totalNoStake / totalStake) * 100) : 50;
+
+      // Update market with new percentages
+      await this.db.collection('predictionmarkets').updateOne(
+        { _id: market._id },
+        {
+          $set: {
+            yesPercentage,
+            noPercentage,
+            sharesYesPercentage: yesPercentage,
+            totalYesStake,
+            totalNoStake,
+            lastSyncedAt: new Date(),
+          }
+        }
+      );
+
+      // Fetch updated market for vote counts
+      const updatedMarket = await this.db.collection('predictionmarkets').findOne({
         _id: market._id,
       }) || market;
 
-      // Broadcast market update with new vote counts
+      // Broadcast market update with percentages AND vote counts
       broadcastMarketUpdate(positionData.market, {
         marketAddress: positionData.market,
-        yesVoteCount: updatedMarket.yesVoteCount,
-        noVoteCount: updatedMarket.noVoteCount,
+        yesVoteCount: updatedMarket.yesVoteCount || 0,
+        noVoteCount: updatedMarket.noVoteCount || 0,
+        yesPercentage,
+        noPercentage,
+        sharesYesPercentage: yesPercentage,
+        totalYesStake,
+        totalNoStake,
         lastSyncedAt: new Date(),
+      });
+
+      logger.info(`📊 Position update broadcast with percentages`, {
+        market: positionData.market.slice(0, 8) + '...',
+        yesPercentage,
+        noPercentage,
+        totalYesStake,
+        totalNoStake,
+      });
+    } catch (error) {
+      logger.error('Failed to recalculate percentages after position update', {
+        error: error instanceof Error ? error.message : String(error)
       });
     }
 
-    // 5. Broadcast position update to user
+    // 6. Broadcast position update to user
     broadcastPositionUpdate(positionData.user, positionData.market, {
       yesShares: positionData.yesShares,
       noShares: positionData.noShares,
