@@ -1041,7 +1041,7 @@ export default function CreatePage() {
                   <div className="text-sm">
                     <p className="text-white/50">Target Pool</p>
                     <p className="font-semibold text-white">
-                      {formData.targetPool ? `${(parseInt(formData.targetPool) / 1e9).toFixed(0)} SOL` : '-'}
+                      {formData.targetPool ? `${(parseInt(formData.targetPool) / 1e9).toFixed(2)} SOL` : '-'}
                     </p>
                   </div>
                 </div>
@@ -1223,10 +1223,11 @@ export default function CreatePage() {
 
                         // Simulate transaction first to surface any errors
                         console.log('🔍 Simulating transaction to check for errors...');
+                        const connection = await getSolanaConnection();
+                        const { Transaction } = await import('@solana/web3.js');
+                        let tx = Transaction.from(txBuffer);
+
                         try {
-                          const connection = await getSolanaConnection();
-                          const { Transaction } = await import('@solana/web3.js');
-                          const tx = Transaction.from(txBuffer);
                           const simulation = await connection.simulateTransaction(tx);
                           if (simulation.value.err) {
                             console.error('❌ Simulation failed:', JSON.stringify(simulation.value.err, null, 2));
@@ -1241,6 +1242,18 @@ export default function CreatePage() {
                           }
                           throw simError;
                         }
+
+                        // Refresh blockhash to prevent "Transaction confirmation failed" due to stale blockhash
+                        console.log('🔄 Refreshing blockhash before signing...');
+                        const { blockhash, lastValidBlockHeight } = await connection.getLatestBlockhash('confirmed');
+                        tx.recentBlockhash = blockhash;
+                        console.log('✅ Fresh blockhash:', blockhash.slice(0, 16) + '...');
+
+                        // Re-serialize with fresh blockhash
+                        const freshTxBuffer = Buffer.from(tx.serialize({
+                          requireAllSignatures: false,
+                          verifySignatures: false,
+                        }));
 
                         console.log('🔄 Transaction ready for signing and sending');
 
@@ -1263,7 +1276,7 @@ export default function CreatePage() {
                         // Use signAndSendTransaction - works for both external and embedded wallets
                         console.log('✍️📤 Signing and sending transaction with Privy...');
                         const result = await signAndSendTransaction({
-                          transaction: txBuffer,
+                          transaction: freshTxBuffer,
                           wallet: solanaWallet as any,
                           chain: isDevnet() ? 'solana:devnet' : 'solana:mainnet',
                         });
@@ -1274,9 +1287,8 @@ export default function CreatePage() {
 
                         setSubmissionStep('confirming');
 
-                        // Wait for confirmation
+                        // Wait for confirmation with the same connection
                         console.log('⏳ Waiting for transaction confirmation...');
-                        const connection = await getSolanaConnection();
                         await connection.confirmTransaction(signature, 'confirmed');
                         console.log('✅ Transaction confirmed on blockchain!');
 
