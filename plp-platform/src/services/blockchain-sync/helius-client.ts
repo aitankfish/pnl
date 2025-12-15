@@ -552,6 +552,15 @@ export class HeliusClient {
         // Not a position either
       }
 
+      // Known account types we can safely ignore:
+      // - Treasury: 8 (discriminator) + 32 (admin) + 8 (total_fees) + 1 (bump) = 49 bytes
+      // - TeamVesting, FounderVesting: other sizes
+      const knownIgnoredSizes = [49]; // Treasury accounts
+      if (knownIgnoredSizes.includes(buffer.length)) {
+        // Silently skip known non-market/non-position accounts
+        return 'unknown';
+      }
+
       logger.warn(`Could not detect account type, size: ${buffer.length} bytes`);
       return 'unknown';
     } catch (error) {

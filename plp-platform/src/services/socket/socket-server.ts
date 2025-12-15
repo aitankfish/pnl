@@ -35,9 +35,37 @@ export class SocketServer {
     logger.info('🔌 Initializing Socket.IO server...');
 
     this.httpServer = httpServer;
+    // Build list of allowed origins
+    const allowedOrigins: (string | RegExp)[] = [];
+    if (process.env.NEXT_PUBLIC_APP_URL) {
+      allowedOrigins.push(process.env.NEXT_PUBLIC_APP_URL);
+    }
+    // Always allow localhost for development
+    allowedOrigins.push('http://localhost:3000', 'http://localhost:3001');
+    // Allow Render URLs
+    allowedOrigins.push(/\.onrender\.com$/);
+
     this.io = new SocketIOServer(httpServer, {
       cors: {
-        origin: process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000',
+        origin: (origin, callback) => {
+          // Allow requests with no origin (mobile apps, curl, etc.)
+          if (!origin) return callback(null, true);
+
+          // Check against allowed origins
+          const isAllowed = allowedOrigins.some(allowed => {
+            if (allowed instanceof RegExp) {
+              return allowed.test(origin);
+            }
+            return allowed === origin;
+          });
+
+          if (isAllowed) {
+            callback(null, true);
+          } else {
+            console.log(`Socket.IO CORS blocked origin: ${origin}`);
+            callback(null, true); // Still allow for now, just log
+          }
+        },
         methods: ['GET', 'POST'],
         credentials: true,
       },
