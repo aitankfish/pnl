@@ -33,6 +33,7 @@ export async function GET() {
         hasSolanaNetwork: !!process.env.NEXT_PUBLIC_SOLANA_NETWORK,
         hasHeliusDevnet: !!process.env.NEXT_PUBLIC_HELIUS_DEVNET_RPC,
         hasHeliusMainnet: !!process.env.NEXT_PUBLIC_HELIUS_MAINNET_RPC,
+        hasHeliusApiKey: !!process.env.HELIUS_API_KEY, // Required for WebSocket
       },
     };
 
