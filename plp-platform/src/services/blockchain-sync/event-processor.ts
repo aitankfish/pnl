@@ -373,7 +373,6 @@ export class EventProcessor {
         // Parse market account to get accurate totals from blockchain
         const base64Data = marketAccountInfo.data.toString('base64');
         const marketData = parseMarketAccount(base64Data);
-        const derived = calculateDerivedFields(marketData);
 
         // Use blockchain values (source of truth)
         totalYesStake = Number(BigInt(marketData.totalYesShares));
