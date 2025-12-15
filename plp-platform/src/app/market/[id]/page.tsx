@@ -1302,26 +1302,38 @@ export default function MarketDetailsPage() {
                             </div>
                           </div>
 
-                          {/* Founder Actions - Only for founder when target reached, YES winning, and NOT in Funding Phase */}
+                          {/* Founder Actions - Only for founder when target reached and YES winning */}
                           {primaryWallet?.address === onchainData.data.founder &&
-                           Number(onchainData.data.totalYesShares) > Number(onchainData.data.totalNoShares) &&
-                           onchainData.data.phase !== 'Funding' && (
+                           Number(onchainData.data.totalYesShares) > Number(onchainData.data.totalNoShares) && (
                             <div className="mt-4 bg-gradient-to-br from-purple-500/10 via-pink-500/10 to-cyan-500/10 border border-purple-400/30 rounded-lg p-4 space-y-3">
                               <div className="flex items-start justify-between">
                                 <div className="flex-1">
                                   <h4 className="text-purple-400 text-sm font-semibold mb-1">🎯 Target Reached!</h4>
-                                  <p className="text-gray-300 text-xs mb-2">
-                                    Your market has reached the target pool and YES is winning. You can launch the token now or extend to raise more funding.
-                                  </p>
-                                  <p className="text-cyan-300 text-xs italic">
-                                    ✨ Token will have a branded PNL address ending with "pnl"
-                                  </p>
+                                  {onchainData.data.phase === 'Funding' ? (
+                                    <>
+                                      <p className="text-gray-300 text-xs mb-2">
+                                        Market is in Funding Phase. You can now launch your token!
+                                      </p>
+                                      <p className="text-cyan-300 text-xs italic">
+                                        ✨ Token will have a branded PNL address ending with "pnl"
+                                      </p>
+                                    </>
+                                  ) : (
+                                    <>
+                                      <p className="text-gray-300 text-xs mb-2">
+                                        Your market has reached the target pool and YES is winning. <span className="text-yellow-400 font-semibold">Extend to Funding Phase first</span> to enable token launch.
+                                      </p>
+                                      <p className="text-cyan-300 text-xs italic">
+                                        ✨ After extending, you can launch your token or continue raising funds
+                                      </p>
+                                    </>
+                                  )}
                                 </div>
                               </div>
 
-                              {/* Two Action Buttons */}
-                              <div className="grid grid-cols-2 gap-3">
-                                {/* Launch Token Now Button */}
+                              {/* Show appropriate button based on phase */}
+                              {onchainData.data.phase === 'Funding' ? (
+                                /* In Funding Phase - Show Launch Token button */
                                 <Button
                                   onClick={async () => {
                                     // Prepare token metadata from market data
@@ -1360,7 +1372,7 @@ export default function MarketDetailsPage() {
                                     }
                                   }}
                                   disabled={isResolving}
-                                  className="bg-gradient-to-r from-green-500 to-cyan-500 hover:from-green-600 hover:to-cyan-600 text-white font-semibold"
+                                  className="w-full bg-gradient-to-r from-green-500 to-cyan-500 hover:from-green-600 hover:to-cyan-600 text-white font-semibold"
                                 >
                                   {isResolving ? (
                                     <div className="flex flex-col items-center justify-center space-y-1">
@@ -1378,31 +1390,39 @@ export default function MarketDetailsPage() {
                                     </>
                                   )}
                                 </Button>
-
-                                {/* Extend to Funding Phase Button */}
+                              ) : (
+                                /* In Prediction Phase - Show Extend button only */
                                 <Button
                                   onClick={handleExtend}
                                   disabled={isExtending}
-                                  className="bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 text-white font-semibold"
+                                  className="w-full bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 text-white font-semibold"
                                 >
                                   {isExtending ? (
                                     <>
                                       <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                                      Extending...
+                                      Extending to Funding Phase...
                                     </>
                                   ) : (
                                     <>
-                                      💰 Extend Funding
+                                      💰 Extend to Funding Phase
                                     </>
                                   )}
                                 </Button>
-                              </div>
+                              )}
 
                               <div className="flex items-start space-x-2 pt-2 border-t border-white/10">
                                 <div className="text-xs text-gray-400">
-                                  <span className="font-semibold text-green-400">Launch Now:</span> Immediately create {market.tokenSymbol} token with current pool
-                                  <br />
-                                  <span className="font-semibold text-purple-400">Extend Funding:</span> Raise more capital before launching
+                                  {onchainData.data.phase === 'Funding' ? (
+                                    <>
+                                      <span className="font-semibold text-green-400">Ready to Launch:</span> Create {market.tokenSymbol} token and distribute to YES voters
+                                    </>
+                                  ) : (
+                                    <>
+                                      <span className="font-semibold text-purple-400">Step 1:</span> Extend to Funding Phase (required before token launch)
+                                      <br />
+                                      <span className="font-semibold text-green-400">Step 2:</span> Launch token (available after extending)
+                                    </>
+                                  )}
                                 </div>
                               </div>
                             </div>
