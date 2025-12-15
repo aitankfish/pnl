@@ -9,41 +9,9 @@ import { NextRequest, NextResponse } from 'next/server';
 import { connectToDatabase, PredictionMarket, PredictionParticipant, Project } from '@/lib/mongodb';
 import { createClientLogger } from '@/lib/logger';
 import { calculateVoteCountsForMarkets } from '@/lib/vote-counts';
+import { isMarketDataStale, convertToGatewayUrl } from '@/lib/api-utils';
 
 const logger = createClientLogger();
-
-// Staleness threshold in milliseconds (2 minutes)
-const STALENESS_THRESHOLD_MS = 2 * 60 * 1000;
-
-// Helper function to check if market data is stale
-function isMarketDataStale(lastSyncedAt: Date | undefined): boolean {
-  if (!lastSyncedAt) return true; // No sync data = consider stale
-  const now = new Date().getTime();
-  const lastSync = new Date(lastSyncedAt).getTime();
-  return (now - lastSync) > STALENESS_THRESHOLD_MS;
-}
-
-// Helper function to convert IPFS URL to gateway URL
-function convertToGatewayUrl(imageUrl: string | undefined): string | undefined {
-  if (!imageUrl) return undefined;
-
-  const gatewayUrl = process.env.PINATA_GATEWAY_URL;
-  if (!gatewayUrl) return imageUrl.startsWith('http') ? imageUrl : undefined;
-
-  // If it's an IPFS URL (ipfs://...), convert to gateway URL
-  if (imageUrl.startsWith('ipfs://')) {
-    const ipfsHash = imageUrl.replace('ipfs://', '');
-    return `https://${gatewayUrl}/ipfs/${ipfsHash}`;
-  }
-
-  // If it's already a full URL, keep it as is
-  if (imageUrl.startsWith('http')) {
-    return imageUrl;
-  }
-
-  // If it's just a hash (bafyXXX or QmXXX), add gateway
-  return `https://${gatewayUrl}/ipfs/${imageUrl}`;
-}
 
 export async function GET(_request: NextRequest) {
   try {

@@ -9,42 +9,9 @@ import { NextRequest, NextResponse } from 'next/server';
 import { connectToDatabase, PredictionMarket, PredictionParticipant, Project, UserProfile } from '@/lib/mongodb';
 import { createClientLogger } from '@/lib/logger';
 import { calculateVoteCounts } from '@/lib/vote-counts';
+import { isMarketDataStale, formatProjectAge, truncateWallet } from '@/lib/api-utils';
 
 const logger = createClientLogger();
-
-// Staleness threshold in milliseconds (2 minutes)
-const STALENESS_THRESHOLD_MS = 2 * 60 * 1000;
-
-// Helper function to check if market data is stale
-function isMarketDataStale(lastSyncedAt: Date | null | undefined): boolean {
-  if (!lastSyncedAt) return true; // No sync data = consider stale
-  const now = new Date().getTime();
-  const lastSync = new Date(lastSyncedAt).getTime();
-  return (now - lastSync) > STALENESS_THRESHOLD_MS;
-}
-
-// Helper function to format project age
-function formatProjectAge(createdAt: Date): string {
-  const now = new Date();
-  const diffMs = now.getTime() - new Date(createdAt).getTime();
-  const diffMinutes = Math.floor(diffMs / (1000 * 60));
-  const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
-  const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
-
-  if (diffMinutes < 60) {
-    return `${diffMinutes}m ago`;
-  } else if (diffHours < 24) {
-    return `${diffHours}h ago`;
-  } else {
-    return `${diffDays}d ago`;
-  }
-}
-
-// Helper function to truncate wallet address
-function truncateWallet(wallet: string): string {
-  if (!wallet || wallet.length < 10) return wallet;
-  return `${wallet.slice(0, 4)}...${wallet.slice(-4)}`;
-}
 
 export async function GET(
   request: NextRequest,

@@ -35,13 +35,28 @@ export interface BlockchainEvent {
 const QUEUE_KEY = 'blockchain:events';
 const PROCESSING_KEY = 'blockchain:processing';
 const DLQ_KEY = 'blockchain:dlq'; // Dead letter queue for failed events
+const DEDUP_KEY = 'blockchain:dedup'; // Deduplication set
 const MAX_RETRIES = 3;
+const DEDUP_TTL_SECONDS = 10; // Dedupe events within 10 second window
 
 /**
- * Push event to queue
+ * Push event to queue with deduplication
+ * Uses address + slot as dedup key to prevent duplicate events from multiple subscriptions
  */
-export async function pushEvent(event: Omit<BlockchainEvent, 'id' | 'processed' | 'retryCount'>): Promise<string> {
+export async function pushEvent(event: Omit<BlockchainEvent, 'id' | 'processed' | 'retryCount'>): Promise<string | null> {
   const redis = getRedisClient();
+
+  // Create dedup key from address + slot (same account update at same slot = duplicate)
+  const dedupKey = `${DEDUP_KEY}:${event.address}:${event.slot}`;
+
+  // Try to set dedup key with NX (only if not exists) and TTL
+  const wasSet = await redis.set(dedupKey, '1', 'EX', DEDUP_TTL_SECONDS, 'NX');
+
+  if (!wasSet) {
+    // Event already processed recently, skip
+    logger.debug(`⏭️  Skipping duplicate event: ${event.type} for ${event.address.slice(0, 8)}... slot ${event.slot}`);
+    return null;
+  }
 
   const eventId = `${event.address}:${event.slot}:${Date.now()}`;
   const fullEvent: BlockchainEvent = {
@@ -53,7 +68,7 @@ export async function pushEvent(event: Omit<BlockchainEvent, 'id' | 'processed' 
 
   await redis.lpush(QUEUE_KEY, JSON.stringify(fullEvent));
 
-  logger.info(`📥 Event queued: ${event.type} for ${event.address}`);
+  logger.info(`📥 Event queued: ${event.type} for ${event.address.slice(0, 8)}...`);
 
   return eventId;
 }
@@ -114,25 +129,46 @@ export async function retryEvent(event: BlockchainEvent, error: string): Promise
 }
 
 /**
+ * Count keys matching pattern using SCAN (non-blocking, O(1) per iteration)
+ * Replaces `keys` command which is O(n) and blocks Redis
+ */
+async function countKeysWithScan(pattern: string): Promise<number> {
+  const redis = getRedisClient();
+  let cursor = '0';
+  let count = 0;
+
+  do {
+    const [nextCursor, keys] = await redis.scan(cursor, 'MATCH', pattern, 'COUNT', 100);
+    cursor = nextCursor;
+    count += keys.length;
+  } while (cursor !== '0');
+
+  return count;
+}
+
+/**
  * Get queue stats
  */
 export async function getQueueStats(): Promise<{
   queueLength: number;
   processingCount: number;
   dlqLength: number;
+  dedupKeysActive: number;
 }> {
   const redis = getRedisClient();
 
-  const [queueLength, processingKeys, dlqLength] = await Promise.all([
+  const [queueLength, processingCount, dlqLength, dedupKeysActive] = await Promise.all([
     redis.llen(QUEUE_KEY),
-    redis.keys(`${PROCESSING_KEY}:*`),
+    countKeysWithScan(`${PROCESSING_KEY}:*`),
     redis.llen(DLQ_KEY),
+    countKeysWithScan(`${DEDUP_KEY}:*`),
   ]);
 
   return {
     queueLength,
-    processingCount: processingKeys.length,
+    processingCount,
     dlqLength,
+    dedupKeysActive,
   };
 }
 
@@ -157,13 +193,30 @@ export async function clearDLQ(): Promise<number> {
 }
 
 /**
+ * Get keys matching pattern using SCAN (non-blocking)
+ */
+async function getKeysWithScan(pattern: string): Promise<string[]> {
+  const redis = getRedisClient();
+  let cursor = '0';
+  const keys: string[] = [];
+
+  do {
+    const [nextCursor, foundKeys] = await redis.scan(cursor, 'MATCH', pattern, 'COUNT', 100);
+    cursor = nextCursor;
+    keys.push(...foundKeys);
+  } while (cursor !== '0');
+
+  return keys;
+}
+
+/**
  * Recover stuck events from processing
  * (events that were being processed but worker crashed)
  */
 export async function recoverStuckEvents(): Promise<number> {
   const redis = getRedisClient();
 
-  const processingKeys = await redis.keys(`${PROCESSING_KEY}:*`);
+  const processingKeys = await getKeysWithScan(`${PROCESSING_KEY}:*`);
   let recovered = 0;
 
   for (const key of processingKeys) {

@@ -4,6 +4,7 @@ import './globals.css';
 import { WalletProvider } from '@/lib/wallet';
 import { ToastProvider } from '@/lib/hooks/useToast';
 import { NetworkProvider } from '@/contexts/NetworkContext';
+import { SWRProvider } from '@/components/providers/SWRProvider';
 import AppLayoutWrapper from '@/components/AppLayoutWrapper';
 
 const inter = Inter({ subsets: ['latin'] });
@@ -45,8 +46,9 @@ export default function RootLayout({
       <body className={`${inter.className} min-h-screen bg-black text-white`}>
         <WalletProvider>
           <NetworkProvider>
-            <ToastProvider>
-              <AppLayoutWrapper footer={
+            <SWRProvider>
+              <ToastProvider>
+                <AppLayoutWrapper footer={
                 <footer className="py-6 border-t border-white/5">
                   <div className="container px-4 sm:px-6">
                     <div className="flex flex-col md:flex-row items-center justify-center gap-4 md:gap-6">
@@ -108,8 +110,9 @@ export default function RootLayout({
                 </footer>
               }>
                 {children}
-              </AppLayoutWrapper>
-            </ToastProvider>
+                </AppLayoutWrapper>
+              </ToastProvider>
+            </SWRProvider>
           </NetworkProvider>
         </WalletProvider>
       </body>

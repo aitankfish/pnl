@@ -7,9 +7,9 @@ import { HeliusClient } from './helius-client';
 import { getEventProcessor } from './event-processor';
 import { createClientLogger } from '@/lib/logger';
 import { getQueueStats } from '@/lib/redis/queue';
-import { MongoClient } from 'mongodb';
-import { getDatabaseConfig } from '@/lib/environment';
-import { PublicKey } from '@solana/web3.js';
+import { connectToDatabase, getDatabase } from '@/lib/database';
+import { PublicKey, Connection } from '@solana/web3.js';
+import { parseMarketAccount, calculateDerivedFields } from './account-parser';
 
 const logger = createClientLogger();
 
@@ -110,22 +110,12 @@ export class SyncManager {
    */
   private async subscribeToExistingMarkets(): Promise<void> {
     try {
-      const mongoUri = process.env.MONGODB_URI;
-      if (!mongoUri) {
-        logger.warn('MongoDB URI not configured, skipping individual market subscriptions');
-        return;
-      }
-
-      const client = new MongoClient(mongoUri);
-      await client.connect();
-      const dbConfig = getDatabaseConfig();
-      const db = client.db(dbConfig.name);
+      await connectToDatabase();
+      const db = getDatabase();
 
       const markets = await db.collection('predictionmarkets')
         .find({}, { projection: { marketAddress: 1 } })
         .toArray();
-
-      await client.close();
 
       logger.info(`📡 Subscribing to ${markets.length} individual market accounts...`);
 
@@ -149,16 +139,8 @@ export class SyncManager {
    */
   private async subscribeToExistingPositions(): Promise<void> {
     try {
-      const mongoUri = process.env.MONGODB_URI;
-      if (!mongoUri) {
-        logger.warn('MongoDB URI not configured, skipping individual position subscriptions');
-        return;
-      }
-
-      const client = new MongoClient(mongoUri);
-      await client.connect();
-      const dbConfig = getDatabaseConfig();
-      const db = client.db(dbConfig.name);
+      await connectToDatabase();
+      const db = getDatabase();
 
       // Get all participants with their Position PDAs
       const participants = await db.collection('predictionparticipants')
@@ -167,8 +149,6 @@ export class SyncManager {
           { projection: { positionPdaAddress: 1 } }
         )
         .toArray();
-
-      await client.close();
 
       logger.info(`📡 Subscribing to ${participants.length} individual Position accounts...`);
 
@@ -200,16 +180,8 @@ export class SyncManager {
     try {
       logger.info('🔄 Starting initial state sync for all markets...');
 
-      const mongoUri = process.env.MONGODB_URI;
-      if (!mongoUri) {
-        logger.warn('MongoDB URI not configured, skipping initial sync');
-        return;
-      }
-
-      const client = new MongoClient(mongoUri);
-      await client.connect();
-      const dbConfig = getDatabaseConfig();
-      const db = client.db(dbConfig.name);
+      await connectToDatabase();
+      const db = getDatabase();
 
       const markets = await db.collection('predictionmarkets')
         .find({}, { projection: { marketAddress: 1 } })
@@ -217,15 +189,10 @@ export class SyncManager {
 
       logger.info(`📥 Fetching current state for ${markets.length} markets...`);
 
-      // Import necessary utilities
-      const { Connection, PublicKey } = await import('@solana/web3.js');
-      const { parseMarketAccount, calculateDerivedFields } = await import('./account-parser');
-
       // Get RPC endpoint - use HELIUS_API_KEY for backend (not domain-restricted)
       const heliusApiKey = process.env.HELIUS_API_KEY;
       if (!heliusApiKey) {
         logger.error('HELIUS_API_KEY not configured');
-        await client.close();
         return;
       }
 
@@ -238,80 +205,87 @@ export class SyncManager {
       let syncedCount = 0;
       let errorCount = 0;
 
-      for (const market of markets) {
-        if (!market.marketAddress) continue;
+      // Process markets in parallel batches for faster sync
+      const BATCH_SIZE = 10; // Process 10 markets concurrently
+      const validMarkets = markets.filter(m => m.marketAddress);
 
-        try {
-          // Fetch account info from blockchain
-          const marketPubkey = new PublicKey(market.marketAddress);
-          const accountInfo = await connection.getAccountInfo(marketPubkey);
+      for (let i = 0; i < validMarkets.length; i += BATCH_SIZE) {
+        const batch = validMarkets.slice(i, i + BATCH_SIZE);
 
-          if (!accountInfo || !accountInfo.data) {
-            logger.warn(`Market account not found on-chain: ${market.marketAddress}`);
-            continue;
+        const results = await Promise.allSettled(
+          batch.map(async (market) => {
+            // Fetch account info from blockchain
+            const marketPubkey = new PublicKey(market.marketAddress);
+            const accountInfo = await connection.getAccountInfo(marketPubkey);
+
+            if (!accountInfo || !accountInfo.data) {
+              logger.warn(`Market account not found on-chain: ${market.marketAddress}`);
+              return { success: false, notFound: true };
+            }
+
+            // Parse market data
+            const base64Data = accountInfo.data.toString('base64');
+            const marketData = parseMarketAccount(base64Data);
+            const derived = calculateDerivedFields(marketData);
+
+            // Prepare update
+            const updateData: any = {
+              poolBalance: marketData.poolBalance,
+              distributionPool: marketData.distributionPool,
+              yesPool: marketData.yesPool,
+              noPool: marketData.noPool,
+              totalYesShares: marketData.totalYesShares,
+              totalNoShares: marketData.totalNoShares,
+              phase: marketData.phase,
+              resolution: this.getResolutionString(marketData.resolution),
+              poolProgressPercentage: derived.poolProgressPercentage,
+              yesPercentage: derived.yesPercentage,
+              sharesYesPercentage: derived.sharesYesPercentage,
+              totalYesStake: derived.totalYesStake,
+              totalNoStake: derived.totalNoStake,
+              availableActions: derived.availableActions,
+              tokenMint: marketData.tokenMint,
+              pumpFunTokenAddress: marketData.tokenMint,
+              platformTokensAllocated: marketData.platformTokensAllocated,
+              platformTokensClaimed: marketData.platformTokensClaimed,
+              yesVoterTokensAllocated: marketData.yesVoterTokensAllocated,
+              lastSyncedAt: new Date(),
+              syncStatus: 'synced',
+            };
+
+            // Check if resolved
+            const currentMarket = await db.collection('predictionmarkets').findOne({ _id: market._id });
+            if (marketData.resolution !== 0 && currentMarket && !currentMarket.resolvedAt) {
+              updateData.resolvedAt = new Date();
+              updateData.marketState = 1;
+              logger.info(`🎯 Market resolved during initial sync: ${market.marketAddress.slice(0, 8)}... -> ${this.getResolutionString(marketData.resolution)}`);
+            } else if (marketData.resolution !== 0) {
+              updateData.marketState = 1;
+            }
+
+            // Update MongoDB
+            await db.collection('predictionmarkets').updateOne(
+              { _id: market._id },
+              { $set: updateData }
+            );
+
+            return { success: true };
+          })
+        );
+
+        // Count results
+        for (const result of results) {
+          if (result.status === 'fulfilled' && result.value.success) {
+            syncedCount++;
+          } else if (result.status === 'rejected') {
+            errorCount++;
+            logger.error('Failed to sync market in batch:', { error: result.reason?.message || String(result.reason) });
           }
-
-          // Parse market data
-          const base64Data = accountInfo.data.toString('base64');
-          const marketData = parseMarketAccount(base64Data);
-          const derived = calculateDerivedFields(marketData);
-
-          // Prepare update
-          const updateData: any = {
-            poolBalance: marketData.poolBalance,
-            distributionPool: marketData.distributionPool,
-            yesPool: marketData.yesPool,
-            noPool: marketData.noPool,
-            totalYesShares: marketData.totalYesShares,
-            totalNoShares: marketData.totalNoShares,
-            phase: marketData.phase,
-            resolution: this.getResolutionString(marketData.resolution),
-            poolProgressPercentage: derived.poolProgressPercentage,
-            yesPercentage: derived.yesPercentage,
-            sharesYesPercentage: derived.sharesYesPercentage,
-            totalYesStake: derived.totalYesStake,
-            totalNoStake: derived.totalNoStake,
-            availableActions: derived.availableActions,
-            tokenMint: marketData.tokenMint,
-            pumpFunTokenAddress: marketData.tokenMint, // Keep both for schema consistency
-            platformTokensAllocated: marketData.platformTokensAllocated,
-            platformTokensClaimed: marketData.platformTokensClaimed,
-            yesVoterTokensAllocated: marketData.yesVoterTokensAllocated,
-            lastSyncedAt: new Date(),
-            syncStatus: 'synced',
-          };
-
-          // Check if resolved (update resolvedAt timestamp and marketState)
-          const currentMarket = await db.collection('predictionmarkets').findOne({ _id: market._id });
-          if (marketData.resolution !== 0 && currentMarket && !currentMarket.resolvedAt) {
-            updateData.resolvedAt = new Date();
-            updateData.marketState = 1; // Set to Resolved state
-            logger.info(`🎯 Market resolved during initial sync: ${market.marketAddress.slice(0, 8)}... -> ${this.getResolutionString(marketData.resolution)}`);
-          } else if (marketData.resolution !== 0) {
-            // Already resolved, make sure marketState is correct
-            updateData.marketState = 1;
-          }
-
-          // Update MongoDB
-          await db.collection('predictionmarkets').updateOne(
-            { _id: market._id },
-            { $set: updateData }
-          );
-
-          syncedCount++;
-
-          if (syncedCount % 5 === 0) {
-            logger.info(`📊 Initial sync progress: ${syncedCount}/${markets.length} markets synced`);
-          }
-
-        } catch (error) {
-          errorCount++;
-          const errorMessage = error instanceof Error ? error.message : String(error);
-          logger.error(`Failed to sync market ${market.marketAddress}:`, { error: errorMessage });
         }
-      }
 
-      await client.close();
+        // Log progress after each batch
+        logger.info(`📊 Initial sync progress: ${syncedCount}/${validMarkets.length} markets synced`);
+      }
 
       logger.info(`✅ Initial sync complete: ${syncedCount} markets synced, ${errorCount} errors`);
 

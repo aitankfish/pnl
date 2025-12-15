@@ -127,6 +127,11 @@ class DatabaseManager {
         await createIndexSafely(COLLECTIONS.TRANSACTION_HISTORY, index);
       }
 
+      // Create indexes for market_time_series collection
+      for (const index of INDEXES.MARKET_TIME_SERIES) {
+        await createIndexSafely('market_time_series', index);
+      }
+
       console.log('📊 Database indexes ensured');
     } catch (error) {
       console.error('❌ Failed to create database indexes:', error);

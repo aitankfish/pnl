@@ -6,16 +6,16 @@
 import { popEvent, markProcessed, retryEvent, BlockchainEvent } from '@/lib/redis/queue';
 import { parseMarketAccount, parsePositionAccount, calculateDerivedFields } from './account-parser';
 import { createClientLogger } from '@/lib/logger';
-import { MongoClient, Db, ObjectId } from 'mongodb';
+import { Db, ObjectId } from 'mongodb';
 import { broadcastMarketUpdate, broadcastPositionUpdate } from '../socket/socket-server';
-import { getDatabaseConfig } from '@/lib/environment';
+import { connectToDatabase, getDatabase } from '@/lib/database';
+import { updateMarketVoteCounts } from '@/lib/vote-counts';
 
 const logger = createClientLogger();
 
 export class EventProcessor {
   private isRunning = false;
   private stopRequested = false;
-  private mongoClient: MongoClient | null = null;
   private db: Db | null = null;
 
   /**
@@ -31,16 +31,10 @@ export class EventProcessor {
     this.stopRequested = false;
     logger.info('🚀 Event processor started');
 
-    // Ensure MongoDB connection using environment config
-    const dbConfig = getDatabaseConfig();
-    if (!dbConfig.uri) {
-      throw new Error('MONGODB_URI not configured');
-    }
-
-    this.mongoClient = new MongoClient(dbConfig.uri);
-    await this.mongoClient.connect();
-    this.db = this.mongoClient.db(dbConfig.name);
-    logger.info('✅ Event processor connected to MongoDB', { database: dbConfig.name });
+    // Use shared database connection pool
+    await connectToDatabase();
+    this.db = getDatabase();
+    logger.info('✅ Event processor using shared MongoDB connection');
 
     // Main processing loop
     while (!this.stopRequested) {
@@ -70,14 +64,14 @@ export class EventProcessor {
 
         } catch (error) {
           const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-          logger.error(`Failed to process event ${event.id}:`, errorMessage);
+          logger.error(`Failed to process event ${event.id}:`, { error: errorMessage });
 
           // Retry event
           await retryEvent(event, errorMessage);
         }
 
       } catch (error) {
-        logger.error('Error in processing loop:', error);
+        logger.error('Error in processing loop:', { error: error instanceof Error ? error.message : String(error) });
         // Wait a bit before retrying
         await new Promise(resolve => setTimeout(resolve, 1000));
       }
@@ -227,8 +221,6 @@ export class EventProcessor {
     let noVoteCount = market.noVotes || 0;
 
     try {
-      // Import here to avoid circular dependency
-      const { updateMarketVoteCounts } = await import('@/lib/vote-counts');
       const voteCounts = await updateMarketVoteCounts(market._id.toString());
       yesVoteCount = voteCounts.yesVoteCount;
       noVoteCount = voteCounts.noVoteCount;

@@ -9,6 +9,14 @@ import { createClientLogger } from '@/lib/logger';
 
 const logger = createClientLogger();
 
+// Rate limiting for broadcasts (prevent spam)
+const BROADCAST_RATE_LIMIT_MS = 100; // Min 100ms between broadcasts per market
+const lastBroadcastTimes = new Map<string, number>();
+
+// Batch updates for high-frequency changes
+const pendingBroadcasts = new Map<string, { data: any; timeout: NodeJS.Timeout }>();
+const BATCH_DELAY_MS = 50; // Batch updates within 50ms window
+
 export class SocketServer {
   private io: SocketIOServer | null = null;
   private httpServer: HTTPServer | null = null;
@@ -50,66 +58,61 @@ export class SocketServer {
     if (!this.io) return;
 
     this.io.on('connection', (socket) => {
-      logger.info(`🔗 Client connected: ${socket.id}`);
+      logger.debug(`🔗 Client connected: ${socket.id}`);
 
       // Handle market subscriptions
       socket.on('subscribe:market', (marketAddress: string) => {
-        logger.info(`📡 Client ${socket.id} subscribing to market: ${marketAddress}`);
+        logger.debug(`📡 Client subscribing to market: ${marketAddress.slice(0, 8)}...`);
         socket.join(`market:${marketAddress}`);
         socket.emit('subscribed', { marketAddress });
       });
 
       // Handle market unsubscriptions
       socket.on('unsubscribe:market', (marketAddress: string) => {
-        logger.info(`📡 Client ${socket.id} unsubscribing from market: ${marketAddress}`);
         socket.leave(`market:${marketAddress}`);
         socket.emit('unsubscribed', { marketAddress });
       });
 
       // Handle all markets subscription
       socket.on('subscribe:all-markets', () => {
-        logger.info(`📡 Client ${socket.id} subscribing to all markets`);
         socket.join('all-markets');
         socket.emit('subscribed', { room: 'all-markets' });
       });
 
       // Handle user-specific subscriptions (for notifications)
       socket.on('subscribe:user', (walletAddress: string) => {
-        logger.info(`📡 Client ${socket.id} subscribing to user updates: ${walletAddress}`);
         socket.join(`user:${walletAddress}`);
         socket.emit('subscribed', { walletAddress });
       });
 
       // Handle broadcast requests from blockchain sync (server-to-server)
       socket.on('broadcast:market', (payload: { marketAddress: string; data: any; timestamp: number }) => {
-        logger.info(`📥 Received broadcast request for market: ${payload.marketAddress.slice(0, 8)}...`);
         this.broadcastMarketUpdate(payload.marketAddress, payload.data);
       });
 
       socket.on('broadcast:position', (payload: { userWallet: string; marketAddress: string; data: any; timestamp: number }) => {
-        logger.info(`📥 Received broadcast request for position: ${payload.userWallet.slice(0, 8)}...`);
         this.broadcastPositionUpdate(payload.userWallet, payload.marketAddress, payload.data);
       });
 
       socket.on('broadcast:notification', (payload: { userWallet: string; notification: any; timestamp: number }) => {
-        logger.info(`📥 Received broadcast request for notification: ${payload.userWallet.slice(0, 8)}...`);
         this.broadcastNotification(payload.userWallet, payload.notification);
       });
 
       // Handle disconnection
       socket.on('disconnect', () => {
-        logger.info(`🔌 Client disconnected: ${socket.id}`);
+        logger.debug(`🔌 Client disconnected: ${socket.id}`);
       });
 
       // Handle errors
       socket.on('error', (error) => {
-        logger.error(`Socket error for ${socket.id}:`, error);
+        logger.error('Socket error:', { socketId: socket.id, error: error instanceof Error ? error.message : String(error) });
       });
     });
   }
 
   /**
    * Broadcast market update to subscribed clients
+   * Uses batching and rate limiting to prevent spam
    */
   broadcastMarketUpdate(marketAddress: string, data: any): void {
     if (!this.io) {
@@ -117,33 +120,62 @@ export class SocketServer {
       return;
     }
 
-    logger.info(`📤 Broadcasting market update: ${marketAddress.slice(0, 8)}...`);
+    // Check rate limit
+    const now = Date.now();
+    const lastBroadcast = lastBroadcastTimes.get(marketAddress) || 0;
+    const timeSinceLastBroadcast = now - lastBroadcast;
+
+    if (timeSinceLastBroadcast < BROADCAST_RATE_LIMIT_MS) {
+      // Batch this update - cancel any pending and reschedule
+      const pending = pendingBroadcasts.get(marketAddress);
+      if (pending) {
+        clearTimeout(pending.timeout);
+      }
+
+      const timeout = setTimeout(() => {
+        this.doMarketBroadcast(marketAddress, data);
+        pendingBroadcasts.delete(marketAddress);
+      }, BATCH_DELAY_MS);
+
+      pendingBroadcasts.set(marketAddress, { data, timeout });
+      return;
+    }
+
+    // Immediate broadcast
+    this.doMarketBroadcast(marketAddress, data);
+  }
+
+  /**
+   * Perform the actual market broadcast
+   */
+  private doMarketBroadcast(marketAddress: string, data: any): void {
+    if (!this.io) return;
+
+    lastBroadcastTimes.set(marketAddress, Date.now());
+
+    // Log only at debug level to reduce noise
+    logger.debug(`📤 Broadcasting market update: ${marketAddress.slice(0, 8)}...`);
+
+    const payload = {
+      marketAddress,
+      data,
+      timestamp: Date.now(),
+    };
 
     // Broadcast to specific market room
-    this.io.to(`market:${marketAddress}`).emit('market:update', {
-      marketAddress,
-      data,
-      timestamp: Date.now(),
-    });
+    this.io.to(`market:${marketAddress}`).emit('market:update', payload);
 
     // Also broadcast to all-markets room
-    this.io.to('all-markets').emit('market:update', {
-      marketAddress,
-      data,
-      timestamp: Date.now(),
-    });
+    this.io.to('all-markets').emit('market:update', payload);
   }
 
   /**
    * Broadcast position update to user
    */
   broadcastPositionUpdate(walletAddress: string, marketAddress: string, data: any): void {
-    if (!this.io) {
-      // Silently skip if server not initialized yet (expected during startup)
-      return;
-    }
+    if (!this.io) return;
 
-    logger.info(`📤 Broadcasting position update for ${walletAddress.slice(0, 8)}...`);
+    logger.debug(`📤 Broadcasting position update for ${walletAddress.slice(0, 8)}...`);
 
     this.io.to(`user:${walletAddress}`).emit('position:update', {
       walletAddress,
@@ -157,12 +189,9 @@ export class SocketServer {
    * Broadcast notification to user
    */
   broadcastNotification(walletAddress: string, notification: any): void {
-    if (!this.io) {
-      // Silently skip if server not initialized yet (expected during startup)
-      return;
-    }
+    if (!this.io) return;
 
-    logger.info(`🔔 Broadcasting notification to ${walletAddress.slice(0, 8)}...`);
+    logger.debug(`🔔 Broadcasting notification to ${walletAddress.slice(0, 8)}...`);
 
     this.io.to(`user:${walletAddress}`).emit('notification', {
       notification,

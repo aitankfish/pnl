@@ -23,17 +23,35 @@ const nextConfig = {
         hostname: 'sapphire-fantastic-cephalopod-499.mypinata.cloud',
       },
     ],
+    // Optimize image loading
+    deviceSizes: [640, 750, 828, 1080, 1200, 1920],
+    imageSizes: [16, 32, 48, 64, 96, 128, 256],
   },
 
   // Standalone output for better deployment
   output: 'standalone',
 
-  // Disable minification to avoid unicode issues with Terser
-  swcMinify: false,
+  // Enable SWC minification for smaller bundles
+  swcMinify: true,
+
+  // Enable compression
+  compress: true,
+
+  // Power by header disabled for security
+  poweredByHeader: false,
 
   // Experimental features for better performance
   experimental: {
-    optimizePackageImports: ['@solana/web3.js', 'lucide-react', '@privy-io/react-auth', '@solana/kit'],
+    optimizePackageImports: [
+      '@solana/web3.js',
+      'lucide-react',
+      '@privy-io/react-auth',
+      '@solana/kit',
+      '@coral-xyz/anchor',
+      'framer-motion',
+      'recharts',
+      'mongodb',
+    ],
     instrumentationHook: true, // Enable instrumentation.ts for server-side initialization
   },
 
@@ -64,13 +82,42 @@ const nextConfig = {
       });
     }
 
-    // Disable minification in production to avoid unicode issues
+    // Production optimizations
     if (!dev) {
+      // Enable tree shaking
       config.optimization = config.optimization || {};
-      config.optimization.minimize = false;
+      config.optimization.usedExports = true;
+      config.optimization.sideEffects = true;
     }
 
     return config;
+  },
+
+  // Headers for better caching
+  async headers() {
+    return [
+      {
+        source: '/api/:path*',
+        headers: [
+          { key: 'Access-Control-Allow-Credentials', value: 'true' },
+          { key: 'Access-Control-Allow-Origin', value: '*' },
+          { key: 'Access-Control-Allow-Methods', value: 'GET,POST,PUT,DELETE,OPTIONS' },
+          { key: 'Access-Control-Allow-Headers', value: 'X-CSRF-Token, X-Requested-With, Accept, Accept-Version, Content-Length, Content-MD5, Content-Type, Date, X-Api-Version' },
+        ],
+      },
+      {
+        source: '/:all*(svg|jpg|jpeg|png|gif|ico|webp)',
+        headers: [
+          { key: 'Cache-Control', value: 'public, max-age=31536000, immutable' },
+        ],
+      },
+      {
+        source: '/_next/static/:path*',
+        headers: [
+          { key: 'Cache-Control', value: 'public, max-age=31536000, immutable' },
+        ],
+      },
+    ];
   },
 };
 

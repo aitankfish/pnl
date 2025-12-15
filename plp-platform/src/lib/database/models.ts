@@ -147,21 +147,37 @@ export const INDEXES = {
     { status: 1 },
     { createdAt: -1 },
     { category: 1 },
+    // Compound index for active projects by founder
+    { founderWallet: 1, status: 1, createdAt: -1 },
   ],
   PREDICTION_MARKETS: [
     { marketAddress: 1 },
     { projectId: 1 },
     { marketState: 1 },
     { expiryTime: 1 },
+    // Compound index for listing active markets (most common query)
+    { marketState: 1, createdAt: -1 },
+    // Compound index for resolution queries
+    { resolution: 1, marketState: 1 },
+    // Index for sync status queries
+    { lastSyncedAt: 1 },
+    { syncStatus: 1 },
   ],
   PREDICTION_PARTICIPANTS: [
     { marketId: 1, participantWallet: 1, voteOption: 1 },
     { participantWallet: 1 },
     { marketId: 1 },
+    // Index for position PDA lookups
+    { positionPdaAddress: 1 },
+    // Compound index for participant queries with shares
+    { marketId: 1, yesShares: 1 },
+    { marketId: 1, noShares: 1 },
   ],
   USER_PROFILES: [
     { walletAddress: 1 },
     { reputationScore: -1 },
+    // Index for username lookups
+    { username: 1 },
   ],
   USER_FOLLOWS: [
     { followerWallet: 1, followingWallet: 1 }, // Compound unique index to prevent duplicate follows
@@ -173,6 +189,14 @@ export const INDEXES = {
     { walletAddress: 1 },
     { createdAt: -1 },
     { transactionType: 1 },
+    // Compound index for wallet history queries
+    { walletAddress: 1, createdAt: -1 },
+    { walletAddress: 1, transactionType: 1, createdAt: -1 },
+  ],
+  // Time-series collection for market charts
+  MARKET_TIME_SERIES: [
+    { marketId: 1, timestamp: -1 },
+    { timestamp: 1 }, // For TTL expiry
   ],
   // TRADE_HISTORY indexes removed - collection deprecated (data now from Helius)
   TRADE_HISTORY: [],
