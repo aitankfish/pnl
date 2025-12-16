@@ -8,7 +8,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { PublicKey } from '@solana/web3.js';
 import { getSolanaConnection } from '@/lib/solana';
 import { createClientLogger } from '@/lib/logger';
-import { SOLANA_NETWORK } from '@/config/solana';
+import { SOLANA_NETWORK, PROGRAM_ID } from '@/config/solana';
 
 // Force dynamic rendering - this route uses request.url
 export const dynamic = 'force-dynamic';
@@ -297,6 +297,23 @@ export async function GET(
       poolBalance: marketAccount.poolBalance.toString(),
     });
 
+    // Check if team_vesting PDA exists (indicates team vesting has been initialized)
+    let teamVestingInitialized = false;
+    try {
+      const [teamVestingPda] = PublicKey.findProgramAddressSync(
+        [Buffer.from('team_vesting'), marketPubkey.toBytes()],
+        PROGRAM_ID
+      );
+      const teamVestingAccount = await connection.getAccountInfo(teamVestingPda);
+      teamVestingInitialized = teamVestingAccount !== null;
+      logger.info('Team vesting PDA check', {
+        teamVestingPda: teamVestingPda.toBase58(),
+        exists: teamVestingInitialized
+      });
+    } catch (error) {
+      logger.warn('Failed to check team vesting PDA', { error });
+    }
+
     // Convert phase enum byte to string
     // 0=Prediction, 1=Funding
     let phaseStatus: 'Prediction' | 'Funding';
@@ -376,6 +393,8 @@ export async function GET(
       // Founder SOL vesting - calculated from excess SOL
       hasExcessSol: Number(marketAccount.founderExcessSolAllocated) > 0,
       excessSolInSol: Number(marketAccount.founderExcessSolAllocated) / 1_000_000_000,
+      // Team vesting - separate PDA check
+      teamVestingInitialized,
     };
 
     return NextResponse.json(

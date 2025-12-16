@@ -1798,44 +1798,50 @@ export default function MarketDetailsPage() {
                             </div>
                           </div>
 
-                          {/* Initialize Vesting Button - Anyone can call to set up vesting */}
-                          <Button
-                            onClick={handleInitTeamVesting}
-                            disabled={isInitializing}
-                            className="w-full bg-gradient-to-r from-cyan-500 to-blue-500 hover:from-cyan-600 hover:to-blue-600 text-white font-semibold"
-                          >
-                            {isInitializing ? (
-                              <>
-                                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                                Initializing...
-                              </>
-                            ) : (
-                              <>
-                                🔧 Initialize Team Vesting
-                              </>
-                            )}
-                          </Button>
+                          {/* Initialize Vesting Button - Only show if not initialized */}
+                          {!onchainData.data.teamVestingInitialized && (
+                            <Button
+                              onClick={handleInitTeamVesting}
+                              disabled={isInitializing}
+                              className="w-full bg-gradient-to-r from-cyan-500 to-blue-500 hover:from-cyan-600 hover:to-blue-600 text-white font-semibold"
+                            >
+                              {isInitializing ? (
+                                <>
+                                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                                  Initializing...
+                                </>
+                              ) : (
+                                <>
+                                  🔧 Initialize Team Vesting
+                                </>
+                              )}
+                            </Button>
+                          )}
 
-                          {/* Claim Team Tokens Button - Only founder can claim */}
-                          <Button
-                            onClick={handleClaimTeamTokens}
-                            disabled={isClaimingTeamTokens}
-                            className="w-full bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-white font-semibold"
-                          >
-                            {isClaimingTeamTokens ? (
-                              <>
-                                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                                Claiming...
-                              </>
-                            ) : (
-                              <>
-                                👥 Claim Team Tokens
-                              </>
-                            )}
-                          </Button>
+                          {/* Claim Team Tokens Button - Only show after vesting is initialized */}
+                          {onchainData.data.teamVestingInitialized && (
+                            <Button
+                              onClick={handleClaimTeamTokens}
+                              disabled={isClaimingTeamTokens}
+                              className="w-full bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-white font-semibold"
+                            >
+                              {isClaimingTeamTokens ? (
+                                <>
+                                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                                  Claiming...
+                                </>
+                              ) : (
+                                <>
+                                  👥 Claim Team Tokens
+                                </>
+                              )}
+                            </Button>
+                          )}
 
                           <p className="text-xs text-gray-400 italic">
-                            Note: First initialize vesting, then claim your tokens (8% immediate + vested amount).
+                            {onchainData.data.teamVestingInitialized
+                              ? 'Vesting initialized! Claim your tokens (8% immediate + vested amount).'
+                              : 'First initialize vesting, then claim your tokens (8% immediate + vested amount).'}
                           </p>
                         </div>
                       )}
