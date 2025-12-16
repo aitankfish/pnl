@@ -6,7 +6,7 @@ import { useParams, useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { CheckCircle, XCircle, Loader2, ArrowLeft, ExternalLink, Users, Target, MapPin, Briefcase, Globe, Github, Twitter, MessageCircle, Send, Share2, Heart, FileText } from 'lucide-react';
+import { CheckCircle, XCircle, Loader2, ArrowLeft, ExternalLink, Users, Target, MapPin, Briefcase, Globe, Github, Twitter, MessageCircle, Send, Share2, Heart, FileText, Copy, Check } from 'lucide-react';
 import Link from 'next/link';
 import { FEES, SOLANA_NETWORK } from '@/config/solana';
 import { useVoting } from '@/lib/hooks/useVoting';
@@ -260,6 +260,9 @@ export default function MarketDetailsPage() {
   const [isFavorite, setIsFavorite] = useState(false);
   const [isTogglingFavorite, setIsTogglingFavorite] = useState(false);
 
+  // Contract address copy state
+  const [copiedContract, setCopiedContract] = useState(false);
+
   // Toast notification state
   const [showToast, setShowToast] = useState(false);
   const [toastMessage, setToastMessage] = useState('');
@@ -344,6 +347,25 @@ export default function MarketDetailsPage() {
     } catch (err) {
       console.error('Failed to copy link:', err);
       setToastMessage('Failed to copy link');
+      setShowToast(true);
+      setTimeout(() => setShowToast(false), 3000);
+    }
+  };
+
+  // Copy contract address
+  const handleCopyContract = async (contractAddress: string) => {
+    try {
+      await navigator.clipboard.writeText(contractAddress);
+      setCopiedContract(true);
+      setToastMessage('Contract address copied!');
+      setShowToast(true);
+      setTimeout(() => {
+        setShowToast(false);
+        setCopiedContract(false);
+      }, 2000);
+    } catch (err) {
+      console.error('Failed to copy contract:', err);
+      setToastMessage('Failed to copy contract');
       setShowToast(true);
       setTimeout(() => setShowToast(false), 3000);
     }
@@ -1071,6 +1093,24 @@ export default function MarketDetailsPage() {
                           />
                         </button>
                       )}
+                      {/* Copyable Contract Address - Only show when token is minted */}
+                      {onchainData?.success && onchainData.data.tokenMint && (
+                        <button
+                          onClick={() => handleCopyContract(onchainData.data.tokenMint!)}
+                          className="flex items-center gap-1.5 px-2 py-1 sm:px-2.5 sm:py-1.5 bg-white/5 hover:bg-white/10 rounded-lg transition-colors group border border-white/10 hover:border-white/20"
+                          title="Copy contract address"
+                        >
+                          <span className="text-xs text-gray-400 font-mono hidden sm:inline">
+                            {onchainData.data.tokenMint.slice(0, 4)}...{onchainData.data.tokenMint.slice(-4)}
+                          </span>
+                          <span className="text-xs text-gray-400 font-mono sm:hidden">CA</span>
+                          {copiedContract ? (
+                            <Check className="w-3 h-3 sm:w-3.5 sm:h-3.5 text-green-400" />
+                          ) : (
+                            <Copy className="w-3 h-3 sm:w-3.5 sm:h-3.5 text-gray-400 group-hover:text-white transition-colors" />
+                          )}
+                        </button>
+                      )}
                     </div>
                   </div>
 
@@ -1734,6 +1774,19 @@ export default function MarketDetailsPage() {
                         <p className="text-gray-300 text-xs mb-3">
                           Token will be launched on Pump.fun!
                         </p>
+                        {/* Trade on Pump.fun Button - Only show when token is minted */}
+                        {onchainData.data.tokenMint && (
+                          <a
+                            href={`https://pump.fun/coin/${onchainData.data.tokenMint}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="inline-flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-green-500/20 to-cyan-500/20 hover:from-green-500/30 hover:to-cyan-500/30 border border-green-400/30 hover:border-green-400/50 rounded-lg text-green-400 text-sm font-medium transition-all hover:scale-105"
+                          >
+                            <img src="https://pump.fun/favicon.ico" alt="Pump.fun" className="w-4 h-4" />
+                            Trade on Pump.fun
+                            <ExternalLink className="w-3 h-3" />
+                          </a>
+                        )}
                       </div>
 
                       {/* YES Voter Claim - Exclude founder (they have Team Token section) */}
@@ -1777,8 +1830,117 @@ export default function MarketDetailsPage() {
                         </div>
                       )}
 
-                      {/* Team Vesting Section - Only for founder */}
-                      {primaryWallet?.address === onchainData.data.founder && onchainData.data.tokenMint && (
+                      {/* Team Token Transparency Section - Visible to ALL users when vesting initialized */}
+                      {onchainData.data.tokenMint && onchainData.data.teamVestingInitialized && onchainData.data.teamVestingData && (
+                        <div className="bg-gradient-to-br from-amber-500/10 via-orange-500/10 to-yellow-500/10 border border-amber-400/30 rounded-lg p-4 text-left space-y-3">
+                          <div className="flex items-center justify-between">
+                            <div className="flex items-center space-x-2">
+                              <div className="p-2 bg-amber-500/20 rounded-full">
+                                <Users className="w-4 h-4 text-amber-400" />
+                              </div>
+                              <h4 className="text-amber-400 text-sm font-semibold">Team Token Allocation (33%)</h4>
+                            </div>
+                            <span className="text-xs text-gray-500">Transparency</span>
+                          </div>
+
+                          {/* Vesting Progress Bar */}
+                          <div className="space-y-1">
+                            <div className="flex justify-between text-xs">
+                              <span className="text-gray-400">Vesting Progress</span>
+                              <span className="text-amber-300 font-semibold">{onchainData.data.teamVestingData.vestingProgressPercent.toFixed(1)}%</span>
+                            </div>
+                            <div className="w-full bg-gray-700/50 rounded-full h-2 overflow-hidden">
+                              <div
+                                className="bg-gradient-to-r from-amber-500 to-orange-500 h-full rounded-full transition-all duration-500"
+                                style={{ width: `${Math.min(100, onchainData.data.teamVestingData.vestingProgressPercent)}%` }}
+                              />
+                            </div>
+                          </div>
+
+                          {/* Token Breakdown */}
+                          <div className="space-y-2 pt-2 border-t border-white/10">
+                            <div className="flex justify-between text-xs">
+                              <span className="text-gray-400">Total Team Tokens</span>
+                              <span className="text-white font-semibold">
+                                {(Number(onchainData.data.teamVestingData.totalTokens) / 1_000_000).toLocaleString()} {market.tokenSymbol}
+                              </span>
+                            </div>
+                            <div className="flex justify-between text-xs">
+                              <span className="text-gray-400">Immediate (8%)</span>
+                              <span className={`font-semibold ${onchainData.data.teamVestingData.immediateClaimed ? 'text-green-400' : 'text-amber-300'}`}>
+                                {(Number(onchainData.data.teamVestingData.immediateTokens) / 1_000_000).toLocaleString()} {market.tokenSymbol}
+                                {onchainData.data.teamVestingData.immediateClaimed && ' ✓ Claimed'}
+                              </span>
+                            </div>
+                            <div className="flex justify-between text-xs">
+                              <span className="text-gray-400">Vested (25%)</span>
+                              <span className="text-orange-300 font-semibold">
+                                {(Number(onchainData.data.teamVestingData.vestingTokens) / 1_000_000).toLocaleString()} {market.tokenSymbol}
+                              </span>
+                            </div>
+                            <div className="flex justify-between text-xs">
+                              <span className="text-gray-400">Vested Unlocked</span>
+                              <span className="text-cyan-300 font-semibold">
+                                {(Number(onchainData.data.teamVestingData.vestedUnlocked) / 1_000_000).toLocaleString()} {market.tokenSymbol}
+                              </span>
+                            </div>
+                            <div className="flex justify-between text-xs">
+                              <span className="text-gray-400">Already Claimed</span>
+                              <span className="text-green-400 font-semibold">
+                                {(Number(onchainData.data.teamVestingData.claimedTokens) / 1_000_000).toLocaleString()} {market.tokenSymbol}
+                              </span>
+                            </div>
+                          </div>
+
+                          {/* Next Unlock Info */}
+                          {onchainData.data.teamVestingData.vestingProgressPercent < 100 && onchainData.data.teamVestingData.nextUnlockTime && (
+                            <div className="flex justify-between text-xs pt-2 border-t border-white/10">
+                              <span className="text-gray-400">Next Unlock</span>
+                              <span className="text-purple-300 font-semibold">
+                                {(Number(onchainData.data.teamVestingData.nextUnlockAmount) / 1_000_000).toLocaleString()} {market.tokenSymbol} in {Math.max(0, Math.ceil((onchainData.data.teamVestingData.nextUnlockTime - Date.now() / 1000) / 86400))} days
+                              </span>
+                            </div>
+                          )}
+
+                          {/* Founder Actions */}
+                          {primaryWallet?.address === onchainData.data.founder && (
+                            <div className="pt-3 border-t border-white/10">
+                              <Button
+                                onClick={handleClaimTeamTokens}
+                                disabled={isClaimingTeamTokens || Number(onchainData.data.teamVestingData.claimableNow) === 0}
+                                className={`w-full font-semibold ${
+                                  Number(onchainData.data.teamVestingData.claimableNow) > 0
+                                    ? 'bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-white'
+                                    : 'bg-gray-600 text-gray-400 cursor-not-allowed'
+                                }`}
+                              >
+                                {isClaimingTeamTokens ? (
+                                  <>
+                                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                                    Claiming...
+                                  </>
+                                ) : Number(onchainData.data.teamVestingData.claimableNow) > 0 ? (
+                                  <>
+                                    👥 Claim {(Number(onchainData.data.teamVestingData.claimableNow) / 1_000_000).toLocaleString()} {market.tokenSymbol}
+                                  </>
+                                ) : (
+                                  <>
+                                    ⏳ No Tokens to Claim Yet
+                                  </>
+                                )}
+                              </Button>
+                              {Number(onchainData.data.teamVestingData.claimableNow) === 0 && onchainData.data.teamVestingData.vestingProgressPercent < 100 && (
+                                <p className="text-xs text-gray-400 italic mt-2 text-center">
+                                  Next tokens unlock in ~{Math.max(0, Math.ceil((onchainData.data.teamVestingData.nextUnlockTime! - Date.now() / 1000) / 86400))} days
+                                </p>
+                              )}
+                            </div>
+                          )}
+                        </div>
+                      )}
+
+                      {/* Team Vesting Initialize Section - Only for founder when not initialized */}
+                      {primaryWallet?.address === onchainData.data.founder && onchainData.data.tokenMint && !onchainData.data.teamVestingInitialized && (
                         <div className="bg-gradient-to-br from-amber-500/10 via-orange-500/10 to-yellow-500/10 border border-amber-400/30 rounded-lg p-4 text-left space-y-3">
                           <div className="flex items-center space-x-2">
                             <div className="p-2 bg-amber-500/20 rounded-full">
@@ -1790,7 +1952,7 @@ export default function MarketDetailsPage() {
                           <div className="space-y-2">
                             <div className="flex justify-between text-xs">
                               <span className="text-gray-400">Immediate (8%)</span>
-                              <span className="text-amber-300 font-semibold">Claimable Now</span>
+                              <span className="text-amber-300 font-semibold">Claimable after init</span>
                             </div>
                             <div className="flex justify-between text-xs">
                               <span className="text-gray-400">Vested (25%)</span>
@@ -1798,50 +1960,25 @@ export default function MarketDetailsPage() {
                             </div>
                           </div>
 
-                          {/* Initialize Vesting Button - Only show if not initialized */}
-                          {!onchainData.data.teamVestingInitialized && (
-                            <Button
-                              onClick={handleInitTeamVesting}
-                              disabled={isInitializing}
-                              className="w-full bg-gradient-to-r from-cyan-500 to-blue-500 hover:from-cyan-600 hover:to-blue-600 text-white font-semibold"
-                            >
-                              {isInitializing ? (
-                                <>
-                                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                                  Initializing...
-                                </>
-                              ) : (
-                                <>
-                                  🔧 Initialize Team Vesting
-                                </>
-                              )}
-                            </Button>
-                          )}
-
-                          {/* Claim Team Tokens Button - Only show after vesting is initialized */}
-                          {onchainData.data.teamVestingInitialized && (
-                            <Button
-                              onClick={handleClaimTeamTokens}
-                              disabled={isClaimingTeamTokens}
-                              className="w-full bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-white font-semibold"
-                            >
-                              {isClaimingTeamTokens ? (
-                                <>
-                                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                                  Claiming...
-                                </>
-                              ) : (
-                                <>
-                                  👥 Claim Team Tokens
-                                </>
-                              )}
-                            </Button>
-                          )}
+                          <Button
+                            onClick={handleInitTeamVesting}
+                            disabled={isInitializing}
+                            className="w-full bg-gradient-to-r from-cyan-500 to-blue-500 hover:from-cyan-600 hover:to-blue-600 text-white font-semibold"
+                          >
+                            {isInitializing ? (
+                              <>
+                                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                                Initializing...
+                              </>
+                            ) : (
+                              <>
+                                🔧 Initialize Team Vesting
+                              </>
+                            )}
+                          </Button>
 
                           <p className="text-xs text-gray-400 italic">
-                            {onchainData.data.teamVestingInitialized
-                              ? 'Vesting initialized! Claim your tokens (8% immediate + vested amount).'
-                              : 'First initialize vesting, then claim your tokens (8% immediate + vested amount).'}
+                            Initialize vesting to start claiming your team tokens (8% immediate + 25% over 12 months).
                           </p>
                         </div>
                       )}

@@ -297,8 +297,23 @@ export async function GET(
       poolBalance: marketAccount.poolBalance.toString(),
     });
 
-    // Check if team_vesting PDA exists (indicates team vesting has been initialized)
+    // Check if team_vesting PDA exists and parse its data
     let teamVestingInitialized = false;
+    let teamVestingData: {
+      totalTokens: string;
+      immediateTokens: string;
+      vestingTokens: string;
+      claimedTokens: string;
+      immediateClaimed: boolean;
+      vestingStart: number;
+      vestingDuration: number;
+      claimableNow: string;
+      vestedUnlocked: string;
+      vestingProgressPercent: number;
+      nextUnlockAmount: string;
+      nextUnlockTime: number | null;
+    } | null = null;
+
     try {
       const [teamVestingPda] = PublicKey.findProgramAddressSync(
         [Buffer.from('team_vesting'), marketPubkey.toBytes()],
@@ -306,6 +321,88 @@ export async function GET(
       );
       const teamVestingAccount = await connection.getAccountInfo(teamVestingPda);
       teamVestingInitialized = teamVestingAccount !== null;
+
+      if (teamVestingAccount && teamVestingAccount.data) {
+        // Parse team_vesting account data
+        // Layout: discriminator(8) + market(32) + team_wallet(32) + token_mint(32) +
+        //         total_tokens(8) + immediate_tokens(8) + vesting_tokens(8) + claimed_tokens(8) +
+        //         immediate_claimed(1) + vesting_start(8) + vesting_duration(8) + bump(1)
+        const data = teamVestingAccount.data.slice(8); // Skip discriminator
+        let offset = 0;
+
+        // Skip market, team_wallet, token_mint (32 + 32 + 32 = 96 bytes)
+        offset += 96;
+
+        const totalTokens = data.readBigUInt64LE(offset);
+        offset += 8;
+        const immediateTokens = data.readBigUInt64LE(offset);
+        offset += 8;
+        const vestingTokens = data.readBigUInt64LE(offset);
+        offset += 8;
+        const claimedTokens = data.readBigUInt64LE(offset);
+        offset += 8;
+        const immediateClaimed = data[offset] !== 0;
+        offset += 1;
+        const vestingStart = Number(data.readBigInt64LE(offset));
+        offset += 8;
+        const vestingDuration = Number(data.readBigInt64LE(offset));
+
+        // Calculate vesting progress
+        const currentTime = Math.floor(Date.now() / 1000);
+        const elapsed = Math.max(0, currentTime - vestingStart);
+        const vestingProgressPercent = Math.min(100, Math.floor((elapsed / vestingDuration) * 100));
+
+        // Calculate unlocked vested tokens (linear vesting)
+        let vestedUnlocked = BigInt(0);
+        if (elapsed >= vestingDuration) {
+          vestedUnlocked = vestingTokens;
+        } else if (elapsed > 0) {
+          vestedUnlocked = (vestingTokens * BigInt(elapsed)) / BigInt(vestingDuration);
+        }
+
+        // Calculate claimable now
+        let claimableNow = BigInt(0);
+        if (!immediateClaimed) {
+          claimableNow += immediateTokens;
+        }
+        // Add unlocked vested tokens minus what's already been claimed from vested portion
+        const vestedAlreadyClaimed = immediateClaimed
+          ? claimedTokens - immediateTokens
+          : BigInt(0);
+        const claimableVested = vestedUnlocked - (vestedAlreadyClaimed > 0 ? vestedAlreadyClaimed : BigInt(0));
+        if (claimableVested > 0) {
+          claimableNow += claimableVested;
+        }
+
+        // Calculate next unlock (monthly = duration/12)
+        const monthlyUnlock = vestingTokens / BigInt(12);
+        const monthsElapsed = Math.floor(elapsed / (vestingDuration / 12));
+        const nextUnlockTime = vestingStart + ((monthsElapsed + 1) * (vestingDuration / 12));
+        const isVestingComplete = elapsed >= vestingDuration;
+
+        teamVestingData = {
+          totalTokens: totalTokens.toString(),
+          immediateTokens: immediateTokens.toString(),
+          vestingTokens: vestingTokens.toString(),
+          claimedTokens: claimedTokens.toString(),
+          immediateClaimed,
+          vestingStart,
+          vestingDuration,
+          claimableNow: claimableNow.toString(),
+          vestedUnlocked: vestedUnlocked.toString(),
+          vestingProgressPercent,
+          nextUnlockAmount: monthlyUnlock.toString(),
+          nextUnlockTime: isVestingComplete ? null : nextUnlockTime,
+        };
+
+        logger.info('Team vesting data parsed', {
+          teamVestingPda: teamVestingPda.toBase58(),
+          totalTokens: totalTokens.toString(),
+          claimedTokens: claimedTokens.toString(),
+          claimableNow: claimableNow.toString(),
+        });
+      }
+
       logger.info('Team vesting PDA check', {
         teamVestingPda: teamVestingPda.toBase58(),
         exists: teamVestingInitialized
@@ -395,6 +492,7 @@ export async function GET(
       excessSolInSol: Number(marketAccount.founderExcessSolAllocated) / 1_000_000_000,
       // Team vesting - separate PDA check
       teamVestingInitialized,
+      teamVestingData,
     };
 
     return NextResponse.json(
