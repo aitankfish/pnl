@@ -372,21 +372,20 @@ export default function HomePage() {
               className="absolute inset-0 -z-10 flex items-center justify-center pointer-events-none"
               style={{ top: '75%' }}
               initial={{ opacity: 0, scale: 0.3 }}
-              animate={{ opacity: 0.25, scale: 1.2 }}
+              animate={{ opacity: 0.15, scale: 1.2 }}
               transition={{ duration: 2.5, delay: 0.5, ease: 'easeOut' }}
             >
-              <div className="w-80 h-80 md:w-[450px] md:h-[450px] bg-gradient-to-r from-yellow-200/60 via-orange-200/60 to-yellow-100/60 rounded-full blur-3xl animate-pulse"></div>
+              <div className="w-48 h-48 sm:w-64 sm:h-64 md:w-[450px] md:h-[450px] bg-gradient-to-r from-yellow-200/40 via-orange-200/40 to-yellow-100/40 sm:from-yellow-200/50 sm:via-orange-200/50 sm:to-yellow-100/50 md:from-yellow-200/60 md:via-orange-200/60 md:to-yellow-100/60 rounded-full blur-2xl sm:blur-3xl animate-pulse"></div>
             </motion.div>
 
             {/* Headline text - Appears after glow */}
             <div>
               <motion.span
-                className="text-transparent bg-clip-text cursor-pointer relative inline-block overflow-hidden"
+                className="text-transparent bg-clip-text cursor-pointer relative inline-block overflow-hidden drop-shadow-sm sm:drop-shadow-md"
                 style={{
                   backgroundImage: 'linear-gradient(to right, rgb(156 163 175) 0%, rgb(209 213 219) 50%, rgb(156 163 175) 100%)',
                   backgroundSize: '200% 100%',
                   backgroundPosition: '0% 0%',
-                  filter: 'drop-shadow(0 0 12px rgba(209, 213, 219, 0.4)) drop-shadow(0 0 6px rgba(156, 163, 175, 0.3)) drop-shadow(0 2px 6px rgba(0, 0, 0, 0.3))',
                   WebkitTextStroke: '0.5px rgba(180, 180, 180, 0.3)',
                   transition: 'background-position 0.3s ease, filter 0.3s ease',
                 }}
@@ -403,7 +402,7 @@ export default function HomePage() {
                 onMouseLeave={(e) => {
                   e.currentTarget.style.backgroundImage = 'linear-gradient(to right, rgb(156 163 175) 0%, rgb(209 213 219) 50%, rgb(156 163 175) 100%)';
                   e.currentTarget.style.backgroundPosition = '0% 0%';
-                  e.currentTarget.style.filter = 'drop-shadow(0 0 12px rgba(209, 213, 219, 0.4)) drop-shadow(0 0 6px rgba(156, 163, 175, 0.3)) drop-shadow(0 2px 6px rgba(0, 0, 0, 0.3))';
+                  e.currentTarget.style.filter = '';
                 }}
               >
                 Discover Ideas
@@ -420,18 +419,18 @@ export default function HomePage() {
                 }}
                 style={{
                   whiteSpace: 'nowrap',
-                  filter: 'drop-shadow(0 0 20px rgba(251, 146, 60, 0.6))',
                   transition: 'all 0.4s ease',
                 }}
                 whileHover={{
                   scale: 1.05,
-                  filter: 'drop-shadow(0 0 40px rgba(251, 146, 60, 1)) drop-shadow(0 0 60px rgba(234, 179, 8, 0.8))',
                 }}
                 onMouseEnter={(e) => {
                   e.currentTarget.style.backgroundImage = 'linear-gradient(to right, rgb(234 179 8) 0%, rgb(251 146 60) 50%, rgb(245 158 11) 100%)';
+                  e.currentTarget.style.filter = 'drop-shadow(0 0 30px rgba(251, 146, 60, 0.8))';
                 }}
                 onMouseLeave={(e) => {
                   e.currentTarget.style.backgroundImage = '';
+                  e.currentTarget.style.filter = '';
                 }}
               >
                 In Their Genesis
