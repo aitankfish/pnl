@@ -14,10 +14,70 @@ Add real-time chat and voice communication to each market page, turning every pr
 
 ## Research Summary
 
-### Two Main Options Evaluated
+### Three Main Options Evaluated
 
-1. **Rocket.Chat** - Production-ready, feature-complete
-2. **free4chat** - Lightweight, privacy-first, Elixir-based
+1. **SolChat** - Web3-native, on-chain messaging (NEW - Recommended)
+2. **Rocket.Chat** - Production-ready, feature-complete
+3. **free4chat** - Lightweight, privacy-first, Elixir-based
+
+---
+
+## SolChat (Recommended - Web3 Native)
+
+### Overview
+SolChat is a decentralized messaging protocol built on Solana with encrypted wallet-to-wallet communication and on-chain message storage. Perfect fit for our prediction market platform.
+
+### Pros
+- ✅ **Web3-native** - Wallet auth built-in (matches our Privy stack)
+- ✅ On-chain message storage (immutable, censorship-resistant)
+- ✅ End-to-end encryption
+- ✅ Text + voice + video via WebRTC
+- ✅ Integrated payments (send SOL/SPL tokens in chat)
+- ✅ No separate infrastructure needed (uses Solana RPC)
+- ✅ TypeScript SDK available
+- ✅ Position badges easy - can query on-chain positions directly
+- ✅ MIT license - fully open source
+
+### Cons
+- ❌ Gas costs per message (~$0.0001 per message)
+- ❌ Newer project, smaller community
+- ❌ SDK uses Metaplex Umi (different from our @solana/web3.js)
+- ❌ No npm package yet (must clone repo)
+- ❌ Group size limits (on-chain storage constraints)
+- ❌ Less battle-tested than Rocket.Chat
+
+### Cost Breakdown (Monthly)
+- **Small (1000 messages/day)**: ~$3/mo in gas fees
+- **Medium (5000 messages/day)**: ~$15/mo in gas fees
+- **Large (20000 messages/day)**: ~$60/mo in gas fees
+- **Note**: No server costs - uses existing Solana RPC
+
+### SDK Details
+- **GitHub**: https://github.com/solchatapp/solchat-sdk
+- **Mainnet Program**: `3RwiUiCrxqsnbSBkbqAdRCY3n9RdwJHG9MVeSmtG7PSs`
+- **Devnet Program**: `5zf6JLJTTHobHboH7X17k5x3TeACiziomehjAGRx6PYq`
+
+### SDK Functions
+```typescript
+// User management
+initializeUser, fetchUser, fetchAllUser
+
+// Group management
+createGroup, createGroupWithUser, addUserToGroup, fetchGroup, fetchAllGroup
+
+// Messaging
+sendMessage, sendMessageToGroup, fetchDecryptedMessages, acceptChat, leaveChat
+
+// Encryption
+encryptWithAES, decryptWithAES, generateRsaKeypairFromSeed
+```
+
+### Why SolChat for PLP?
+1. **Wallet-based identity** - Already using Privy for wallet auth
+2. **On-chain positions** - Can show YES/NO badges from on-chain data
+3. **Token integration** - Users can tip creators or send tokens
+4. **Censorship-resistant** - Aligns with decentralized prediction markets
+5. **No extra infrastructure** - Already have Solana RPC configured
 
 ---
 
@@ -121,8 +181,36 @@ https://github.com/i365dev/free4chat
 
 ## Recommended Implementation Strategy
 
-### Phase 1: Quick Launch (Week 1-4)
-**Use Rocket.Chat**
+### Option A: SolChat (Recommended for Web3-Native Experience)
+
+**Phase 1: Devnet Proof of Concept (Week 1-2)**
+1. Clone SolChat SDK from GitHub
+2. Test on devnet with one market
+3. Integrate with existing Privy wallet auth
+4. Build React component wrapper
+5. Measure gas costs and latency
+
+**Phase 2: Mainnet Integration (Week 3-4)**
+1. Deploy to mainnet
+2. Add position badges (YES/NO from on-chain data)
+3. Add voice room via WebRTC
+4. Style to match brand
+5. Launch to production
+
+**Total Cost**: ~$3-15/mo (gas fees only, no server costs)
+
+**This approach:**
+- ✅ Web3-native (wallet auth built-in)
+- ✅ On-chain messages (censorship-resistant)
+- ✅ No extra infrastructure
+- ✅ Position badges from on-chain data
+- ⚠️ Gas costs scale with usage
+
+---
+
+### Option B: Rocket.Chat (Quick Launch Alternative)
+
+**Phase 1: Quick Launch (Week 1-2)**
 1. Deploy Rocket.Chat on Hetzner (€4.99/mo)
 2. Deploy MongoDB (€4.99/mo)
 3. Integrate REST API for auto-channel creation per `marketAddress`
@@ -132,26 +220,18 @@ https://github.com/i365dev/free4chat
 
 **Total Cost**: ~$11-17/mo
 
-### Phase 2: Monitor & Validate (Month 1-3)
+**Phase 2: Monitor & Validate (Month 1-3)**
 - Track usage metrics (active chatters, messages/day, engagement rate)
 - Monitor server costs and performance
 - Gather user feedback
 - Decide if chat is valuable enough to continue
 
-### Phase 3: Optimize (Month 4+) - IF NEEDED
-**If costs climb OR want more control:**
-1. Fork free4chat
-2. Customize for our use case
-3. Add wallet authentication
-4. Add moderation features
-5. Migrate users from Rocket.Chat
-6. Reduce costs by ~50%
-
 **This approach:**
-- ✅ Ships quickly (1 week vs 3 weeks)
-- ✅ Validates demand before over-engineering
-- ✅ Provides escape hatch if needed
-- ✅ Learns what users actually want
+- ✅ Ships quickly (1 week)
+- ✅ Battle-tested (40k+ GitHub stars)
+- ✅ Full feature set out of box
+- ❌ Not web3-native (need custom wallet auth)
+- ❌ Requires separate infrastructure
 
 ---
 
@@ -201,6 +281,13 @@ Replace or extend the LiveActivityFeed section (lines 1974-1988) with tabbed int
 
 ## Technical Resources
 
+### SolChat (Recommended)
+- SDK: https://github.com/solchatapp/solchat-sdk
+- Website: https://www.solchat.io
+- Mainnet Program: `3RwiUiCrxqsnbSBkbqAdRCY3n9RdwJHG9MVeSmtG7PSs`
+- Devnet Program: `5zf6JLJTTHobHboH7X17k5x3TeACiziomehjAGRx6PYq`
+- Dependencies: `@metaplex-foundation/umi`, `@metaplex-foundation/umi-bundle-defaults`
+
 ### Rocket.Chat
 - Docs: https://docs.rocket.chat
 - API: https://developer.rocket.chat/reference/api
@@ -242,19 +329,22 @@ Replace or extend the LiveActivityFeed section (lines 1974-1988) with tabbed int
 
 ## Cost Summary
 
-| Solution | Small Scale | Medium Scale | Large Scale | Dev Time |
-|----------|-------------|--------------|-------------|----------|
-| **Rocket.Chat** | $11-17/mo | $17-28/mo | $39-56/mo | 1 week |
-| **free4chat** | $6-11/mo | $11-17/mo | $17-28/mo | 2-3 weeks |
-| **Stream + Huddle01** | $0-100/mo | $100-200/mo | $200+/mo | 1-2 weeks |
-| **Custom Build** | $6/mo | $12/mo | $24/mo | 3-4 weeks |
+| Solution | Small Scale | Medium Scale | Large Scale | Dev Time | Web3 Native |
+|----------|-------------|--------------|-------------|----------|-------------|
+| **SolChat** | $3/mo | $15/mo | $60/mo | 2-3 weeks | ✅ Yes |
+| **Rocket.Chat** | $11-17/mo | $17-28/mo | $39-56/mo | 1 week | ❌ No |
+| **free4chat** | $6-11/mo | $11-17/mo | $17-28/mo | 2-3 weeks | ❌ No |
+| **Stream + Huddle01** | $0-100/mo | $100-200/mo | $200+/mo | 1-2 weeks | ⚠️ Partial |
+| **Custom Build** | $6/mo | $12/mo | $24/mo | 3-4 weeks | ✅ Yes |
 
-**Recommendation**: Start with Rocket.Chat for quick launch, migrate to free4chat if needed later.
+**Recommendation**: Use **SolChat** for web3-native experience that aligns with the prediction market ethos. Fall back to Rocket.Chat if SolChat proves too immature or gas costs become prohibitive.
 
 ---
 
 ## Notes
 - This task is for future implementation - not immediate priority
-- Research completed: November 30, 2025
+- Initial research completed: November 30, 2025
+- SolChat research added: December 15, 2025
+- **New recommendation**: SolChat for web3-native experience
 - Decision: Launch when ready to add community features
 - Alternative: Could also integrate Discord/Telegram bots as interim solution
