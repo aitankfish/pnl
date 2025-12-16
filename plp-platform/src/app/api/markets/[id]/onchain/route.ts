@@ -360,19 +360,28 @@ export async function GET(
           vestedUnlocked = (vestingTokens * BigInt(elapsed)) / BigInt(vestingDuration);
         }
 
-        // Calculate claimable now
+        // Calculate claimable now (matching Rust logic exactly)
         let claimableNow = BigInt(0);
+
+        // Add immediate tokens if not yet claimed
         if (!immediateClaimed) {
           claimableNow += immediateTokens;
         }
-        // Add unlocked vested tokens minus what's already been claimed from vested portion
-        const vestedAlreadyClaimed = immediateClaimed
-          ? claimedTokens - immediateTokens
+
+        // Calculate vested tokens already claimed
+        // Rust: vested_claimed = claimed_tokens.saturating_sub(if immediate_claimed { immediate_tokens } else { 0 })
+        const immediateSubtract = immediateClaimed ? immediateTokens : BigInt(0);
+        const vestedAlreadyClaimed = claimedTokens > immediateSubtract
+          ? claimedTokens - immediateSubtract
           : BigInt(0);
-        const claimableVested = vestedUnlocked - (vestedAlreadyClaimed > 0 ? vestedAlreadyClaimed : BigInt(0));
-        if (claimableVested > 0) {
-          claimableNow += claimableVested;
-        }
+
+        // Add unlocked vested tokens minus what's already been claimed from vested portion
+        // Rust: claimable_vested = unlocked_vested.saturating_sub(vested_claimed)
+        const claimableVested = vestedUnlocked > vestedAlreadyClaimed
+          ? vestedUnlocked - vestedAlreadyClaimed
+          : BigInt(0);
+
+        claimableNow += claimableVested;
 
         // Calculate next unlock (monthly = duration/12)
         const monthlyUnlock = vestingTokens / BigInt(12);

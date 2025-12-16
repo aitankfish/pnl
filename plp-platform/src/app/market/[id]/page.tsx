@@ -858,6 +858,11 @@ export default function MarketDetailsPage() {
   const handleClaimTeamTokens = async () => {
     if (!market || !onchainData?.success) return;
 
+    // Store claimable amount before claiming for success message
+    const claimableAmount = onchainData.data.teamVestingData?.claimableNow
+      ? (Number(onchainData.data.teamVestingData.claimableNow) / 1_000_000).toLocaleString()
+      : '0';
+
     const result = await claimTeamTokens({
       marketAddress: market.marketAddress,
       tokenMint: onchainData.data.tokenMint || '',
@@ -866,12 +871,26 @@ export default function MarketDetailsPage() {
     if (result.success) {
       refetchOnchainData();
 
-      setToastMessage('✅ Team tokens claimed successfully!');
+      setToastMessage(`✅ Claimed ${claimableAmount} ${market.tokenSymbol} tokens!`);
       setShowToast(true);
       setTimeout(() => setShowToast(false), 3000);
     } else {
       const parsedError = parseError(result.error);
-      setToastMessage(`❌ ${parsedError.title}: ${parsedError.message}`);
+
+      // Check if error is about insufficient balance (no tokens to claim)
+      const errorStr = String(result.error).toLowerCase();
+      if (errorStr.includes('insufficient') || errorStr.includes('balance') || errorStr.includes('0x1')) {
+        // Show next unlock time if available
+        const nextUnlockTime = onchainData.data.teamVestingData?.nextUnlockTime;
+        if (nextUnlockTime) {
+          const daysUntilUnlock = Math.max(0, Math.ceil((nextUnlockTime - Date.now() / 1000) / 86400));
+          setToastMessage(`⏳ No tokens to claim yet. Next unlock in ~${daysUntilUnlock} days.`);
+        } else {
+          setToastMessage('⏳ No tokens available to claim right now.');
+        }
+      } else {
+        setToastMessage(`❌ ${parsedError.title}: ${parsedError.message}`);
+      }
       setShowToast(true);
       setTimeout(() => setShowToast(false), 5000);
     }
