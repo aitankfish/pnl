@@ -920,6 +920,11 @@ export default function MarketDetailsPage() {
   const handleClaimFounderSol = async () => {
     if (!market || !onchainData?.success) return;
 
+    // Store claimable amount before claiming for success message
+    const claimableAmount = onchainData.data.founderVestingData?.claimableNow
+      ? (Number(onchainData.data.founderVestingData.claimableNow) / 1_000_000_000).toFixed(4)
+      : '0';
+
     const result = await claimFounderSol({
       marketAddress: market.marketAddress,
     });
@@ -927,12 +932,26 @@ export default function MarketDetailsPage() {
     if (result.success) {
       refetchOnchainData();
 
-      setToastMessage('✅ Founder SOL claimed successfully!');
+      setToastMessage(`✅ Claimed ${claimableAmount} SOL!`);
       setShowToast(true);
       setTimeout(() => setShowToast(false), 3000);
     } else {
       const parsedError = parseError(result.error);
-      setToastMessage(`❌ ${parsedError.title}: ${parsedError.message}`);
+
+      // Check if error is about insufficient balance (no SOL to claim)
+      const errorStr = String(result.error).toLowerCase();
+      if (errorStr.includes('insufficient') || errorStr.includes('nothing') || errorStr.includes('0x1') || errorStr.includes('nothingtoclaim')) {
+        // Show next unlock time if available
+        const nextUnlockTime = onchainData.data.founderVestingData?.nextUnlockTime;
+        if (nextUnlockTime) {
+          const daysUntilUnlock = Math.max(0, Math.ceil((nextUnlockTime - Date.now() / 1000) / 86400));
+          setToastMessage(`⏳ No SOL to claim yet. Next unlock in ~${daysUntilUnlock} days.`);
+        } else {
+          setToastMessage('⏳ No SOL available to claim right now.');
+        }
+      } else {
+        setToastMessage(`❌ ${parsedError.title}: ${parsedError.message}`);
+      }
       setShowToast(true);
       setTimeout(() => setShowToast(false), 5000);
     }
@@ -2012,64 +2031,142 @@ export default function MarketDetailsPage() {
                             <h4 className="text-emerald-400 text-sm font-semibold">Excess SOL Allocation</h4>
                           </div>
 
-                          <div className="space-y-2">
-                            <div className="flex justify-between text-xs">
-                              <span className="text-gray-400">Total Excess SOL</span>
-                              <span className="text-emerald-300 font-semibold">{onchainData.data.excessSolInSol?.toFixed(4)} SOL</span>
-                            </div>
-                            <div className="flex justify-between text-xs">
-                              <span className="text-gray-400">Immediate (8%)</span>
-                              <span className="text-teal-300 font-semibold">{(onchainData.data.excessSolInSol * 0.08)?.toFixed(4)} SOL</span>
-                            </div>
-                            <div className="flex justify-between text-xs">
-                              <span className="text-gray-400">Vested (92%)</span>
-                              <span className="text-cyan-300 font-semibold">{(onchainData.data.excessSolInSol * 0.92)?.toFixed(4)} SOL over 12 months</span>
-                            </div>
-                          </div>
+                          {/* Show actual vesting data if initialized, otherwise show estimates */}
+                          {onchainData.data.founderVestingInitialized && onchainData.data.founderVestingData ? (
+                            <>
+                              {/* Vesting Progress Bar */}
+                              <div className="space-y-1">
+                                <div className="flex justify-between text-xs">
+                                  <span className="text-gray-400">Vesting Progress</span>
+                                  <span className="text-emerald-300 font-semibold">{onchainData.data.founderVestingData.vestingProgressPercent.toFixed(1)}%</span>
+                                </div>
+                                <div className="w-full bg-gray-700/50 rounded-full h-2 overflow-hidden">
+                                  <div
+                                    className="bg-gradient-to-r from-emerald-500 to-teal-500 h-full rounded-full transition-all duration-500"
+                                    style={{ width: `${Math.min(100, onchainData.data.founderVestingData.vestingProgressPercent)}%` }}
+                                  />
+                                </div>
+                              </div>
 
-                          {/* Initialize SOL Vesting Button */}
-                          {!onchainData.data.founderVestingInitialized && (
-                            <Button
-                              onClick={handleInitFounderSolVesting}
-                              disabled={isInitializingFounderSol}
-                              className="w-full bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-600 hover:to-teal-600 text-white font-semibold"
-                            >
-                              {isInitializingFounderSol ? (
-                                <>
-                                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                                  Initializing...
-                                </>
-                              ) : (
-                                <>
-                                  🔧 Initialize SOL Vesting
-                                </>
+                              {/* SOL Breakdown */}
+                              <div className="space-y-2 pt-2 border-t border-white/10">
+                                <div className="flex justify-between text-xs">
+                                  <span className="text-gray-400">Total Excess SOL</span>
+                                  <span className="text-white font-semibold">
+                                    {(Number(onchainData.data.founderVestingData.totalSol) / 1_000_000_000).toFixed(4)} SOL
+                                  </span>
+                                </div>
+                                <div className="flex justify-between text-xs">
+                                  <span className="text-gray-400">Immediate (8%)</span>
+                                  <span className={`font-semibold ${onchainData.data.founderVestingData.immediateClaimed ? 'text-green-400' : 'text-teal-300'}`}>
+                                    {(Number(onchainData.data.founderVestingData.immediateSol) / 1_000_000_000).toFixed(4)} SOL
+                                    {onchainData.data.founderVestingData.immediateClaimed && ' ✓ Claimed'}
+                                  </span>
+                                </div>
+                                <div className="flex justify-between text-xs">
+                                  <span className="text-gray-400">Vested (92%)</span>
+                                  <span className="text-cyan-300 font-semibold">
+                                    {(Number(onchainData.data.founderVestingData.vestingSol) / 1_000_000_000).toFixed(4)} SOL
+                                  </span>
+                                </div>
+                                <div className="flex justify-between text-xs">
+                                  <span className="text-gray-400">Vested Unlocked</span>
+                                  <span className="text-teal-300 font-semibold">
+                                    {(Number(onchainData.data.founderVestingData.vestedUnlocked) / 1_000_000_000).toFixed(4)} SOL
+                                  </span>
+                                </div>
+                                <div className="flex justify-between text-xs">
+                                  <span className="text-gray-400">Already Claimed</span>
+                                  <span className="text-green-400 font-semibold">
+                                    {(Number(onchainData.data.founderVestingData.claimedSol) / 1_000_000_000).toFixed(4)} SOL
+                                  </span>
+                                </div>
+                              </div>
+
+                              {/* Next Unlock Info */}
+                              {onchainData.data.founderVestingData.vestingProgressPercent < 100 && onchainData.data.founderVestingData.nextUnlockTime && (
+                                <div className="flex justify-between text-xs pt-2 border-t border-white/10">
+                                  <span className="text-gray-400">Next Unlock</span>
+                                  <span className="text-purple-300 font-semibold">
+                                    {(Number(onchainData.data.founderVestingData.nextUnlockAmount) / 1_000_000_000).toFixed(4)} SOL in {Math.max(0, Math.ceil((onchainData.data.founderVestingData.nextUnlockTime - Date.now() / 1000) / 86400))} days
+                                  </span>
+                                </div>
                               )}
-                            </Button>
-                          )}
 
-                          {/* Claim SOL Button - Only after vesting is initialized */}
-                          {onchainData.data.founderVestingInitialized && (
-                            <Button
-                              onClick={handleClaimFounderSol}
-                              disabled={isClaimingFounderSol}
-                              className="w-full bg-gradient-to-r from-teal-500 to-cyan-500 hover:from-teal-600 hover:to-cyan-600 text-white font-semibold"
-                            >
-                              {isClaimingFounderSol ? (
-                                <>
-                                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                                  Claiming...
-                                </>
-                              ) : (
-                                <>
-                                  💰 Claim SOL
-                                </>
-                              )}
-                            </Button>
-                          )}
+                              {/* Claim Button */}
+                              <div className="pt-3 border-t border-white/10">
+                                <Button
+                                  onClick={handleClaimFounderSol}
+                                  disabled={isClaimingFounderSol || Number(onchainData.data.founderVestingData.claimableNow) === 0}
+                                  className={`w-full font-semibold ${
+                                    Number(onchainData.data.founderVestingData.claimableNow) > 0
+                                      ? 'bg-gradient-to-r from-teal-500 to-cyan-500 hover:from-teal-600 hover:to-cyan-600 text-white'
+                                      : 'bg-gray-600 text-gray-400 cursor-not-allowed'
+                                  }`}
+                                >
+                                  {isClaimingFounderSol ? (
+                                    <>
+                                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                                      Claiming...
+                                    </>
+                                  ) : Number(onchainData.data.founderVestingData.claimableNow) > 0 ? (
+                                    <>
+                                      💰 Claim {(Number(onchainData.data.founderVestingData.claimableNow) / 1_000_000_000).toFixed(4)} SOL
+                                    </>
+                                  ) : (
+                                    <>
+                                      ⏳ No SOL to Claim Yet
+                                    </>
+                                  )}
+                                </Button>
+                                {Number(onchainData.data.founderVestingData.claimableNow) === 0 && onchainData.data.founderVestingData.vestingProgressPercent < 100 && (
+                                  <p className="text-xs text-gray-400 italic mt-2 text-center">
+                                    Next SOL unlock in ~{Math.max(0, Math.ceil((onchainData.data.founderVestingData.nextUnlockTime! - Date.now() / 1000) / 86400))} days
+                                  </p>
+                                )}
+                              </div>
+                            </>
+                          ) : (
+                            <>
+                              {/* Show estimates before vesting is initialized */}
+                              <div className="space-y-2">
+                                <div className="flex justify-between text-xs">
+                                  <span className="text-gray-400">Total Excess SOL</span>
+                                  <span className="text-emerald-300 font-semibold">{onchainData.data.excessSolInSol?.toFixed(4)} SOL</span>
+                                </div>
+                                <div className="flex justify-between text-xs">
+                                  <span className="text-gray-400">Immediate (8%)</span>
+                                  <span className="text-teal-300 font-semibold">{(onchainData.data.excessSolInSol * 0.08)?.toFixed(4)} SOL</span>
+                                </div>
+                                <div className="flex justify-between text-xs">
+                                  <span className="text-gray-400">Vested (92%)</span>
+                                  <span className="text-cyan-300 font-semibold">{(onchainData.data.excessSolInSol * 0.92)?.toFixed(4)} SOL over 12 months</span>
+                                </div>
+                              </div>
 
-                          <p className="text-xs text-gray-400 italic">
-                            Pool exceeded 50 SOL. 50 SOL was used for token launch, the rest is yours with vesting.
-                          </p>
+                              {/* Initialize SOL Vesting Button */}
+                              <Button
+                                onClick={handleInitFounderSolVesting}
+                                disabled={isInitializingFounderSol}
+                                className="w-full bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-600 hover:to-teal-600 text-white font-semibold"
+                              >
+                                {isInitializingFounderSol ? (
+                                  <>
+                                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                                    Initializing...
+                                  </>
+                                ) : (
+                                  <>
+                                    🔧 Initialize SOL Vesting
+                                  </>
+                                )}
+                              </Button>
+
+                              <p className="text-xs text-gray-400 italic">
+                                Pool exceeded 50 SOL. 50 SOL was used for token launch, the rest is yours with vesting.
+                              </p>
+                            </>
+                          )}
                         </div>
                       )}
                     </div>

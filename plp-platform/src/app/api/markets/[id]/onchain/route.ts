@@ -420,6 +420,123 @@ export async function GET(
       logger.warn('Failed to check team vesting PDA', { error });
     }
 
+    // Check if founder_vesting PDA exists and parse its data
+    let founderVestingData: {
+      totalSol: string;
+      immediateSol: string;
+      vestingSol: string;
+      claimedSol: string;
+      immediateClaimed: boolean;
+      vestingStart: number;
+      vestingDuration: number;
+      claimableNow: string;
+      vestedUnlocked: string;
+      vestingProgressPercent: number;
+      nextUnlockAmount: string;
+      nextUnlockTime: number | null;
+    } | null = null;
+
+    try {
+      // Only parse if founder vesting is initialized
+      if (marketAccount.founderVestingInitialized) {
+        const [founderVestingPda] = PublicKey.findProgramAddressSync(
+          [Buffer.from('founder_vesting'), marketPubkey.toBytes()],
+          PROGRAM_ID
+        );
+        const founderVestingAccount = await connection.getAccountInfo(founderVestingPda);
+
+        if (founderVestingAccount && founderVestingAccount.data) {
+          // Parse founder_vesting account data
+          // Layout: discriminator(8) + market(32) + founder(32) +
+          //         total_sol(8) + immediate_sol(8) + vesting_sol(8) + claimed_sol(8) +
+          //         immediate_claimed(1) + vesting_start(8) + vesting_duration(8) + bump(1)
+          const data = founderVestingAccount.data.slice(8); // Skip discriminator
+          let offset = 0;
+
+          // Skip market, founder (32 + 32 = 64 bytes)
+          offset += 64;
+
+          const totalSol = data.readBigUInt64LE(offset);
+          offset += 8;
+          const immediateSol = data.readBigUInt64LE(offset);
+          offset += 8;
+          const vestingSol = data.readBigUInt64LE(offset);
+          offset += 8;
+          const claimedSol = data.readBigUInt64LE(offset);
+          offset += 8;
+          const immediateClaimed = data[offset] !== 0;
+          offset += 1;
+          const vestingStart = Number(data.readBigInt64LE(offset));
+          offset += 8;
+          const vestingDuration = Number(data.readBigInt64LE(offset));
+
+          // Calculate vesting progress
+          const currentTime = Math.floor(Date.now() / 1000);
+          const elapsed = Math.max(0, currentTime - vestingStart);
+          const vestingProgressPercent = Math.min(100, Math.floor((elapsed / vestingDuration) * 100));
+
+          // Calculate unlocked vested SOL (linear vesting)
+          let vestedUnlocked = BigInt(0);
+          if (elapsed >= vestingDuration) {
+            vestedUnlocked = vestingSol;
+          } else if (elapsed > 0) {
+            vestedUnlocked = (vestingSol * BigInt(elapsed)) / BigInt(vestingDuration);
+          }
+
+          // Calculate claimable now (matching Rust logic exactly)
+          let claimableNow = BigInt(0);
+
+          // Add immediate SOL if not yet claimed
+          if (!immediateClaimed) {
+            claimableNow += immediateSol;
+          }
+
+          // Calculate vested SOL already claimed
+          const immediateSubtract = immediateClaimed ? immediateSol : BigInt(0);
+          const vestedAlreadyClaimed = claimedSol > immediateSubtract
+            ? claimedSol - immediateSubtract
+            : BigInt(0);
+
+          // Add unlocked vested SOL minus what's already been claimed
+          const claimableVested = vestedUnlocked > vestedAlreadyClaimed
+            ? vestedUnlocked - vestedAlreadyClaimed
+            : BigInt(0);
+
+          claimableNow += claimableVested;
+
+          // Calculate next unlock (monthly = duration/12)
+          const monthlyUnlock = vestingSol / BigInt(12);
+          const monthsElapsed = Math.floor(elapsed / (vestingDuration / 12));
+          const nextUnlockTime = vestingStart + ((monthsElapsed + 1) * (vestingDuration / 12));
+          const isVestingComplete = elapsed >= vestingDuration;
+
+          founderVestingData = {
+            totalSol: totalSol.toString(),
+            immediateSol: immediateSol.toString(),
+            vestingSol: vestingSol.toString(),
+            claimedSol: claimedSol.toString(),
+            immediateClaimed,
+            vestingStart,
+            vestingDuration,
+            claimableNow: claimableNow.toString(),
+            vestedUnlocked: vestedUnlocked.toString(),
+            vestingProgressPercent,
+            nextUnlockAmount: monthlyUnlock.toString(),
+            nextUnlockTime: isVestingComplete ? null : nextUnlockTime,
+          };
+
+          logger.info('Founder vesting data parsed', {
+            founderVestingPda: founderVestingPda.toBase58(),
+            totalSol: totalSol.toString(),
+            claimedSol: claimedSol.toString(),
+            claimableNow: claimableNow.toString(),
+          });
+        }
+      }
+    } catch (error) {
+      logger.warn('Failed to check founder vesting PDA', { error });
+    }
+
     // Convert phase enum byte to string
     // 0=Prediction, 1=Funding
     let phaseStatus: 'Prediction' | 'Funding';
@@ -502,6 +619,8 @@ export async function GET(
       // Team vesting - separate PDA check
       teamVestingInitialized,
       teamVestingData,
+      // Founder SOL vesting data
+      founderVestingData,
     };
 
     return NextResponse.json(
