@@ -159,10 +159,10 @@ function Sidebar({ currentPage }: SidebarProps) {
   }, [unreadCount, currentPage]);
 
   return (
-    <div className={`fixed bottom-2 sm:bottom-auto sm:top-4 left-1/2 -translate-x-1/2 z-50 w-full max-w-6xl px-1 sm:px-4 transition-transform duration-300 ${
-      isVisible ? 'translate-y-0' : 'translate-y-20 sm:-translate-y-20'
+    <div className={`fixed top-4 left-1/2 -translate-x-1/2 z-50 w-full max-w-6xl px-1 sm:px-4 transition-transform duration-300 ${
+      isVisible ? 'translate-y-0' : '-translate-y-20'
     }`}>
-      <div className="bg-black/70 sm:bg-black/20 backdrop-blur-xl rounded-2xl shadow-2xl shadow-white/5 p-1.5 sm:p-4 relative overflow-visible">
+      <div className="bg-black/20 backdrop-blur-xl rounded-2xl shadow-2xl shadow-white/5 p-1.5 sm:p-4 relative overflow-visible">
         {/* Space Background Elements */}
         <div className="absolute inset-0 opacity-20 overflow-hidden rounded-2xl">
           <div className="absolute top-2 left-8 w-1 h-1 bg-white rounded-full animate-pulse"></div>
