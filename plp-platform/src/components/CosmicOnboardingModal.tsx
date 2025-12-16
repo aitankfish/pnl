@@ -273,7 +273,7 @@ export default function CosmicOnboardingModal({ isOpen, onClose, onJoinUniverse,
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
-              className="fixed inset-0 z-[60] bg-black/80 backdrop-blur-lg flex items-center justify-center"
+              className="fixed inset-0 z-[60] bg-black/80 backdrop-blur-lg flex items-center justify-center px-4"
             >
               <div className="text-center">
                 <motion.div
@@ -283,14 +283,14 @@ export default function CosmicOnboardingModal({ isOpen, onClose, onJoinUniverse,
                     repeat: Infinity,
                     ease: "linear",
                   }}
-                  className="mx-auto mb-6"
+                  className="mx-auto mb-4 sm:mb-6"
                 >
-                  <Sparkles className="w-16 h-16 text-cyan-300" />
+                  <Sparkles className="w-12 h-12 sm:w-16 sm:h-16 text-cyan-300" />
                 </motion.div>
-                <p className="text-white text-2xl font-medium mb-3">
+                <p className="text-white text-lg sm:text-2xl font-medium mb-2 sm:mb-3">
                   {isWaitingForAuth || isSettingUpProfile ? 'Waiting for authentication...' : 'Setting up your cosmic profile...'}
                 </p>
-                <p className="text-gray-400 text-base">
+                <p className="text-gray-400 text-sm sm:text-base">
                   {isWaitingForAuth || isSettingUpProfile ? 'Complete login in the Privy window' : 'Uploading to the stars'}
                 </p>
               </div>
@@ -308,9 +308,9 @@ export default function CosmicOnboardingModal({ isOpen, onClose, onJoinUniverse,
                   animate={{ opacity: 1, scale: 1 }}
                   exit={{ opacity: 0, scale: 1.2 }}
                   transition={{ duration: 0.6, ease: [0.16, 1, 0.3, 1] }}
-                  className="text-center"
+                  className="text-center px-4 w-full max-w-4xl"
                 >
-                  <div className="text-6xl md:text-8xl font-bold overflow-hidden flex items-center justify-center gap-3">
+                  <div className="text-4xl sm:text-5xl md:text-7xl lg:text-8xl font-bold overflow-hidden flex flex-col sm:flex-row items-center justify-center gap-2 sm:gap-3">
                     <motion.span
                       className="bg-gradient-to-r from-cyan-300 via-purple-300 to-pink-300 bg-clip-text text-transparent inline-block"
                       initial={{ y: 20, opacity: 0 }}
@@ -320,7 +320,7 @@ export default function CosmicOnboardingModal({ isOpen, onClose, onJoinUniverse,
                       Hi,
                     </motion.span>
                     <motion.span
-                      className="bg-gradient-to-r from-cyan-300 via-purple-300 to-pink-300 bg-clip-text text-transparent inline-block whitespace-nowrap"
+                      className="bg-gradient-to-r from-cyan-300 via-purple-300 to-pink-300 bg-clip-text text-transparent inline-block"
                       style={{
                         overflow: 'hidden',
                         display: 'inline-block',
@@ -332,7 +332,7 @@ export default function CosmicOnboardingModal({ isOpen, onClose, onJoinUniverse,
                         opacity: { duration: 0.5, delay: 1.4, ease: 'easeOut' }
                       }}
                     >
-                      <span className="inline-block">{displayedName}</span>
+                      <span className="inline-block whitespace-nowrap">{displayedName}</span>
                     </motion.span>
                   </div>
                   <motion.div
@@ -341,7 +341,7 @@ export default function CosmicOnboardingModal({ isOpen, onClose, onJoinUniverse,
                     transition={{ delay: 5.2, duration: 0.6, ease: 'easeOut' }}
                     className="mt-4"
                   >
-                    <Sparkles className="w-12 h-12 mx-auto text-yellow-300 animate-pulse" />
+                    <Sparkles className="w-10 h-10 sm:w-12 sm:h-12 mx-auto text-yellow-300 animate-pulse" />
                   </motion.div>
                 </motion.div>
               )}
@@ -354,10 +354,10 @@ export default function CosmicOnboardingModal({ isOpen, onClose, onJoinUniverse,
                   animate={{ opacity: 1, y: 0 }}
                   exit={{ opacity: 0, y: -30 }}
                   transition={{ duration: 0.8, ease: [0.16, 1, 0.3, 1] }}
-                  className="text-center max-w-2xl px-6"
+                  className="text-center max-w-2xl px-4 sm:px-6"
                 >
                   <motion.p
-                    className="text-2xl md:text-3xl text-white leading-relaxed"
+                    className="text-lg sm:text-xl md:text-2xl lg:text-3xl text-white leading-relaxed"
                     initial={{ opacity: 0 }}
                     animate={{ opacity: 1 }}
                     transition={{ delay: 0.3 }}
@@ -377,57 +377,57 @@ export default function CosmicOnboardingModal({ isOpen, onClose, onJoinUniverse,
                   animate={{ opacity: 1, scale: 1 }}
                   exit={{ opacity: 0, scale: 0.9 }}
                   transition={{ duration: 0.5 }}
-                  className="w-full max-w-md"
+                  className="w-full max-w-md px-4 sm:px-0"
                 >
                   <motion.div
                     initial={{ y: -20, opacity: 0 }}
                     animate={{ y: 0, opacity: 1 }}
                     transition={{ delay: 0.2 }}
-                    className="text-center mb-8"
+                    className="text-center mb-6 sm:mb-8"
                   >
-                    <h2 className="text-3xl md:text-4xl font-bold text-white mb-3">
+                    <h2 className="text-2xl sm:text-3xl md:text-4xl font-bold text-white mb-2 sm:mb-3">
                       How would you like to proceed?
                     </h2>
-                    <p className="text-gray-400">Choose your path through the cosmos</p>
+                    <p className="text-sm sm:text-base text-gray-400">Choose your path through the cosmos</p>
                   </motion.div>
 
                   <motion.div
                     initial={{ y: 20, opacity: 0 }}
                     animate={{ y: 0, opacity: 1 }}
                     transition={{ delay: 0.4 }}
-                    className="space-y-4"
+                    className="space-y-3 sm:space-y-4"
                   >
                     {/* Join Button */}
                     <button
                       onClick={handleJoinClick}
-                      className="w-full group relative overflow-hidden bg-gradient-to-r from-purple-600 to-cyan-600 hover:from-purple-500 hover:to-cyan-500 rounded-2xl px-8 py-6 transition-all duration-300 transform hover:scale-105"
+                      className="w-full group relative overflow-hidden bg-gradient-to-r from-purple-600 to-cyan-600 hover:from-purple-500 hover:to-cyan-500 rounded-xl sm:rounded-2xl px-4 sm:px-8 py-4 sm:py-6 transition-all duration-300 transform hover:scale-105"
                     >
                       <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-4">
-                          <Rocket className="w-8 h-8 text-white" />
+                        <div className="flex items-center gap-3 sm:gap-4">
+                          <Rocket className="w-6 h-6 sm:w-8 sm:h-8 text-white flex-shrink-0" />
                           <div className="text-left">
-                            <div className="text-xl font-bold text-white">Join the Universe</div>
-                            <div className="text-sm text-white/80">Create account & unlock full power</div>
+                            <div className="text-base sm:text-xl font-bold text-white">Join the Universe</div>
+                            <div className="text-xs sm:text-sm text-white/80">Create account & unlock full power</div>
                           </div>
                         </div>
-                        <ArrowRight className="w-6 h-6 text-white group-hover:translate-x-2 transition-transform" />
+                        <ArrowRight className="w-5 h-5 sm:w-6 sm:h-6 text-white group-hover:translate-x-2 transition-transform flex-shrink-0" />
                       </div>
                     </button>
 
                     {/* Guest Button */}
                     <button
                       onClick={handleGuestProceed}
-                      className="w-full group relative overflow-hidden bg-white/5 hover:bg-white/10 border border-white/10 hover:border-white/20 rounded-2xl px-8 py-6 transition-all duration-300"
+                      className="w-full group relative overflow-hidden bg-white/5 hover:bg-white/10 border border-white/10 hover:border-white/20 rounded-xl sm:rounded-2xl px-4 sm:px-8 py-4 sm:py-6 transition-all duration-300"
                     >
                       <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-4">
-                          <UserCircle className="w-8 h-8 text-gray-400 group-hover:text-white transition-colors" />
+                        <div className="flex items-center gap-3 sm:gap-4">
+                          <UserCircle className="w-6 h-6 sm:w-8 sm:h-8 text-gray-400 group-hover:text-white transition-colors flex-shrink-0" />
                           <div className="text-left">
-                            <div className="text-xl font-bold text-white">Continue as Guest</div>
-                            <div className="text-sm text-gray-400">Explore without commitment</div>
+                            <div className="text-base sm:text-xl font-bold text-white">Continue as Guest</div>
+                            <div className="text-xs sm:text-sm text-gray-400">Explore without commitment</div>
                           </div>
                         </div>
-                        <ArrowRight className="w-6 h-6 text-gray-400 group-hover:text-white group-hover:translate-x-2 transition-all" />
+                        <ArrowRight className="w-5 h-5 sm:w-6 sm:h-6 text-gray-400 group-hover:text-white group-hover:translate-x-2 transition-all flex-shrink-0" />
                       </div>
                     </button>
                   </motion.div>
@@ -442,40 +442,40 @@ export default function CosmicOnboardingModal({ isOpen, onClose, onJoinUniverse,
                   animate={{ opacity: 1, scale: 1 }}
                   exit={{ opacity: 0, scale: 0.95 }}
                   transition={{ duration: 0.6, ease: [0.16, 1, 0.3, 1] }}
-                  className="relative w-full max-w-md"
+                  className="relative w-full max-w-md px-4 sm:px-0 max-h-[90vh] overflow-y-auto"
                 >
-                  <div className="bg-transparent backdrop-blur-sm p-8">
+                  <div className="bg-transparent backdrop-blur-sm p-4 sm:p-8">
                     <motion.div
                       initial={{ y: -20, opacity: 0 }}
                       animate={{ y: 0, opacity: 1 }}
                       transition={{ delay: 0.2 }}
-                      className="text-center mb-8"
+                      className="text-center mb-6 sm:mb-8"
                     >
-                      <h2 className="text-3xl md:text-4xl font-bold text-white mb-3">
+                      <h2 className="text-2xl sm:text-3xl md:text-4xl font-bold text-white mb-2 sm:mb-3">
                         Create Your Identity
                       </h2>
-                      <p className="text-gray-400">Set up your cosmic profile</p>
+                      <p className="text-sm sm:text-base text-gray-400">Set up your cosmic profile</p>
                     </motion.div>
 
                     <motion.div
                       initial={{ y: 20, opacity: 0 }}
                       animate={{ y: 0, opacity: 1 }}
                       transition={{ delay: 0.4 }}
-                      className="space-y-6"
+                      className="space-y-4 sm:space-y-6"
                     >
                       {/* Profile Picture Selection */}
                       <div>
-                        <label className="block text-sm font-medium text-gray-400 mb-3 text-center">
+                        <label className="block text-xs sm:text-sm font-medium text-gray-400 mb-2 sm:mb-3 text-center">
                           Choose Your Avatar
                         </label>
 
                         {/* Template Avatars Grid */}
-                        <div className="grid grid-cols-4 gap-3 mb-4">
+                        <div className="grid grid-cols-4 gap-2 sm:gap-3 mb-3 sm:mb-4">
                           {cosmicAvatars.map((avatar) => (
                             <button
                               key={avatar.id}
                               onClick={() => handleTemplateSelect(avatar.path)}
-                              className={`relative rounded-xl overflow-hidden transition-all ${
+                              className={`relative aspect-square rounded-lg sm:rounded-xl overflow-hidden transition-all ${
                                 selectedTemplate === avatar.path
                                   ? 'ring-2 ring-cyan-400 scale-105'
                                   : 'ring-1 ring-white/10 hover:ring-white/30 hover:scale-105'
@@ -497,7 +497,7 @@ export default function CosmicOnboardingModal({ isOpen, onClose, onJoinUniverse,
                           />
                           <label
                             htmlFor="profile-upload"
-                            className="inline-flex items-center gap-2 px-4 py-2 bg-white/5 hover:bg-white/10 border border-white/10 hover:border-white/20 rounded-lg text-sm text-gray-400 hover:text-white cursor-pointer transition-all"
+                            className="inline-flex items-center gap-2 px-3 sm:px-4 py-2 bg-white/5 hover:bg-white/10 border border-white/10 hover:border-white/20 rounded-lg text-xs sm:text-sm text-gray-400 hover:text-white cursor-pointer transition-all"
                           >
                             <UserCircle className="w-4 h-4" />
                             Or upload custom photo
@@ -506,8 +506,8 @@ export default function CosmicOnboardingModal({ isOpen, onClose, onJoinUniverse,
 
                         {/* Selected Preview */}
                         {profilePreview && (
-                          <div className="flex justify-center mt-4">
-                            <div className="w-24 h-24 rounded-full overflow-hidden ring-2 ring-cyan-400">
+                          <div className="flex justify-center mt-3 sm:mt-4">
+                            <div className="w-20 h-20 sm:w-24 sm:h-24 rounded-full overflow-hidden ring-2 ring-cyan-400">
                               <img src={profilePreview} alt="Selected" className="w-full h-full object-cover" />
                             </div>
                           </div>
@@ -516,7 +516,7 @@ export default function CosmicOnboardingModal({ isOpen, onClose, onJoinUniverse,
 
                       {/* Username Input */}
                       <div>
-                        <label className="block text-sm font-medium text-gray-400 mb-2">
+                        <label className="block text-xs sm:text-sm font-medium text-gray-400 mb-2">
                           Choose Username <span className="text-gray-600 text-xs">(optional)</span>
                         </label>
                         <div className="flex gap-2">
@@ -525,12 +525,12 @@ export default function CosmicOnboardingModal({ isOpen, onClose, onJoinUniverse,
                             value={username}
                             onChange={(e) => setUsername(e.target.value)}
                             placeholder="Enter cosmic name or leave empty"
-                            className="flex-1 px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-white placeholder-gray-600 focus:outline-none focus:border-white/30 focus:bg-white/10 transition-all"
+                            className="flex-1 px-3 sm:px-4 py-2.5 sm:py-3 bg-white/5 border border-white/10 rounded-lg sm:rounded-xl text-sm sm:text-base text-white placeholder-gray-600 focus:outline-none focus:border-white/30 focus:bg-white/10 transition-all"
                           />
                           <button
                             onClick={handleRandomUsername}
                             disabled={isCheckingUsername}
-                            className="px-4 py-3 bg-white/5 hover:bg-white/10 border border-white/10 hover:border-white/20 rounded-xl text-white transition-all disabled:opacity-50"
+                            className="px-3 sm:px-4 py-2.5 sm:py-3 bg-white/5 hover:bg-white/10 border border-white/10 hover:border-white/20 rounded-lg sm:rounded-xl text-white transition-all disabled:opacity-50"
                             title="Generate random username"
                           >
                             {isCheckingUsername ? (
@@ -538,10 +538,10 @@ export default function CosmicOnboardingModal({ isOpen, onClose, onJoinUniverse,
                                 animate={{ rotate: 360 }}
                                 transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
                               >
-                                <Sparkles className="w-5 h-5" />
+                                <Sparkles className="w-4 h-4 sm:w-5 sm:h-5" />
                               </motion.div>
                             ) : (
-                              <Sparkles className="w-5 h-5" />
+                              <Sparkles className="w-4 h-4 sm:w-5 sm:h-5" />
                             )}
                           </button>
                         </div>
@@ -558,7 +558,7 @@ export default function CosmicOnboardingModal({ isOpen, onClose, onJoinUniverse,
                           login();
                         }}
                         disabled={isWaitingForAuth}
-                        className="w-full group relative overflow-hidden bg-gradient-to-r from-purple-600 to-cyan-600 hover:from-purple-500 hover:to-cyan-500 disabled:from-gray-600 disabled:to-gray-600 rounded-xl px-6 py-4 transition-all duration-300"
+                        className="w-full group relative overflow-hidden bg-gradient-to-r from-purple-600 to-cyan-600 hover:from-purple-500 hover:to-cyan-500 disabled:from-gray-600 disabled:to-gray-600 rounded-lg sm:rounded-xl px-4 sm:px-6 py-3 sm:py-4 transition-all duration-300"
                       >
                         <div className="relative flex items-center justify-center gap-2">
                           {isWaitingForAuth ? (
@@ -567,15 +567,15 @@ export default function CosmicOnboardingModal({ isOpen, onClose, onJoinUniverse,
                                 animate={{ rotate: 360 }}
                                 transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
                               >
-                                <Sparkles className="w-5 h-5 text-white" />
+                                <Sparkles className="w-4 h-4 sm:w-5 sm:h-5 text-white" />
                               </motion.div>
-                              <span className="font-semibold text-white">Connecting...</span>
+                              <span className="text-sm sm:text-base font-semibold text-white">Connecting...</span>
                             </>
                           ) : (
                             <>
-                              <Rocket className="w-5 h-5 text-white" />
-                              <span className="font-semibold text-white">Connect to Join</span>
-                              <ArrowRight className="w-5 h-5 text-white group-hover:translate-x-2 transition-transform" />
+                              <Rocket className="w-4 h-4 sm:w-5 sm:h-5 text-white" />
+                              <span className="text-sm sm:text-base font-semibold text-white">Connect to Join</span>
+                              <ArrowRight className="w-4 h-4 sm:w-5 sm:h-5 text-white group-hover:translate-x-2 transition-transform" />
                             </>
                           )}
                         </div>
@@ -590,7 +590,7 @@ export default function CosmicOnboardingModal({ isOpen, onClose, onJoinUniverse,
                       {/* Back Link */}
                       <button
                         onClick={() => setStep('choice')}
-                        className="w-full text-sm text-gray-400 hover:text-gray-300 transition-colors"
+                        className="w-full text-xs sm:text-sm text-gray-400 hover:text-gray-300 transition-colors"
                       >
                         ← Back to options
                       </button>
