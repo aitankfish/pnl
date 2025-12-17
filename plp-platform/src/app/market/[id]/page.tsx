@@ -1598,12 +1598,12 @@ export default function MarketDetailsPage() {
                     <div className="text-xs font-bold text-white">{market.targetPool} SOL</div>
                   </div>
 
-                  {/* Total Votes */}
+                  {/* Total Participants */}
                   <div className="p-1.5 bg-white/5 rounded">
-                    <div className="text-[10px] text-gray-400">Votes</div>
+                    <div className="text-[10px] text-gray-400">Participants</div>
                     <div className="flex items-center space-x-1">
                       <Users className="w-2.5 h-2.5 text-cyan-400" />
-                      <span className="text-xs font-bold text-white">{market.yesVotes + market.noVotes}</span>
+                      <span className="text-xs font-bold text-white">{(market.yesVotes || 0) + (market.noVotes || 0)}</span>
                     </div>
                   </div>
 
