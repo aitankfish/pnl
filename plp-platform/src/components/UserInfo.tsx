@@ -117,8 +117,8 @@ export default function UserInfo({
       return '...';
     }
 
-    if (walletBalance !== null) {
-      return `${walletBalance.toFixed(2)} SOL`;
+    if (walletBalance !== null && walletBalance !== undefined && !isNaN(walletBalance)) {
+      return `${Number(walletBalance).toFixed(2)} SOL`;
     }
 
     return '0.00 SOL';

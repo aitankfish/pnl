@@ -370,7 +370,7 @@ export default function PublicProfilePage() {
                               <div className="bg-white/5 rounded p-2 border border-white/10">
                                 <div className="text-gray-400 text-xs">Stake</div>
                                 <div className="font-semibold text-white">
-                                  {position.totalAmount.toFixed(2)} SOL
+                                  {(Number(position.totalAmount) || 0).toFixed(2)} SOL
                                 </div>
                                 <div className="text-xs text-gray-500">
                                   {position.tradeCount} {position.tradeCount === 1 ? 'trade' : 'trades'}
@@ -381,7 +381,7 @@ export default function PublicProfilePage() {
                                 <div className={`font-semibold ${
                                   position.voteType === 'yes' ? 'text-green-400' : 'text-red-400'
                                 }`}>
-                                  {position.voteType === 'yes' ? position.currentYesPrice.toFixed(1) : position.currentNoPrice.toFixed(1)}%
+                                  {position.voteType === 'yes' ? (Number(position.currentYesPrice) || 0).toFixed(1) : (Number(position.currentNoPrice) || 0).toFixed(1)}%
                                 </div>
                                 <div className="text-xs text-gray-500">
                                   {position.voteType === 'yes' ? 'YES' : 'NO'} rate
@@ -434,7 +434,7 @@ export default function PublicProfilePage() {
                               <div className="bg-white/5 rounded p-2 border border-white/10">
                                 <div className="text-gray-400 text-xs">Stake</div>
                                 <div className="font-semibold text-white">
-                                  {position.totalAmount.toFixed(2)} SOL
+                                  {(Number(position.totalAmount) || 0).toFixed(2)} SOL
                                 </div>
                                 <div className="text-xs text-gray-500">
                                   {position.voteType.toUpperCase()} vote
@@ -496,7 +496,7 @@ export default function PublicProfilePage() {
                               <div className="bg-white/5 rounded p-2 border border-white/10">
                                 <div className="text-gray-400 text-xs">Stake</div>
                                 <div className="font-semibold text-white">
-                                  {position.totalAmount.toFixed(2)} SOL
+                                  {(Number(position.totalAmount) || 0).toFixed(2)} SOL
                                 </div>
                                 <div className="text-xs text-gray-500">
                                   {position.voteType.toUpperCase()} vote

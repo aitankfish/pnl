@@ -11,7 +11,7 @@ const logger = createClientLogger();
 
 // Grok API configuration
 const GROK_API_URL = 'https://api.x.ai/v1/chat/completions';
-const GROK_MODEL = 'grok-2-latest';
+const GROK_MODEL = 'grok-3';
 
 /**
  * Generate a Grok roast for a new market with external verification (async, non-blocking)

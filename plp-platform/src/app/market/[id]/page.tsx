@@ -1,12 +1,12 @@
 'use client';
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useMemo } from 'react';
 import dynamic from 'next/dynamic';
 import { useParams, useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { CheckCircle, XCircle, Loader2, ArrowLeft, ExternalLink, Users, Target, MapPin, Briefcase, Globe, Github, Twitter, MessageCircle, Send, Share2, Heart, FileText, Copy, Check } from 'lucide-react';
+import { CheckCircle, XCircle, Loader2, ArrowLeft, ExternalLink, Users, Target, MapPin, Briefcase, Globe, Github, Twitter, MessageCircle, Send, Share2, Heart, FileText, Copy, Check, Sparkles } from 'lucide-react';
 import Link from 'next/link';
 import { FEES, SOLANA_NETWORK } from '@/config/solana';
 import { useVoting } from '@/lib/hooks/useVoting';
@@ -378,8 +378,9 @@ export default function MarketDetailsPage() {
   );
 
   // Reduce polling when Socket.IO is connected (real-time updates handle it)
-  const activityPollInterval = socketConnected ? 60000 : 20000; // 60s when connected, 20s when not
-  const onchainPollInterval = socketConnected ? 60000 : 20000;
+  // When socket is connected, we only do initial fetch (no polling) - socket handles updates
+  const activityPollInterval = socketConnected ? 0 : 20000; // No poll when connected, 20s when not
+  const onchainPollInterval = socketConnected ? 0 : 20000; // No poll when connected, socket has poolBalance
 
   // Fetch combined activity data (history + holders) in a single request
   const { data: activityData, mutate: refetchActivity } = useSWR(
@@ -441,6 +442,29 @@ export default function MarketDetailsPage() {
       dedupingInterval: 10000,
     }
   );
+
+  // Merge SWR onchain data with real-time socket data (socket takes priority when connected)
+  // This eliminates RPC polling when socket is connected - saves credits
+  const mergedOnchainData = useMemo(() => {
+    if (!onchainData?.success) return onchainData;
+
+    // If socket is connected and has data, merge it in (socket is more recent)
+    if (socketConnected && socketMarketData) {
+      return {
+        ...onchainData,
+        data: {
+          ...onchainData.data,
+          // Use socket data for pool info when available (real-time from blockchain sync)
+          poolBalance: socketMarketData.poolBalance ?? onchainData.data.poolBalance,
+          poolProgressPercentage: socketMarketData.poolProgressPercentage ?? onchainData.data.poolProgressPercentage,
+          resolution: socketMarketData.resolution ?? onchainData.data.resolution,
+          phase: socketMarketData.phase ?? onchainData.data.phase,
+        },
+      };
+    }
+
+    return onchainData;
+  }, [onchainData, socketMarketData, socketConnected]);
 
   useEffect(() => {
     if (params.id) {
@@ -673,7 +697,7 @@ export default function MarketDetailsPage() {
   };
 
   const handleResolve = async () => {
-    if (!market || !onchainData?.success) return;
+    if (!market || !mergedOnchainData?.success) return;
 
     const result = await resolve({
       marketId: params.id as string,
@@ -758,7 +782,7 @@ export default function MarketDetailsPage() {
     if (!market) return;
 
     // Safety check: If already in Funding Phase, just refresh UI
-    if (onchainData?.success && onchainData.data.phase === 'Funding') {
+    if (mergedOnchainData?.success && mergedOnchainData.data.phase === 'Funding') {
       console.log('⚠️ Market already in Funding Phase, refreshing UI...');
 
       // Refresh data to update UI
@@ -821,7 +845,7 @@ export default function MarketDetailsPage() {
   };
 
   const handleInitTeamVesting = async () => {
-    if (!market || !onchainData?.success || !primaryWallet) return;
+    if (!market || !mergedOnchainData?.success || !primaryWallet) return;
 
     // For now, use a placeholder for total token supply
     // In production, this should be calculated from the actual token created
@@ -829,7 +853,7 @@ export default function MarketDetailsPage() {
 
     const result = await initVesting({
       marketAddress: market.marketAddress,
-      teamWallet: onchainData.data.founder,
+      teamWallet: mergedOnchainData.data.founder,
       totalTokenSupply,
     });
 
@@ -856,16 +880,16 @@ export default function MarketDetailsPage() {
   };
 
   const handleClaimTeamTokens = async () => {
-    if (!market || !onchainData?.success) return;
+    if (!market || !mergedOnchainData?.success) return;
 
     // Store claimable amount before claiming for success message
-    const claimableAmount = onchainData.data.teamVestingData?.claimableNow
-      ? (Number(onchainData.data.teamVestingData.claimableNow) / 1_000_000).toLocaleString()
+    const claimableAmount = mergedOnchainData.data.teamVestingData?.claimableNow
+      ? (Number(mergedOnchainData.data.teamVestingData.claimableNow) / 1_000_000).toLocaleString()
       : '0';
 
     const result = await claimTeamTokens({
       marketAddress: market.marketAddress,
-      tokenMint: onchainData.data.tokenMint || '',
+      tokenMint: mergedOnchainData.data.tokenMint || '',
     });
 
     if (result.success) {
@@ -881,7 +905,7 @@ export default function MarketDetailsPage() {
       const errorStr = String(result.error).toLowerCase();
       if (errorStr.includes('insufficient') || errorStr.includes('balance') || errorStr.includes('0x1')) {
         // Show next unlock time if available
-        const nextUnlockTime = onchainData.data.teamVestingData?.nextUnlockTime;
+        const nextUnlockTime = mergedOnchainData.data.teamVestingData?.nextUnlockTime;
         if (nextUnlockTime) {
           const daysUntilUnlock = Math.max(0, Math.ceil((nextUnlockTime - Date.now() / 1000) / 86400));
           setToastMessage(`⏳ No tokens to claim yet. Next unlock in ~${daysUntilUnlock} days.`);
@@ -897,7 +921,7 @@ export default function MarketDetailsPage() {
   };
 
   const handleInitFounderSolVesting = async () => {
-    if (!market || !onchainData?.success || !primaryWallet) return;
+    if (!market || !mergedOnchainData?.success || !primaryWallet) return;
 
     const result = await initFounderSolVesting({
       marketAddress: market.marketAddress,
@@ -918,11 +942,11 @@ export default function MarketDetailsPage() {
   };
 
   const handleClaimFounderSol = async () => {
-    if (!market || !onchainData?.success) return;
+    if (!market || !mergedOnchainData?.success) return;
 
     // Store claimable amount before claiming for success message
-    const claimableAmount = onchainData.data.founderVestingData?.claimableNow
-      ? (Number(onchainData.data.founderVestingData.claimableNow) / 1_000_000_000).toFixed(4)
+    const claimableAmount = mergedOnchainData.data.founderVestingData?.claimableNow
+      ? (Number(mergedOnchainData.data.founderVestingData.claimableNow) / 1_000_000_000).toFixed(4)
       : '0';
 
     const result = await claimFounderSol({
@@ -942,7 +966,7 @@ export default function MarketDetailsPage() {
       const errorStr = String(result.error).toLowerCase();
       if (errorStr.includes('insufficient') || errorStr.includes('nothing') || errorStr.includes('0x1') || errorStr.includes('nothingtoclaim')) {
         // Show next unlock time if available
-        const nextUnlockTime = onchainData.data.founderVestingData?.nextUnlockTime;
+        const nextUnlockTime = mergedOnchainData.data.founderVestingData?.nextUnlockTime;
         if (nextUnlockTime) {
           const daysUntilUnlock = Math.max(0, Math.ceil((nextUnlockTime - Date.now() / 1000) / 86400));
           setToastMessage(`⏳ No SOL to claim yet. Next unlock in ~${daysUntilUnlock} days.`);
@@ -1132,14 +1156,14 @@ export default function MarketDetailsPage() {
                         </button>
                       )}
                       {/* Copyable Contract Address - Only show when token is minted */}
-                      {onchainData?.success && onchainData.data.tokenMint && (
+                      {mergedOnchainData?.success && mergedOnchainData.data.tokenMint && (
                         <button
-                          onClick={() => handleCopyContract(onchainData.data.tokenMint!)}
+                          onClick={() => handleCopyContract(mergedOnchainData.data.tokenMint!)}
                           className="flex items-center gap-1.5 px-2 py-1 sm:px-2.5 sm:py-1.5 bg-white/5 hover:bg-white/10 rounded-lg transition-colors group border border-white/10 hover:border-white/20"
                           title="Copy contract address"
                         >
                           <span className="text-xs text-gray-400 font-mono hidden sm:inline">
-                            {onchainData.data.tokenMint.slice(0, 4)}...{onchainData.data.tokenMint.slice(-4)}
+                            {mergedOnchainData.data.tokenMint.slice(0, 4)}...{mergedOnchainData.data.tokenMint.slice(-4)}
                           </span>
                           <span className="text-xs text-gray-400 font-mono sm:hidden">CA</span>
                           {copiedContract ? (
@@ -1156,22 +1180,22 @@ export default function MarketDetailsPage() {
                   <div className="flex flex-wrap items-center gap-1 sm:gap-2">
                     <Badge className={`${marketStatus.badgeClass} text-xs`}>{marketStatus.status}</Badge>
                     {/* Phase Badge */}
-                    {onchainData?.success && (
+                    {mergedOnchainData?.success && (
                       <Badge className={`text-xs ${
-                        onchainData.data.phase === 'Funding'
+                        mergedOnchainData.data.phase === 'Funding'
                           ? 'bg-purple-500/20 text-purple-300 border-purple-400/30'
                           : 'bg-blue-500/20 text-blue-300 border-blue-400/30'
                       }`}>
-                        {onchainData.data.phase === 'Funding' ? '💰 Funding' : '📊 Prediction'}
+                        {mergedOnchainData.data.phase === 'Funding' ? '💰 Funding' : '📊 Prediction'}
                       </Badge>
                     )}
                     {/* Data Source Indicator */}
-                    {market.isStale && onchainData?.success && (
+                    {market.isStale && mergedOnchainData?.success && (
                       <Badge className="text-xs bg-cyan-500/20 text-cyan-300 border-cyan-400/30">
                         ⛓️ Live
                       </Badge>
                     )}
-                    {market.isStale && !onchainData?.success && (
+                    {market.isStale && !mergedOnchainData?.success && (
                       <Badge className="text-xs bg-yellow-500/20 text-yellow-300 border-yellow-400/30 animate-pulse">
                         ⚠️ Syncing
                       </Badge>
@@ -1295,46 +1319,376 @@ export default function MarketDetailsPage() {
           </CardHeader>
         </Card>
 
-        {/* Market Status and Trading Section - Side by Side */}
+        {/* Grok Analysis and Trading - Side by Side */}
         <div className="grid gap-4 md:grid-cols-2">
-          {/* Combined Market Status Card */}
-          <Card className="bg-gradient-to-br from-purple-500/10 via-pink-500/10 to-cyan-500/10 backdrop-blur-xl border-purple-400/30">
-          <CardHeader className="pb-2 sm:pb-3">
-            <CardTitle className="text-white text-lg sm:text-xl">Market Status</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4 sm:space-y-6">
-            {/* Grok AI Analysis - Chat-like history with initial roast and resolution analysis */}
-            <GrokRoast
-              marketId={market.id}
-              resolution={onchainData?.data?.resolution}
-              votingData={{
-                totalYesVotes: market.yesVotes || 0,
-                totalNoVotes: market.noVotes || 0,
-                yesPercentage: yesPercentage || 0,
-                totalParticipants: (market.yesVotes || 0) + (market.noVotes || 0),
-              }}
-            />
+          {/* Deep Space Analysis - Left Side */}
+          <Card className="bg-gradient-to-br from-purple-900/20 via-indigo-900/20 to-cyan-900/20 backdrop-blur-xl border-purple-500/20">
+            <CardHeader className="pb-2">
+              <CardTitle className="text-white text-lg sm:text-xl flex items-center space-x-2">
+                <Sparkles className="w-5 h-5 text-cyan-400" />
+                <span>Deep Space Analysis</span>
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="pt-0">
+              <GrokRoast
+                marketId={market.id}
+                resolution={mergedOnchainData?.data?.resolution}
+                votingData={{
+                  totalYesVotes: market.yesVotes || 0,
+                  totalNoVotes: market.noVotes || 0,
+                  yesPercentage: yesPercentage || 0,
+                  totalParticipants: (market.yesVotes || 0) + (market.noVotes || 0),
+                }}
+              />
+            </CardContent>
+          </Card>
 
-            {/* Pool Progress for unresolved markets */}
-            {onchainData?.data?.resolution === 'Unresolved' && onchainData?.success && (
-              <div className="text-center text-xs sm:text-sm text-gray-400 border-t border-white/10 pt-3">
-                <span className="text-cyan-400 font-semibold">
-                  {(Number(onchainData.data.poolBalance || 0) / 1e9).toFixed(2)} / {market.targetPool}
-                </span>
-                <span className="mx-1 sm:mx-2">•</span>
-                <span className="text-purple-400 font-semibold">{onchainData.data.poolProgressPercentage || 0}% funded</span>
+          {/* Trading Section - Right Side */}
+          <div className="space-y-4">
+          <Card className="bg-white/5 backdrop-blur-xl border-white/10 text-white h-fit">
+            <CardHeader className="pb-2 pt-4 px-4">
+              <CardTitle className="text-base sm:text-lg text-white">Trade on Market</CardTitle>
+              <CardDescription className="text-gray-300 text-xs sm:text-sm">
+                Should we launch ${market.tokenSymbol} token?
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-2.5 px-4 pb-4">
+              {/* Pool Progress Bar - Always show for context */}
+              {mergedOnchainData?.success && (
+                <div className="space-y-2">
+                  {/* Pool Funding Progress */}
+                  <div>
+                    <div className="flex justify-between items-center mb-1">
+                      <span className="text-[10px] text-gray-400">Pool Progress</span>
+                      <span className="text-[10px] font-semibold text-cyan-400">
+                        {(Number(mergedOnchainData.data.poolBalance || 0) / 1e9).toFixed(2)} / {market.targetPool} SOL
+                      </span>
+                    </div>
+                    <div className="h-1.5 bg-gray-800 rounded-full overflow-hidden">
+                      <div
+                        className="h-full bg-gradient-to-r from-cyan-500 to-purple-500 rounded-full transition-all duration-500"
+                        style={{ width: `${Math.min(mergedOnchainData.data.poolProgressPercentage || 0, 100)}%` }}
+                      />
+                    </div>
+                    <div className="text-right mt-0.5">
+                      <span className="text-[9px] text-purple-400">{mergedOnchainData.data.poolProgressPercentage || 0}% funded</span>
+                    </div>
+                  </div>
+
+                  {/* YES/NO Distribution - Only show for resolved markets to prevent bandwagon voting */}
+                  {mergedOnchainData.data.resolution !== 'Unresolved' && (market.yesVotes > 0 || market.noVotes > 0) && (
+                    <div>
+                      <div className="flex justify-between items-center mb-1">
+                        <span className="text-[10px] text-gray-400">Final Vote Distribution</span>
+                        <span className="text-[10px] text-gray-500">
+                          {(market.yesVotes || 0) + (market.noVotes || 0)} total votes
+                        </span>
+                      </div>
+                      <div className="h-1.5 bg-gray-800 rounded-full overflow-hidden flex">
+                        <div
+                          className="h-full bg-green-500 transition-all duration-500"
+                          style={{ width: `${yesPercentage || 50}%` }}
+                        />
+                        <div
+                          className="h-full bg-red-500 transition-all duration-500"
+                          style={{ width: `${100 - (yesPercentage || 50)}%` }}
+                        />
+                      </div>
+                      <div className="flex justify-between mt-0.5">
+                        <span className="text-[9px] text-green-400">YES {(yesPercentage || 0).toFixed(0)}%</span>
+                        <span className="text-[9px] text-red-400">NO {(100 - (yesPercentage || 0)).toFixed(0)}%</span>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Participant count for unresolved markets - no percentages */}
+                  {mergedOnchainData.data.resolution === 'Unresolved' && (market.yesVotes > 0 || market.noVotes > 0) && (
+                    <div className="text-center">
+                      <span className="text-[10px] text-gray-400">
+                        {(market.yesVotes || 0) + (market.noVotes || 0)} participants voted
+                      </span>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Side Selection Tabs */}
+              <div className="grid grid-cols-2 gap-1.5 p-1 bg-white/5 rounded-lg">
+                <button
+                  onClick={() => setSelectedSide('yes')}
+                  disabled={isYesVoteDisabled() || isMarketExpired()}
+                  className={`py-2 px-2.5 rounded-md font-semibold transition-all ${
+                    selectedSide === 'yes'
+                      ? 'bg-gradient-to-r from-green-500 to-cyan-500 text-white shadow-lg'
+                      : 'text-gray-400 hover:text-white hover:bg-white/10'
+                  } disabled:opacity-50 disabled:cursor-not-allowed`}
+                >
+                  <div className="flex items-center justify-center space-x-1.5">
+                    <CheckCircle className="w-4 h-4" />
+                    <span className="text-sm">YES</span>
+                    <span className="text-xs opacity-75">{yesPercentage}%</span>
+                  </div>
+                </button>
+                <button
+                  onClick={() => setSelectedSide('no')}
+                  disabled={isNoVoteDisabled() || isMarketExpired()}
+                  className={`py-2 px-2.5 rounded-md font-semibold transition-all ${
+                    selectedSide === 'no'
+                      ? 'bg-gradient-to-r from-red-500 to-pink-500 text-white shadow-lg'
+                      : 'text-gray-400 hover:text-white hover:bg-white/10'
+                  } disabled:opacity-50 disabled:cursor-not-allowed`}
+                >
+                  <div className="flex items-center justify-center space-x-1.5">
+                    <XCircle className="w-4 h-4" />
+                    <span className="text-sm">NO</span>
+                    <span className="text-xs opacity-75">{100 - yesPercentage}%</span>
+                  </div>
+                </button>
               </div>
-            )}
 
+              {/* Amount Input */}
+              <div className="space-y-1.5">
+                <label className="text-[10px] text-gray-400 font-medium">Amount</label>
+                <div className="relative">
+                  <input
+                    type="number"
+                    value={amount}
+                    onChange={(e) => setAmount(e.target.value)}
+                    min={QUICK_VOTE_AMOUNT}
+                    step="0.01"
+                    disabled={isSelectedSideDisabled() || isMarketExpired()}
+                    className={`w-full px-3 py-2.5 bg-white/10 border-2 rounded-lg text-white text-sm font-mono focus:outline-none transition-all ${
+                      selectedSide === 'yes'
+                        ? 'border-green-500/30 focus:border-green-500 focus:ring-2 focus:ring-green-500/50'
+                        : 'border-red-500/30 focus:border-red-500 focus:ring-2 focus:ring-red-500/50'
+                    } disabled:opacity-50 disabled:cursor-not-allowed`}
+                    placeholder="0.00"
+                  />
+                  <span className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 font-semibold text-xs">SOL</span>
+                </div>
+
+                {/* Quick Amount Buttons */}
+                <div className="grid grid-cols-4 gap-1">
+                  {[QUICK_VOTE_AMOUNT.toString(), '0.1', '0.5', '1'].map((quickAmount) => (
+                    <button
+                      key={quickAmount}
+                      onClick={() => setAmount(quickAmount)}
+                      disabled={isSelectedSideDisabled() || isMarketExpired()}
+                      className={`py-1 px-2 text-xs font-semibold rounded-md border transition-all ${
+                        amount === quickAmount
+                          ? selectedSide === 'yes'
+                            ? 'border-green-500 bg-green-500/20 text-green-400'
+                            : 'border-red-500 bg-red-500/20 text-red-400'
+                          : 'border-white/20 bg-white/5 text-gray-400 hover:bg-white/10 hover:text-white'
+                      } disabled:opacity-50 disabled:cursor-not-allowed`}
+                    >
+                      {quickAmount}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Trade Summary */}
+              <div className="p-2 sm:p-3 bg-white/5 rounded-lg border border-white/10 space-y-1">
+                <div className="flex justify-between text-xs">
+                  <span className="text-gray-400">Position</span>
+                  <span className={`font-semibold ${selectedSide === 'yes' ? 'text-green-400' : 'text-red-400'}`}>
+                    {selectedSide.toUpperCase()}
+                  </span>
+                </div>
+                <div className="flex justify-between text-xs">
+                  <span className="text-gray-400">Amount</span>
+                  <span className="text-white font-mono">{amount || '0.00'} SOL</span>
+                </div>
+                <div className="flex justify-between text-xs">
+                  <span className="text-gray-400">Fee (1.5%)</span>
+                  <span className="text-white font-mono">{(parseFloat(amount || '0') * 0.015).toFixed(4)} SOL</span>
+                </div>
+                <div className="flex justify-between text-xs pt-1 border-t border-white/10">
+                  <span className="text-gray-300 font-semibold">Total</span>
+                  <span className="text-white font-mono font-bold">{(parseFloat(amount || '0') * 1.015).toFixed(4)} SOL</span>
+                </div>
+              </div>
+
+              {/* Trade Button */}
+              <Button
+                onClick={() => handleVote(selectedSide)}
+                className={`w-full py-2.5 sm:py-3 text-sm sm:text-base font-bold ${
+                  selectedSide === 'yes'
+                    ? 'bg-gradient-to-r from-green-500 to-cyan-500 hover:from-green-600 hover:to-cyan-600'
+                    : 'bg-gradient-to-r from-red-500 to-pink-500 hover:from-red-600 hover:to-pink-600'
+                } text-white shadow-lg transition-all hover:scale-[1.02] disabled:opacity-50 disabled:cursor-not-allowed`}
+                disabled={isProcessingVote || !amount || parseFloat(amount) < QUICK_VOTE_AMOUNT || isMarketExpired() || isSelectedSideDisabled()}
+              >
+                {isSelectedSideDisabled() ? (
+                  <>
+                    <XCircle className="w-4 h-4 mr-1.5" />
+                    <span className="text-sm">{getVoteDisabledReason(selectedSide)}</span>
+                  </>
+                ) : isMarketExpired() ? (
+                  <>
+                    <XCircle className="w-4 h-4 mr-1.5" />
+                    Market Expired
+                  </>
+                ) : isProcessingVote ? (
+                  <>
+                    <Loader2 className="w-4 h-4 mr-1.5 animate-spin" />
+                    Processing...
+                  </>
+                ) : (
+                  <>
+                    {selectedSide === 'yes' ? (
+                      <CheckCircle className="w-4 h-4 mr-1.5" />
+                    ) : (
+                      <XCircle className="w-4 h-4 mr-1.5" />
+                    )}
+                    Buy {selectedSide.toUpperCase()} for {amount || '0.00'} SOL
+                  </>
+                )}
+              </Button>
+
+              {/* User's Position Section - Show if user has position */}
+              {positionData?.success && positionData.data.hasPosition && (
+                <div className="border-t border-white/10 pt-2">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center space-x-2">
+                      <div className={`p-1 rounded-full ${
+                        positionData.data.side === 'yes'
+                          ? 'bg-green-500/20'
+                          : 'bg-red-500/20'
+                      }`}>
+                        {positionData.data.side === 'yes' ? (
+                          <CheckCircle className="w-3.5 h-3.5 text-green-400" />
+                        ) : (
+                          <XCircle className="w-3.5 h-3.5 text-red-400" />
+                        )}
+                      </div>
+                      <div>
+                        <h3 className="text-white text-xs font-semibold">Your Position</h3>
+                        <p className="text-gray-300 text-[10px]">
+                          <span className={`font-bold ${
+                            positionData.data.side === 'yes' ? 'text-green-400' : 'text-red-400'
+                          }`}>
+                            {positionData.data.side.toUpperCase()}
+                          </span> · {(Number(positionData.data?.totalAmount) || 0).toFixed(3)} SOL
+                        </p>
+                      </div>
+                    </div>
+                    <div className="text-right">
+                      <div className="text-gray-400 text-[10px]">Trades</div>
+                      <div className="text-white text-sm font-bold">{positionData.data.tradeCount}</div>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Market Info Section */}
+              <div className="border-t border-white/10 pt-2">
+                <h3 className="text-[10px] font-semibold text-gray-400 mb-1.5">Market Info</h3>
+                <div className="grid grid-cols-2 gap-1.5">
+                  {/* Target Pool */}
+                  <div className="p-1.5 bg-white/5 rounded">
+                    <div className="text-[10px] text-gray-400">Target</div>
+                    <div className="text-xs font-bold text-white">{market.targetPool} SOL</div>
+                  </div>
+
+                  {/* Total Votes */}
+                  <div className="p-1.5 bg-white/5 rounded">
+                    <div className="text-[10px] text-gray-400">Votes</div>
+                    <div className="flex items-center space-x-1">
+                      <Users className="w-2.5 h-2.5 text-cyan-400" />
+                      <span className="text-xs font-bold text-white">{market.yesVotes + market.noVotes}</span>
+                    </div>
+                  </div>
+
+                  {/* Market Address */}
+                  <div className="p-1.5 bg-white/5 rounded">
+                    <div className="text-[10px] text-gray-400">Market</div>
+                    <a
+                      href={`https://orb.helius.dev/address/${market.marketAddress}${SOLANA_NETWORK === 'devnet' ? '?cluster=devnet' : ''}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="flex items-center space-x-0.5 text-cyan-400 hover:text-cyan-300 transition-colors text-[10px] group"
+                    >
+                      <span className="font-mono">{market.marketAddress.slice(0, 4)}...{market.marketAddress.slice(-4)}</span>
+                      <ExternalLink className="w-2.5 h-2.5 opacity-60 group-hover:opacity-100" />
+                    </a>
+                  </div>
+
+                  {/* Market Vault */}
+                  {(() => {
+                    try {
+                      const [marketVaultPda] = getMarketVaultPDA(new PublicKey(market.marketAddress));
+                      return (
+                        <div className="p-1.5 bg-white/5 rounded">
+                          <div className="text-[10px] text-gray-400">Vault</div>
+                          <a
+                            href={`https://orb.helius.dev/address/${marketVaultPda.toBase58()}${SOLANA_NETWORK === 'devnet' ? '?cluster=devnet' : ''}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="flex items-center space-x-0.5 text-yellow-400 hover:text-yellow-300 transition-colors text-[10px] group"
+                          >
+                            <span className="font-mono">{marketVaultPda.toBase58().slice(0, 4)}...{marketVaultPda.toBase58().slice(-4)}</span>
+                            <ExternalLink className="w-2.5 h-2.5 opacity-60 group-hover:opacity-100" />
+                          </a>
+                        </div>
+                      );
+                    } catch (e) {
+                      return null;
+                    }
+                  })()}
+
+                  {/* Creator */}
+                  {mergedOnchainData?.success && mergedOnchainData.data.founder && (
+                    <div className="p-1.5 bg-white/5 rounded">
+                      <div className="text-[10px] text-gray-400">Creator</div>
+                      <a
+                        href={`https://orb.helius.dev/address/${mergedOnchainData.data.founder}${SOLANA_NETWORK === 'devnet' ? '?cluster=devnet' : ''}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="flex items-center space-x-0.5 text-purple-400 hover:text-purple-300 transition-colors text-[10px] group"
+                      >
+                        <span className="font-mono">{mergedOnchainData.data.founder.slice(0, 4)}...{mergedOnchainData.data.founder.slice(-4)}</span>
+                        <ExternalLink className="w-2.5 h-2.5 opacity-60 group-hover:opacity-100" />
+                      </a>
+                    </div>
+                  )}
+
+                  {/* Token Mint (if created) */}
+                  {mergedOnchainData?.success && mergedOnchainData.data.tokenMint && (
+                    <div className="p-1.5 bg-white/5 rounded">
+                      <div className="text-[10px] text-gray-400">Token</div>
+                      <a
+                        href={`https://orb.helius.dev/address/${mergedOnchainData.data.tokenMint}${SOLANA_NETWORK === 'devnet' ? '?cluster=devnet' : ''}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="flex items-center space-x-0.5 text-pink-400 hover:text-pink-300 transition-colors text-[10px] group"
+                      >
+                        <span className="font-mono">{mergedOnchainData.data.tokenMint.slice(0, 4)}...{mergedOnchainData.data.tokenMint.slice(-4)}</span>
+                        <ExternalLink className="w-2.5 h-2.5 opacity-60 group-hover:opacity-100" />
+                      </a>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+        {/* Market Status Card - Below Trading */}
+        <Card className="bg-gradient-to-br from-purple-500/10 via-pink-500/10 to-cyan-500/10 backdrop-blur-xl border-purple-400/30 h-fit">
+          <CardHeader className="pb-2 pt-3 px-4">
+            <CardTitle className="text-white text-sm sm:text-base">Market Status</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-3 px-4 pb-4">
             {/* Market Status Section */}
-            {onchainData?.success && (
+            {mergedOnchainData?.success && (
               <>
-                <div className="border-t border-white/10 pt-4 space-y-4">
+                <div className="space-y-3">
                   {/* Status Message */}
-                  {onchainData.data.resolution === 'Unresolved' && !isMarketExpiredFromDB && (
+                  {mergedOnchainData.data.resolution === 'Unresolved' && !isMarketExpiredFromDB && (
                     <>
                       {/* Pool Filled - Waiting for Resolution (but NOT in Funding Phase) */}
-                      {onchainData.data.poolProgressPercentage >= 100 && onchainData.data.phase !== 'Funding' ? (
+                      {mergedOnchainData.data.poolProgressPercentage >= 100 && mergedOnchainData.data.phase !== 'Funding' ? (
                         <div className="pt-2 border-t border-white/5">
                           <div className="bg-gradient-to-br from-cyan-500/10 via-purple-500/10 to-pink-500/10 border border-cyan-400/30 rounded-lg p-4">
                             <div className="flex items-start justify-between mb-3">
@@ -1347,7 +1701,7 @@ export default function MarketDetailsPage() {
                                   The funding target has been reached! No more votes can be placed.
                                 </p>
                                 <p className="text-gray-400 text-xs">
-                                  {Number(onchainData.data.totalYesShares) > Number(onchainData.data.totalNoShares)
+                                  {Number(mergedOnchainData.data.totalYesShares) > Number(mergedOnchainData.data.totalNoShares)
                                     ? '✅ YES is currently winning - Token launch likely!'
                                     : '❌ NO is currently winning - No token launch'}
                                 </p>
@@ -1365,13 +1719,13 @@ export default function MarketDetailsPage() {
                           </div>
 
                           {/* Founder Actions - Only for founder when target reached and YES winning */}
-                          {primaryWallet?.address === onchainData.data.founder &&
-                           Number(onchainData.data.totalYesShares) > Number(onchainData.data.totalNoShares) && (
+                          {primaryWallet?.address === mergedOnchainData.data.founder &&
+                           Number(mergedOnchainData.data.totalYesShares) > Number(mergedOnchainData.data.totalNoShares) && (
                             <div className="mt-4 bg-gradient-to-br from-purple-500/10 via-pink-500/10 to-cyan-500/10 border border-purple-400/30 rounded-lg p-4 space-y-3">
                               <div className="flex items-start justify-between">
                                 <div className="flex-1">
                                   <h4 className="text-purple-400 text-sm font-semibold mb-1">🎯 Target Reached!</h4>
-                                  {onchainData.data.phase === 'Funding' ? (
+                                  {mergedOnchainData.data.phase === 'Funding' ? (
                                     <>
                                       <p className="text-gray-300 text-xs mb-2">
                                         Market is in Funding Phase. You can now launch your token!
@@ -1394,7 +1748,7 @@ export default function MarketDetailsPage() {
                               </div>
 
                               {/* Show appropriate button based on phase */}
-                              {onchainData.data.phase === 'Funding' ? (
+                              {mergedOnchainData.data.phase === 'Funding' ? (
                                 /* In Funding Phase - Show Launch Token button */
                                 <Button
                                   onClick={async () => {
@@ -1474,7 +1828,7 @@ export default function MarketDetailsPage() {
 
                               <div className="flex items-start space-x-2 pt-2 border-t border-white/10">
                                 <div className="text-xs text-gray-400">
-                                  {onchainData.data.phase === 'Funding' ? (
+                                  {mergedOnchainData.data.phase === 'Funding' ? (
                                     <>
                                       <span className="font-semibold text-green-400">Ready to Launch:</span> Create {market.tokenSymbol} token and distribute to YES voters
                                     </>
@@ -1491,7 +1845,7 @@ export default function MarketDetailsPage() {
                           )}
 
                           {/* Resolve Button - Anyone can resolve when NO wins and pool is full (but not yet expired) */}
-                          {Number(onchainData.data.totalNoShares) > Number(onchainData.data.totalYesShares) && !isMarketExpiredFromDB && (
+                          {Number(mergedOnchainData.data.totalNoShares) > Number(mergedOnchainData.data.totalYesShares) && !isMarketExpiredFromDB && (
                             <div className="mt-4 bg-gradient-to-br from-red-500/10 via-orange-500/10 to-yellow-500/10 border border-red-400/30 rounded-lg p-4">
                               <div className="mb-3">
                                 <h4 className="text-red-400 text-sm font-semibold mb-1">❌ NO Wins - Market Failed</h4>
@@ -1531,7 +1885,7 @@ export default function MarketDetailsPage() {
                         /* Pool Not Filled - Active Market */
                         <div className="space-y-4">
                           {/* Funding Phase - Special UI for all users */}
-                          {onchainData.data.phase === 'Funding' ? (
+                          {mergedOnchainData.data.phase === 'Funding' ? (
                             <div className="pt-2 border-t border-white/5 space-y-3">
                               <div className="bg-gradient-to-br from-purple-500/10 via-pink-500/10 to-cyan-500/10 border border-purple-400/30 rounded-lg p-4">
                                 <div className="flex items-start justify-between mb-3">
@@ -1571,7 +1925,7 @@ export default function MarketDetailsPage() {
                               </div>
 
                               {/* Founder-only resolve button */}
-                              {primaryWallet?.address === onchainData.data.founder && (
+                              {primaryWallet?.address === mergedOnchainData.data.founder && (
                                 <div className="bg-gradient-to-br from-green-500/10 via-cyan-500/10 to-blue-500/10 border border-green-400/30 rounded-lg p-4">
                                   <div className="mb-3">
                                     <h4 className="text-green-400 text-sm font-semibold mb-1">Founder Actions</h4>
@@ -1650,26 +2004,26 @@ export default function MarketDetailsPage() {
                     </>
                   )}
 
-                  {onchainData.data.resolution === 'Unresolved' && isMarketExpiredFromDB && (
+                  {mergedOnchainData.data.resolution === 'Unresolved' && isMarketExpiredFromDB && (
                     <div className="text-center py-4 border-t border-white/5 space-y-3">
                       <h4 className="text-orange-400 text-base font-semibold mb-1">⏳ Awaiting Resolution...</h4>
                       <p className="text-gray-300 text-xs mb-3">
-                        {onchainData.data.poolProgressPercentage < 100
+                        {mergedOnchainData.data.poolProgressPercentage < 100
                           ? 'Market expired without reaching target pool. All participants will be refunded.'
-                          : Number(onchainData.data.totalYesShares) > Number(onchainData.data.totalNoShares)
+                          : Number(mergedOnchainData.data.totalYesShares) > Number(mergedOnchainData.data.totalNoShares)
                             ? `Market expired with YES winning! ${market.tokenSymbol} token is ready to launch.`
                             : 'Market expired with NO winning. NO voters can claim SOL rewards.'}
                       </p>
 
                       {/* YES Wins - Show Launch Token button (only for founder) or waiting message (for others) */}
-                      {onchainData.data.poolProgressPercentage >= 100 &&
-                       Number(onchainData.data.totalYesShares) > Number(onchainData.data.totalNoShares) ? (
+                      {mergedOnchainData.data.poolProgressPercentage >= 100 &&
+                       Number(mergedOnchainData.data.totalYesShares) > Number(mergedOnchainData.data.totalNoShares) ? (
                         <div className="space-y-3">
                           <div className="bg-gradient-to-br from-green-500/10 via-cyan-500/10 to-blue-500/10 border border-green-400/30 rounded-lg p-4">
                             <h4 className="text-green-400 text-sm font-semibold mb-2">🎉 YES Wins - Token Launch Required!</h4>
 
                             {/* Founder sees launch button */}
-                            {primaryWallet?.address === onchainData.data.founder ? (
+                            {primaryWallet?.address === mergedOnchainData.data.founder ? (
                               <>
                                 <p className="text-gray-300 text-xs mb-2">
                                   The market has expired with YES winning. Click below to create the {market.tokenSymbol} token and complete resolution.
@@ -1750,7 +2104,7 @@ export default function MarketDetailsPage() {
                               </>
                             )}
                           </div>
-                          {!primaryWallet && primaryWallet?.address !== onchainData.data.founder && (
+                          {!primaryWallet && primaryWallet?.address !== mergedOnchainData.data.founder && (
                             <p className="text-yellow-400 text-xs">Connect wallet to see your position</p>
                           )}
                         </div>
@@ -1781,7 +2135,7 @@ export default function MarketDetailsPage() {
                     </div>
                   )}
 
-                  {onchainData.data.resolution === 'YesWins' && (
+                  {mergedOnchainData.data.resolution === 'YesWins' && (
                     <div className="text-center py-2 border-t border-white/5 space-y-4">
                       <div>
                         <h4 className="text-green-400 text-lg font-bold mb-1">🎉 YES WINS - Token Launch!</h4>
@@ -1789,9 +2143,9 @@ export default function MarketDetailsPage() {
                           Token will be launched on Pump.fun!
                         </p>
                         {/* Trade on Pump.fun Button - Only show when token is minted */}
-                        {onchainData.data.tokenMint && (
+                        {mergedOnchainData.data.tokenMint && (
                           <a
-                            href={`https://pump.fun/coin/${onchainData.data.tokenMint}`}
+                            href={`https://pump.fun/coin/${mergedOnchainData.data.tokenMint}`}
                             target="_blank"
                             rel="noopener noreferrer"
                             className="inline-flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-green-500/20 to-cyan-500/20 hover:from-green-500/30 hover:to-cyan-500/30 border border-green-400/30 hover:border-green-400/50 rounded-lg text-green-400 text-sm font-medium transition-all hover:scale-105"
@@ -1804,7 +2158,7 @@ export default function MarketDetailsPage() {
                       </div>
 
                       {/* YES Voter Claim - Exclude founder (they have Team Token section) */}
-                      {positionData?.success && positionData.data.hasPosition && !positionData.data.claimed && primaryWallet?.address !== onchainData.data.founder && (
+                      {positionData?.success && positionData.data.hasPosition && !positionData.data.claimed && primaryWallet?.address !== mergedOnchainData.data.founder && (
                         <div className="mt-3">
                           {positionData.data.side === 'yes' ? (
                             <Button
@@ -1830,7 +2184,7 @@ export default function MarketDetailsPage() {
                       )}
 
                       {/* Already Claimed - YES Voters (exclude founder) */}
-                      {positionData?.success && positionData.data.hasPosition && positionData.data.claimed && positionData.data.side === 'yes' && primaryWallet?.address !== onchainData.data.founder && (
+                      {positionData?.success && positionData.data.hasPosition && positionData.data.claimed && positionData.data.side === 'yes' && primaryWallet?.address !== mergedOnchainData.data.founder && (
                         <div className="mt-3">
                           <div className="bg-green-500/10 border border-green-500/30 rounded-lg p-4">
                             <p className="text-green-400 font-semibold flex items-center justify-center gap-2">
@@ -1845,7 +2199,7 @@ export default function MarketDetailsPage() {
                       )}
 
                       {/* Team Token Transparency Section - Visible to ALL users when vesting initialized */}
-                      {onchainData.data.tokenMint && onchainData.data.teamVestingInitialized && onchainData.data.teamVestingData && (
+                      {mergedOnchainData.data.tokenMint && mergedOnchainData.data.teamVestingInitialized && mergedOnchainData.data.teamVestingData && (
                         <div className="bg-gradient-to-br from-amber-500/10 via-orange-500/10 to-yellow-500/10 border border-amber-400/30 rounded-lg p-4 text-left space-y-3">
                           <div className="flex items-center justify-between">
                             <div className="flex items-center space-x-2">
@@ -1861,12 +2215,12 @@ export default function MarketDetailsPage() {
                           <div className="space-y-1">
                             <div className="flex justify-between text-xs">
                               <span className="text-gray-400">Vesting Progress</span>
-                              <span className="text-amber-300 font-semibold">{onchainData.data.teamVestingData.vestingProgressPercent.toFixed(1)}%</span>
+                              <span className="text-amber-300 font-semibold">{(Number(mergedOnchainData.data.teamVestingData?.vestingProgressPercent) || 0).toFixed(1)}%</span>
                             </div>
                             <div className="w-full bg-gray-700/50 rounded-full h-2 overflow-hidden">
                               <div
                                 className="bg-gradient-to-r from-amber-500 to-orange-500 h-full rounded-full transition-all duration-500"
-                                style={{ width: `${Math.min(100, onchainData.data.teamVestingData.vestingProgressPercent)}%` }}
+                                style={{ width: `${Math.min(100, mergedOnchainData.data.teamVestingData.vestingProgressPercent)}%` }}
                               />
                             </div>
                           </div>
@@ -1876,54 +2230,54 @@ export default function MarketDetailsPage() {
                             <div className="flex justify-between text-xs">
                               <span className="text-gray-400">Total Team Tokens</span>
                               <span className="text-white font-semibold">
-                                {(Number(onchainData.data.teamVestingData.totalTokens) / 1_000_000).toLocaleString()} {market.tokenSymbol}
+                                {(Number(mergedOnchainData.data.teamVestingData.totalTokens) / 1_000_000).toLocaleString()} {market.tokenSymbol}
                               </span>
                             </div>
                             <div className="flex justify-between text-xs">
                               <span className="text-gray-400">Immediate (8%)</span>
-                              <span className={`font-semibold ${onchainData.data.teamVestingData.immediateClaimed ? 'text-green-400' : 'text-amber-300'}`}>
-                                {(Number(onchainData.data.teamVestingData.immediateTokens) / 1_000_000).toLocaleString()} {market.tokenSymbol}
-                                {onchainData.data.teamVestingData.immediateClaimed && ' ✓ Claimed'}
+                              <span className={`font-semibold ${mergedOnchainData.data.teamVestingData.immediateClaimed ? 'text-green-400' : 'text-amber-300'}`}>
+                                {(Number(mergedOnchainData.data.teamVestingData.immediateTokens) / 1_000_000).toLocaleString()} {market.tokenSymbol}
+                                {mergedOnchainData.data.teamVestingData.immediateClaimed && ' ✓ Claimed'}
                               </span>
                             </div>
                             <div className="flex justify-between text-xs">
                               <span className="text-gray-400">Vested (25%)</span>
                               <span className="text-orange-300 font-semibold">
-                                {(Number(onchainData.data.teamVestingData.vestingTokens) / 1_000_000).toLocaleString()} {market.tokenSymbol}
+                                {(Number(mergedOnchainData.data.teamVestingData.vestingTokens) / 1_000_000).toLocaleString()} {market.tokenSymbol}
                               </span>
                             </div>
                             <div className="flex justify-between text-xs">
                               <span className="text-gray-400">Vested Unlocked</span>
                               <span className="text-cyan-300 font-semibold">
-                                {(Number(onchainData.data.teamVestingData.vestedUnlocked) / 1_000_000).toLocaleString()} {market.tokenSymbol}
+                                {(Number(mergedOnchainData.data.teamVestingData.vestedUnlocked) / 1_000_000).toLocaleString()} {market.tokenSymbol}
                               </span>
                             </div>
                             <div className="flex justify-between text-xs">
                               <span className="text-gray-400">Already Claimed</span>
                               <span className="text-green-400 font-semibold">
-                                {(Number(onchainData.data.teamVestingData.claimedTokens) / 1_000_000).toLocaleString()} {market.tokenSymbol}
+                                {(Number(mergedOnchainData.data.teamVestingData.claimedTokens) / 1_000_000).toLocaleString()} {market.tokenSymbol}
                               </span>
                             </div>
                           </div>
 
                           {/* Next Unlock Info */}
-                          {onchainData.data.teamVestingData.vestingProgressPercent < 100 && onchainData.data.teamVestingData.nextUnlockTime && (
+                          {mergedOnchainData.data.teamVestingData.vestingProgressPercent < 100 && mergedOnchainData.data.teamVestingData.nextUnlockTime && (
                             <div className="flex justify-between text-xs pt-2 border-t border-white/10">
                               <span className="text-gray-400">Next Unlock</span>
                               <span className="text-purple-300 font-semibold">
-                                {(Number(onchainData.data.teamVestingData.nextUnlockAmount) / 1_000_000).toLocaleString()} {market.tokenSymbol} in {Math.max(0, Math.ceil((onchainData.data.teamVestingData.nextUnlockTime - Date.now() / 1000) / 86400))} days
+                                {(Number(mergedOnchainData.data.teamVestingData.nextUnlockAmount) / 1_000_000).toLocaleString()} {market.tokenSymbol} in {Math.max(0, Math.ceil((mergedOnchainData.data.teamVestingData.nextUnlockTime - Date.now() / 1000) / 86400))} days
                               </span>
                             </div>
                           )}
 
                           {/* Founder Actions */}
-                          {primaryWallet?.address === onchainData.data.founder && (
+                          {primaryWallet?.address === mergedOnchainData.data.founder && (
                             <div className="pt-3 border-t border-white/10">
                               <Button
                                 onClick={handleClaimTeamTokens}
-                                disabled={isClaimingTeamTokens || Number(onchainData.data.teamVestingData.claimableNow) === 0}
+                                disabled={isClaimingTeamTokens || Number(mergedOnchainData.data.teamVestingData.claimableNow) === 0}
                                 className={`w-full font-semibold ${
-                                  Number(onchainData.data.teamVestingData.claimableNow) > 0
+                                  Number(mergedOnchainData.data.teamVestingData.claimableNow) > 0
                                     ? 'bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-white'
                                     : 'bg-gray-600 text-gray-400 cursor-not-allowed'
                                 }`}
@@ -1933,9 +2287,9 @@ export default function MarketDetailsPage() {
                                     <Loader2 className="w-4 h-4 mr-2 animate-spin" />
                                     Claiming...
                                   </>
-                                ) : Number(onchainData.data.teamVestingData.claimableNow) > 0 ? (
+                                ) : Number(mergedOnchainData.data.teamVestingData.claimableNow) > 0 ? (
                                   <>
-                                    👥 Claim {(Number(onchainData.data.teamVestingData.claimableNow) / 1_000_000).toLocaleString()} {market.tokenSymbol}
+                                    👥 Claim {(Number(mergedOnchainData.data.teamVestingData.claimableNow) / 1_000_000).toLocaleString()} {market.tokenSymbol}
                                   </>
                                 ) : (
                                   <>
@@ -1943,9 +2297,9 @@ export default function MarketDetailsPage() {
                                   </>
                                 )}
                               </Button>
-                              {Number(onchainData.data.teamVestingData.claimableNow) === 0 && onchainData.data.teamVestingData.vestingProgressPercent < 100 && (
+                              {Number(mergedOnchainData.data.teamVestingData.claimableNow) === 0 && mergedOnchainData.data.teamVestingData.vestingProgressPercent < 100 && (
                                 <p className="text-xs text-gray-400 italic mt-2 text-center">
-                                  Next tokens unlock in ~{Math.max(0, Math.ceil((onchainData.data.teamVestingData.nextUnlockTime! - Date.now() / 1000) / 86400))} days
+                                  Next tokens unlock in ~{Math.max(0, Math.ceil((mergedOnchainData.data.teamVestingData.nextUnlockTime! - Date.now() / 1000) / 86400))} days
                                 </p>
                               )}
                             </div>
@@ -1954,7 +2308,7 @@ export default function MarketDetailsPage() {
                       )}
 
                       {/* Team Vesting Initialize Section - Only for founder when not initialized */}
-                      {primaryWallet?.address === onchainData.data.founder && onchainData.data.tokenMint && !onchainData.data.teamVestingInitialized && (
+                      {primaryWallet?.address === mergedOnchainData.data.founder && mergedOnchainData.data.tokenMint && !mergedOnchainData.data.teamVestingInitialized && (
                         <div className="bg-gradient-to-br from-amber-500/10 via-orange-500/10 to-yellow-500/10 border border-amber-400/30 rounded-lg p-4 text-left space-y-3">
                           <div className="flex items-center space-x-2">
                             <div className="p-2 bg-amber-500/20 rounded-full">
@@ -1998,7 +2352,7 @@ export default function MarketDetailsPage() {
                       )}
 
                       {/* Founder SOL Vesting Section - Only for founder when pool > 50 SOL */}
-                      {primaryWallet?.address === onchainData.data.founder && onchainData.data.hasExcessSol && (
+                      {primaryWallet?.address === mergedOnchainData.data.founder && mergedOnchainData.data.hasExcessSol && (
                         <div className="bg-gradient-to-br from-emerald-500/10 via-teal-500/10 to-cyan-500/10 border border-emerald-400/30 rounded-lg p-4 text-left space-y-3">
                           <div className="flex items-center space-x-2">
                             <div className="p-2 bg-emerald-500/20 rounded-full">
@@ -2008,18 +2362,18 @@ export default function MarketDetailsPage() {
                           </div>
 
                           {/* Show actual vesting data if initialized, otherwise show estimates */}
-                          {onchainData.data.founderVestingInitialized && onchainData.data.founderVestingData ? (
+                          {mergedOnchainData.data.founderVestingInitialized && mergedOnchainData.data.founderVestingData ? (
                             <>
                               {/* Vesting Progress Bar */}
                               <div className="space-y-1">
                                 <div className="flex justify-between text-xs">
                                   <span className="text-gray-400">Vesting Progress</span>
-                                  <span className="text-emerald-300 font-semibold">{onchainData.data.founderVestingData.vestingProgressPercent.toFixed(1)}%</span>
+                                  <span className="text-emerald-300 font-semibold">{(Number(mergedOnchainData.data.founderVestingData?.vestingProgressPercent) || 0).toFixed(1)}%</span>
                                 </div>
                                 <div className="w-full bg-gray-700/50 rounded-full h-2 overflow-hidden">
                                   <div
                                     className="bg-gradient-to-r from-emerald-500 to-teal-500 h-full rounded-full transition-all duration-500"
-                                    style={{ width: `${Math.min(100, onchainData.data.founderVestingData.vestingProgressPercent)}%` }}
+                                    style={{ width: `${Math.min(100, mergedOnchainData.data.founderVestingData.vestingProgressPercent)}%` }}
                                   />
                                 </div>
                               </div>
@@ -2029,42 +2383,42 @@ export default function MarketDetailsPage() {
                                 <div className="flex justify-between text-xs">
                                   <span className="text-gray-400">Total Excess SOL</span>
                                   <span className="text-white font-semibold">
-                                    {(Number(onchainData.data.founderVestingData.totalSol) / 1_000_000_000).toFixed(4)} SOL
+                                    {(Number(mergedOnchainData.data.founderVestingData.totalSol) / 1_000_000_000).toFixed(4)} SOL
                                   </span>
                                 </div>
                                 <div className="flex justify-between text-xs">
                                   <span className="text-gray-400">Immediate (8%)</span>
-                                  <span className={`font-semibold ${onchainData.data.founderVestingData.immediateClaimed ? 'text-green-400' : 'text-teal-300'}`}>
-                                    {(Number(onchainData.data.founderVestingData.immediateSol) / 1_000_000_000).toFixed(4)} SOL
-                                    {onchainData.data.founderVestingData.immediateClaimed && ' ✓ Claimed'}
+                                  <span className={`font-semibold ${mergedOnchainData.data.founderVestingData.immediateClaimed ? 'text-green-400' : 'text-teal-300'}`}>
+                                    {(Number(mergedOnchainData.data.founderVestingData.immediateSol) / 1_000_000_000).toFixed(4)} SOL
+                                    {mergedOnchainData.data.founderVestingData.immediateClaimed && ' ✓ Claimed'}
                                   </span>
                                 </div>
                                 <div className="flex justify-between text-xs">
                                   <span className="text-gray-400">Vested (92%)</span>
                                   <span className="text-cyan-300 font-semibold">
-                                    {(Number(onchainData.data.founderVestingData.vestingSol) / 1_000_000_000).toFixed(4)} SOL
+                                    {(Number(mergedOnchainData.data.founderVestingData.vestingSol) / 1_000_000_000).toFixed(4)} SOL
                                   </span>
                                 </div>
                                 <div className="flex justify-between text-xs">
                                   <span className="text-gray-400">Vested Unlocked</span>
                                   <span className="text-teal-300 font-semibold">
-                                    {(Number(onchainData.data.founderVestingData.vestedUnlocked) / 1_000_000_000).toFixed(4)} SOL
+                                    {(Number(mergedOnchainData.data.founderVestingData.vestedUnlocked) / 1_000_000_000).toFixed(4)} SOL
                                   </span>
                                 </div>
                                 <div className="flex justify-between text-xs">
                                   <span className="text-gray-400">Already Claimed</span>
                                   <span className="text-green-400 font-semibold">
-                                    {(Number(onchainData.data.founderVestingData.claimedSol) / 1_000_000_000).toFixed(4)} SOL
+                                    {(Number(mergedOnchainData.data.founderVestingData.claimedSol) / 1_000_000_000).toFixed(4)} SOL
                                   </span>
                                 </div>
                               </div>
 
                               {/* Next Unlock Info */}
-                              {onchainData.data.founderVestingData.vestingProgressPercent < 100 && onchainData.data.founderVestingData.nextUnlockTime && (
+                              {mergedOnchainData.data.founderVestingData.vestingProgressPercent < 100 && mergedOnchainData.data.founderVestingData.nextUnlockTime && (
                                 <div className="flex justify-between text-xs pt-2 border-t border-white/10">
                                   <span className="text-gray-400">Next Unlock</span>
                                   <span className="text-purple-300 font-semibold">
-                                    {(Number(onchainData.data.founderVestingData.nextUnlockAmount) / 1_000_000_000).toFixed(4)} SOL in {Math.max(0, Math.ceil((onchainData.data.founderVestingData.nextUnlockTime - Date.now() / 1000) / 86400))} days
+                                    {(Number(mergedOnchainData.data.founderVestingData.nextUnlockAmount) / 1_000_000_000).toFixed(4)} SOL in {Math.max(0, Math.ceil((mergedOnchainData.data.founderVestingData.nextUnlockTime - Date.now() / 1000) / 86400))} days
                                   </span>
                                 </div>
                               )}
@@ -2073,9 +2427,9 @@ export default function MarketDetailsPage() {
                               <div className="pt-3 border-t border-white/10">
                                 <Button
                                   onClick={handleClaimFounderSol}
-                                  disabled={isClaimingFounderSol || Number(onchainData.data.founderVestingData.claimableNow) === 0}
+                                  disabled={isClaimingFounderSol || Number(mergedOnchainData.data.founderVestingData.claimableNow) === 0}
                                   className={`w-full font-semibold ${
-                                    Number(onchainData.data.founderVestingData.claimableNow) > 0
+                                    Number(mergedOnchainData.data.founderVestingData.claimableNow) > 0
                                       ? 'bg-gradient-to-r from-teal-500 to-cyan-500 hover:from-teal-600 hover:to-cyan-600 text-white'
                                       : 'bg-gray-600 text-gray-400 cursor-not-allowed'
                                   }`}
@@ -2085,9 +2439,9 @@ export default function MarketDetailsPage() {
                                       <Loader2 className="w-4 h-4 mr-2 animate-spin" />
                                       Claiming...
                                     </>
-                                  ) : Number(onchainData.data.founderVestingData.claimableNow) > 0 ? (
+                                  ) : Number(mergedOnchainData.data.founderVestingData.claimableNow) > 0 ? (
                                     <>
-                                      💰 Claim {(Number(onchainData.data.founderVestingData.claimableNow) / 1_000_000_000).toFixed(4)} SOL
+                                      💰 Claim {(Number(mergedOnchainData.data.founderVestingData.claimableNow) / 1_000_000_000).toFixed(4)} SOL
                                     </>
                                   ) : (
                                     <>
@@ -2095,9 +2449,9 @@ export default function MarketDetailsPage() {
                                     </>
                                   )}
                                 </Button>
-                                {Number(onchainData.data.founderVestingData.claimableNow) === 0 && onchainData.data.founderVestingData.vestingProgressPercent < 100 && (
+                                {Number(mergedOnchainData.data.founderVestingData.claimableNow) === 0 && mergedOnchainData.data.founderVestingData.vestingProgressPercent < 100 && (
                                   <p className="text-xs text-gray-400 italic mt-2 text-center">
-                                    Next SOL unlock in ~{Math.max(0, Math.ceil((onchainData.data.founderVestingData.nextUnlockTime! - Date.now() / 1000) / 86400))} days
+                                    Next SOL unlock in ~{Math.max(0, Math.ceil((mergedOnchainData.data.founderVestingData.nextUnlockTime! - Date.now() / 1000) / 86400))} days
                                   </p>
                                 )}
                               </div>
@@ -2108,15 +2462,15 @@ export default function MarketDetailsPage() {
                               <div className="space-y-2">
                                 <div className="flex justify-between text-xs">
                                   <span className="text-gray-400">Total Excess SOL</span>
-                                  <span className="text-emerald-300 font-semibold">{onchainData.data.excessSolInSol?.toFixed(4)} SOL</span>
+                                  <span className="text-emerald-300 font-semibold">{(Number(mergedOnchainData.data.excessSolInSol) || 0).toFixed(4)} SOL</span>
                                 </div>
                                 <div className="flex justify-between text-xs">
                                   <span className="text-gray-400">Immediate (8%)</span>
-                                  <span className="text-teal-300 font-semibold">{(onchainData.data.excessSolInSol * 0.08)?.toFixed(4)} SOL</span>
+                                  <span className="text-teal-300 font-semibold">{((Number(mergedOnchainData.data.excessSolInSol) || 0) * 0.08).toFixed(4)} SOL</span>
                                 </div>
                                 <div className="flex justify-between text-xs">
                                   <span className="text-gray-400">Vested (92%)</span>
-                                  <span className="text-cyan-300 font-semibold">{(onchainData.data.excessSolInSol * 0.92)?.toFixed(4)} SOL over 12 months</span>
+                                  <span className="text-cyan-300 font-semibold">{((Number(mergedOnchainData.data.excessSolInSol) || 0) * 0.92).toFixed(4)} SOL over 12 months</span>
                                 </div>
                               </div>
 
@@ -2148,7 +2502,7 @@ export default function MarketDetailsPage() {
                     </div>
                   )}
 
-                  {onchainData.data.resolution === 'NoWins' && (
+                  {mergedOnchainData.data.resolution === 'NoWins' && (
                     <div className="text-center py-2 border-t border-white/5 space-y-4">
                       <div>
                         <h4 className="text-red-400 text-lg font-bold mb-1">❌ NO WINS - Project Won&apos;t Launch</h4>
@@ -2199,7 +2553,7 @@ export default function MarketDetailsPage() {
                     </div>
                   )}
 
-                  {onchainData.data.resolution === 'Refund' && (
+                  {mergedOnchainData.data.resolution === 'Refund' && (
                     <div className="text-center py-2 border-t border-white/5">
                       <h4 className="text-yellow-400 text-lg font-bold mb-1">↩️ REFUND - Market Cancelled</h4>
                       <p className="text-gray-300 text-xs mb-3">
@@ -2220,7 +2574,7 @@ export default function MarketDetailsPage() {
                               </>
                             ) : (
                               <>
-                                ↩️ Claim Refund ({positionData.data.totalAmount.toFixed(3)} SOL)
+                                ↩️ Claim Refund ({(Number(positionData.data?.totalAmount) || 0).toFixed(3)} SOL)
                               </>
                             )}
                           </Button>
@@ -2241,7 +2595,7 @@ export default function MarketDetailsPage() {
                   )}
 
                   {/* Close Market Button - Only for founder after 30-day claim period */}
-                  {onchainData.data.resolution !== 'Unresolved' && primaryWallet?.address === onchainData.data.founder && (
+                  {mergedOnchainData.data.resolution !== 'Unresolved' && primaryWallet?.address === mergedOnchainData.data.founder && (
                     <div className="border-t border-white/5 pt-4 mt-4">
                       <div className="bg-gradient-to-br from-gray-500/10 via-gray-600/10 to-gray-700/10 border border-gray-400/30 rounded-lg p-4">
                         <div className="flex items-center space-x-2 mb-3">
@@ -2281,328 +2635,12 @@ export default function MarketDetailsPage() {
                 </div>
               </>
             )}
-
-            {/* User's Position Section - Show if user has position */}
-            {positionData?.success && positionData.data.hasPosition && (
-              <div className="border-t border-white/10 pt-3 sm:pt-4">
-                <div className="flex items-center justify-between mb-2 sm:mb-3">
-                  <div className="flex items-center space-x-2 sm:space-x-3">
-                    <div className={`p-1.5 sm:p-2 rounded-full ${
-                      positionData.data.side === 'yes'
-                        ? 'bg-green-500/20'
-                        : 'bg-red-500/20'
-                    }`}>
-                      {positionData.data.side === 'yes' ? (
-                        <CheckCircle className="w-4 h-4 sm:w-5 sm:h-5 text-green-400" />
-                      ) : (
-                        <XCircle className="w-4 h-4 sm:w-5 sm:h-5 text-red-400" />
-                      )}
-                    </div>
-                    <div>
-                      <h3 className="text-white text-sm sm:text-base font-semibold">Your Position</h3>
-                      <p className="text-gray-300 text-xs">
-                        Voted <span className={`font-bold ${
-                          positionData.data.side === 'yes' ? 'text-green-400' : 'text-red-400'
-                        }`}>
-                          {positionData.data.side.toUpperCase()}
-                        </span> with {positionData.data.totalAmount.toFixed(3)} SOL
-                      </p>
-                    </div>
-                  </div>
-                  <div className="text-right">
-                    <div className="text-gray-400 text-xs">Total Trades</div>
-                    <div className="text-white text-lg sm:text-xl font-bold">{positionData.data.tradeCount}</div>
-                  </div>
-                </div>
-              </div>
-            )}
-          </CardContent>
-        </Card>
-
-
-        {/* Trading Section - Unified Card */}
-        <Card className="bg-white/5 backdrop-blur-xl border-white/10 text-white">
-          <CardHeader>
-            <CardTitle className="text-lg sm:text-2xl text-white">Trade on Market</CardTitle>
-            <CardDescription className="text-gray-300 text-sm sm:text-base">
-              Should we launch ${market.tokenSymbol} token?
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-3 sm:space-y-4">
-            {/* Side Selection Tabs */}
-            <div className="grid grid-cols-2 gap-2 sm:gap-3 p-1 bg-white/5 rounded-lg">
-              <button
-                onClick={() => setSelectedSide('yes')}
-                disabled={isYesVoteDisabled() || isMarketExpired()}
-                className={`py-2.5 sm:py-3 px-3 sm:px-4 rounded-lg font-semibold transition-all ${
-                  selectedSide === 'yes'
-                    ? 'bg-gradient-to-r from-green-500 to-cyan-500 text-white shadow-lg'
-                    : 'text-gray-400 hover:text-white hover:bg-white/10'
-                } disabled:opacity-50 disabled:cursor-not-allowed`}
-              >
-                <div className="flex items-center justify-center space-x-1 sm:space-x-2">
-                  <CheckCircle className="w-4 h-4 sm:w-5 sm:h-5" />
-                  <span className="text-sm sm:text-base">YES</span>
-                  <span className="text-xs sm:text-sm opacity-75">{yesPercentage}%</span>
-                </div>
-              </button>
-              <button
-                onClick={() => setSelectedSide('no')}
-                disabled={isNoVoteDisabled() || isMarketExpired()}
-                className={`py-2.5 sm:py-3 px-3 sm:px-4 rounded-lg font-semibold transition-all ${
-                  selectedSide === 'no'
-                    ? 'bg-gradient-to-r from-red-500 to-pink-500 text-white shadow-lg'
-                    : 'text-gray-400 hover:text-white hover:bg-white/10'
-                } disabled:opacity-50 disabled:cursor-not-allowed`}
-              >
-                <div className="flex items-center justify-center space-x-1 sm:space-x-2">
-                  <XCircle className="w-4 h-4 sm:w-5 sm:h-5" />
-                  <span className="text-sm sm:text-base">NO</span>
-                  <span className="text-xs sm:text-sm opacity-75">{100 - yesPercentage}%</span>
-                </div>
-              </button>
-            </div>
-
-            {/* Amount Input */}
-            <div className="space-y-2">
-              <label className="text-xs sm:text-sm text-gray-400 font-medium">Amount</label>
-              <div className="relative">
-                <input
-                  type="number"
-                  value={amount}
-                  onChange={(e) => setAmount(e.target.value)}
-                  min={QUICK_VOTE_AMOUNT}
-                  step="0.01"
-                  disabled={isSelectedSideDisabled() || isMarketExpired()}
-                  className={`w-full px-3 sm:px-4 py-3 sm:py-4 bg-white/10 border-2 rounded-lg text-white text-base sm:text-lg font-mono focus:outline-none transition-all ${
-                    selectedSide === 'yes'
-                      ? 'border-green-500/30 focus:border-green-500 focus:ring-2 focus:ring-green-500/50'
-                      : 'border-red-500/30 focus:border-red-500 focus:ring-2 focus:ring-red-500/50'
-                  } disabled:opacity-50 disabled:cursor-not-allowed`}
-                  placeholder="0.00"
-                />
-                <span className="absolute right-3 sm:right-4 top-1/2 -translate-y-1/2 text-gray-400 font-semibold text-sm sm:text-base">SOL</span>
-              </div>
-
-              {/* Quick Amount Buttons */}
-              <div className="grid grid-cols-4 gap-1.5 sm:gap-2">
-                {[QUICK_VOTE_AMOUNT.toString(), '0.1', '0.5', '1'].map((quickAmount) => (
-                  <button
-                    key={quickAmount}
-                    onClick={() => setAmount(quickAmount)}
-                    disabled={isSelectedSideDisabled() || isMarketExpired()}
-                    className={`py-1.5 sm:py-2 px-2 sm:px-3 text-xs sm:text-sm font-semibold rounded-lg border-2 transition-all ${
-                      amount === quickAmount
-                        ? selectedSide === 'yes'
-                          ? 'border-green-500 bg-green-500/20 text-green-400'
-                          : 'border-red-500 bg-red-500/20 text-red-400'
-                        : 'border-white/20 bg-white/5 text-gray-400 hover:bg-white/10 hover:text-white'
-                    } disabled:opacity-50 disabled:cursor-not-allowed`}
-                  >
-                    {quickAmount}
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            {/* Trade Summary */}
-            <div className="p-3 sm:p-4 bg-white/5 rounded-lg border border-white/10 space-y-1.5 sm:space-y-2">
-              <div className="flex justify-between text-xs sm:text-sm">
-                <span className="text-gray-400">Position</span>
-                <span className={`font-semibold ${selectedSide === 'yes' ? 'text-green-400' : 'text-red-400'}`}>
-                  {selectedSide.toUpperCase()}
-                </span>
-              </div>
-              <div className="flex justify-between text-xs sm:text-sm">
-                <span className="text-gray-400">Amount</span>
-                <span className="text-white font-mono">{amount || '0.00'} SOL</span>
-              </div>
-              <div className="flex justify-between text-xs sm:text-sm">
-                <span className="text-gray-400">Estimated Fee (1.5%)</span>
-                <span className="text-white font-mono">{(parseFloat(amount || '0') * 0.015).toFixed(4)} SOL</span>
-              </div>
-              <div className="flex justify-between text-xs sm:text-sm pt-1.5 sm:pt-2 border-t border-white/10">
-                <span className="text-gray-300 font-semibold">Total Cost</span>
-                <span className="text-white font-mono font-bold">{(parseFloat(amount || '0') * 1.015).toFixed(4)} SOL</span>
-              </div>
-            </div>
-
-            {/* Trade Button */}
-            <Button
-              onClick={() => handleVote(selectedSide)}
-              className={`w-full py-4 sm:py-6 text-base sm:text-lg font-bold ${
-                selectedSide === 'yes'
-                  ? 'bg-gradient-to-r from-green-500 to-cyan-500 hover:from-green-600 hover:to-cyan-600'
-                  : 'bg-gradient-to-r from-red-500 to-pink-500 hover:from-red-600 hover:to-pink-600'
-              } text-white shadow-lg transition-all hover:scale-[1.02] disabled:opacity-50 disabled:cursor-not-allowed`}
-              disabled={isProcessingVote || !amount || parseFloat(amount) < QUICK_VOTE_AMOUNT || isMarketExpired() || isSelectedSideDisabled()}
-            >
-              {isSelectedSideDisabled() ? (
-                <>
-                  <XCircle className="w-4 h-4 sm:w-5 sm:h-5 mr-1.5 sm:mr-2" />
-                  <span className="text-sm sm:text-lg">{getVoteDisabledReason(selectedSide)}</span>
-                </>
-              ) : isMarketExpired() ? (
-                <>
-                  <XCircle className="w-4 h-4 sm:w-5 sm:h-5 mr-1.5 sm:mr-2" />
-                  Market Expired
-                </>
-              ) : isProcessingVote ? (
-                <>
-                  <Loader2 className="w-4 h-4 sm:w-5 sm:h-5 mr-1.5 sm:mr-2 animate-spin" />
-                  Processing...
-                </>
-              ) : (
-                <>
-                  {selectedSide === 'yes' ? (
-                    <CheckCircle className="w-4 h-4 sm:w-5 sm:h-5 mr-1.5 sm:mr-2" />
-                  ) : (
-                    <XCircle className="w-4 h-4 sm:w-5 sm:h-5 mr-1.5 sm:mr-2" />
-                  )}
-                  Buy {selectedSide.toUpperCase()} for {amount || '0.00'} SOL
-                </>
-              )}
-            </Button>
-
-            {/* Market Information */}
-            <div className="pt-3 sm:pt-4 border-t border-white/10">
-              <h3 className="text-xs sm:text-sm font-semibold text-gray-400 mb-2 sm:mb-3">Market Info</h3>
-              <div className="grid grid-cols-2 gap-2 sm:gap-3">
-                {/* Target Pool */}
-                <div className="p-2 sm:p-3 bg-white/5 rounded-lg">
-                  <div className="text-xs text-gray-400 mb-0.5 sm:mb-1">Target Pool</div>
-                  <div className="text-sm sm:text-base font-bold text-white">{market.targetPool}</div>
-                </div>
-
-                {/* Total Votes */}
-                <div className="p-2 sm:p-3 bg-white/5 rounded-lg">
-                  <div className="text-xs text-gray-400 mb-0.5 sm:mb-1">Total Votes</div>
-                  <div className="flex items-center space-x-1">
-                    <Users className="w-3 h-3 sm:w-4 sm:h-4 text-cyan-400" />
-                    <span className="text-sm sm:text-base font-bold text-white">{market.yesVotes + market.noVotes}</span>
-                  </div>
-                </div>
-
-                {/* Market Address (PDA) */}
-                <div className="p-2 sm:p-3 bg-white/5 rounded-lg col-span-2">
-                  <div className="text-xs text-gray-400 mb-0.5 sm:mb-1">Market Address</div>
-                  <a
-                    href={`https://orb.helius.dev/address/${market.marketAddress}${SOLANA_NETWORK === 'devnet' ? '?cluster=devnet' : ''}`}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="flex items-center space-x-1 text-cyan-400 hover:text-cyan-300 transition-colors text-xs group"
-                  >
-                    <span className="font-mono break-all sm:break-normal">{market.marketAddress.slice(0, 8)}...{market.marketAddress.slice(-8)}</span>
-                    <ExternalLink className="w-3 h-3 opacity-60 group-hover:opacity-100 flex-shrink-0" />
-                  </a>
-                </div>
-
-                {/* Market Vault PDA */}
-                {(() => {
-                  try {
-                    const [marketVaultPda] = getMarketVaultPDA(new PublicKey(market.marketAddress));
-                    return (
-                      <div className="p-2 sm:p-3 bg-white/5 rounded-lg col-span-2">
-                        <div className="text-xs text-gray-400 mb-0.5 sm:mb-1">Market Vault</div>
-                        <a
-                          href={`https://orb.helius.dev/address/${marketVaultPda.toBase58()}${SOLANA_NETWORK === 'devnet' ? '?cluster=devnet' : ''}`}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="flex items-center space-x-1 text-yellow-400 hover:text-yellow-300 transition-colors text-xs group"
-                        >
-                          <span className="font-mono break-all sm:break-normal">{marketVaultPda.toBase58().slice(0, 8)}...{marketVaultPda.toBase58().slice(-8)}</span>
-                          <ExternalLink className="w-3 h-3 opacity-60 group-hover:opacity-100 flex-shrink-0" />
-                        </a>
-                      </div>
-                    );
-                  } catch (e) {
-                    return null;
-                  }
-                })()}
-
-                {/* Creator Address */}
-                {onchainData?.success && onchainData.data.founder && (
-                  <div className="p-2 sm:p-3 bg-white/5 rounded-lg col-span-2">
-                    <div className="text-xs text-gray-400 mb-0.5 sm:mb-1">Creator</div>
-                    <a
-                      href={`https://orb.helius.dev/address/${onchainData.data.founder}${SOLANA_NETWORK === 'devnet' ? '?cluster=devnet' : ''}`}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="flex items-center space-x-1 text-purple-400 hover:text-purple-300 transition-colors text-xs group"
-                    >
-                      <span className="font-mono break-all sm:break-normal">{onchainData.data.founder.slice(0, 8)}...{onchainData.data.founder.slice(-8)}</span>
-                      <ExternalLink className="w-3 h-3 opacity-60 group-hover:opacity-100 flex-shrink-0" />
-                    </a>
-                  </div>
-                )}
-
-                {/* User Position PDA (if user has a position) */}
-                {positionData?.success && positionData.data?.hasPosition && market && primaryWallet?.address && (() => {
-                  try {
-                    const [positionPda] = getPositionPDA(
-                      new PublicKey(market.marketAddress),
-                      new PublicKey(primaryWallet.address)
-                    );
-                    return (
-                      <div className="p-2 sm:p-3 bg-white/5 rounded-lg col-span-2">
-                        <div className="text-xs text-gray-400 mb-0.5 sm:mb-1">Your Position</div>
-                        <a
-                          href={`https://orb.helius.dev/address/${positionPda.toBase58()}${SOLANA_NETWORK === 'devnet' ? '?cluster=devnet' : ''}`}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="flex items-center space-x-1 text-green-400 hover:text-green-300 transition-colors text-xs group"
-                        >
-                          <span className="font-mono break-all sm:break-normal">{positionPda.toBase58().slice(0, 8)}...{positionPda.toBase58().slice(-8)}</span>
-                          <ExternalLink className="w-3 h-3 opacity-60 group-hover:opacity-100 flex-shrink-0" />
-                        </a>
-                      </div>
-                    );
-                  } catch (e) {
-                    return null;
-                  }
-                })()}
-
-                {/* Token Mint (if created) */}
-                {onchainData?.success && onchainData.data.tokenMint && (
-                  <div className="p-2 sm:p-3 bg-white/5 rounded-lg col-span-2">
-                    <div className="text-xs text-gray-400 mb-0.5 sm:mb-1">Token Mint</div>
-                    <a
-                      href={`https://orb.helius.dev/address/${onchainData.data.tokenMint}${SOLANA_NETWORK === 'devnet' ? '?cluster=devnet' : ''}`}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="flex items-center space-x-1 text-pink-400 hover:text-pink-300 transition-colors text-xs group"
-                    >
-                      <span className="font-mono break-all sm:break-normal">{onchainData.data.tokenMint.slice(0, 8)}...{onchainData.data.tokenMint.slice(-8)}</span>
-                      <ExternalLink className="w-3 h-3 opacity-60 group-hover:opacity-100 flex-shrink-0" />
-                    </a>
-                  </div>
-                )}
-              </div>
-            </div>
           </CardContent>
         </Card>
         </div>
-
-        {/* Market Holders and Live Activity Feed - Side by Side */}
-        <div className="grid gap-3 sm:gap-4 md:grid-cols-2">
-          <LiveActivityFeed
-            trades={historyData?.data?.recentTrades || []}
-            className="w-full"
-          />
-          <MarketHolders
-            yesHolders={holdersData?.data?.yesHolders || []}
-            noHolders={holdersData?.data?.noHolders || []}
-            totalYesStake={holdersData?.data?.totalYesStake || 0}
-            totalNoStake={holdersData?.data?.totalNoStake || 0}
-            uniqueHolders={holdersData?.data?.uniqueHolders || 0}
-            yesPercentage={market.yesPercentage ?? undefined}
-            noPercentage={market.noPercentage ?? undefined}
-            currentUserWallet={primaryWallet?.address}
-            className="w-full"
-          />
         </div>
 
-        {/* Metadata Section */}
+        {/* Metadata/Project Details Section - Moved above Holders */}
         {market.metadata && (
           <Card className="bg-white/5 backdrop-blur-xl border-white/10 text-white">
             <CardHeader>
@@ -2680,6 +2718,39 @@ export default function MarketDetailsPage() {
                 </div>
               )}
 
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Market Holders and Live Activity Feed - Only show for resolved markets to prevent bandwagon voting */}
+        {mergedOnchainData?.data?.resolution !== 'Unresolved' ? (
+          <div className="grid gap-3 sm:gap-4 md:grid-cols-2">
+            <LiveActivityFeed
+              trades={historyData?.data?.recentTrades || []}
+              className="w-full"
+            />
+            {holdersData?.success && (
+              <MarketHolders
+                yesHolders={holdersData.data.yesHolders || []}
+                noHolders={holdersData.data.noHolders || []}
+                totalYesStake={holdersData.data.totalYesStake || 0}
+                totalNoStake={holdersData.data.totalNoStake || 0}
+                uniqueHolders={holdersData.data.uniqueHolders || 0}
+                yesPercentage={market.yesPercentage ?? undefined}
+                noPercentage={market.noPercentage ?? undefined}
+                currentUserWallet={primaryWallet?.address}
+                className="w-full"
+              />
+            )}
+          </div>
+        ) : (
+          <Card className="bg-gradient-to-br from-gray-900/50 to-gray-800/30 backdrop-blur-sm border-gray-700/50">
+            <CardContent className="py-8 text-center">
+              <div className="text-4xl mb-3">🔒</div>
+              <h3 className="text-white font-semibold mb-2">Voting in Progress</h3>
+              <p className="text-gray-400 text-sm">
+                Holder positions and activity are hidden until the market resolves to ensure fair, unbiased voting.
+              </p>
             </CardContent>
           </Card>
         )}

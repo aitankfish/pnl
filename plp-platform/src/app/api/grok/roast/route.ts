@@ -14,7 +14,7 @@ const logger = createClientLogger();
 
 // Grok API configuration
 const GROK_API_URL = 'https://api.x.ai/v1/chat/completions';
-const GROK_MODEL = 'grok-2-latest';
+const GROK_MODEL = 'grok-3';
 
 interface GrokAnalysisRequest {
   marketId: string;
@@ -38,6 +38,9 @@ interface ProjectData {
   teamSize: number;
   tokenSymbol: string;
   socialLinks?: Record<string, string>;
+  location?: string;
+  documentUrls?: string[];
+  additionalNotes?: string; // "What This Project Offers"
 }
 
 interface VotingData {
@@ -63,29 +66,44 @@ function generateInitialRoastPrompt(project: ProjectData, externalData?: Externa
     ? formatExternalDataForPrompt(externalData)
     : 'External verification not performed';
 
-  return `You are a witty, sarcastic crypto analyst known for your brutally honest but entertaining roasts of crypto projects. Your job is to analyze this project and give a humorous but insightful roast that helps investors make informed decisions.
+  const documentUrlsText = project.documentUrls && project.documentUrls.length > 0
+    ? project.documentUrls.join('\n')
+    : 'None provided';
+
+  return `You are a witty, sarcastic crypto analyst known for your brutally honest but entertaining roasts of crypto projects. Your job is to analyze this project thoroughly and give a humorous but insightful analysis that helps investors make informed decisions.
 
 IMPORTANT: We have automatically verified the project's external links. Use this verification data in your analysis - if a website doesn't exist, GitHub has no commits, or social links are fake, call it out harshly!
 
-PROJECT DETAILS:
+=== PROJECT DETAILS ===
 - Name: ${project.name}
 - Token Symbol: $${project.tokenSymbol}
 - Category: ${project.category}
 - Type: ${project.projectType}
 - Stage: ${project.projectStage}
 - Team Size: ${project.teamSize}
-- Description: ${project.description}
-- Social Links:
+- Location: ${project.location || 'Not specified'}
+
+=== PROJECT DESCRIPTION ===
+${project.description}
+
+${project.additionalNotes ? `=== WHAT THIS PROJECT OFFERS (Founder's Pitch) ===
+${project.additionalNotes}
+` : ''}
+=== SOCIAL & DOCUMENTATION ===
+Social Links:
 ${socialLinksText}
+
+Documentation URLs:
+${documentUrlsText}
 
 === EXTERNAL VERIFICATION RESULTS ===
 ${externalVerification}
 === END VERIFICATION ===
 
 YOUR TASK:
-1. Give a witty, entertaining roast of this project (2-3 sentences max)
-2. Identify 2-3 potential red flags or concerns - USE THE VERIFICATION DATA! If their website is down, GitHub is empty, or socials are fake, these are MAJOR red flags
-3. Identify 1-2 potential positives (if any exist - verified working links, active GitHub, etc.)
+1. Give a witty, entertaining roast of this project (2-3 sentences - be creative and reference specifics from their pitch!)
+2. Identify 3-4 potential red flags or concerns - USE THE VERIFICATION DATA! If their website is down, GitHub is empty, or socials are fake, these are MAJOR red flags
+3. Identify 2-3 potential positives (if any exist - verified working links, active GitHub, solid team claims, interesting tech)
 4. Give a "Legit Score" from 1-10 (1 = obvious scam, 10 = actually promising)
 
 SCORING GUIDELINES:
@@ -94,27 +112,32 @@ SCORING GUIDELINES:
 - GitHub repo is a fork with no original work: -3 points
 - No activity on GitHub in 90+ days: -1 point
 - Social links are fake/non-existent: -2 points
+- Vague or buzzword-heavy pitch with no specifics: -1 point
 - All links verified and active: +2 points
 - Active GitHub with multiple contributors: +2 points
+- Clear, specific value proposition: +1 point
+- Experienced team (if verifiable): +1 point
 
 FORMAT YOUR RESPONSE EXACTLY LIKE THIS:
 
 **THE ROAST:**
-[Your witty roast here - reference the verification findings!]
+[Your witty roast here - reference their pitch and verification findings! Make it memorable.]
 
 **RED FLAGS:**
-- [Flag 1 - be specific about verification failures]
+- [Flag 1 - be specific about verification failures or concerning claims]
 - [Flag 2]
-- [Flag 3 if applicable]
+- [Flag 3]
+- [Flag 4 if applicable]
 
 **POTENTIAL UPSIDE:**
-- [Positive 1 - mention verified strengths]
-- [Positive 2 if applicable]
+- [Positive 1 - mention verified strengths or genuinely interesting aspects]
+- [Positive 2]
+- [Positive 3 if applicable]
 
 **LEGIT SCORE: X/10**
-[One sentence explanation referencing the verification data]
+[2-3 sentence explanation summarizing why you gave this score, referencing key verification findings and pitch analysis]
 
-Be entertaining but genuinely helpful. If the verification data shows problems, be BRUTAL about it. Scammers hate being exposed!`;
+Be entertaining but genuinely helpful. Analyze their pitch critically - vague promises and buzzwords should be called out. If the verification data shows problems, be BRUTAL about it. Scammers hate being exposed!`;
 }
 
 /**
@@ -210,7 +233,7 @@ async function callGrokAPI(prompt: string, systemPrompt?: string): Promise<strin
         },
       ],
       temperature: 0.8,
-      max_tokens: 1500,
+      max_tokens: 2500,
     }),
   });
 
@@ -316,6 +339,11 @@ export async function POST(request: NextRequest) {
       }
     }
 
+    // Get additionalNotes from market's cached metadata if available
+    const additionalNotes = market.cachedMetadata?.additionalNotes
+      || (market as any).metadata?.additionalNotes
+      || '';
+
     const projectData: ProjectData = {
       name: project.name,
       description: project.description,
@@ -325,6 +353,9 @@ export async function POST(request: NextRequest) {
       teamSize: project.teamSize,
       tokenSymbol: project.tokenSymbol,
       socialLinks: socialLinksObj,
+      location: project.location,
+      documentUrls: project.documentUrls,
+      additionalNotes: additionalNotes,
     };
 
     let prompt: string;
@@ -383,9 +414,13 @@ export async function POST(request: NextRequest) {
       ...(type === 'resolution_analysis' && votingData ? { votingData } : {}),
     };
 
-    // Save to database
-    await PredictionMarket.updateOne(
-      { _id: marketId },
+    // Save to database using atomic operation to prevent duplicates
+    // Only add if no analysis of this type exists
+    const updateResult = await PredictionMarket.updateOne(
+      {
+        _id: marketId,
+        'grokAnalyses.type': { $ne: type }, // Only update if type doesn't exist
+      },
       {
         $push: { grokAnalyses: newAnalysis },
         // Also update legacy field for initial roast (backward compatibility)
@@ -400,6 +435,24 @@ export async function POST(request: NextRequest) {
         } : {})
       }
     );
+
+    // If no documents were modified, it means the analysis type already exists
+    // Fetch and return the existing one
+    if (updateResult.modifiedCount === 0) {
+      const existingMarket = await PredictionMarket.findById(marketId).select('grokAnalyses').lean();
+      const existingAnalysis = existingMarket?.grokAnalyses?.find((a: any) => a.type === type);
+
+      logger.info('Analysis already exists, returning cached version', { marketId, type });
+
+      return NextResponse.json({
+        success: true,
+        data: {
+          analysis: existingAnalysis || newAnalysis,
+          allAnalyses: existingMarket?.grokAnalyses || [newAnalysis],
+          cached: true,
+        },
+      });
+    }
 
     // Get updated analyses
     const updatedMarket = await PredictionMarket.findById(marketId).select('grokAnalyses').lean();
@@ -462,25 +515,42 @@ export async function GET(request: NextRequest) {
     }
 
     // Combine legacy roast with new analyses
-    let analyses = market.grokAnalyses || [];
+    let analyses: any[] = market.grokAnalyses || [];
 
     // If we have legacy roast but no analyses, include it
     if (market.grokRoast?.content && analyses.length === 0) {
       analyses = [{
         type: 'initial_roast',
         content: market.grokRoast.content,
-        generatedAt: market.grokRoast.generatedAt,
-        model: market.grokRoast.model,
+        generatedAt: market.grokRoast.generatedAt || new Date(),
+        model: market.grokRoast.model || GROK_MODEL,
       }];
     }
+
+    // Deduplicate analyses - keep only the most recent of each type
+    const deduplicatedAnalyses = analyses.reduce((acc: any[], analysis: any) => {
+      const existing = acc.find((a: any) => a.type === analysis.type);
+      if (!existing) {
+        acc.push(analysis);
+      } else {
+        // Keep the more recent one
+        const existingDate = new Date(existing.generatedAt).getTime();
+        const newDate = new Date(analysis.generatedAt).getTime();
+        if (newDate > existingDate) {
+          const index = acc.indexOf(existing);
+          acc[index] = analysis;
+        }
+      }
+      return acc;
+    }, []);
 
     return NextResponse.json({
       success: true,
       data: {
-        analyses,
+        analyses: deduplicatedAnalyses,
         resolution: market.resolution,
-        hasInitialRoast: analyses.some((a: any) => a.type === 'initial_roast'),
-        hasResolutionAnalysis: analyses.some((a: any) => a.type === 'resolution_analysis'),
+        hasInitialRoast: deduplicatedAnalyses.some((a: any) => a.type === 'initial_roast'),
+        hasResolutionAnalysis: deduplicatedAnalyses.some((a: any) => a.type === 'resolution_analysis'),
       },
     });
   } catch (error) {

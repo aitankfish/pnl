@@ -234,6 +234,8 @@ export class EventProcessor {
     // 7. Broadcast update to connected clients with AMM-based percentages (single source of truth)
     broadcastMarketUpdate(event.address, {
       marketAddress: event.address,
+      // Pool data for progress bar (eliminates need for frontend RPC polling)
+      poolBalance: marketData.poolBalance,
       poolProgressPercentage: derived.poolProgressPercentage,
       // Use sharesYesPercentage as primary field (from blockchain AMM) for consistency with APIs
       yesPercentage: derived.sharesYesPercentage, // AMM-based (blockchain source of truth)

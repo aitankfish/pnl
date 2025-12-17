@@ -44,13 +44,13 @@ export default function LiveActivityFeed({ trades, className }: LiveActivityFeed
     return (
       <Card className={`bg-gradient-to-br from-gray-900/50 to-gray-800/30 backdrop-blur-sm border-gray-700/50 ${className}`}>
         <CardHeader className="pb-3 sm:pb-4">
-          <CardTitle className="text-base sm:text-lg md:text-xl text-white">Recent Activity</CardTitle>
+          <CardTitle className="text-base sm:text-lg md:text-xl text-white">Voting History</CardTitle>
         </CardHeader>
         <CardContent>
           <div className="h-[250px] sm:h-[300px] md:h-[350px] flex items-center justify-center">
             <div className="text-center space-y-1.5 sm:space-y-2">
               <div className="text-3xl sm:text-4xl">💬</div>
-              <p className="text-sm sm:text-base text-gray-400">No activity yet</p>
+              <p className="text-sm sm:text-base text-gray-400">No votes yet</p>
               <p className="text-xs sm:text-sm text-gray-500">Votes will appear here</p>
             </div>
           </div>
@@ -62,8 +62,8 @@ export default function LiveActivityFeed({ trades, className }: LiveActivityFeed
   return (
     <Card className={`bg-gradient-to-br from-gray-900/50 to-gray-800/30 backdrop-blur-sm border-gray-700/50 ${className}`}>
       <CardHeader className="pb-3 sm:pb-4">
-        <CardTitle className="text-base sm:text-lg md:text-xl text-white">Recent Activity</CardTitle>
-        <p className="text-xs sm:text-sm text-gray-400">Live feed of the latest votes</p>
+        <CardTitle className="text-base sm:text-lg md:text-xl text-white">Voting History</CardTitle>
+        <p className="text-xs sm:text-sm text-gray-400">Record of all votes placed</p>
       </CardHeader>
       <CardContent>
         <div className="space-y-2 sm:space-y-3 max-h-[250px] sm:max-h-[300px] md:max-h-[350px] overflow-y-auto pr-1 sm:pr-2 custom-scrollbar">

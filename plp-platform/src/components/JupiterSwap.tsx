@@ -575,13 +575,13 @@ export function JupiterSwap({ isOpen, onClose }: JupiterSwapProps) {
                   <div className="flex justify-between text-gray-400 mb-1">
                     <span>Rate</span>
                     <span className="text-white">
-                      1 {inputToken.symbol} = {(parseFloat(outputAmount) / parseFloat(inputAmount)).toFixed(6)} {outputToken.symbol}
+                      1 {inputToken.symbol} = {(parseFloat(inputAmount) > 0 ? parseFloat(outputAmount) / parseFloat(inputAmount) : 0).toFixed(6)} {outputToken.symbol}
                     </span>
                   </div>
                   <div className="flex justify-between text-gray-400">
                     <span>Price Impact</span>
-                    <span className={parseFloat(quote.priceImpactPct) > 1 ? 'text-red-400' : 'text-green-400'}>
-                      {parseFloat(quote.priceImpactPct).toFixed(2)}%
+                    <span className={(parseFloat(quote.priceImpactPct) || 0) > 1 ? 'text-red-400' : 'text-green-400'}>
+                      {(parseFloat(quote.priceImpactPct) || 0).toFixed(2)}%
                     </span>
                   </div>
                 </div>

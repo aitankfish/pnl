@@ -237,7 +237,7 @@ function Sidebar({ currentPage }: SidebarProps) {
               }`}
               title={
                 shouldGlowWallet
-                  ? `Low Balance: ${walletBalance?.toFixed(4)} SOL - Click to deposit`
+                  ? `Low Balance: ${(Number(walletBalance) || 0).toFixed(4)} SOL - Click to deposit`
                   : authenticated
                   ? `${displayName} - Wallet & Profile`
                   : "Connect Wallet"

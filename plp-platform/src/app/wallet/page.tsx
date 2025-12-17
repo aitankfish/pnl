@@ -211,7 +211,7 @@ function VoteHistory({ marketId, walletAddress }: { marketId: string; walletAddr
                         {voteHistory.data.summary.yesTradeCount}
                       </div>
                       <div className="text-xs text-gray-300">
-                        {voteHistory.data.summary.totalYesAmount.toFixed(2)} SOL
+                        {(Number(voteHistory.data.summary.totalYesAmount) || 0).toFixed(2)} SOL
                       </div>
                     </div>
                     <div className="bg-red-500/10 border border-red-500/20 rounded-lg p-3">
@@ -220,7 +220,7 @@ function VoteHistory({ marketId, walletAddress }: { marketId: string; walletAddr
                         {voteHistory.data.summary.noTradeCount}
                       </div>
                       <div className="text-xs text-gray-300">
-                        {voteHistory.data.summary.totalNoAmount.toFixed(2)} SOL
+                        {(Number(voteHistory.data.summary.totalNoAmount) || 0).toFixed(2)} SOL
                       </div>
                     </div>
                   </div>
@@ -229,7 +229,7 @@ function VoteHistory({ marketId, walletAddress }: { marketId: string; walletAddr
                   <div className="bg-white/5 border border-white/10 rounded-lg p-3">
                     <div className="text-sm text-gray-400">Total Invested</div>
                     <div className="font-bold text-white text-xl">
-                      {voteHistory.data.summary.totalInvested.toFixed(2)} SOL
+                      {(Number(voteHistory.data.summary.totalInvested) || 0).toFixed(2)} SOL
                     </div>
                     <div className="text-xs text-gray-400">
                       {voteHistory.data.summary.totalTrades} {voteHistory.data.summary.totalTrades === 1 ? 'trade' : 'trades'}
@@ -254,7 +254,7 @@ function VoteHistory({ marketId, walletAddress }: { marketId: string; walletAddr
                               {trade.voteType.toUpperCase()}
                             </span>
                             <div className="flex-1">
-                              <div className="text-white font-medium">{trade.amount.toFixed(3)} SOL</div>
+                              <div className="text-white font-medium">{(Number(trade.amount) || 0).toFixed(3)} SOL</div>
                               <div className="text-xs text-gray-500">
                                 {new Date(trade.timestamp).toLocaleDateString('en-US', {
                                   month: 'short',
@@ -1747,7 +1747,7 @@ export default function WalletPage() {
                               <div className="bg-white/5 rounded p-2 border border-white/10">
                                 <div className="text-gray-400 text-xs">Your Stake</div>
                                 <div className="font-semibold text-white">
-                                  {position.totalAmount.toFixed(2)} SOL
+                                  {(Number(position.totalAmount) || 0).toFixed(2)} SOL
                                 </div>
                                 <div className="text-xs text-gray-500">
                                   {position.tradeCount} {position.tradeCount === 1 ? 'trade' : 'trades'}
@@ -1758,7 +1758,7 @@ export default function WalletPage() {
                                 <div className={`font-semibold ${
                                   position.voteType === 'yes' ? 'text-green-400' : 'text-red-400'
                                 }`}>
-                                  {position.voteType === 'yes' ? position.currentYesPrice.toFixed(1) : position.currentNoPrice.toFixed(1)}%
+                                  {position.voteType === 'yes' ? (Number(position.currentYesPrice) || 0).toFixed(1) : (Number(position.currentNoPrice) || 0).toFixed(1)}%
                                 </div>
                                 <div className="text-xs text-gray-500">
                                   {position.voteType === 'yes' ? 'YES' : 'NO'} rate
@@ -1814,7 +1814,7 @@ export default function WalletPage() {
                               <div className="bg-white/5 rounded p-2 border border-white/10">
                                 <div className="text-gray-400 text-xs">Your Stake</div>
                                 <div className="font-semibold text-white">
-                                  {position.totalAmount.toFixed(2)} SOL
+                                  {(Number(position.totalAmount) || 0).toFixed(2)} SOL
                                 </div>
                                 <div className="text-xs text-gray-500">
                                   {position.voteType.toUpperCase()} vote
@@ -1882,7 +1882,7 @@ export default function WalletPage() {
                               <div className="bg-white/5 rounded p-2 border border-white/10">
                                 <div className="text-gray-400 text-xs">Your Stake</div>
                                 <div className="font-semibold text-white">
-                                  {position.totalAmount.toFixed(2)} SOL
+                                  {(Number(position.totalAmount) || 0).toFixed(2)} SOL
                                 </div>
                                 <div className="text-xs text-gray-500">
                                   {position.voteType.toUpperCase()} vote
@@ -1946,7 +1946,7 @@ export default function WalletPage() {
                               <div className="bg-white/5 rounded p-2 border border-white/10">
                                 <div className="text-gray-400 text-xs">Your Stake</div>
                                 <div className="font-semibold text-white">
-                                  {position.totalAmount.toFixed(2)} SOL
+                                  {(Number(position.totalAmount) || 0).toFixed(2)} SOL
                                 </div>
                                 <div className="text-xs text-gray-500">
                                   {position.voteType.toUpperCase()} vote

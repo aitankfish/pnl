@@ -355,7 +355,7 @@ export default function LaunchpadPage() {
                             <div>
                               <div className="text-sm text-gray-400">Total Pool Volume</div>
                               <div className="text-xl font-bold text-white group-hover:text-purple-300 transition-colors">
-                                {totalVolume.toFixed(1)} SOL
+                                {(Number(totalVolume) || 0).toFixed(1)} SOL
                               </div>
                             </div>
                           </div>
@@ -451,7 +451,7 @@ export default function LaunchpadPage() {
                           <div className="grid grid-cols-2 gap-3 text-sm">
                             <div>
                               <div className="text-gray-400 text-xs">YES Support</div>
-                              <div className="font-semibold text-green-400">{project.yesPercentage.toFixed(1)}%</div>
+                              <div className="font-semibold text-green-400">{(Number(project.yesPercentage) || 0).toFixed(1)}%</div>
                             </div>
                             <div className="text-right">
                               <div className="text-gray-400 text-xs">Launch Pool</div>
