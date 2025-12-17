@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { CheckCircle, XCircle, Loader2, Filter } from 'lucide-react';
+import { Loader2, Filter } from 'lucide-react';
 import Link from 'next/link';
 import { useVoting } from '@/lib/hooks/useVoting';
 import { useAllMarketsSocket } from '@/lib/hooks/useSocket';
@@ -87,19 +87,6 @@ function formatLabel(value: string): string {
     .split(' ')
     .map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
     .join(' ');
-}
-
-// Check if vote data is hidden (for unresolved markets)
-function isVoteDataHidden(market: Market): boolean {
-  return market.yesPercentage === null || market.yesPercentage === undefined;
-}
-
-// Get YES percentage from API (calculated from blockchain sync)
-// This uses sharesYesPercentage from on-chain data (single source of truth)
-// Returns null if data is hidden for unresolved markets
-function getYesPercentage(market: Market): number | null {
-  if (market.yesPercentage === null) return null;
-  return market.yesPercentage ?? 50;
 }
 
 // Get market status from API (single source of truth calculated in backend)
@@ -382,56 +369,28 @@ export default function BrowsePage() {
                     </div>
                   </div>
 
-                  {/* Voting Stats */}
+                  {/* Pool Funding Progress */}
                   <div className="space-y-1.5 sm:space-y-2">
-                    {isVoteDataHidden(hotProject) ? (
-                      // Hidden vote data for unresolved markets
-                      <>
-                        <div className="flex justify-center text-xs sm:text-sm">
-                          <span className="text-gray-400">
-                            {hotProject.totalParticipants ?? 0} participants
-                          </span>
-                        </div>
-                        <div className="w-full bg-gray-700 rounded-full h-1.5 sm:h-2">
-                          <div
-                            className="bg-gradient-to-r from-gray-500 to-gray-400 h-1.5 sm:h-2 rounded-full"
-                            style={{ width: '50%' }}
-                          ></div>
-                        </div>
-                        <div className="text-center">
-                          <span className="text-base sm:text-lg font-bold text-gray-400">
-                            Hidden
-                          </span>
-                          <span className="text-xs sm:text-sm text-gray-500 ml-1">until resolved</span>
-                        </div>
-                      </>
-                    ) : (
-                      // Visible vote data for resolved markets
-                      <>
-                        <div className="flex justify-between text-xs sm:text-sm">
-                          <div className="flex items-center space-x-1">
-                            <CheckCircle className="w-3 h-3 sm:w-4 sm:h-4 text-green-400" />
-                            <span className="text-green-400">YES: {hotProject.yesVotes}</span>
-                          </div>
-                          <div className="flex items-center space-x-1">
-                            <span className="text-red-400">NO: {hotProject.noVotes}</span>
-                            <XCircle className="w-3 h-3 sm:w-4 sm:h-4 text-red-400" />
-                          </div>
-                        </div>
-                        <div className="w-full bg-gray-700 rounded-full h-1.5 sm:h-2">
-                          <div
-                            className="bg-gradient-to-r from-green-500 to-cyan-500 h-1.5 sm:h-2 rounded-full transition-all duration-500"
-                            style={{ width: `${getYesPercentage(hotProject)}%` }}
-                          ></div>
-                        </div>
-                        <div className="text-center">
-                          <span className="text-base sm:text-lg font-bold text-white">
-                            {getYesPercentage(hotProject)}%
-                          </span>
-                          <span className="text-xs sm:text-sm text-gray-400 ml-1">YES</span>
-                        </div>
-                      </>
-                    )}
+                    <div className="flex justify-between items-center text-xs sm:text-sm">
+                      <span className="text-gray-400">Pool Progress</span>
+                      <span className="text-cyan-400 font-medium">
+                        {((hotProject.poolBalance || 0) / 1e9).toFixed(2)} / {hotProject.targetPool}
+                      </span>
+                    </div>
+                    <div className="w-full bg-gray-700 rounded-full h-1.5 sm:h-2">
+                      <div
+                        className="bg-gradient-to-r from-cyan-500 to-purple-500 h-1.5 sm:h-2 rounded-full transition-all duration-500"
+                        style={{ width: `${Math.min(hotProject.poolProgressPercentage || 0, 100)}%` }}
+                      ></div>
+                    </div>
+                    <div className="flex justify-between items-center">
+                      <span className="text-xs text-gray-500">
+                        {hotProject.totalParticipants ?? 0} participants
+                      </span>
+                      <span className="text-sm font-bold text-purple-400">
+                        {hotProject.poolProgressPercentage || 0}% funded
+                      </span>
+                    </div>
                   </div>
 
                   <div className="flex items-center justify-between text-xs sm:text-sm pt-1.5 sm:pt-2 border-t border-white/10">
@@ -666,56 +625,28 @@ export default function BrowsePage() {
                     </div>
                   </div>
 
-                  {/* Voting Stats */}
+                  {/* Pool Funding Progress */}
                   <div className="space-y-1.5 sm:space-y-2">
-                    {isVoteDataHidden(project) ? (
-                      // Hidden vote data for unresolved markets
-                      <>
-                        <div className="flex justify-center text-xs sm:text-sm">
-                          <span className="text-gray-400">
-                            {project.totalParticipants ?? 0} participants
-                          </span>
-                        </div>
-                        <div className="w-full bg-gray-700 rounded-full h-1.5 sm:h-2">
-                          <div
-                            className="bg-gradient-to-r from-gray-500 to-gray-400 h-1.5 sm:h-2 rounded-full"
-                            style={{ width: '50%' }}
-                          ></div>
-                        </div>
-                        <div className="text-center">
-                          <span className="text-base sm:text-lg font-bold text-gray-400">
-                            Hidden
-                          </span>
-                          <span className="text-xs sm:text-sm text-gray-500 ml-1">until resolved</span>
-                        </div>
-                      </>
-                    ) : (
-                      // Visible vote data for resolved markets
-                      <>
-                        <div className="flex justify-between text-xs sm:text-sm">
-                          <div className="flex items-center space-x-1">
-                            <CheckCircle className="w-3 h-3 sm:w-4 sm:h-4 text-green-400" />
-                            <span className="text-green-400">YES: {project.yesVotes}</span>
-                          </div>
-                          <div className="flex items-center space-x-1">
-                            <span className="text-red-400">NO: {project.noVotes}</span>
-                            <XCircle className="w-3 h-3 sm:w-4 sm:h-4 text-red-400" />
-                          </div>
-                        </div>
-                        <div className="w-full bg-gray-700 rounded-full h-1.5 sm:h-2">
-                          <div
-                            className="bg-gradient-to-r from-green-500 to-cyan-500 h-1.5 sm:h-2 rounded-full transition-all duration-500"
-                            style={{ width: `${getYesPercentage(project)}%` }}
-                          ></div>
-                        </div>
-                        <div className="text-center">
-                          <span className="text-base sm:text-lg font-bold text-white">
-                            {getYesPercentage(project)}%
-                          </span>
-                          <span className="text-xs sm:text-sm text-gray-400 ml-1">YES</span>
-                        </div>
-                      </>
-                    )}
+                    <div className="flex justify-between items-center text-xs sm:text-sm">
+                      <span className="text-gray-400">Pool Progress</span>
+                      <span className="text-cyan-400 font-medium">
+                        {((project.poolBalance || 0) / 1e9).toFixed(2)} / {project.targetPool}
+                      </span>
+                    </div>
+                    <div className="w-full bg-gray-700 rounded-full h-1.5 sm:h-2">
+                      <div
+                        className="bg-gradient-to-r from-cyan-500 to-purple-500 h-1.5 sm:h-2 rounded-full transition-all duration-500"
+                        style={{ width: `${Math.min(project.poolProgressPercentage || 0, 100)}%` }}
+                      ></div>
+                    </div>
+                    <div className="flex justify-between items-center">
+                      <span className="text-xs text-gray-500">
+                        {project.totalParticipants ?? 0} participants
+                      </span>
+                      <span className="text-sm font-bold text-purple-400">
+                        {project.poolProgressPercentage || 0}% funded
+                      </span>
+                    </div>
                   </div>
 
                   <div className="flex items-center justify-between text-xs sm:text-sm">
