@@ -57,7 +57,7 @@ export default function ProbabilityChart({ data, className }: ProbabilityChartPr
             </div>
           </div>
           <p className="text-xs text-gray-400 mt-2">
-            {data.amount.toFixed(3)} SOL • {data.voteType.toUpperCase()}
+            {(data.amount || 0).toFixed(3)} SOL • {data.voteType?.toUpperCase()}
           </p>
         </div>
       );

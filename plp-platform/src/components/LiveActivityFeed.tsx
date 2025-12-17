@@ -94,7 +94,7 @@ export default function LiveActivityFeed({ trades, className }: LiveActivityFeed
                   Voted <span className={`font-semibold ${trade.voteType === 'yes' ? 'text-green-400' : 'text-red-400'}`}>
                     {trade.voteType.toUpperCase()}
                   </span> with{' '}
-                  <span className="text-cyan-400 font-medium">{trade.amount.toFixed(3)} SOL</span>
+                  <span className="text-cyan-400 font-medium">{(trade.amount || 0).toFixed(3)} SOL</span>
                 </p>
 
                 <div className="flex items-center gap-2 sm:gap-3 mt-0.5 sm:mt-1 text-[10px] sm:text-xs text-gray-500">

@@ -2595,8 +2595,8 @@ export default function MarketDetailsPage() {
             totalYesStake={holdersData?.data?.totalYesStake || 0}
             totalNoStake={holdersData?.data?.totalNoStake || 0}
             uniqueHolders={holdersData?.data?.uniqueHolders || 0}
-            yesPercentage={market.yesPercentage} // Use backend-calculated percentage
-            noPercentage={market.noPercentage} // Use backend-calculated percentage
+            yesPercentage={market.yesPercentage ?? undefined}
+            noPercentage={market.noPercentage ?? undefined}
             currentUserWallet={primaryWallet?.address}
             className="w-full"
           />
