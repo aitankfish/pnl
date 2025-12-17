@@ -86,7 +86,7 @@ export default function MarketHolders({
             <div className="flex items-center gap-1.5 sm:gap-2">
               <TrendingUp className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-green-400 flex-shrink-0" />
               <h3 className="text-xs sm:text-sm font-semibold text-green-400">
-                YES HOLDERS ({yesPoolPercentage.toFixed(0)}%)
+                YES HOLDERS ({(yesPoolPercentage || 0).toFixed(0)}%)
               </h3>
             </div>
             <div className="text-[10px] sm:text-xs text-gray-400 flex-shrink-0">
@@ -150,7 +150,7 @@ export default function MarketHolders({
             <div className="flex items-center gap-1.5 sm:gap-2">
               <TrendingDown className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-red-400 flex-shrink-0" />
               <h3 className="text-xs sm:text-sm font-semibold text-red-400">
-                NO HOLDERS ({noPoolPercentage.toFixed(0)}%)
+                NO HOLDERS ({(noPoolPercentage || 0).toFixed(0)}%)
               </h3>
             </div>
             <div className="text-[10px] sm:text-xs text-gray-400 flex-shrink-0">
