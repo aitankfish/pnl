@@ -478,6 +478,9 @@ export default function MarketDetailsPage() {
     if (!socketMarketData || !market) return;
 
     console.log('📡 [SOCKET] Received market update', {
+      resolution: socketMarketData.resolution,
+      phase: socketMarketData.phase,
+      poolProgressPercentage: socketMarketData.poolProgressPercentage,
       yesVotes: socketMarketData.yesVotes,
       noVotes: socketMarketData.noVotes,
       totalYesStake: socketMarketData.totalYesStake,
