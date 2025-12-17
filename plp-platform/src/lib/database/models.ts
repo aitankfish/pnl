@@ -56,6 +56,11 @@ export interface PredictionMarket {
   autoLaunch: boolean;
   launchWindowEnd?: Date; // For manual launch option
   resolvedAt?: Date;
+  // Final state captured at resolution (before pool is emptied by claims)
+  finalPoolBalance?: number; // Pool balance at resolution time (lamports)
+  finalPoolProgressPercentage?: number; // Pool progress at resolution time
+  finalYesPercentage?: number; // YES percentage at resolution time
+  finalNoPercentage?: number; // NO percentage at resolution time
   createdAt: Date;
 }
 

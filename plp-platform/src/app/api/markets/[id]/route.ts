@@ -357,17 +357,28 @@ export async function GET(
       metadata,
 
       // On-chain fields from blockchain sync (MongoDB has fresh data via WebSocket)
-      poolBalance: market.poolBalance,
+      // For resolved markets, use final values captured at resolution (before pool emptied by claims)
+      poolBalance: resolution !== 'Unresolved' && market.finalPoolBalance != null
+        ? market.finalPoolBalance
+        : market.poolBalance,
       yesPool: market.yesPool,
       noPool: market.noPool,
       totalYesShares: market.totalYesShares,
       totalNoShares: market.totalNoShares,
-      poolProgressPercentage: market.poolProgressPercentage,
+      poolProgressPercentage: resolution !== 'Unresolved' && market.finalPoolProgressPercentage != null
+        ? market.finalPoolProgressPercentage
+        : market.poolProgressPercentage,
       // Use sharesYesPercentage as single source of truth (from blockchain AMM)
-      // This matches browse page API and ensures consistency
-      yesPercentage: market.sharesYesPercentage ?? market.yesPercentage ?? 50,
-      noPercentage: market.sharesYesPercentage ? 100 - market.sharesYesPercentage : (market.yesPercentage ? 100 - market.yesPercentage : 50),
-      sharesYesPercentage: market.sharesYesPercentage,
+      // For resolved markets, use final values captured at resolution
+      yesPercentage: resolution !== 'Unresolved' && market.finalYesPercentage != null
+        ? market.finalYesPercentage
+        : (market.sharesYesPercentage ?? market.yesPercentage ?? 50),
+      noPercentage: resolution !== 'Unresolved' && market.finalNoPercentage != null
+        ? market.finalNoPercentage
+        : (market.sharesYesPercentage ? 100 - market.sharesYesPercentage : (market.yesPercentage ? 100 - market.yesPercentage : 50)),
+      sharesYesPercentage: resolution !== 'Unresolved' && market.finalYesPercentage != null
+        ? market.finalYesPercentage
+        : market.sharesYesPercentage,
       phase: market.phase,
       resolution: market.resolution,
       tokenMint: market.tokenMint,

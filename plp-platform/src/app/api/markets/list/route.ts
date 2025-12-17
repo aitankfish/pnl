@@ -158,10 +158,15 @@ export async function GET(request: NextRequest) {
         projectImageUrl: convertToGatewayUrl(project?.projectImageUrl),
 
         // On-chain fields from blockchain sync
+        // For resolved markets, use final values captured at resolution (before pool emptied by claims)
         resolution: market.resolution || 'Unresolved',
         phase: market.phase || 'Prediction',
-        poolProgressPercentage: market.poolProgressPercentage || 0,
-        poolBalance: market.poolBalance || 0,
+        poolProgressPercentage: !isUnresolved && market.finalPoolProgressPercentage != null
+          ? market.finalPoolProgressPercentage
+          : (market.poolProgressPercentage || 0),
+        poolBalance: !isUnresolved && market.finalPoolBalance != null
+          ? market.finalPoolBalance
+          : (market.poolBalance || 0),
         // Hide share counts for unresolved markets
         totalYesShares: isUnresolved ? null : (market.totalYesShares?.toString() || '0'),
         totalNoShares: isUnresolved ? null : (market.totalNoShares?.toString() || '0'),

@@ -158,7 +158,12 @@ export class EventProcessor {
     if (marketData.resolution !== 0 && !market.resolvedAt) {
       updateData.resolvedAt = new Date();
       updateData.marketState = 1; // Set to Resolved state
-      logger.info(`✅ Market resolved: ${this.getResolutionString(marketData.resolution)}`);
+      // Capture final state at resolution (before pool is emptied by claims)
+      updateData.finalPoolBalance = marketData.poolBalance;
+      updateData.finalPoolProgressPercentage = derived.poolProgressPercentage;
+      updateData.finalYesPercentage = derived.sharesYesPercentage;
+      updateData.finalNoPercentage = 100 - derived.sharesYesPercentage;
+      logger.info(`✅ Market resolved: ${this.getResolutionString(marketData.resolution)} | Final pool: ${Number(marketData.poolBalance) / 1e9} SOL (${derived.poolProgressPercentage}%)`);
     } else if (marketData.resolution !== 0) {
       // Already resolved, make sure marketState is correct
       updateData.marketState = 1;
