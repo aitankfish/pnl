@@ -55,6 +55,7 @@ interface MarketDetails {
   targetPool: string;
   yesVotes: number;
   noVotes: number;
+  totalParticipants: number; // Always available (doesn't reveal vote direction)
   totalYesStake: number;
   totalNoStake: number;
   yesPercentage?: number; // Legacy field (may be stale)
@@ -1337,7 +1338,7 @@ export default function MarketDetailsPage() {
                   totalYesVotes: market.yesVotes || 0,
                   totalNoVotes: market.noVotes || 0,
                   yesPercentage: yesPercentage || 0,
-                  totalParticipants: (market.yesVotes || 0) + (market.noVotes || 0),
+                  totalParticipants: market.totalParticipants || 0,
                 }}
               />
             </CardContent>
@@ -1376,12 +1377,12 @@ export default function MarketDetailsPage() {
                   </div>
 
                   {/* YES/NO Distribution - Only show for resolved markets to prevent bandwagon voting */}
-                  {mergedOnchainData.data.resolution !== 'Unresolved' && (market.yesVotes > 0 || market.noVotes > 0) && (
+                  {mergedOnchainData.data.resolution !== 'Unresolved' && (market.totalParticipants > 0) && (
                     <div>
                       <div className="flex justify-between items-center mb-1">
                         <span className="text-[10px] text-gray-400">Final Vote Distribution</span>
                         <span className="text-[10px] text-gray-500">
-                          {(market.yesVotes || 0) + (market.noVotes || 0)} total votes
+                          {market.totalParticipants || 0} total votes
                         </span>
                       </div>
                       <div className="h-1.5 bg-gray-800 rounded-full overflow-hidden flex">
@@ -1402,10 +1403,10 @@ export default function MarketDetailsPage() {
                   )}
 
                   {/* Participant count for unresolved markets - no percentages */}
-                  {mergedOnchainData.data.resolution === 'Unresolved' && (market.yesVotes > 0 || market.noVotes > 0) && (
+                  {mergedOnchainData.data.resolution === 'Unresolved' && (market.totalParticipants > 0) && (
                     <div className="text-center">
                       <span className="text-[10px] text-gray-400">
-                        {(market.yesVotes || 0) + (market.noVotes || 0)} participants voted
+                        {market.totalParticipants || 0} participants voted
                       </span>
                     </div>
                   )}
@@ -1603,7 +1604,7 @@ export default function MarketDetailsPage() {
                     <div className="text-[10px] text-gray-400">Participants</div>
                     <div className="flex items-center space-x-1">
                       <Users className="w-2.5 h-2.5 text-cyan-400" />
-                      <span className="text-xs font-bold text-white">{(market.yesVotes || 0) + (market.noVotes || 0)}</span>
+                      <span className="text-xs font-bold text-white">{market.totalParticipants || 0}</span>
                     </div>
                   </div>
 

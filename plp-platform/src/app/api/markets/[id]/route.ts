@@ -344,6 +344,8 @@ export async function GET(
       targetPool: `${market.targetPool / 1e9} SOL`,
       yesVotes: voteCounts.yesVoteCount,
       noVotes: voteCounts.noVoteCount,
+      // Total participants (always visible - doesn't reveal vote direction)
+      totalParticipants: voteCounts.yesVoteCount + voteCounts.noVoteCount,
       totalYesStake: totalYesStake,
       totalNoStake: totalNoStake,
       timeLeft,
