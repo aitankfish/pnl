@@ -47,11 +47,14 @@ export default function MarketHolders({
   };
 
   // Use backend-calculated percentages if available, otherwise calculate
-  const totalStake = totalYesStake + totalNoStake;
-  const yesPoolPercentage = yesPercentage !== undefined
+  // Add null safety for all numeric values
+  const safeYesStake = totalYesStake || 0;
+  const safeNoStake = totalNoStake || 0;
+  const totalStake = safeYesStake + safeNoStake;
+  const yesPoolPercentage = yesPercentage !== undefined && yesPercentage !== null
     ? yesPercentage
-    : (totalStake > 0 ? (totalYesStake / totalStake) * 100 : 50);
-  const noPoolPercentage = noPercentage !== undefined
+    : (totalStake > 0 ? (safeYesStake / totalStake) * 100 : 50);
+  const noPoolPercentage = noPercentage !== undefined && noPercentage !== null
     ? noPercentage
     : (100 - yesPoolPercentage);
 
@@ -71,7 +74,7 @@ export default function MarketHolders({
           <div className="text-right flex-shrink-0">
             <div className="text-[10px] sm:text-xs text-gray-400">Total Staked</div>
             <div className="text-sm sm:text-base md:text-lg font-bold text-white">
-              {totalStake.toFixed(2)} SOL
+              {(totalStake || 0).toFixed(2)} SOL
             </div>
           </div>
         </div>
@@ -87,7 +90,7 @@ export default function MarketHolders({
               </h3>
             </div>
             <div className="text-[10px] sm:text-xs text-gray-400 flex-shrink-0">
-              {totalYesStake.toFixed(2)} SOL
+              {safeYesStake.toFixed(2)} SOL
             </div>
           </div>
 
@@ -129,10 +132,10 @@ export default function MarketHolders({
                   </div>
                   <div className="text-right flex-shrink-0">
                     <div className="text-xs sm:text-sm font-bold text-green-400">
-                      {holder.totalAmount.toFixed(3)} SOL
+                      {(holder.totalAmount || 0).toFixed(3)} SOL
                     </div>
                     <div className="text-[10px] sm:text-xs text-gray-400">
-                      {holder.percentage.toFixed(1)}%
+                      {(holder.percentage || 0).toFixed(1)}%
                     </div>
                   </div>
                 </Link>
@@ -151,7 +154,7 @@ export default function MarketHolders({
               </h3>
             </div>
             <div className="text-[10px] sm:text-xs text-gray-400 flex-shrink-0">
-              {totalNoStake.toFixed(2)} SOL
+              {safeNoStake.toFixed(2)} SOL
             </div>
           </div>
 
@@ -193,10 +196,10 @@ export default function MarketHolders({
                   </div>
                   <div className="text-right flex-shrink-0">
                     <div className="text-xs sm:text-sm font-bold text-red-400">
-                      {holder.totalAmount.toFixed(3)} SOL
+                      {(holder.totalAmount || 0).toFixed(3)} SOL
                     </div>
                     <div className="text-[10px] sm:text-xs text-gray-400">
-                      {holder.percentage.toFixed(1)}%
+                      {(holder.percentage || 0).toFixed(1)}%
                     </div>
                   </div>
                 </Link>
