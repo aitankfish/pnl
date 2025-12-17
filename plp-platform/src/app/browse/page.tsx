@@ -114,6 +114,7 @@ function getVoteDisabledReason(market: Market, voteType: 'yes' | 'no'): string {
 export default function BrowsePage() {
   const [votingState, setVotingState] = useState<{ marketId: string; voteType: 'yes' | 'no' } | null>(null);
   const [selectedCategory, setSelectedCategory] = useState<string>('All');
+  const [selectedStatus, setSelectedStatus] = useState<string>('active'); // 'active', 'resolved', 'all'
   const { vote } = useVoting();
 
   // Socket.IO for real-time updates
@@ -124,7 +125,7 @@ export default function BrowsePage() {
 
   // Use SWR for data fetching with caching and auto-refresh
   const { data: marketsResponse, error: fetchError, mutate: refetchMarkets } = useSWR(
-    '/api/markets/list',
+    `/api/markets/list?status=${selectedStatus}`,
     fetcher,
     {
       refreshInterval: pollInterval,
@@ -229,10 +230,15 @@ export default function BrowsePage() {
     return [...marketsToUse].sort(sortByVotes).slice(0, 2);
   }, [markets]);
 
-  // Filter out hot projects and apply category filter - memoized
+  // Filter out hot projects (only for active view) and apply category filter - memoized
   const regularMarkets = useMemo(() => {
-    const hotProjectIds = hotProjects.map(p => p.id);
-    let filtered = markets.filter(m => !hotProjectIds.includes(m.id));
+    let filtered = markets;
+
+    // Only filter out hot projects when viewing active markets (they're shown separately)
+    if (selectedStatus === 'active') {
+      const hotProjectIds = hotProjects.map(p => p.id);
+      filtered = filtered.filter(m => !hotProjectIds.includes(m.id));
+    }
 
     // Apply category filter
     if (selectedCategory !== 'All') {
@@ -245,7 +251,7 @@ export default function BrowsePage() {
     }
 
     return filtered;
-  }, [markets, hotProjects, selectedCategory]);
+  }, [markets, hotProjects, selectedCategory, selectedStatus]);
 
   return (
     <div className="pt-2 sm:pt-3 px-3 sm:px-6 pb-6 space-y-6 sm:space-y-8">
@@ -256,8 +262,8 @@ export default function BrowsePage() {
           </h1>
         </div>
 
-        {/* Hot Projects Section */}
-        {!loading && hotProjects.length > 0 && (
+        {/* Hot Projects Section - only show for active markets */}
+        {!loading && hotProjects.length > 0 && selectedStatus === 'active' && (
           <div className="space-y-3 sm:space-y-4">
             <div className="flex items-center justify-center space-x-2 sm:space-x-3">
               <div className="h-px flex-1 bg-gradient-to-r from-transparent via-orange-500 to-transparent"></div>
@@ -449,7 +455,9 @@ export default function BrowsePage() {
         <div className="space-y-4 sm:space-y-6">
           <div className="flex items-center justify-between flex-wrap gap-3 sm:gap-4">
             <div className="flex items-center gap-3">
-              <h2 className="text-xl sm:text-3xl font-bold text-white">Live Markets</h2>
+              <h2 className="text-xl sm:text-3xl font-bold text-white">
+                {selectedStatus === 'active' ? 'Live Markets' : selectedStatus === 'resolved' ? 'Resolved Markets' : 'All Markets'}
+              </h2>
               {/* Sync Health Indicator */}
               {syncHealth && !syncHealth.healthy && (
                 <div className="flex items-center gap-1.5 px-2 py-1 bg-yellow-500/20 border border-yellow-500/30 rounded-full">
@@ -467,22 +475,42 @@ export default function BrowsePage() {
               )}
             </div>
 
-            {/* Category Filter Dropdown */}
-            <div className="flex items-center gap-2 sm:gap-3">
+            {/* Filter Dropdowns */}
+            <div className="flex items-center gap-2 sm:gap-4">
               <div className="flex items-center gap-1.5 sm:gap-2">
                 <Filter className="w-4 h-4 sm:w-5 sm:h-5 text-gray-400" />
-                <span className="text-xs sm:text-sm text-gray-400 font-medium hidden sm:inline">Filter by:</span>
+                <span className="text-xs sm:text-sm text-gray-400 font-medium hidden sm:inline">Filter:</span>
               </div>
+
+              {/* Status Filter */}
               <select
-                value={selectedCategory}
-                onChange={(e) => setSelectedCategory(e.target.value)}
-                className="h-9 w-[120px] sm:w-[160px] bg-slate-800 border border-white/20 text-white text-sm rounded-lg px-3 py-1.5 focus:ring-2 focus:ring-purple-500/50 focus:border-purple-500/50 transition-all appearance-none cursor-pointer"
+                value={selectedStatus}
+                onChange={(e) => setSelectedStatus(e.target.value)}
+                className="h-9 w-[100px] sm:w-[120px] bg-slate-800 border border-white/20 text-white text-sm rounded-lg px-2 sm:px-3 py-1.5 focus:ring-2 focus:ring-cyan-500/50 focus:border-cyan-500/50 transition-all appearance-none cursor-pointer"
                 style={{
                   backgroundImage: `url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%239ca3af' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='M6 8l4 4 4-4'/%3e%3c/svg%3e")`,
                   backgroundPosition: 'right 0.5rem center',
                   backgroundRepeat: 'no-repeat',
                   backgroundSize: '1.5em 1.5em',
-                  paddingRight: '2.5rem'
+                  paddingRight: '2rem'
+                }}
+              >
+                <option value="active" className="bg-slate-800">Active</option>
+                <option value="resolved" className="bg-slate-800">Resolved</option>
+                <option value="all" className="bg-slate-800">All</option>
+              </select>
+
+              {/* Category Filter */}
+              <select
+                value={selectedCategory}
+                onChange={(e) => setSelectedCategory(e.target.value)}
+                className="h-9 w-[100px] sm:w-[140px] bg-slate-800 border border-white/20 text-white text-sm rounded-lg px-2 sm:px-3 py-1.5 focus:ring-2 focus:ring-purple-500/50 focus:border-purple-500/50 transition-all appearance-none cursor-pointer"
+                style={{
+                  backgroundImage: `url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%239ca3af' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='M6 8l4 4 4-4'/%3e%3c/svg%3e")`,
+                  backgroundPosition: 'right 0.5rem center',
+                  backgroundRepeat: 'no-repeat',
+                  backgroundSize: '1.5em 1.5em',
+                  paddingRight: '2rem'
                 }}
               >
                 {categories.map((category) => (

@@ -20,15 +20,28 @@ export const dynamic = 'force-dynamic';
 
 const logger = createClientLogger();
 
-export async function GET(_request: NextRequest) {
+export async function GET(request: NextRequest) {
   try {
+    // Get status filter from query params
+    const { searchParams } = new URL(request.url);
+    const status = searchParams.get('status') || 'active'; // 'active', 'resolved', 'all'
+
     // Connect to MongoDB
     await connectToDatabase();
 
+    // Build match query based on status filter
+    let matchQuery: any = {};
+    if (status === 'active') {
+      matchQuery = { marketState: 0 };
+    } else if (status === 'resolved') {
+      matchQuery = { marketState: 1 };
+    }
+    // 'all' = no filter on marketState
+
     // Use aggregation pipeline to fetch markets with project data and stake calculations in one query
     const marketsWithData = await PredictionMarket.aggregate([
-      // Match active markets
-      { $match: { marketState: 0 } },
+      // Match markets based on status filter
+      { $match: matchQuery },
       // Sort by creation date
       { $sort: { createdAt: -1 } },
       // Limit results
