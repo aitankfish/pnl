@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useEffect, useState } from 'react';
-import { Loader2, Sparkles, AlertTriangle, TrendingUp, Target, Trophy, Users } from 'lucide-react';
+import { Loader2, Sparkles, AlertTriangle, TrendingUp, Target, Trophy, Users, ChevronDown, ChevronUp } from 'lucide-react';
 
 /**
  * Strip markdown formatting from text - super aggressive version
@@ -432,6 +432,7 @@ export default function GrokRoast({ marketId, resolution, votingData }: GrokRoas
   const [generatingResolution, setGeneratingResolution] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [hasTriggeredResolution, setHasTriggeredResolution] = useState(false);
+  const [showInitialReview, setShowInitialReview] = useState(false);
   const [hasTriggeredInitial, setHasTriggeredInitial] = useState(false);
 
   // Fetch existing analyses
@@ -603,18 +604,70 @@ export default function GrokRoast({ marketId, resolution, votingData }: GrokRoas
     (a, b) => new Date(a.generatedAt).getTime() - new Date(b.generatedAt).getTime()
   );
 
+  // Check if we have a resolution analysis
+  const hasResolution = sortedAnalyses.some(a => a.type === 'resolution_analysis');
+  const initialRoast = sortedAnalyses.find(a => a.type === 'initial_roast');
+  const resolutionAnalysis = sortedAnalyses.find(a => a.type === 'resolution_analysis');
+
   return (
     <div className="space-y-4">
-      {/* Analysis cards - rendered directly */}
-      {sortedAnalyses.map((analysis, index) => (
-        <div key={index}>
-          {analysis.type === 'initial_roast' ? (
-            <InitialRoastCard analysis={analysis} />
-          ) : (
-            <ResolutionAnalysisCard analysis={analysis} />
+      {/* If resolution exists, show it first with collapsible initial review */}
+      {hasResolution && resolutionAnalysis ? (
+        <>
+          {/* Resolution Analysis - Always visible */}
+          <ResolutionAnalysisCard analysis={resolutionAnalysis} />
+
+          {/* Initial Review - Collapsible when resolution exists */}
+          {initialRoast && (
+            <div className="mt-4">
+              <button
+                onClick={() => setShowInitialReview(!showInitialReview)}
+                className="w-full flex items-center justify-between p-3 bg-white/5 hover:bg-white/10 rounded-xl border border-white/10 transition-all group"
+              >
+                <div className="flex items-center space-x-3">
+                  <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-purple-500/20 to-pink-500/20 flex items-center justify-center">
+                    <Sparkles className="w-4 h-4 text-purple-400" />
+                  </div>
+                  <div className="text-left">
+                    <span className="text-sm font-medium text-gray-300">Initial AI Analysis</span>
+                    <p className="text-xs text-gray-500">
+                      {new Date(initialRoast.generatedAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                    </p>
+                  </div>
+                </div>
+                <div className="flex items-center space-x-2">
+                  <span className="text-xs text-gray-500 group-hover:text-gray-400">
+                    {showInitialReview ? 'Hide' : 'View'}
+                  </span>
+                  {showInitialReview ? (
+                    <ChevronUp className="w-4 h-4 text-gray-400" />
+                  ) : (
+                    <ChevronDown className="w-4 h-4 text-gray-400" />
+                  )}
+                </div>
+              </button>
+
+              {/* Collapsible content */}
+              {showInitialReview && (
+                <div className="mt-3 p-4 bg-white/5 rounded-xl border border-white/10">
+                  <InitialRoastCard analysis={initialRoast} />
+                </div>
+              )}
+            </div>
           )}
-        </div>
-      ))}
+        </>
+      ) : (
+        /* No resolution yet - show analyses in order */
+        sortedAnalyses.map((analysis, index) => (
+          <div key={index}>
+            {analysis.type === 'initial_roast' ? (
+              <InitialRoastCard analysis={analysis} />
+            ) : (
+              <ResolutionAnalysisCard analysis={analysis} />
+            )}
+          </div>
+        ))
+      )}
 
       {/* Loading state for resolution analysis */}
       {generatingResolution && (
