@@ -10,7 +10,6 @@ import { Db, ObjectId } from 'mongodb';
 import { broadcastMarketUpdate, broadcastPositionUpdate } from '../socket/socket-server';
 import { connectToDatabase, getDatabase } from '@/lib/database';
 import { updateMarketVoteCounts } from '@/lib/vote-counts';
-import { Connection, PublicKey } from '@solana/web3.js';
 
 const logger = createClientLogger();
 
@@ -165,45 +164,10 @@ export class EventProcessor {
       updateData.marketState = 1;
     }
 
-    // Calculate stake-based percentages from participants (consistent with vote/complete API)
-    try {
-      const participants = await this.db.collection('predictionparticipants').find({
-        marketId: market._id
-      }).toArray();
-
-      let totalYesStake = 0;
-      let totalNoStake = 0;
-
-      for (const participant of participants) {
-        const yesShares = BigInt(participant.yesShares || '0');
-        const noShares = BigInt(participant.noShares || '0');
-        totalYesStake += Number(yesShares);
-        totalNoStake += Number(noShares);
-      }
-
-      const totalStake = totalYesStake + totalNoStake;
-      const stakeYesPercentage = totalStake > 0 ? Math.round((totalYesStake / totalStake) * 100) : 50;
-      const stakeNoPercentage = totalStake > 0 ? Math.round((totalNoStake / totalStake) * 100) : 50;
-
-      // Override pool-based percentage with stake-based percentage for consistency
-      updateData.yesPercentage = stakeYesPercentage;
-      updateData.noPercentage = stakeNoPercentage;
-      updateData.totalYesStake = totalYesStake;
-      updateData.totalNoStake = totalNoStake;
-
-      logger.info('📊 Calculated stake-based percentages', {
-        marketAddress: event.address.slice(0, 8) + '...',
-        yesPercentage: stakeYesPercentage,
-        noPercentage: stakeNoPercentage,
-        totalYesStake,
-        totalNoStake,
-      });
-    } catch (error) {
-      logger.warn('Failed to calculate stake-based percentages, using pool-based', {
-        error: error instanceof Error ? error.message : String(error)
-      });
-      // Keep pool-based percentages if calculation fails
-    }
+    // Use blockchain-derived percentages directly (source of truth)
+    // No need to query MongoDB participants - blockchain totalYesShares/totalNoShares is accurate
+    updateData.yesPercentage = derived.sharesYesPercentage;
+    updateData.noPercentage = 100 - derived.sharesYesPercentage;
 
     // 4. Update MongoDB
     await this.db.collection('predictionmarkets').updateOne(
@@ -351,105 +315,11 @@ export class EventProcessor {
       logger.info(`📊 Incremented ${voteType} vote count for market ${market.marketAddress.slice(0, 8)}...`);
     }
 
-    // 5. Fetch market account from blockchain for accurate percentages
-    // This is the source of truth - MongoDB may have stale data
-    try {
-      const heliusApiKey = process.env.HELIUS_API_KEY;
-      const network = process.env.NEXT_PUBLIC_SOLANA_NETWORK || 'devnet';
-      const isMainnet = network === 'mainnet-beta' || network === 'mainnet';
+    // Note: Market percentages are updated by processMarketUpdate() which handles
+    // the market account event (fired in the same transaction as this position event).
+    // No need for redundant RPC call or market broadcast here.
 
-      const rpcEndpoint = isMainnet
-        ? `https://mainnet.helius-rpc.com/?api-key=${heliusApiKey}`
-        : `https://devnet.helius-rpc.com/?api-key=${heliusApiKey}`;
-
-      const connection = new Connection(rpcEndpoint, {
-        commitment: 'confirmed',
-        confirmTransactionInitialTimeout: 30000, // 30 second timeout
-      });
-      const marketPubkey = new PublicKey(positionData.market);
-      const marketAccountInfo = await connection.getAccountInfo(marketPubkey);
-
-      let yesPercentage = 50;
-      let noPercentage = 50;
-      let totalYesStake = 0;
-      let totalNoStake = 0;
-
-      if (marketAccountInfo && marketAccountInfo.data) {
-        // Parse market account to get accurate totals from blockchain
-        const base64Data = marketAccountInfo.data.toString('base64');
-        const marketData = parseMarketAccount(base64Data);
-
-        // Use blockchain values (source of truth)
-        totalYesStake = Number(BigInt(marketData.totalYesShares));
-        totalNoStake = Number(BigInt(marketData.totalNoShares));
-        const totalStake = totalYesStake + totalNoStake;
-
-        yesPercentage = totalStake > 0 ? Math.round((totalYesStake / totalStake) * 100) : 50;
-        noPercentage = totalStake > 0 ? Math.round((totalNoStake / totalStake) * 100) : 50;
-
-        logger.info(`📊 Fetched market data from blockchain`, {
-          market: positionData.market.slice(0, 8) + '...',
-          blockchainYesShares: marketData.totalYesShares,
-          blockchainNoShares: marketData.totalNoShares,
-          yesPercentage,
-          noPercentage,
-        });
-      } else {
-        logger.warn(`⚠️  Could not fetch market account from blockchain, using MongoDB fallback`);
-        // Fallback to MongoDB values
-        totalYesStake = market.totalYesStake || 0;
-        totalNoStake = market.totalNoStake || 0;
-        yesPercentage = market.yesPercentage || 50;
-        noPercentage = market.noPercentage || 50;
-      }
-
-      // Update market with blockchain-accurate percentages
-      await this.db.collection('predictionmarkets').updateOne(
-        { _id: market._id },
-        {
-          $set: {
-            yesPercentage,
-            noPercentage,
-            sharesYesPercentage: yesPercentage,
-            totalYesStake,
-            totalNoStake,
-            lastSyncedAt: new Date(),
-          }
-        }
-      );
-
-      // Fetch updated market for vote counts
-      const updatedMarket = await this.db.collection('predictionmarkets').findOne({
-        _id: market._id,
-      }) || market;
-
-      // Broadcast market update with blockchain-accurate percentages AND vote counts
-      broadcastMarketUpdate(positionData.market, {
-        marketAddress: positionData.market,
-        yesVoteCount: updatedMarket.yesVoteCount || 0,
-        noVoteCount: updatedMarket.noVoteCount || 0,
-        yesPercentage,
-        noPercentage,
-        sharesYesPercentage: yesPercentage,
-        totalYesStake,
-        totalNoStake,
-        lastSyncedAt: new Date(),
-      });
-
-      logger.info(`📊 Position update broadcast with blockchain percentages`, {
-        market: positionData.market.slice(0, 8) + '...',
-        yesPercentage,
-        noPercentage,
-        totalYesStake,
-        totalNoStake,
-      });
-    } catch (error) {
-      logger.error('Failed to fetch blockchain percentages after position update', {
-        error: error instanceof Error ? error.message : String(error)
-      });
-    }
-
-    // 6. Broadcast position update to user
+    // 5. Broadcast position update to user
     broadcastPositionUpdate(positionData.user, positionData.market, {
       yesShares: positionData.yesShares,
       noShares: positionData.noShares,
