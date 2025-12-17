@@ -187,7 +187,8 @@ async function callGrokAPI(prompt: string, systemPrompt?: string): Promise<strin
   const apiKey = process.env.GROK_API_KEY;
 
   if (!apiKey) {
-    throw new Error('GROK_API_KEY environment variable is not set');
+    logger.error('GROK_API_KEY environment variable is not configured');
+    throw new Error('AI analysis service is not configured. Please contact support.');
   }
 
   const response = await fetch(GROK_API_URL, {

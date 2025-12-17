@@ -337,6 +337,7 @@ export default function GrokRoast({ marketId, resolution, votingData }: GrokRoas
     const fetchAnalyses = async () => {
       try {
         setLoading(true);
+        setError(null);
 
         // Get existing analyses
         const response = await fetch(`/api/grok/roast?marketId=${marketId}`);
@@ -345,18 +346,29 @@ export default function GrokRoast({ marketId, resolution, votingData }: GrokRoas
         if (data.success && data.data.analyses) {
           setAnalyses(data.data.analyses);
 
-          // If no initial roast exists, generate one
+          // If no initial roast exists, try to generate one
           if (!data.data.hasInitialRoast) {
-            const postResponse = await fetch('/api/grok/roast', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ marketId, type: 'initial_roast' }),
-            });
-            const postData = await postResponse.json();
-            if (postData.success) {
-              setAnalyses(postData.data.allAnalyses);
+            try {
+              const postResponse = await fetch('/api/grok/roast', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ marketId, type: 'initial_roast' }),
+              });
+              const postData = await postResponse.json();
+              if (postData.success) {
+                setAnalyses(postData.data.allAnalyses);
+              } else {
+                // API returned an error but we still have empty analyses
+                console.warn('Failed to generate initial roast:', postData.error);
+              }
+            } catch (genErr) {
+              // Generation failed, but don't block the UI
+              console.warn('Failed to generate initial roast:', genErr);
             }
           }
+        } else if (!data.success) {
+          // Initial fetch failed
+          console.warn('Failed to fetch analyses:', data.error);
         }
       } catch (err) {
         setError(err instanceof Error ? err.message : 'Failed to fetch analyses');
@@ -440,9 +452,11 @@ export default function GrokRoast({ marketId, resolution, votingData }: GrokRoas
 
   if (analyses.length === 0) {
     return (
-      <Card className="bg-gray-900/50 border-gray-700/50">
-        <CardContent className="py-8 text-center">
-          <p className="text-gray-400">No analysis available yet</p>
+      <Card className="bg-gradient-to-br from-gray-900/50 via-purple-900/10 to-gray-900/50 border-gray-700/50">
+        <CardContent className="py-8 text-center space-y-2">
+          <Sparkles className="w-6 h-6 text-gray-500 mx-auto" />
+          <p className="text-gray-400">AI analysis will appear here</p>
+          <p className="text-gray-600 text-xs">Analysis generates automatically when available</p>
         </CardContent>
       </Card>
     );

@@ -1308,10 +1308,10 @@ export default function MarketDetailsPage() {
               marketId={market.id}
               resolution={onchainData?.data?.resolution}
               votingData={{
-                totalYesVotes: market.yesVotes,
-                totalNoVotes: market.noVotes,
-                yesPercentage: yesPercentage,
-                totalParticipants: market.yesVotes + market.noVotes,
+                totalYesVotes: market.yesVotes || 0,
+                totalNoVotes: market.noVotes || 0,
+                yesPercentage: yesPercentage || 0,
+                totalParticipants: (market.yesVotes || 0) + (market.noVotes || 0),
               }}
             />
 
@@ -1319,10 +1319,10 @@ export default function MarketDetailsPage() {
             {onchainData?.data?.resolution === 'Unresolved' && onchainData?.success && (
               <div className="text-center text-xs sm:text-sm text-gray-400 border-t border-white/10 pt-3">
                 <span className="text-cyan-400 font-semibold">
-                  {(Number(onchainData.data.poolBalance) / 1e9).toFixed(2)} / {market.targetPool}
+                  {(Number(onchainData.data.poolBalance || 0) / 1e9).toFixed(2)} / {market.targetPool}
                 </span>
                 <span className="mx-1 sm:mx-2">•</span>
-                <span className="text-purple-400 font-semibold">{onchainData.data.poolProgressPercentage}% funded</span>
+                <span className="text-purple-400 font-semibold">{onchainData.data.poolProgressPercentage || 0}% funded</span>
               </div>
             )}
 
