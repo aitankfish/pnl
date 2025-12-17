@@ -5,7 +5,6 @@ import useSWR from 'swr';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Loader2, Filter } from 'lucide-react';
 import Link from 'next/link';
 import { useVoting } from '@/lib/hooks/useVoting';
@@ -474,22 +473,24 @@ export default function BrowsePage() {
                 <Filter className="w-4 h-4 sm:w-5 sm:h-5 text-gray-400" />
                 <span className="text-xs sm:text-sm text-gray-400 font-medium hidden sm:inline">Filter by:</span>
               </div>
-              <Select value={selectedCategory} onValueChange={setSelectedCategory}>
-                <SelectTrigger className="w-[140px] sm:w-[200px] bg-white/10 border-white/20 text-white hover:bg-white/20 transition-colors text-sm">
-                  <SelectValue placeholder="Select category" />
-                </SelectTrigger>
-                <SelectContent className="bg-gray-900 border-white/20">
-                  {categories.map((category) => (
-                    <SelectItem
-                      key={category}
-                      value={category}
-                      className="text-white hover:bg-white/10 focus:bg-white/10 cursor-pointer"
-                    >
-                      {category}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <select
+                value={selectedCategory}
+                onChange={(e) => setSelectedCategory(e.target.value)}
+                className="h-9 w-[120px] sm:w-[160px] bg-slate-800 border border-white/20 text-white text-sm rounded-lg px-3 py-1.5 focus:ring-2 focus:ring-purple-500/50 focus:border-purple-500/50 transition-all appearance-none cursor-pointer"
+                style={{
+                  backgroundImage: `url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%239ca3af' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='M6 8l4 4 4-4'/%3e%3c/svg%3e")`,
+                  backgroundPosition: 'right 0.5rem center',
+                  backgroundRepeat: 'no-repeat',
+                  backgroundSize: '1.5em 1.5em',
+                  paddingRight: '2.5rem'
+                }}
+              >
+                {categories.map((category) => (
+                  <option key={category} value={category} className="bg-slate-800">
+                    {category}
+                  </option>
+                ))}
+              </select>
             </div>
           </div>
 

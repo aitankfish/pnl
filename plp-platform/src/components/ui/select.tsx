@@ -54,20 +54,29 @@ function SelectContent({
   className,
   children,
   position = "popper",
+  side = "bottom",
+  align = "start",
+  sideOffset = 4,
   ...props
-}: React.ComponentProps<typeof SelectPrimitive.Content>) {
+}: React.ComponentProps<typeof SelectPrimitive.Content> & {
+  side?: "top" | "bottom" | "left" | "right";
+  align?: "start" | "center" | "end";
+  sideOffset?: number;
+}) {
   return (
     <SelectPrimitive.Portal>
       <SelectPrimitive.Content
         data-slot="select-content"
         className={cn(
-          "z-50 max-h-60 min-w-[8rem] overflow-auto rounded-lg border border-white/20 bg-slate-900 text-white shadow-xl",
+          "z-[100] max-h-[300px] min-w-[8rem] overflow-auto rounded-lg border border-white/20 bg-slate-900 text-white shadow-xl",
           position === "popper" &&
             "data-[side=bottom]:translate-y-1 data-[side=top]:-translate-y-1",
           className
         )}
         position={position}
-        sideOffset={5}
+        side={side}
+        align={align}
+        sideOffset={sideOffset}
         {...props}
       >
         <SelectPrimitive.Viewport
