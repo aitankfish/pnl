@@ -4,24 +4,24 @@ import React, { useEffect, useState } from 'react';
 import { Loader2, Sparkles, AlertTriangle, TrendingUp, Target, Trophy, Users } from 'lucide-react';
 
 /**
- * Strip markdown formatting from text - aggressive version
+ * Strip markdown formatting from text - super aggressive version
  */
 function stripMarkdown(text: string): string {
   let result = text;
 
   // Multiple passes to handle nested formatting
-  for (let i = 0; i < 3; i++) {
+  for (let i = 0; i < 5; i++) {
     result = result
-      // Remove ***bold italic*** first (triple asterisks)
-      .replace(/\*\*\*(.+?)\*\*\*/g, '$1')
-      // Remove **bold** (double asterisks) - non-greedy
-      .replace(/\*\*(.+?)\*\*/g, '$1')
-      // Remove *italic* (single asterisks) - non-greedy, but not bullet points
-      .replace(/([^\n])\*([^*\n]+)\*([^\n*])/g, '$1$2$3')
+      // Remove ***bold italic*** (triple asterisks)
+      .replace(/\*\*\*([^*]+)\*\*\*/g, '$1')
+      // Remove **bold** (double asterisks)
+      .replace(/\*\*([^*]+)\*\*/g, '$1')
+      // Remove *text* (single asterisks) - but be careful with bullet points
+      .replace(/\*([^*\n]+)\*/g, '$1')
       // Remove __bold__ (double underscores)
-      .replace(/__(.+?)__/g, '$1')
+      .replace(/__([^_]+)__/g, '$1')
       // Remove _italic_ (single underscores)
-      .replace(/\b_(.+?)_\b/g, '$1')
+      .replace(/_([^_\s][^_]*)_/g, '$1')
       // Remove `code` (backticks)
       .replace(/`([^`]+)`/g, '$1');
   }
@@ -29,8 +29,17 @@ function stripMarkdown(text: string): string {
   return result
     // Remove ## headers
     .replace(/^#{1,6}\s*/gm, '')
-    // Remove standalone asterisks that might be left over
+    // Remove any remaining ** at word boundaries
+    .replace(/\*\*(\w)/g, '$1')
+    .replace(/(\w)\*\*/g, '$1')
+    // Remove remaining single * at word boundaries (but not **)
+    .replace(/([^*])\*(\w)/g, '$1$2')
+    .replace(/(\w)\*([^*])/g, '$1$2')
+    // Remove standalone asterisks
     .replace(/\s\*\s/g, ' ')
+    .replace(/^\*\s/gm, '')
+    // Final cleanup - remove any stray asterisks
+    .replace(/\*+/g, '')
     // Clean up any double spaces
     .replace(/  +/g, ' ')
     .trim();
