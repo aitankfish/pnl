@@ -1426,7 +1426,10 @@ export default function MarketDetailsPage() {
                   <div className="flex items-center justify-center space-x-1.5">
                     <CheckCircle className="w-4 h-4" />
                     <span className="text-sm">YES</span>
-                    <span className="text-xs opacity-75">{yesPercentage}%</span>
+                    {/* Only show percentage for resolved markets to prevent bandwagon voting */}
+                    {mergedOnchainData?.data?.resolution !== 'Unresolved' && (
+                      <span className="text-xs opacity-75">{yesPercentage}%</span>
+                    )}
                   </div>
                 </button>
                 <button
@@ -1441,7 +1444,10 @@ export default function MarketDetailsPage() {
                   <div className="flex items-center justify-center space-x-1.5">
                     <XCircle className="w-4 h-4" />
                     <span className="text-sm">NO</span>
-                    <span className="text-xs opacity-75">{100 - yesPercentage}%</span>
+                    {/* Only show percentage for resolved markets to prevent bandwagon voting */}
+                    {mergedOnchainData?.data?.resolution !== 'Unresolved' && (
+                      <span className="text-xs opacity-75">{100 - yesPercentage}%</span>
+                    )}
                   </div>
                 </button>
               </div>
