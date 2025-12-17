@@ -262,20 +262,60 @@ export default function BrowsePage() {
           </h1>
         </div>
 
-        {/* Hot Projects Section - only show for active markets */}
-        {!loading && hotProjects.length > 0 && selectedStatus === 'active' && (
-          <div className="space-y-3 sm:space-y-4">
-            <div className="flex items-center justify-center space-x-2 sm:space-x-3">
-              <div className="h-px flex-1 bg-gradient-to-r from-transparent via-orange-500 to-transparent"></div>
-              <h2 className="text-base sm:text-2xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-orange-400 via-red-400 to-pink-400 flex items-center space-x-1.5 sm:space-x-2 animate-pulse">
-                <span className="text-lg sm:text-2xl">🔥</span>
-                <span>Hottest Markets</span>
-                <span className="text-lg sm:text-2xl">🔥</span>
-              </h2>
-              <div className="h-px flex-1 bg-gradient-to-r from-transparent via-orange-500 to-transparent"></div>
+        {/* Filter Bar - Controls all markets */}
+        <div className="space-y-3 sm:space-y-4">
+          {/* Status Tab Buttons */}
+          <div className="flex items-center justify-between flex-wrap gap-3">
+            <div className="flex items-center gap-1.5 sm:gap-2 flex-wrap">
+              {[
+                { value: 'active', label: 'Live Markets' },
+                { value: 'yesWins', label: 'Wins' },
+                { value: 'noWins', label: 'No Wins' },
+                { value: 'expired', label: 'Expired' },
+                { value: 'refund', label: 'Refunded' },
+              ].map((tab) => (
+                <button
+                  key={tab.value}
+                  onClick={() => setSelectedStatus(tab.value)}
+                  className={`px-3 sm:px-4 py-1.5 sm:py-2 text-xs sm:text-sm font-medium rounded-lg transition-all ${
+                    selectedStatus === tab.value
+                      ? 'bg-gradient-to-r from-purple-500 to-cyan-500 text-white shadow-lg shadow-purple-500/25'
+                      : 'bg-white/5 text-gray-400 hover:bg-white/10 hover:text-white border border-white/10'
+                  }`}
+                >
+                  {tab.label}
+                </button>
+              ))}
             </div>
 
-            <div className="grid gap-4 sm:gap-6 grid-cols-1 lg:grid-cols-2">
+            {/* Category Filter Dropdown */}
+            <div className="flex items-center gap-2">
+              <Filter className="w-4 h-4 text-gray-400" />
+              <select
+                value={selectedCategory}
+                onChange={(e) => setSelectedCategory(e.target.value)}
+                className="h-9 w-[100px] sm:w-[140px] bg-slate-800 border border-white/20 text-white text-sm rounded-lg px-2 sm:px-3 py-1.5 focus:ring-2 focus:ring-purple-500/50 focus:border-purple-500/50 transition-all appearance-none cursor-pointer"
+                style={{
+                  backgroundImage: `url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%239ca3af' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='M6 8l4 4 4-4'/%3e%3c/svg%3e")`,
+                  backgroundPosition: 'right 0.5rem center',
+                  backgroundRepeat: 'no-repeat',
+                  backgroundSize: '1.5em 1.5em',
+                  paddingRight: '2rem'
+                }}
+              >
+                {categories.map((category) => (
+                  <option key={category} value={category} className="bg-slate-800">
+                    {category}
+                  </option>
+                ))}
+              </select>
+            </div>
+          </div>
+        </div>
+
+        {/* Hot Projects Section - only show for active markets */}
+        {!loading && hotProjects.length > 0 && selectedStatus === 'active' && (
+          <div className="grid gap-4 sm:gap-6 grid-cols-1 lg:grid-cols-2">
               {hotProjects.map((hotProject, index) => {
                 // First card: Orange/Red theme, Second card: Purple/Blue theme
                 const isFirstCard = index === 0;
@@ -447,81 +487,11 @@ export default function BrowsePage() {
                 </Link>
                 );
               })}
-            </div>
           </div>
         )}
 
         {/* Projects List */}
         <div className="space-y-4 sm:space-y-6">
-          <div className="flex items-center justify-between flex-wrap gap-3 sm:gap-4">
-            <div className="flex items-center gap-3">
-              <h2 className="text-xl sm:text-3xl font-bold text-white">
-                {selectedStatus === 'active' ? 'Live Markets' : selectedStatus === 'resolved' ? 'Resolved Markets' : 'All Markets'}
-              </h2>
-              {/* Sync Health Indicator */}
-              {syncHealth && !syncHealth.healthy && (
-                <div className="flex items-center gap-1.5 px-2 py-1 bg-yellow-500/20 border border-yellow-500/30 rounded-full">
-                  <div className="w-2 h-2 bg-yellow-400 rounded-full animate-pulse" />
-                  <span className="text-xs text-yellow-400 font-medium">
-                    {syncHealth.staleCount} stale
-                  </span>
-                </div>
-              )}
-              {syncHealth?.healthy && isConnected && (
-                <div className="flex items-center gap-1.5 px-2 py-1 bg-green-500/20 border border-green-500/30 rounded-full">
-                  <div className="w-2 h-2 bg-green-400 rounded-full" />
-                  <span className="text-xs text-green-400 font-medium">Live</span>
-                </div>
-              )}
-            </div>
-
-            {/* Filter Dropdowns */}
-            <div className="flex items-center gap-2 sm:gap-4">
-              <div className="flex items-center gap-1.5 sm:gap-2">
-                <Filter className="w-4 h-4 sm:w-5 sm:h-5 text-gray-400" />
-                <span className="text-xs sm:text-sm text-gray-400 font-medium hidden sm:inline">Filter:</span>
-              </div>
-
-              {/* Status Filter */}
-              <select
-                value={selectedStatus}
-                onChange={(e) => setSelectedStatus(e.target.value)}
-                className="h-9 w-[100px] sm:w-[120px] bg-slate-800 border border-white/20 text-white text-sm rounded-lg px-2 sm:px-3 py-1.5 focus:ring-2 focus:ring-cyan-500/50 focus:border-cyan-500/50 transition-all appearance-none cursor-pointer"
-                style={{
-                  backgroundImage: `url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%239ca3af' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='M6 8l4 4 4-4'/%3e%3c/svg%3e")`,
-                  backgroundPosition: 'right 0.5rem center',
-                  backgroundRepeat: 'no-repeat',
-                  backgroundSize: '1.5em 1.5em',
-                  paddingRight: '2rem'
-                }}
-              >
-                <option value="active" className="bg-slate-800">Active</option>
-                <option value="resolved" className="bg-slate-800">Resolved</option>
-                <option value="all" className="bg-slate-800">All</option>
-              </select>
-
-              {/* Category Filter */}
-              <select
-                value={selectedCategory}
-                onChange={(e) => setSelectedCategory(e.target.value)}
-                className="h-9 w-[100px] sm:w-[140px] bg-slate-800 border border-white/20 text-white text-sm rounded-lg px-2 sm:px-3 py-1.5 focus:ring-2 focus:ring-purple-500/50 focus:border-purple-500/50 transition-all appearance-none cursor-pointer"
-                style={{
-                  backgroundImage: `url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%239ca3af' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='M6 8l4 4 4-4'/%3e%3c/svg%3e")`,
-                  backgroundPosition: 'right 0.5rem center',
-                  backgroundRepeat: 'no-repeat',
-                  backgroundSize: '1.5em 1.5em',
-                  paddingRight: '2rem'
-                }}
-              >
-                {categories.map((category) => (
-                  <option key={category} value={category} className="bg-slate-800">
-                    {category}
-                  </option>
-                ))}
-              </select>
-            </div>
-          </div>
-
           {/* Loading State with Skeletons */}
           {loading && (
             <div className="grid gap-4 sm:gap-6 grid-cols-1 sm:grid-cols-2 xl:grid-cols-3">

@@ -24,19 +24,36 @@ export async function GET(request: NextRequest) {
   try {
     // Get status filter from query params
     const { searchParams } = new URL(request.url);
-    const status = searchParams.get('status') || 'active'; // 'active', 'resolved', 'all'
+    const status = searchParams.get('status') || 'active';
+    // Options: 'active', 'yesWins', 'noWins', 'expired', 'refund', 'all'
 
     // Connect to MongoDB
     await connectToDatabase();
 
     // Build match query based on status filter
     let matchQuery: any = {};
+    const now = new Date();
+
     if (status === 'active') {
+      // Live/Active markets
       matchQuery = { marketState: 0 };
-    } else if (status === 'resolved') {
-      matchQuery = { marketState: 1 };
+    } else if (status === 'yesWins') {
+      // Markets where YES won (token launched)
+      matchQuery = { resolution: 'YesWins' };
+    } else if (status === 'noWins') {
+      // Markets where NO won
+      matchQuery = { resolution: 'NoWins' };
+    } else if (status === 'expired') {
+      // Markets that expired (past expiry time, still unresolved or active)
+      matchQuery = {
+        marketState: 0,
+        expiryTime: { $lt: now }
+      };
+    } else if (status === 'refund') {
+      // Refunded markets
+      matchQuery = { resolution: 'Refund' };
     }
-    // 'all' = no filter on marketState
+    // 'all' = no filter (show everything)
 
     // Use aggregation pipeline to fetch markets with project data and stake calculations in one query
     const marketsWithData = await PredictionMarket.aggregate([
