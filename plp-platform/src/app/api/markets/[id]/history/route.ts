@@ -64,6 +64,23 @@ export async function GET(
       );
     }
 
+    // Hide chart data for unresolved markets to prevent bandwagon voting
+    // Return empty data - users can still see trade count but not vote direction breakdown
+    if (market.resolution === 'Unresolved') {
+      logger.info('Hiding chart data for unresolved market', { marketId });
+      return NextResponse.json({
+        success: true,
+        data: {
+          chartData: [],
+          recentTrades: [],
+          totalTrades: 0,
+          hidden: true, // Flag to indicate data is intentionally hidden
+          message: 'Vote data hidden until market resolution',
+        },
+        network,
+      });
+    }
+
     let votes: ParsedVote[];
 
     // Use MongoDB for both devnet and mainnet

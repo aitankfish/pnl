@@ -177,6 +177,7 @@ export class SocketServer {
 
   /**
    * Perform the actual market broadcast
+   * Filters out vote data for unresolved markets to prevent bandwagon voting
    */
   private doMarketBroadcast(marketAddress: string, data: any): void {
     if (!this.io) return;
@@ -186,9 +187,27 @@ export class SocketServer {
     // Log only at debug level to reduce noise
     logger.debug(`📤 Broadcasting market update: ${marketAddress.slice(0, 8)}...`);
 
+    // Filter out vote data for unresolved markets to prevent bandwagon voting
+    let filteredData = data;
+    if (!data.resolution || data.resolution === 'Unresolved') {
+      filteredData = { ...data };
+      // Hide vote-revealing fields
+      filteredData.yesPercentage = null;
+      filteredData.noPercentage = null;
+      filteredData.sharesYesPercentage = null;
+      filteredData.yesVotes = null;
+      filteredData.noVotes = null;
+      filteredData.totalYesStake = null;
+      filteredData.totalNoStake = null;
+      filteredData.yesPool = null;
+      filteredData.noPool = null;
+      filteredData.totalYesShares = null;
+      filteredData.totalNoShares = null;
+    }
+
     const payload = {
       marketAddress,
-      data,
+      data: filteredData,
       timestamp: Date.now(),
     };
 

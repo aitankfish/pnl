@@ -102,8 +102,10 @@ export async function GET(_request: NextRequest) {
       }
 
       // Use sharesYesPercentage as single source of truth (from blockchain AMM)
-      const yesPercentage = market.sharesYesPercentage ?? market.yesPercentage ?? 50;
-      const noPercentage = 100 - yesPercentage;
+      // Hide vote data for unresolved markets to prevent bandwagon voting
+      const isUnresolved = !market.resolution || market.resolution === 'Unresolved';
+      const yesPercentage = isUnresolved ? null : (market.sharesYesPercentage ?? market.yesPercentage ?? 50);
+      const noPercentage = isUnresolved ? null : (yesPercentage !== null ? 100 - yesPercentage : null);
 
       // Use shared utilities for status calculation
       const statusInput = {
@@ -127,13 +129,15 @@ export async function GET(_request: NextRequest) {
         stage: project?.projectStage || 'Unknown',
         tokenSymbol: project?.tokenSymbol || 'TKN',
         targetPool: `${market.targetPool / 1e9} SOL`,
-        // Use calculated values from aggregation
-        yesVotes: market.calculatedYesVotes || market.yesVoteCount || 0,
-        noVotes: market.calculatedNoVotes || market.noVoteCount || 0,
-        totalYesStake: market.calculatedYesStake || market.totalYesStake || 0,
-        totalNoStake: market.calculatedNoStake || market.totalNoStake || 0,
+        // Hide vote counts for unresolved markets to prevent bandwagon voting
+        yesVotes: isUnresolved ? null : (market.calculatedYesVotes || market.yesVoteCount || 0),
+        noVotes: isUnresolved ? null : (market.calculatedNoVotes || market.noVoteCount || 0),
+        totalYesStake: isUnresolved ? null : (market.calculatedYesStake || market.totalYesStake || 0),
+        totalNoStake: isUnresolved ? null : (market.calculatedNoStake || market.totalNoStake || 0),
         yesPercentage,
         noPercentage,
+        // Show total participants even for unresolved (doesn't reveal vote direction)
+        totalParticipants: (market.calculatedYesVotes || 0) + (market.calculatedNoVotes || 0),
         timeLeft,
         expiryTime: market.expiryTime,
         status: market.resolution || (market.marketState === 0 ? 'active' : 'resolved'),
@@ -145,9 +149,10 @@ export async function GET(_request: NextRequest) {
         phase: market.phase || 'Prediction',
         poolProgressPercentage: market.poolProgressPercentage || 0,
         poolBalance: market.poolBalance || 0,
-        totalYesShares: market.totalYesShares?.toString() || '0',
-        totalNoShares: market.totalNoShares?.toString() || '0',
-        sharesYesPercentage: market.sharesYesPercentage || 0,
+        // Hide share counts for unresolved markets
+        totalYesShares: isUnresolved ? null : (market.totalYesShares?.toString() || '0'),
+        totalNoShares: isUnresolved ? null : (market.totalNoShares?.toString() || '0'),
+        sharesYesPercentage: isUnresolved ? null : (market.sharesYesPercentage || 0),
         pumpFunTokenAddress: market.pumpFunTokenAddress || null,
 
         // Display status from shared utility

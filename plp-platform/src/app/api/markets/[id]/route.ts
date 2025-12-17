@@ -397,6 +397,22 @@ export async function GET(
 
     logger.info('Fetched market details', { marketId: id });
 
+    // Hide vote percentages for unresolved markets to prevent bandwagon voting
+    // Users can still vote, but can't see how others voted until resolution
+    if (resolution === 'Unresolved') {
+      marketDetails.yesPercentage = null;
+      marketDetails.noPercentage = null;
+      marketDetails.sharesYesPercentage = null;
+      marketDetails.yesVotes = null;
+      marketDetails.noVotes = null;
+      marketDetails.totalYesStake = null;
+      marketDetails.totalNoStake = null;
+      marketDetails.yesPool = null;
+      marketDetails.noPool = null;
+      marketDetails.totalYesShares = null;
+      marketDetails.totalNoShares = null;
+    }
+
     return NextResponse.json(
       {
         success: true,

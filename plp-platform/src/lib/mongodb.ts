@@ -346,6 +346,21 @@ const PredictionMarketSchema = new mongoose.Schema({
     type: Number,
     default: 0,
   },
+
+  // ========================================
+  // Grok AI Roast (generated on market creation)
+  // ========================================
+  grokRoast: {
+    content: {
+      type: String, // The roast/analysis text
+    },
+    generatedAt: {
+      type: Date, // When the roast was generated
+    },
+    model: {
+      type: String, // Grok model used (e.g., 'grok-2')
+    },
+  },
 });
 
 // Compound index for common queries (marketState + createdAt sorting)
