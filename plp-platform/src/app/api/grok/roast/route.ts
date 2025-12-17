@@ -1,7 +1,8 @@
 /**
- * Grok AI Roast API
- * Generates AI-powered roasts/analysis of projects using xAI's Grok API
+ * Grok AI Analysis API
+ * Generates AI-powered roasts and resolution analyses using xAI's Grok API
  * Enhanced with external data verification (website, GitHub, Twitter)
+ * Supports chat-like history with multiple analyses per market
  */
 
 import { NextRequest, NextResponse } from 'next/server';
@@ -15,8 +16,17 @@ const logger = createClientLogger();
 const GROK_API_URL = 'https://api.x.ai/v1/chat/completions';
 const GROK_MODEL = 'grok-2-latest';
 
-interface GrokRoastRequest {
+interface GrokAnalysisRequest {
   marketId: string;
+  type?: 'initial_roast' | 'resolution_analysis';
+  // For resolution analysis
+  votingData?: {
+    totalYesVotes: number;
+    totalNoVotes: number;
+    yesPercentage: number;
+    totalParticipants: number;
+    outcome: string;
+  };
 }
 
 interface ProjectData {
@@ -30,10 +40,18 @@ interface ProjectData {
   socialLinks?: Record<string, string>;
 }
 
+interface VotingData {
+  totalYesVotes: number;
+  totalNoVotes: number;
+  yesPercentage: number;
+  totalParticipants: number;
+  outcome: string;
+}
+
 /**
- * Generate a roast prompt for Grok with external verification data
+ * Generate initial roast prompt for Grok with external verification data
  */
-function generateRoastPrompt(project: ProjectData, externalData?: ExternalDataResult): string {
+function generateInitialRoastPrompt(project: ProjectData, externalData?: ExternalDataResult): string {
   const socialLinksText = project.socialLinks
     ? Object.entries(project.socialLinks)
         .filter(([_, url]) => url)
@@ -100,9 +118,72 @@ Be entertaining but genuinely helpful. If the verification data shows problems, 
 }
 
 /**
- * Call Grok API to generate roast
+ * Generate resolution analysis prompt with voting data
  */
-async function callGrokAPI(prompt: string): Promise<string> {
+function generateResolutionPrompt(
+  project: ProjectData,
+  votingData: VotingData,
+  initialRoast?: string
+): string {
+  const outcomeEmoji = votingData.outcome === 'YesWins' ? '🚀' : votingData.outcome === 'NoWins' ? '💀' : '💸';
+  const outcomeText = votingData.outcome === 'YesWins'
+    ? 'YES WINS - Token launched!'
+    : votingData.outcome === 'NoWins'
+      ? 'NO WINS - Project rejected'
+      : 'REFUND - Target not reached';
+
+  return `You are a witty crypto analyst providing a post-mortem analysis of a prediction market that just resolved.
+
+PROJECT: ${project.name} ($${project.tokenSymbol})
+Category: ${project.category} | Stage: ${project.projectStage}
+
+=== MARKET RESOLUTION ===
+${outcomeEmoji} OUTCOME: ${outcomeText}
+
+VOTING RESULTS:
+- Total Participants: ${votingData.totalParticipants}
+- YES Votes: ${votingData.totalYesVotes} (${votingData.yesPercentage}%)
+- NO Votes: ${votingData.totalNoVotes} (${100 - votingData.yesPercentage}%)
+- Final Decision: ${votingData.outcome}
+
+${initialRoast ? `=== YOUR INITIAL ANALYSIS (for reference) ===
+${initialRoast}
+=== END INITIAL ANALYSIS ===` : ''}
+
+YOUR TASK:
+Provide a resolution summary that:
+1. Announces the outcome dramatically (be theatrical!)
+2. Analyzes what the crowd's decision means
+3. Gives a "Crowd Wisdom Rating" - was this a smart collective decision?
+4. If YES won: What should token holders watch for?
+5. If NO won: Was the crowd right to reject this?
+6. If REFUND: Why didn't this gain traction?
+
+FORMAT YOUR RESPONSE EXACTLY LIKE THIS:
+
+**${outcomeEmoji} FINAL VERDICT:**
+[Dramatic 1-2 sentence announcement of the outcome]
+
+**CROWD ANALYSIS:**
+[2-3 sentences analyzing what the voting pattern reveals about community sentiment]
+
+**CROWD WISDOM RATING: X/10**
+[Was this a smart collective decision? Explain briefly]
+
+**WHAT'S NEXT:**
+${votingData.outcome === 'YesWins'
+  ? '- [What token holders should watch for]\n- [Potential risks going forward]'
+  : votingData.outcome === 'NoWins'
+    ? '- [Why the crowd rejected this]\n- [What the project could have done better]'
+    : '- [Why this failed to gain traction]\n- [What this says about market appetite]'}
+
+Be entertaining but insightful. This is the final chapter of this project's prediction market story!`;
+}
+
+/**
+ * Call Grok API to generate analysis
+ */
+async function callGrokAPI(prompt: string, systemPrompt?: string): Promise<string> {
   const apiKey = process.env.GROK_API_KEY;
 
   if (!apiKey) {
@@ -120,7 +201,7 @@ async function callGrokAPI(prompt: string): Promise<string> {
       messages: [
         {
           role: 'system',
-          content: 'You are a witty crypto analyst who roasts projects with humor while providing genuine insights.',
+          content: systemPrompt || 'You are a witty crypto analyst who provides entertaining but insightful analysis.',
         },
         {
           role: 'user',
@@ -128,7 +209,7 @@ async function callGrokAPI(prompt: string): Promise<string> {
         },
       ],
       temperature: 0.8,
-      max_tokens: 1000,
+      max_tokens: 1500,
     }),
   });
 
@@ -139,17 +220,17 @@ async function callGrokAPI(prompt: string): Promise<string> {
   }
 
   const data = await response.json();
-  return data.choices[0]?.message?.content || 'No roast generated';
+  return data.choices[0]?.message?.content || 'No analysis generated';
 }
 
 /**
  * POST /api/grok/roast
- * Generate a roast for a market's project
+ * Generate an analysis for a market (initial roast or resolution analysis)
  */
 export async function POST(request: NextRequest) {
   try {
-    const body: GrokRoastRequest = await request.json();
-    const { marketId } = body;
+    const body: GrokAnalysisRequest = await request.json();
+    const { marketId, type = 'initial_roast', votingData } = body;
 
     if (!marketId) {
       return NextResponse.json(
@@ -171,15 +252,43 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Check if roast already exists
-    if (market.grokRoast?.content) {
+    // Check if this type of analysis already exists
+    const existingAnalyses = market.grokAnalyses || [];
+    const existingOfType = existingAnalyses.find((a: any) => a.type === type);
+
+    if (existingOfType) {
       return NextResponse.json({
         success: true,
         data: {
-          roast: market.grokRoast.content,
-          generatedAt: market.grokRoast.generatedAt,
-          model: market.grokRoast.model,
+          analysis: existingOfType,
+          allAnalyses: existingAnalyses,
           cached: true,
+        },
+      });
+    }
+
+    // For backward compatibility: check legacy grokRoast field for initial roast
+    if (type === 'initial_roast' && market.grokRoast?.content && existingAnalyses.length === 0) {
+      // Migrate legacy roast to new format
+      const migratedAnalysis = {
+        type: 'initial_roast',
+        content: market.grokRoast.content,
+        generatedAt: market.grokRoast.generatedAt || new Date(),
+        model: market.grokRoast.model || GROK_MODEL,
+      };
+
+      await PredictionMarket.updateOne(
+        { _id: marketId },
+        { $push: { grokAnalyses: migratedAnalysis } }
+      );
+
+      return NextResponse.json({
+        success: true,
+        data: {
+          analysis: migratedAnalysis,
+          allAnalyses: [migratedAnalysis],
+          cached: true,
+          migrated: true,
         },
       });
     }
@@ -206,27 +315,7 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // Fetch external data for verification (website, GitHub, Twitter)
-    logger.info('Fetching external data for verification', { marketId, projectName: project.name });
-    let externalData: ExternalDataResult | undefined;
-    try {
-      externalData = await fetchExternalData(socialLinksObj);
-      logger.info('External data fetched', {
-        marketId,
-        hasWebsite: !!externalData.website,
-        hasGithub: !!externalData.github,
-        hasTwitter: !!externalData.twitter,
-        errors: externalData.errors,
-      });
-    } catch (error) {
-      logger.warn('Failed to fetch external data, proceeding without verification', {
-        marketId,
-        error: error instanceof Error ? error.message : String(error),
-      });
-    }
-
-    // Generate the roast with external verification data
-    const prompt = generateRoastPrompt({
+    const projectData: ProjectData = {
       name: project.name,
       description: project.description,
       category: project.category,
@@ -235,46 +324,104 @@ export async function POST(request: NextRequest) {
       teamSize: project.teamSize,
       tokenSymbol: project.tokenSymbol,
       socialLinks: socialLinksObj,
-    }, externalData);
+    };
 
-    logger.info('Generating Grok roast with verification data', { marketId, projectName: project.name });
+    let prompt: string;
+    let analysisContent: string;
 
-    const roastContent = await callGrokAPI(prompt);
+    if (type === 'initial_roast') {
+      // Fetch external data for verification
+      logger.info('Fetching external data for verification', { marketId, projectName: project.name });
+      let externalData: ExternalDataResult | undefined;
+      try {
+        externalData = await fetchExternalData(socialLinksObj);
+        logger.info('External data fetched', {
+          marketId,
+          hasWebsite: !!externalData.website,
+          hasGithub: !!externalData.github,
+          hasTwitter: !!externalData.twitter,
+        });
+      } catch (error) {
+        logger.warn('Failed to fetch external data', {
+          marketId,
+          error: error instanceof Error ? error.message : String(error),
+        });
+      }
 
-    // Save roast to database
+      prompt = generateInitialRoastPrompt(projectData, externalData);
+      logger.info('Generating initial roast', { marketId, projectName: project.name });
+      analysisContent = await callGrokAPI(prompt, 'You are a witty crypto analyst who roasts projects with humor while providing genuine insights. You have access to external verification data and should use it to expose fake or suspicious projects.');
+    } else if (type === 'resolution_analysis') {
+      if (!votingData) {
+        return NextResponse.json(
+          { success: false, error: 'votingData is required for resolution analysis' },
+          { status: 400 }
+        );
+      }
+
+      // Get initial roast for context
+      const initialRoast = existingAnalyses.find((a: any) => a.type === 'initial_roast')?.content
+        || market.grokRoast?.content;
+
+      prompt = generateResolutionPrompt(projectData, votingData, initialRoast);
+      logger.info('Generating resolution analysis', { marketId, outcome: votingData.outcome });
+      analysisContent = await callGrokAPI(prompt, 'You are a witty crypto analyst providing post-mortem analysis of prediction markets. Be theatrical but insightful.');
+    } else {
+      return NextResponse.json(
+        { success: false, error: 'Invalid analysis type' },
+        { status: 400 }
+      );
+    }
+
+    // Create new analysis object
+    const newAnalysis = {
+      type,
+      content: analysisContent,
+      generatedAt: new Date(),
+      model: GROK_MODEL,
+      ...(type === 'resolution_analysis' && votingData ? { votingData } : {}),
+    };
+
+    // Save to database
     await PredictionMarket.updateOne(
       { _id: marketId },
       {
-        $set: {
-          grokRoast: {
-            content: roastContent,
-            generatedAt: new Date(),
-            model: GROK_MODEL,
-          },
-        },
+        $push: { grokAnalyses: newAnalysis },
+        // Also update legacy field for initial roast (backward compatibility)
+        ...(type === 'initial_roast' ? {
+          $set: {
+            grokRoast: {
+              content: analysisContent,
+              generatedAt: new Date(),
+              model: GROK_MODEL,
+            }
+          }
+        } : {})
       }
     );
 
-    logger.info('Grok roast generated and saved', { marketId });
+    // Get updated analyses
+    const updatedMarket = await PredictionMarket.findById(marketId).select('grokAnalyses').lean();
+
+    logger.info('Grok analysis generated and saved', { marketId, type });
 
     return NextResponse.json({
       success: true,
       data: {
-        roast: roastContent,
-        generatedAt: new Date(),
-        model: GROK_MODEL,
+        analysis: newAnalysis,
+        allAnalyses: updatedMarket?.grokAnalyses || [newAnalysis],
         cached: false,
       },
     });
   } catch (error) {
-    logger.error('Failed to generate Grok roast', {
+    logger.error('Failed to generate Grok analysis', {
       error: error instanceof Error ? error.message : String(error),
     });
 
     return NextResponse.json(
       {
         success: false,
-        error: 'Failed to generate roast',
+        error: 'Failed to generate analysis',
         details: error instanceof Error ? error.message : 'Unknown error',
       },
       { status: 500 }
@@ -284,7 +431,7 @@ export async function POST(request: NextRequest) {
 
 /**
  * GET /api/grok/roast?marketId=xxx
- * Get existing roast for a market
+ * Get all analyses for a market
  */
 export async function GET(request: NextRequest) {
   try {
@@ -301,9 +448,9 @@ export async function GET(request: NextRequest) {
     // Connect to database
     await connectToDatabase();
 
-    // Get market with roast
+    // Get market with analyses
     const market = await PredictionMarket.findById(marketId)
-      .select('grokRoast')
+      .select('grokRoast grokAnalyses resolution')
       .lean();
 
     if (!market) {
@@ -313,31 +460,37 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    if (!market.grokRoast?.content) {
-      return NextResponse.json({
-        success: true,
-        data: null,
-        message: 'No roast generated yet',
-      });
+    // Combine legacy roast with new analyses
+    let analyses = market.grokAnalyses || [];
+
+    // If we have legacy roast but no analyses, include it
+    if (market.grokRoast?.content && analyses.length === 0) {
+      analyses = [{
+        type: 'initial_roast',
+        content: market.grokRoast.content,
+        generatedAt: market.grokRoast.generatedAt,
+        model: market.grokRoast.model,
+      }];
     }
 
     return NextResponse.json({
       success: true,
       data: {
-        roast: market.grokRoast.content,
-        generatedAt: market.grokRoast.generatedAt,
-        model: market.grokRoast.model,
+        analyses,
+        resolution: market.resolution,
+        hasInitialRoast: analyses.some((a: any) => a.type === 'initial_roast'),
+        hasResolutionAnalysis: analyses.some((a: any) => a.type === 'resolution_analysis'),
       },
     });
   } catch (error) {
-    logger.error('Failed to get Grok roast', {
+    logger.error('Failed to get Grok analyses', {
       error: error instanceof Error ? error.message : String(error),
     });
 
     return NextResponse.json(
       {
         success: false,
-        error: 'Failed to get roast',
+        error: 'Failed to get analyses',
         details: error instanceof Error ? error.message : 'Unknown error',
       },
       { status: 500 }

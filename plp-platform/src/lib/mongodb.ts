@@ -348,19 +348,47 @@ const PredictionMarketSchema = new mongoose.Schema({
   },
 
   // ========================================
-  // Grok AI Roast (generated on market creation)
+  // Grok AI Analyses (chat-like history)
   // ========================================
+  // Legacy single roast field (for backward compatibility)
   grokRoast: {
     content: {
-      type: String, // The roast/analysis text
+      type: String,
     },
     generatedAt: {
-      type: Date, // When the roast was generated
+      type: Date,
     },
     model: {
-      type: String, // Grok model used (e.g., 'grok-2')
+      type: String,
     },
   },
+  // New: Array of analyses for chat-like history
+  grokAnalyses: [{
+    type: {
+      type: String, // 'initial_roast', 'resolution_analysis'
+      enum: ['initial_roast', 'resolution_analysis'],
+      required: true,
+    },
+    content: {
+      type: String, // The analysis text
+      required: true,
+    },
+    generatedAt: {
+      type: Date,
+      default: Date.now,
+    },
+    model: {
+      type: String, // Grok model used
+    },
+    // Additional context for resolution analysis
+    votingData: {
+      totalYesVotes: Number,
+      totalNoVotes: Number,
+      yesPercentage: Number,
+      totalParticipants: Number,
+      outcome: String, // 'YesWins', 'NoWins', 'Refund'
+    },
+  }],
 });
 
 // Compound index for common queries (marketState + createdAt sorting)

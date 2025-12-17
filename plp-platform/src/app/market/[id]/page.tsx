@@ -29,11 +29,6 @@ import { useMarketSocket } from '@/lib/hooks/useSocket';
 import { TokenLaunchAnimation } from '@/components/TokenLaunchAnimation';
 
 // Lazy load heavy components to reduce initial bundle size
-const ProbabilityChart = dynamic(() => import('@/components/ProbabilityChart'), {
-  loading: () => <div className="h-64 bg-white/5 animate-pulse rounded-lg" />,
-  ssr: false,
-});
-
 const LiveActivityFeed = dynamic(() => import('@/components/LiveActivityFeed'), {
   loading: () => <div className="h-96 bg-white/5 animate-pulse rounded-lg" />,
   ssr: false,
@@ -1308,59 +1303,17 @@ export default function MarketDetailsPage() {
             <CardTitle className="text-white text-lg sm:text-xl">Market Status</CardTitle>
           </CardHeader>
           <CardContent className="space-y-4 sm:space-y-6">
-            {/* Grok AI Roast for unresolved markets (replaces probability chart) */}
-            {onchainData?.data?.resolution === 'Unresolved' ? (
-              <GrokRoast marketId={market.id} />
-            ) : (
-              <>
-                {/* Probability Trends Chart (shown only for resolved markets) */}
-                <div>
-                  <ProbabilityChart
-                    data={historyData?.data?.chartData || []}
-                    className="w-full"
-                  />
-                </div>
-
-                {/* Voting Stats Section (shown only for resolved markets) */}
-                <div className="space-y-2 sm:space-y-3">
-                  <div className="flex justify-between items-center">
-                    <div className="flex items-center space-x-1 sm:space-x-2">
-                      <CheckCircle className="w-3 h-3 sm:w-4 sm:h-4 text-green-400" />
-                      <span className="text-sm sm:text-base text-green-400 font-medium">YES: {market.yesVotes}</span>
-                    </div>
-                    <div className="flex items-center space-x-1 sm:space-x-2">
-                      <span className="text-sm sm:text-base text-red-400 font-medium">NO: {market.noVotes}</span>
-                      <XCircle className="w-3 h-3 sm:w-4 sm:h-4 text-red-400" />
-                    </div>
-                  </div>
-
-                  <div className="w-full bg-gray-700 rounded-full h-2.5 sm:h-3">
-                    <div
-                      className="bg-gradient-to-r from-green-500 to-cyan-500 h-2.5 sm:h-3 rounded-full transition-all duration-500"
-                      style={{ width: `${yesPercentage}%` }}
-                    ></div>
-                  </div>
-
-                  <div className="text-center space-y-1">
-                    <div>
-                      <span className="text-xl sm:text-2xl font-bold text-white">{yesPercentage}%</span>
-                      <span className="text-xs sm:text-sm text-gray-400 ml-1 sm:ml-2">in favor</span>
-                    </div>
-
-                    {/* Pool Progress Info */}
-                    {onchainData?.success && (
-                      <div className="text-xs sm:text-sm text-gray-400">
-                        <span className="text-cyan-400 font-semibold">
-                          {(Number(onchainData.data.poolBalance) / 1e9).toFixed(2)} / {market.targetPool}
-                        </span>
-                        <span className="mx-1 sm:mx-2">•</span>
-                        <span className="text-purple-400 font-semibold">{onchainData.data.poolProgressPercentage}% funded</span>
-                      </div>
-                    )}
-                  </div>
-                </div>
-              </>
-            )}
+            {/* Grok AI Analysis - Chat-like history with initial roast and resolution analysis */}
+            <GrokRoast
+              marketId={market.id}
+              resolution={onchainData?.data?.resolution}
+              votingData={{
+                totalYesVotes: market.yesVotes,
+                totalNoVotes: market.noVotes,
+                yesPercentage: yesPercentage,
+                totalParticipants: market.yesVotes + market.noVotes,
+              }}
+            />
 
             {/* Pool Progress for unresolved markets */}
             {onchainData?.data?.resolution === 'Unresolved' && onchainData?.success && (
