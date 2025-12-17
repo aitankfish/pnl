@@ -132,6 +132,21 @@ class DatabaseManager {
         await createIndexSafely('market_time_series', index);
       }
 
+      // Create TTL index for market_time_series (auto-delete after 30 days)
+      try {
+        await this.db!.collection('market_time_series').createIndex(
+          { timestamp: 1 },
+          { expireAfterSeconds: 30 * 24 * 60 * 60 } // 30 days
+        );
+      } catch (error: any) {
+        // Ignore if index exists - TTL index options can't be changed without dropping
+        if (error.code !== 86 && error.code !== 85 &&
+            error.codeName !== 'IndexKeySpecsConflict' &&
+            error.codeName !== 'IndexOptionsConflict') {
+          console.warn('⚠️ Could not create TTL index for market_time_series:', error.message);
+        }
+      }
+
       console.log('📊 Database indexes ensured');
     } catch (error) {
       console.error('❌ Failed to create database indexes:', error);

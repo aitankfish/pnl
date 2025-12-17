@@ -194,9 +194,9 @@ export const INDEXES = {
     { walletAddress: 1, transactionType: 1, createdAt: -1 },
   ],
   // Time-series collection for market charts
+  // Note: TTL index on timestamp is created separately in index.ts with expireAfterSeconds
   MARKET_TIME_SERIES: [
     { marketId: 1, timestamp: -1 },
-    { timestamp: 1 }, // For TTL expiry
   ],
   // TRADE_HISTORY indexes removed - collection deprecated (data now from Helius)
   TRADE_HISTORY: [],
