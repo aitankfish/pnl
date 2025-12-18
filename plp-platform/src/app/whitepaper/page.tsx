@@ -196,7 +196,7 @@ export default function WhitepaperPage() {
                       <div className="bg-gray-800/60 rounded px-2 py-1 border border-green-500/30">
                         <p className="font-semibold text-white text-[10px]">Outcome</p>
                         <p className="text-gray-300 text-[10px]">• <span className="text-green-400">YES</span> → Launch</p>
-                        <p className="text-gray-300 text-[10px]">• <span className="text-red-400">NO</span> → Refund</p>
+                        <p className="text-gray-300 text-[10px]">• <span className="text-red-400">NO</span> → NO Payout</p>
                         <p className="text-gray-300 text-[10px]">• Fee: <span className="text-green-400">5%</span></p>
                       </div>
                     </div>
@@ -284,8 +284,8 @@ export default function WhitepaperPage() {
                 <div className="bg-black/30 rounded p-4 font-mono text-sm text-gray-300 border border-green-400/20">
                   <p>After expiry:</p>
                   <p className="ml-4">├── IF YES shares &gt; NO shares → Token launches</p>
-                  <p className="ml-4">├── IF NO shares &gt; YES shares → Everyone refunded</p>
-                  <p className="ml-4">├── IF tied OR pool &lt; target → Full refund</p>
+                  <p className="ml-4">├── IF NO shares &gt; YES shares → NO voters paid proportionally (95% of pool)</p>
+                  <p className="ml-4">├── IF tied OR pool &lt; target → Full refund (all participants)</p>
                   <p className="ml-4">└── Completion fee: <strong className="text-yellow-400">5% of pool</strong> (if YES/NO wins)</p>
                 </div>
               </div>
@@ -309,7 +309,7 @@ export default function WhitepaperPage() {
                     <li className="ml-4">└── 8% immediate + 92% vested over 12 months</li>
                   </ul>
                 </div>
-                <p className="text-gray-300">Token trades on Pump.fun bonding curve, may graduate to Raydium DEX.</p>
+                <p className="text-gray-300">Token trades on Pump.fun bonding curve, may graduate to PumpSwap DEX.</p>
               </div>
 
               <div className="bg-gradient-to-br from-indigo-500/10 to-violet-500/10 backdrop-blur-xl rounded-lg p-6 border border-indigo-400/30">
@@ -415,7 +415,7 @@ export default function WhitepaperPage() {
                 <ul className="text-gray-300 space-y-2">
                   <li>✅ Early access (VC-level opportunities)</li>
                   <li>✅ Collective intelligence advantage</li>
-                  <li>✅ Downside protection (refunds if NO wins)</li>
+                  <li>✅ Downside protection (vote NO to earn if project fails)</li>
                   <li>✅ Portfolio diversification (0.01 SOL minimum)</li>
                 </ul>
               </div>
@@ -467,7 +467,7 @@ export default function WhitepaperPage() {
           <section className="mb-12">
             <h2 className="text-3xl font-bold text-white mb-6">Technical Architecture</h2>
 
-            <div className="bg-gradient-to-br from-slate-500/10 to-gray-500/10 backdrop-blur-xl rounded-lg p-6 border border-slate-400/30">
+            <div className="bg-gradient-to-br from-slate-500/10 to-gray-500/10 backdrop-blur-xl rounded-lg p-6 border border-slate-400/30 mb-6">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
                 <div>
                   <p className="text-blue-400 font-semibold mb-2">Blockchain</p>
@@ -501,8 +501,68 @@ export default function WhitepaperPage() {
                   <ul className="text-gray-300 space-y-1 ml-4">
                     <li>• Pump.fun integration</li>
                     <li>• Bonding curve mechanism</li>
-                    <li>• Automatic Raydium graduation</li>
+                    <li>• Automatic PumpSwap graduation</li>
                   </ul>
+                </div>
+              </div>
+            </div>
+
+            {/* On-Chain Program Architecture */}
+            <div className="bg-gradient-to-br from-blue-500/10 to-cyan-500/10 backdrop-blur-xl rounded-lg p-6 border border-blue-400/30 mb-6">
+              <h3 className="text-xl font-semibold text-blue-400 mb-4">On-Chain Program Architecture</h3>
+              <p className="text-gray-300 text-sm mb-4">
+                All funds are held in Program Derived Addresses (PDAs) controlled by the smart contract—not team wallets.
+                This ensures trustless, transparent fund management.
+              </p>
+              <div className="bg-black/30 rounded p-4 font-mono text-sm text-gray-300 border border-blue-400/20">
+                <p className="text-blue-400 mb-2">PDA Account Structure:</p>
+                <p className="ml-2">├── <span className="text-cyan-400">Market PDA</span> — Stores market state, receives distribution funds</p>
+                <p className="ml-2">├── <span className="text-cyan-400">Market Vault PDA</span> — Holds SOL during active voting</p>
+                <p className="ml-2">├── <span className="text-cyan-400">Position PDA</span> — Tracks user shares per market (1 per user per market)</p>
+                <p className="ml-2">├── <span className="text-cyan-400">Treasury PDA</span> — Collects platform fees (creation, trade, completion)</p>
+                <p className="ml-2">├── <span className="text-cyan-400">Team Vesting PDA</span> — 25% token lockup (12-month linear vest)</p>
+                <p className="ml-2">└── <span className="text-cyan-400">Founder Vesting PDA</span> — Excess SOL lockup (if pool &gt; 50 SOL)</p>
+              </div>
+            </div>
+
+            {/* Atomic Resolution */}
+            <div className="bg-gradient-to-br from-green-500/10 to-emerald-500/10 backdrop-blur-xl rounded-lg p-6 border border-green-400/30 mb-6">
+              <h3 className="text-xl font-semibold text-green-400 mb-4">Atomic Token Launch</h3>
+              <p className="text-gray-300 text-sm mb-4">
+                When YES wins, token creation and distribution happen in a single atomic transaction.
+                No intermediary steps where funds could be lost or stuck.
+              </p>
+              <div className="bg-black/30 rounded p-4 font-mono text-sm text-gray-300 border border-green-400/20">
+                <p className="text-green-400 mb-2">Single Transaction Flow:</p>
+                <p className="ml-2">1. Create token on Pump.fun (via CPI)</p>
+                <p className="ml-2">2. Create market&apos;s Associated Token Account</p>
+                <p className="ml-2">3. Buy tokens with pool SOL (up to 50 SOL)</p>
+                <p className="ml-2">4. Deduct 5% completion fee to Treasury</p>
+                <p className="ml-2">5. Set token allocations (65% YES / 33% Team / 2% Platform)</p>
+                <p className="ml-2">6. Mark market as resolved</p>
+                <p className="text-green-400 mt-3">✓ All-or-nothing: Either everything succeeds or nothing changes</p>
+              </div>
+            </div>
+
+            {/* Security Features */}
+            <div className="bg-gradient-to-br from-red-500/10 to-orange-500/10 backdrop-blur-xl rounded-lg p-6 border border-red-400/30">
+              <h3 className="text-xl font-semibold text-red-400 mb-4">Security Features</h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+                <div className="bg-black/30 rounded p-3 border border-red-400/20">
+                  <p className="text-white font-semibold mb-1">One Position Per Wallet</p>
+                  <p className="text-gray-400">Users cannot bet on both YES and NO in the same market—prevents manipulation.</p>
+                </div>
+                <div className="bg-black/30 rounded p-3 border border-red-400/20">
+                  <p className="text-white font-semibold mb-1">Permissionless Resolution</p>
+                  <p className="text-gray-400">Anyone can resolve a market after expiry—no single point of failure.</p>
+                </div>
+                <div className="bg-black/30 rounded p-3 border border-red-400/20">
+                  <p className="text-white font-semibold mb-1">Vested Token Distribution</p>
+                  <p className="text-gray-400">Team tokens vest over 12 months—aligned long-term incentives.</p>
+                </div>
+                <div className="bg-black/30 rounded p-3 border border-red-400/20">
+                  <p className="text-white font-semibold mb-1">Rent Recovery</p>
+                  <p className="text-gray-400">Closed accounts return rent to users—no locked SOL.</p>
                 </div>
               </div>
             </div>
