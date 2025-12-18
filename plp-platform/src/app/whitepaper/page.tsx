@@ -6,10 +6,11 @@
  */
 
 import { Metadata } from 'next';
+import AMMSimulator from '@/components/whitepaper/AMMSimulator';
 
 export const metadata: Metadata = {
   title: 'Whitepaper | PNL Platform',
-  description: 'PNL (Prediction & Launch) - A new paradigm for fair token launches and web3 funding',
+  description: 'PNL (Prediction & Launch) - Tokenizing ideas to fund builders and dreamers worldwide',
   robots: 'noindex, nofollow', // Don't index this page
 };
 
@@ -23,101 +24,129 @@ export default function WhitepaperPage() {
             PNL Whitepaper
           </h1>
           <p className="text-xl text-gray-300">
-            A New Paradigm for Fair Token Launches and Web3 Funding
+            Idea Tokenization: Where Dreamers Meet Believers
           </p>
-          <div className="mt-6 text-sm text-gray-400">
+          <div className="mt-6 text-sm text-gray-500">
             <p>Version 1.0 • December 2025</p>
             <p>Solana Mainnet</p>
           </div>
         </div>
 
         {/* Content */}
-        <div className="prose prose-invert prose-lg max-w-none">
+        <div className="prose prose-invert prose-xl max-w-none">
+
+          {/* Mission Statement */}
+          <section className="mb-8 bg-gradient-to-br from-yellow-500/10 to-orange-500/10 backdrop-blur-xl rounded-lg p-6 border-2 border-yellow-400/40">
+            <p className="text-2xl md:text-3xl font-bold text-center text-white leading-relaxed">
+              &quot;Fueling the world&apos;s brilliant ideas — from anywhere, for everyone.&quot;
+            </p>
+            <p className="text-center text-yellow-400 mt-3 text-lg">
+              Yours could be next.
+            </p>
+          </section>
 
           {/* Abstract */}
           <section className="mb-12 bg-gradient-to-br from-blue-500/10 to-purple-500/10 backdrop-blur-xl rounded-lg p-8 border border-blue-400/30">
             <h2 className="text-3xl font-bold text-white mb-4">Abstract</h2>
-            <p className="text-gray-300 leading-relaxed">
-              The cryptocurrency industry faces a critical trust crisis. Token launches are plagued by scams,
-              rugpulls, and abandoned projects, while legitimate founders—especially those outside traditional
-              tech hubs—struggle to access capital and build credibility.
+            <p className="text-gray-300 text-lg leading-relaxed">
+              <strong className="text-white">VC funding isn&apos;t accessible to everyone.</strong> The traditional
+              path to capital requires connections, geography, and credentials that most brilliant minds simply
+              don&apos;t have. Every day, world-changing ideas die—not because they lack merit, but because their
+              creators lack access.
             </p>
-            <p className="text-gray-300 leading-relaxed mt-4">
-              <strong className="text-white">PNL (Prediction & Launch Platform)</strong> introduces a revolutionary
-              solution: <strong className="text-blue-400">prediction markets as a vetting mechanism for token launches</strong>.
-              By combining market-based validation with transparent token distribution,
-              PNL creates the world&apos;s first community-validated token launch platform.
+            <p className="text-gray-300 text-lg leading-relaxed mt-4">
+              <strong className="text-white">PNL changes that.</strong> Through <strong className="text-blue-400">Idea Tokenization</strong>,
+              builders can transform their vision into something the world can fund. Supporters back ideas they
+              believe in and receive tokens in return—becoming early stakeholders in projects they helped make real.
+              Builders get the capital they need to keep building. <strong className="text-white">Everyone wins.</strong>
+            </p>
+            <p className="text-gray-300 text-lg leading-relaxed mt-4">
+              The community validates through prediction markets—ensuring only ideas with real believers get funded.
+              No gatekeepers. No VC rejections. No knowing the right people. <strong className="text-white">Just
+              merit, vision, and a global crowd ready to believe in the next big thing.</strong>
             </p>
 
-            <div className="mt-6 space-y-2">
-              <p className="text-green-400">✅ Market-Based Validation: Community predicts and votes on project success</p>
-              <p className="text-green-400">✅ Aligned Incentives: Founders and voters both benefit from success</p>
-              <p className="text-green-400">✅ Fair Distribution: Transparent, on-chain token allocation (65% to supporters)</p>
-              <p className="text-green-400">✅ Global Access: Permissionless, no KYC barriers, 0.01 SOL minimum</p>
-              <p className="text-green-400">✅ Transparent Economics: Clear fee structure and token distribution</p>
+            <div className="mt-6 space-y-3">
+              <p className="text-green-400 text-base">✅ <strong>For Builders:</strong> Raise capital from believers worldwide—no VCs required</p>
+              <p className="text-green-400 text-base">✅ <strong>For Supporters:</strong> Fund ideas you believe in, receive tokens in return</p>
+              <p className="text-green-400 text-base">✅ <strong>Community Validated:</strong> Prediction markets filter quality, believers back winners</p>
+              <p className="text-green-400 text-base">✅ <strong>Global & Permissionless:</strong> From anywhere, for everyone—0.01 SOL minimum</p>
+              <p className="text-green-400 text-base">✅ <strong>Discover Treasures:</strong> Find the next breakthrough before the world does</p>
             </div>
           </section>
 
           {/* The Problem */}
           <section className="mb-12">
-            <h2 className="text-3xl font-bold text-white mb-6">The Problem: Broken Token Launches</h2>
+            <h2 className="text-3xl font-bold text-white mb-6">The Problem: Capital is Gatekept</h2>
 
-            <div className="bg-gradient-to-br from-red-500/10 to-orange-500/10 backdrop-blur-xl rounded-lg p-6 mb-6 border border-red-400/30">
-              <h3 className="text-2xl font-semibold text-red-400 mb-4">1. Rampant Scams</h3>
-              <ul className="text-gray-300 space-y-2">
-                <li>• Anonymous teams launch tokens, generate hype, then disappear with funds</li>
-                <li>• No accountability mechanisms exist to hold founders responsible</li>
-                <li>• Investors have no recourse when projects fail or turn out to be scams</li>
-                <li>• The market is flooded with low-quality projects</li>
-              </ul>
-            </div>
+            <p className="text-gray-300 text-lg leading-relaxed mb-4">
+              You have a brilliant idea. You&apos;ve done the research, built the prototype, and you know it can change
+              the world. But you need capital to make it real. What are your options?
+            </p>
 
-            <div className="bg-gradient-to-br from-red-500/10 to-orange-500/10 backdrop-blur-xl rounded-lg p-6 mb-6 border border-red-400/30">
-              <h3 className="text-2xl font-semibold text-red-400 mb-4">2. Access Inequality</h3>
-              <ul className="text-gray-300 space-y-2">
-                <li>• <strong>VC Dominance:</strong> Best allocations locked to well-connected insiders</li>
-                <li>• <strong>Retail Disadvantage:</strong> Public investors buy at massive markups</li>
-                <li>• <strong>Geographic Barriers:</strong> Talented founders in emerging markets can&apos;t access capital</li>
-                <li>• <strong>Network Effects:</strong> Success depends on connections, not merit</li>
-              </ul>
-            </div>
+            <p className="text-gray-300 text-lg leading-relaxed mb-6">
+              <strong className="text-red-400">VCs won&apos;t return your emails.</strong> They fund Stanford dropouts
+              and YC alumni—not dreamers in Lagos, Manila, or São Paulo. Less than 1% of startups get funded, and
+              it&apos;s rarely about merit. It&apos;s about who you know, where you went to school, and which zip code
+              you live in. <strong className="text-white">The system is broken.</strong>
+            </p>
 
-            <div className="bg-gradient-to-br from-red-500/10 to-orange-500/10 backdrop-blur-xl rounded-lg p-6 border border-red-400/30">
-              <h3 className="text-2xl font-semibold text-red-400 mb-4">3. Misaligned Incentives</h3>
-              <div className="bg-black/30 rounded p-4 font-mono text-sm text-gray-300 border border-red-400/20">
-                <p>Traditional Launch:</p>
-                <p className="ml-4">├── Founders want: Raise maximum, deliver minimum</p>
-                <p className="ml-4">├── VCs want: Quick exits, high multiples</p>
-                <p className="ml-4">├── Retail wants: Fair prices, real projects</p>
-                <p className="ml-4">└── Result: Market for lemons (scams dominate)</p>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+              <div className="bg-red-500/10 rounded-lg p-4 border border-red-400/30">
+                <p className="text-red-400 font-bold text-lg mb-2">VC Gatekeeping</p>
+                <p className="text-gray-400 text-sm">Connections over merit. Geography over vision. Credentials over capability.</p>
               </div>
+              <div className="bg-red-500/10 rounded-lg p-4 border border-red-400/30">
+                <p className="text-red-400 font-bold text-lg mb-2">No Global Access</p>
+                <p className="text-gray-400 text-sm">Brilliant builders worldwide locked out of capital that flows freely in Silicon Valley.</p>
+              </div>
+              <div className="bg-red-500/10 rounded-lg p-4 border border-red-400/30">
+                <p className="text-red-400 font-bold text-lg mb-2">Ideas Die Daily</p>
+                <p className="text-gray-400 text-sm">World-changing visions fade—not for lack of merit, but lack of access.</p>
+              </div>
+            </div>
+
+            <div className="bg-gradient-to-r from-blue-500/10 to-cyan-500/10 rounded-lg p-5 border border-blue-400/30">
+              <p className="text-gray-300 text-base leading-relaxed">
+                <strong className="text-blue-400">Web3 offered hope.</strong> Peer-to-peer funding without intermediaries.
+                But there was a missing piece—what do supporters get in return? Donations alone don&apos;t scale.
+                People need skin in the game, a reason to believe <em>and</em> benefit.
+              </p>
+              <p className="text-white text-base leading-relaxed mt-3 font-semibold">
+                The answer? Tokenize the idea. Give supporters ownership. Let the crowd become co-founders.
+              </p>
             </div>
           </section>
 
           {/* The Solution */}
           <section className="mb-12">
-            <h2 className="text-3xl font-bold text-white mb-6">The Solution: Let the Market Decide</h2>
+            <h2 className="text-3xl font-bold text-white mb-6">The Solution: Idea Tokenization</h2>
 
             <div className="bg-gradient-to-br from-cyan-500/10 to-blue-500/10 backdrop-blur-xl border border-cyan-400/30 rounded-lg p-6 mb-6">
               <h3 className="text-2xl font-semibold text-cyan-400 mb-4">Core Insight</h3>
-              <p className="text-gray-300">
-                Prediction markets have proven to be exceptionally accurate forecasting tools—consistently
-                outperforming polls in elections, analysts in sports, and economists in market trends.
-                <strong className="text-white"> PNL applies this to validate token launches.</strong>
+              <p className="text-gray-300 text-base">
+                Prediction markets are the most accurate forecasting tools ever created—outperforming polls,
+                analysts, and experts across every domain. <strong className="text-white">PNL harnesses this
+                collective intelligence to separate brilliant ideas from noise.</strong>
+              </p>
+              <p className="text-gray-300 text-base mt-3">
+                When real money is on the line, people do their homework. <strong className="text-cyan-400">Critics</strong> are
+                incentivized to find flaws, while <strong className="text-green-400">Early Supporters</strong> are
+                rewarded for spotting winners before anyone else.
               </p>
             </div>
 
             <div className="bg-gradient-to-br from-blue-500/10 to-purple-500/10 backdrop-blur-xl rounded-lg p-6 border border-blue-400/30">
-              <h3 className="text-2xl font-semibold text-white mb-4">The Mechanism</h3>
+              <h3 className="text-2xl font-semibold text-white mb-4">How Idea Tokenization Works</h3>
               <ol className="text-gray-300 space-y-3 list-decimal list-inside">
-                <li><strong>Founder creates prediction market:</strong> &quot;Will this project succeed?&quot;</li>
-                <li><strong>Community votes with real money:</strong> YES (will succeed) or NO (will fail)</li>
-                <li><strong>Market aggregates information:</strong> Price reflects true probability</li>
-                <li><strong>Token launches only if YES wins:</strong> Community validation required</li>
-                <li><strong>Fair distribution:</strong> YES voters receive 65% of tokens proportionally</li>
+                <li><strong>Founder tokenizes their idea:</strong> Create a market for your vision</li>
+                <li><strong>Community evaluates:</strong> Early Supporters back it, Critics challenge it</li>
+                <li><strong>Price discovery:</strong> The market reveals true sentiment</li>
+                <li><strong>Validation gate:</strong> Only ideas with majority support get tokenized</li>
+                <li><strong>Presale rewards:</strong> Early Supporters receive 65% of tokens at launch</li>
               </ol>
               <p className="text-green-400 mt-4 font-semibold">
-                Result: Only projects the community believes in get launched.
+                Result: The world&apos;s best ideas rise to the top. Real treasures get discovered.
               </p>
             </div>
           </section>
@@ -126,340 +155,316 @@ export default function WhitepaperPage() {
           <section className="mb-12">
             <h2 className="text-3xl font-bold text-white mb-6">How PNL Works</h2>
 
-            {/* Complete Lifecycle Diagram */}
-            <div className="bg-gradient-to-br from-gray-900 via-blue-900/10 to-gray-900 border-2 border-blue-500/40 rounded-xl p-3 mb-8 shadow-2xl">
-              <h3 className="text-lg font-bold text-blue-400 mb-3 text-center">Complete Platform Lifecycle</h3>
+            {/* Complete Lifecycle Diagram - Simplified */}
+            <div className="bg-gradient-to-br from-gray-900/50 to-blue-900/20 border border-blue-500/30 rounded-xl p-6 mb-8">
+              <h3 className="text-lg font-bold text-white mb-2 text-center">The Journey: From Idea to Token</h3>
+              <p className="text-gray-400 text-sm text-center mb-6">
+                Every great project starts with a vision. Here&apos;s how PNL turns yours into reality.
+              </p>
 
-              {/* Horizontal Sequence Diagram */}
-              <div>
-                {/* Timeline bar */}
-                <div className="flex items-center justify-between mb-3">
-                  <div className="flex-1 h-0.5 bg-gradient-to-r from-blue-500 to-purple-500"></div>
-                  <div className="flex-1 h-0.5 bg-gradient-to-r from-purple-500 to-green-500"></div>
-                  <div className="flex-1 h-0.5 bg-gradient-to-r from-green-500 to-yellow-500"></div>
-                  <div className="flex-1 h-0.5 bg-gradient-to-r from-yellow-500 to-orange-500"></div>
+              {/* Simple 4-step flow */}
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                {/* Step 1 */}
+                <div className="text-center">
+                  <div className="bg-blue-500 text-white font-bold rounded-full w-10 h-10 flex items-center justify-center mx-auto mb-3 text-lg">1</div>
+                  <h4 className="text-blue-400 font-semibold mb-2">Create</h4>
+                  <p className="text-gray-400 text-sm">Founder tokenizes their idea</p>
+                  <p className="text-blue-400 text-xs mt-1">0.015 SOL</p>
                 </div>
 
-                {/* Phases Row 1 - First 3 phases */}
-                <div className="grid grid-cols-3 gap-2 mb-3">
-                  {/* Phase 1: Market Creation */}
-                  <div className="relative">
-                    <div className="bg-gradient-to-br from-blue-600/20 to-blue-500/20 border border-blue-500 rounded p-2 h-full">
-                      <div className="flex items-center justify-center mb-1">
-                        <div className="bg-blue-500 text-white font-bold rounded-full w-5 h-5 flex items-center justify-center mr-1 text-xs">1</div>
-                        <h4 className="text-xs font-bold text-blue-400">CREATE</h4>
-                      </div>
-                      <p className="text-center text-blue-300 text-[10px] mb-1">Day 0</p>
-                      <div className="space-y-1">
-                        <div className="bg-gray-800/60 rounded px-2 py-1 border border-blue-500/30">
-                          <p className="font-semibold text-white text-[10px]">Founder</p>
-                          <p className="text-gray-300 text-[10px]">• Details</p>
-                          <p className="text-gray-300 text-[10px]">• <span className="text-blue-400">0.015 SOL</span></p>
-                        </div>
-                        <div className="flex justify-center text-blue-400 text-sm">↓</div>
-                        <div className="bg-gray-800/60 rounded px-2 py-1 border border-blue-500/30">
-                          <p className="font-semibold text-white text-[10px]">Live</p>
-                          <p className="text-gray-300 text-[10px]">• YES/NO</p>
-                        </div>
-                      </div>
-                    </div>
-                    <div className="absolute -right-1 top-1/2 transform -translate-y-1/2 text-purple-400 text-xl z-10">→</div>
-                  </div>
-
-                  {/* Phase 2: Community Voting */}
-                  <div className="relative">
-                    <div className="bg-gradient-to-br from-purple-600/20 to-purple-500/20 border border-purple-500 rounded p-2 h-full">
-                      <div className="flex items-center justify-center mb-1">
-                        <div className="bg-purple-500 text-white font-bold rounded-full w-5 h-5 flex items-center justify-center mr-1 text-xs">2</div>
-                        <h4 className="text-xs font-bold text-purple-400">VOTE</h4>
-                      </div>
-                      <p className="text-center text-purple-300 text-[10px] mb-1">Day 1-30</p>
-                      <div className="bg-gray-800/60 rounded px-2 py-1 border border-purple-500/30">
-                        <p className="font-semibold text-white text-[10px]">Community</p>
-                        <p className="text-gray-300 text-[10px]">• Review</p>
-                        <p className="text-gray-300 text-[10px]">• YES/NO</p>
-                        <p className="text-gray-300 text-[10px]">• <span className="text-purple-400">0.01 SOL</span></p>
-                        <p className="text-gray-300 text-[10px]">• <span className="text-purple-400">1.5% fee</span></p>
-                      </div>
-                    </div>
-                    <div className="absolute -right-1 top-1/2 transform -translate-y-1/2 text-green-400 text-xl z-10">→</div>
-                  </div>
-
-                  {/* Phase 3: Market Resolution */}
-                  <div className="relative">
-                    <div className="bg-gradient-to-br from-green-600/20 to-green-500/20 border border-green-500 rounded p-2 h-full">
-                      <div className="flex items-center justify-center mb-1">
-                        <div className="bg-green-500 text-white font-bold rounded-full w-5 h-5 flex items-center justify-center mr-1 text-xs">3</div>
-                        <h4 className="text-xs font-bold text-green-400">RESOLVE</h4>
-                      </div>
-                      <p className="text-center text-green-300 text-[10px] mb-1">Expiry</p>
-                      <div className="bg-gray-800/60 rounded px-2 py-1 border border-green-500/30">
-                        <p className="font-semibold text-white text-[10px]">Outcome</p>
-                        <p className="text-gray-300 text-[10px]">• <span className="text-green-400">YES</span> → Launch</p>
-                        <p className="text-gray-300 text-[10px]">• <span className="text-red-400">NO</span> → NO Payout</p>
-                        <p className="text-gray-300 text-[10px]">• Fee: <span className="text-green-400">5%</span></p>
-                      </div>
-                    </div>
-                  </div>
+                {/* Step 2 */}
+                <div className="text-center">
+                  <div className="bg-purple-500 text-white font-bold rounded-full w-10 h-10 flex items-center justify-center mx-auto mb-3 text-lg">2</div>
+                  <h4 className="text-purple-400 font-semibold mb-2">Validate</h4>
+                  <p className="text-gray-400 text-sm">Community backs or challenges</p>
+                  <p className="text-purple-400 text-xs mt-1">Min 0.01 SOL</p>
                 </div>
 
-                {/* Connector Arrow Down */}
-                <div className="flex justify-center mb-2">
-                  <div className="text-yellow-400 text-xl">↓</div>
+                {/* Step 3 */}
+                <div className="text-center">
+                  <div className="bg-green-500 text-white font-bold rounded-full w-10 h-10 flex items-center justify-center mx-auto mb-3 text-lg">3</div>
+                  <h4 className="text-green-400 font-semibold mb-2">Resolve</h4>
+                  <p className="text-gray-400 text-sm">Market decides outcome</p>
+                  <p className="text-green-400 text-xs mt-1">At expiry</p>
                 </div>
 
-                {/* Phase 4: Token Launch */}
-                <div className="mb-3">
-                  <div className="bg-gradient-to-br from-yellow-600/20 to-yellow-500/20 border border-yellow-500 rounded p-2">
-                    <div className="flex items-center justify-center mb-1">
-                      <div className="bg-yellow-500 text-white font-bold rounded-full w-5 h-5 flex items-center justify-center mr-1 text-xs">4</div>
-                      <h4 className="text-xs font-bold text-yellow-400">LAUNCH</h4>
-                    </div>
-                    <p className="text-center text-yellow-300 text-[10px] mb-1">If YES (Atomic)</p>
-                    <div className="bg-yellow-900/20 rounded px-2 py-1 border border-yellow-500/40 mb-1">
-                      <p className="font-semibold text-yellow-400 text-center text-[10px]">Native TX + ALT</p>
-                    </div>
-                    <div className="bg-gray-800/60 rounded px-2 py-1 border border-yellow-500/30">
-                      <p className="font-semibold text-white text-[10px] mb-1">Single Atomic TX</p>
-                      <p className="text-gray-300 text-[10px]">• Pump.fun create</p>
-                      <p className="text-gray-300 text-[10px]">• Create ATA</p>
-                      <p className="text-gray-300 text-[10px]">• Resolve market</p>
-                      <p className="text-gray-300 text-[10px] mt-1"><span className="text-green-400">65% YES</span> <span className="text-blue-400">33% Team</span> <span className="text-purple-400">2% Plat</span></p>
-                    </div>
-                  </div>
+                {/* Step 4 */}
+                <div className="text-center">
+                  <div className="bg-yellow-500 text-white font-bold rounded-full w-10 h-10 flex items-center justify-center mx-auto mb-3 text-lg">4</div>
+                  <h4 className="text-yellow-400 font-semibold mb-2">Launch</h4>
+                  <p className="text-gray-400 text-sm">Token goes live on Pump.fun</p>
+                  <p className="text-yellow-400 text-xs mt-1">If YES wins</p>
                 </div>
+              </div>
 
-                {/* Key Metrics Section */}
-                <div className="bg-gradient-to-r from-pink-600/20 to-pink-500/20 border border-pink-500 rounded p-2">
-                  <div className="flex items-center justify-center mb-2">
-                    <div className="bg-pink-500 text-white font-bold rounded-full w-5 h-5 flex items-center justify-center mr-1 text-xs">📊</div>
-                    <h4 className="text-xs font-bold text-pink-400">METRICS</h4>
+              {/* Outcomes summary */}
+              <div className="mt-6 pt-4 border-t border-gray-700/50">
+                <p className="text-gray-400 text-xs text-center mb-3">Three possible outcomes—each one fair.</p>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-3 text-sm">
+                  <div className="bg-green-500/10 rounded-lg p-3 border border-green-500/30 text-center">
+                    <p className="text-green-400 font-semibold">YES Wins</p>
+                    <p className="text-gray-400 text-xs">Token launches → Early supporters get 65%</p>
                   </div>
-                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-1.5">
-                    <div className="bg-gray-800/60 rounded px-2 py-1 border border-pink-500/30">
-                      <p className="text-gray-300 text-[10px]">• Markets</p>
-                    </div>
-                    <div className="bg-gray-800/60 rounded px-2 py-1 border border-pink-500/30">
-                      <p className="text-gray-300 text-[10px]">• Success</p>
-                    </div>
-                    <div className="bg-gray-800/60 rounded px-2 py-1 border border-pink-500/30">
-                      <p className="text-gray-300 text-[10px]">• Confidence</p>
-                    </div>
-                    <div className="bg-gray-800/60 rounded px-2 py-1 border border-pink-500/30">
-                      <p className="text-gray-300 text-[10px]">• Token Performance</p>
-                    </div>
-                    <div className="bg-gray-800/60 rounded px-2 py-1 border border-pink-500/30 sm:col-span-2">
-                      <p className="text-gray-300 text-[10px]">• Community Sentiment</p>
-                    </div>
+                  <div className="bg-red-500/10 rounded-lg p-3 border border-red-500/30 text-center">
+                    <p className="text-red-400 font-semibold">NO Wins</p>
+                    <p className="text-gray-400 text-xs">No launch → Critics share 95% of pool</p>
+                  </div>
+                  <div className="bg-yellow-500/10 rounded-lg p-3 border border-yellow-500/30 text-center">
+                    <p className="text-yellow-400 font-semibold">Tie / Under Target</p>
+                    <p className="text-gray-400 text-xs">Everyone gets 98.5% refund</p>
                   </div>
                 </div>
               </div>
             </div>
 
-            <div className="space-y-6">
-              <div className="bg-gradient-to-br from-blue-500/10 to-cyan-500/10 backdrop-blur-xl rounded-lg p-6 border border-blue-400/30">
-                <h3 className="text-xl font-semibold text-blue-400 mb-3">Phase 1: Market Creation</h3>
-                <p className="text-gray-300 mb-2">Founder creates a prediction market with:</p>
-                <ul className="text-gray-300 space-y-1 ml-4">
-                  <li>• Project details, vision, and roadmap</li>
-                  <li>• Token economics</li>
-                  <li>• Target pool size and expiry date</li>
-                  <li>• Creation fee: <strong className="text-white">0.015 SOL</strong></li>
-                </ul>
-              </div>
-
-              <div className="bg-gradient-to-br from-purple-500/10 to-pink-500/10 backdrop-blur-xl rounded-lg p-6 border border-purple-400/30">
-                <h3 className="text-xl font-semibold text-purple-400 mb-3">Phase 2: Community Voting</h3>
-                <p className="text-gray-300 mb-2">Voters analyze and bet:</p>
-                <ul className="text-gray-300 space-y-1 ml-4">
-                  <li>• Minimum vote: <strong className="text-white">0.01 SOL</strong> (accessible to everyone)</li>
-                  <li>• Trade fee: <strong className="text-white">1.5%</strong> per vote</li>
-                  <li>• Vote YES or NO based on due diligence</li>
-                  <li>• One position rule: Can&apos;t bet on both sides</li>
-                </ul>
-              </div>
-
-              <div className="bg-gradient-to-br from-green-500/10 to-emerald-500/10 backdrop-blur-xl rounded-lg p-6 border border-green-400/30">
-                <h3 className="text-xl font-semibold text-green-400 mb-3">Phase 3: Market Resolution</h3>
-                <div className="bg-black/30 rounded p-4 font-mono text-sm text-gray-300 border border-green-400/20">
-                  <p>After expiry:</p>
-                  <p className="ml-4">├── IF YES shares &gt; NO shares → Token launches</p>
-                  <p className="ml-4">├── IF NO shares &gt; YES shares → NO voters paid proportionally (95% of pool)</p>
-                  <p className="ml-4">├── IF tied OR pool &lt; target → Full refund (all participants)</p>
-                  <p className="ml-4">└── Completion fee: <strong className="text-yellow-400">5% of pool</strong> (if YES/NO wins)</p>
+            {/* Phase Details - 2x2 Grid */}
+            <p className="text-gray-300 text-base mb-4">
+              Let&apos;s break down each phase. The process is simple, transparent, and designed to reward conviction.
+            </p>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="bg-blue-500/10 rounded-lg p-5 border border-blue-400/30">
+                <div className="flex items-center gap-3 mb-3">
+                  <div className="bg-blue-500 text-white font-bold rounded-full w-8 h-8 flex items-center justify-center">1</div>
+                  <h3 className="text-lg font-semibold text-blue-400">Create</h3>
                 </div>
-              </div>
-
-              <div className="bg-gradient-to-br from-yellow-500/10 to-orange-500/10 backdrop-blur-xl rounded-lg p-6 border border-yellow-400/30">
-                <h3 className="text-xl font-semibold text-yellow-400 mb-3">Phase 4: Token Launch (If YES Wins)</h3>
-                <p className="text-gray-300 mb-3">Automated, atomic token creation via native Solana transaction with Address Lookup Tables:</p>
-                <div className="bg-gradient-to-br from-cyan-500/10 to-blue-500/10 backdrop-blur-xl rounded p-4 mb-3 border border-cyan-400/30">
-                  <p className="text-white font-semibold mb-2">Token Distribution:</p>
-                  <ul className="text-gray-300 space-y-1">
-                    <li>• <strong className="text-green-400">YES Voters: 65%</strong> (proportional to shares)</li>
-                    <li>• <strong className="text-blue-400">Team: 33%</strong> (8% immediate + 25% vested over 12 months)</li>
-                    <li>• <strong className="text-purple-400">PNL Platform: 2%</strong></li>
-                  </ul>
-                </div>
-                <div className="bg-gradient-to-br from-emerald-500/10 to-teal-500/10 backdrop-blur-xl rounded p-4 mb-3 border border-emerald-400/30">
-                  <p className="text-white font-semibold mb-2">Pool Cap & Excess SOL:</p>
-                  <ul className="text-gray-300 space-y-1">
-                    <li>• <strong className="text-emerald-400">Maximum for launch: 50 SOL</strong> (goes to Pump.fun)</li>
-                    <li>• <strong className="text-teal-400">Excess SOL</strong> (if pool &gt; 50 SOL) goes to founder:</li>
-                    <li className="ml-4">└── 8% immediate + 92% vested over 12 months</li>
-                  </ul>
-                </div>
-                <p className="text-gray-300">Token trades on Pump.fun bonding curve, may graduate to PumpSwap DEX.</p>
-              </div>
-
-              <div className="bg-gradient-to-br from-indigo-500/10 to-violet-500/10 backdrop-blur-xl rounded-lg p-6 border border-indigo-400/30">
-                <h3 className="text-xl font-semibold text-indigo-400 mb-3">Optional: Funding Phase Extension</h3>
-                <p className="text-gray-300 mb-3">After YES wins, founders can extend the market to collect additional funds:</p>
-                <div className="bg-black/30 rounded p-4 font-mono text-sm text-gray-300 border border-indigo-400/20">
-                  <p>Funding Phase:</p>
-                  <p className="ml-4">├── YES voting: <span className="text-green-400">Enabled</span> (supporters can add more)</p>
-                  <p className="ml-4">├── NO voting: <span className="text-red-400">Locked</span> (outcome already decided)</p>
-                  <p className="ml-4">├── Pool grows beyond original target</p>
-                  <p className="ml-4">└── Founder launches token when ready</p>
-                </div>
-                <p className="text-gray-400 text-sm mt-3 italic">
-                  This allows successful projects to raise more capital while maintaining community validation.
+                <p className="text-gray-300 text-sm mb-2">
+                  Founder submits their idea with project details, token economics, and target pool size.
                 </p>
+                <p className="text-blue-400 text-sm">Cost: <strong>0.015 SOL</strong></p>
               </div>
-            </div>
-          </section>
 
-          {/* Fair Distribution */}
-          <section className="mb-12">
-            <h2 className="text-3xl font-bold text-white mb-6">Fair Token Distribution</h2>
-
-            <div className="bg-gradient-to-br from-green-500/10 to-blue-500/10 backdrop-blur-xl border border-green-400/30 rounded-lg p-6 mb-6">
-              <h3 className="text-2xl font-semibold text-green-400 mb-4">Why PNL Is Fair</h3>
-
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div className="bg-black/30 rounded p-4 border border-red-400/20">
-                  <p className="text-red-400 font-semibold mb-2">❌ Traditional IDO:</p>
-                  <ul className="text-gray-300 text-sm space-y-1">
-                    <li>• VCs: 50-70% at $0.001/token</li>
-                    <li>• Team: 15-25% at $0.001/token</li>
-                    <li>• Public: 5-10% at $0.10/token</li>
-                    <li className="text-red-400 font-semibold">→ 100x price gap, retail dumped on</li>
-                  </ul>
+              <div className="bg-purple-500/10 rounded-lg p-5 border border-purple-400/30">
+                <div className="flex items-center gap-3 mb-3">
+                  <div className="bg-purple-500 text-white font-bold rounded-full w-8 h-8 flex items-center justify-center">2</div>
+                  <h3 className="text-lg font-semibold text-purple-400">Validate</h3>
                 </div>
+                <p className="text-gray-300 text-sm mb-2">
+                  Community votes YES or NO. Early supporters back winners, critics filter quality.
+                </p>
+                <p className="text-purple-400 text-sm">Min: <strong>0.01 SOL</strong> • Fee: <strong>1.5%</strong></p>
+              </div>
 
-                <div className="bg-black/30 rounded p-4 border border-green-400/20">
-                  <p className="text-green-400 font-semibold mb-2">✅ PNL:</p>
-                  <ul className="text-gray-300 text-sm space-y-1">
-                    <li>• YES Voters: 65% at market price</li>
-                    <li>• Team: 33% at same price (vested)</li>
-                    <li>• Platform: 2% at same price</li>
-                    <li className="text-green-400 font-semibold">→ Fair, transparent, same price for all</li>
-                  </ul>
+              <div className="bg-green-500/10 rounded-lg p-5 border border-green-400/30">
+                <div className="flex items-center gap-3 mb-3">
+                  <div className="bg-green-500 text-white font-bold rounded-full w-8 h-8 flex items-center justify-center">3</div>
+                  <h3 className="text-lg font-semibold text-green-400">Resolve</h3>
+                </div>
+                <p className="text-gray-300 text-sm mb-2">
+                  At expiry, shares are counted. More YES shares = launch. More NO shares = critics win.
+                </p>
+                <p className="text-green-400 text-sm">Completion fee: <strong>5%</strong></p>
+              </div>
+
+              <div className="bg-yellow-500/10 rounded-lg p-5 border border-yellow-400/30">
+                <div className="flex items-center gap-3 mb-3">
+                  <div className="bg-yellow-500 text-white font-bold rounded-full w-8 h-8 flex items-center justify-center">4</div>
+                  <h3 className="text-lg font-semibold text-yellow-400">Launch</h3>
+                </div>
+                <p className="text-gray-300 text-sm mb-2">
+                  If YES wins, token launches atomically on Pump.fun. Early supporters get 65% of tokens.
+                </p>
+                <p className="text-yellow-400 text-sm">Up to <strong>50 SOL</strong> → Pump.fun</p>
+              </div>
+            </div>
+
+            {/* Token Distribution - Compact */}
+            <p className="text-gray-400 text-sm mt-6 mb-3 text-center italic">
+              When the community says YES, tokens are distributed fairly—no insiders, no VCs, just believers.
+            </p>
+            <div className="bg-black/30 rounded-lg p-4 border border-gray-600/30">
+              <p className="text-white font-semibold mb-3 text-center">Token Distribution</p>
+              <div className="flex flex-wrap justify-center gap-6 text-sm">
+                <div className="text-center">
+                  <p className="text-green-400 font-bold text-2xl">65%</p>
+                  <p className="text-gray-400">Early Supporters</p>
+                </div>
+                <div className="text-center">
+                  <p className="text-blue-400 font-bold text-2xl">33%</p>
+                  <p className="text-gray-400">Founder (vested)</p>
+                </div>
+                <div className="text-center">
+                  <p className="text-purple-400 font-bold text-2xl">2%</p>
+                  <p className="text-gray-400">Platform</p>
                 </div>
               </div>
             </div>
           </section>
 
-          {/* Platform Economics */}
+          {/* Benefits - Why should you care? */}
           <section className="mb-12">
-            <h2 className="text-3xl font-bold text-white mb-6">Platform Economics</h2>
+            <h2 className="text-3xl font-bold text-white mb-6">Why Build & Invest on PNL?</h2>
 
-            <div className="bg-gradient-to-br from-purple-500/10 to-blue-500/10 backdrop-blur-xl rounded-lg p-6 space-y-4 border border-purple-400/30">
-              <div>
-                <h3 className="text-xl font-semibold text-blue-400 mb-2">Fee Structure</h3>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+              <div className="bg-gradient-to-br from-blue-500/10 to-cyan-500/10 backdrop-blur-xl border border-blue-400/30 rounded-lg p-6">
+                <h3 className="text-xl font-semibold text-blue-400 mb-4">For Founders & Dreamers</h3>
+                <p className="text-gray-400 text-sm mb-3">Turn your vision into reality</p>
                 <ul className="text-gray-300 space-y-2">
-                  <li>• <strong className="text-white">Market Creation Fee:</strong> 0.015 SOL (spam prevention)</li>
-                  <li>• <strong className="text-white">Trade Fee:</strong> 1.5% of each vote (platform revenue)</li>
-                  <li>• <strong className="text-white">Completion Fee:</strong> 5% of pool when market resolves</li>
-                </ul>
-              </div>
-
-              <div>
-                <h3 className="text-xl font-semibold text-emerald-400 mb-2">SOL Distribution</h3>
-                <ul className="text-gray-300 space-y-2">
-                  <li>• <strong className="text-white">Token Launch:</strong> Up to 50 SOL goes to Pump.fun</li>
-                  <li>• <strong className="text-white">Excess SOL:</strong> If pool &gt; 50 SOL, excess goes to founder</li>
-                  <li className="ml-4 text-sm">└── 8% immediate + 92% vested over 12 months</li>
-                </ul>
-              </div>
-
-              <div className="bg-black/30 rounded p-4 border border-purple-400/20">
-                <p className="text-white font-semibold mb-2">All fees go to platform treasury for:</p>
-                <ul className="text-gray-300 text-sm space-y-1 ml-4">
-                  <li>• Development and maintenance</li>
-                  <li>• RPC infrastructure costs</li>
-                  <li>• Security audits</li>
-                </ul>
-              </div>
-            </div>
-          </section>
-
-          {/* Benefits */}
-          <section className="mb-12">
-            <h2 className="text-3xl font-bold text-white mb-6">Benefits</h2>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <div className="bg-gradient-to-br from-cyan-500/10 to-blue-500/10 backdrop-blur-xl border border-cyan-400/30 rounded-lg p-6">
-                <h3 className="text-xl font-semibold text-blue-400 mb-4">For Founders</h3>
-                <ul className="text-gray-300 space-y-2">
-                  <li>✅ Access global capital (no geographic barriers)</li>
-                  <li>✅ Community-driven marketing (organic growth)</li>
-                  <li>✅ Market validation before building</li>
-                  <li>✅ Fair token distribution to believers</li>
-                  <li>✅ Reputation building over time</li>
+                  <li>🌍 <strong>Global capital:</strong> Raise from believers worldwide</li>
+                  <li>🚀 <strong>Instant community:</strong> Early supporters become your first fans</li>
+                  <li>✅ <strong>Validation:</strong> Know your idea has market demand</li>
+                  <li>💰 <strong>Fair deal:</strong> Keep your equity, share tokens</li>
+                  <li>⚡ <strong>Fast launch:</strong> Go from idea to token in days</li>
                 </ul>
               </div>
 
               <div className="bg-gradient-to-br from-green-500/10 to-emerald-500/10 backdrop-blur-xl border border-green-400/30 rounded-lg p-6">
-                <h3 className="text-xl font-semibold text-green-400 mb-4">For Voters</h3>
+                <h3 className="text-xl font-semibold text-green-400 mb-4">For Early Supporters</h3>
+                <p className="text-gray-400 text-sm mb-3">Find treasures before the crowd</p>
                 <ul className="text-gray-300 space-y-2">
-                  <li>✅ Early access (VC-level opportunities)</li>
-                  <li>✅ Collective intelligence advantage</li>
-                  <li>✅ Downside protection (vote NO to earn if project fails)</li>
-                  <li>✅ Portfolio diversification (0.01 SOL minimum)</li>
+                  <li>💎 <strong>Presale access:</strong> Get tokens at ground floor</li>
+                  <li>🎯 <strong>Due diligence pays:</strong> Research → spot winners → profit</li>
+                  <li>📈 <strong>65% allocation:</strong> Majority of tokens go to believers</li>
+                  <li>🤝 <strong>Direct connection:</strong> Build relationships with founders</li>
+                  <li>🔮 <strong>Shape the future:</strong> Back ideas you believe in</li>
+                </ul>
+              </div>
+
+              <div className="bg-gradient-to-br from-red-500/10 to-orange-500/10 backdrop-blur-xl border border-red-400/30 rounded-lg p-6">
+                <h3 className="text-xl font-semibold text-red-400 mb-4">For Critics</h3>
+                <p className="text-gray-400 text-sm mb-3">Get paid to filter quality</p>
+                <ul className="text-gray-300 space-y-2">
+                  <li>🔍 <strong>Quality control:</strong> Your skepticism protects the ecosystem</li>
+                  <li>💵 <strong>Earn from flops:</strong> When bad ideas fail, critics profit</li>
+                  <li>⚖️ <strong>Balance the market:</strong> Keep hype in check</li>
+                  <li>🛡️ <strong>Protect others:</strong> Your NO vote warns the community</li>
+                  <li>📊 <strong>95% pool share:</strong> Winners split the pot</li>
                 </ul>
               </div>
             </div>
           </section>
 
-          {/* Vision */}
+          {/* Economics - Token Distribution & Fees */}
           <section className="mb-12">
-            <h2 className="text-3xl font-bold text-white mb-6">Vision: Democratizing Web3 Funding</h2>
+            <h2 className="text-3xl font-bold text-white mb-6">Economics: Fair by Design</h2>
 
-            <div className="bg-gradient-to-br from-cyan-500/10 to-purple-500/10 backdrop-blur-xl border border-cyan-400/30 rounded-lg p-6 mb-6">
-              <h3 className="text-2xl font-semibold text-blue-400 mb-4">The Bigger Picture</h3>
-              <p className="text-gray-300 leading-relaxed">
-                PNL is more than a token launch platform. It&apos;s a <strong className="text-white">fundamental reimagining
-                of how innovation gets funded globally</strong>.
-              </p>
+            <p className="text-gray-300 text-lg leading-relaxed mb-6">
+              Traditional fundraising is unfair. VCs get preferential terms, insider access, and early exits—while
+              everyday believers get nothing. <strong className="text-white">PNL flips this model entirely.</strong> Everyone
+              plays by the same rules, and the supporters who backed the idea first get the biggest rewards.
+            </p>
+
+            {/* Token Distribution Comparison */}
+            <div className="bg-gradient-to-br from-green-500/10 to-blue-500/10 backdrop-blur-xl border border-green-400/30 rounded-lg p-6 mb-6">
+              <h3 className="text-xl font-semibold text-green-400 mb-4">No VCs. No Insiders. Just Believers.</h3>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-4">
+                <div className="bg-black/30 rounded p-4 border border-red-400/20">
+                  <p className="text-red-400 font-semibold mb-2">❌ VC-Backed Projects</p>
+                  <ul className="text-gray-300 text-sm space-y-1">
+                    <li>• VCs: 50-70% at $0.001</li>
+                    <li>• Team: 15-25% at $0.001</li>
+                    <li>• Public: 5-10% at $0.10</li>
+                    <li className="text-red-400">→ 100x price gap</li>
+                  </ul>
+                </div>
+
+                <div className="bg-black/30 rounded p-4 border border-green-400/20">
+                  <p className="text-green-400 font-semibold mb-2">✅ PNL Distribution</p>
+                  <ul className="text-gray-300 text-sm space-y-1">
+                    <li>• Early Supporters: <strong>65%</strong></li>
+                    <li>• Founder: <strong>33%</strong> (vested)</li>
+                    <li>• Platform: <strong>2%</strong></li>
+                    <li className="text-green-400">→ Same price for all</li>
+                  </ul>
+                </div>
+              </div>
             </div>
 
-            <div className="bg-gradient-to-br from-red-500/10 to-orange-500/10 backdrop-blur-xl rounded-lg p-6 mb-6 border border-red-400/30">
-              <h3 className="text-xl font-semibold text-white mb-3">The Problem with Traditional VC</h3>
-              <ul className="text-gray-300 space-y-2">
-                <li>• &lt;1% of startups get funded (99% rejected)</li>
-                <li>• Geographic concentration (80% in SF/NYC/London)</li>
-                <li>• Network effects (Stanford/Harvard/YC alumni favored)</li>
-                <li>• Slow (6-12 months from pitch to funding)</li>
-                <li>• Dilutive (founders give up 20-40% equity per round)</li>
-              </ul>
-              <p className="text-red-400 font-semibold mt-4">
-                Result: The vast majority of global talent is locked out.
-              </p>
+            {/* Fee Structure */}
+            <p className="text-gray-300 text-base leading-relaxed mb-4">
+              Transparency is non-negotiable. Here&apos;s exactly where your SOL goes:
+            </p>
+
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+              <div className="bg-black/30 rounded-lg p-4 border border-blue-400/20 text-center">
+                <p className="text-blue-400 font-bold text-2xl">0.015</p>
+                <p className="text-gray-400 text-sm">SOL to create</p>
+                <p className="text-gray-500 text-xs">Spam prevention</p>
+              </div>
+              <div className="bg-black/30 rounded-lg p-4 border border-purple-400/20 text-center">
+                <p className="text-purple-400 font-bold text-2xl">1.5%</p>
+                <p className="text-gray-400 text-sm">Per vote</p>
+                <p className="text-gray-500 text-xs">Platform revenue</p>
+              </div>
+              <div className="bg-black/30 rounded-lg p-4 border border-emerald-400/20 text-center">
+                <p className="text-emerald-400 font-bold text-2xl">5%</p>
+                <p className="text-gray-400 text-sm">At resolution</p>
+                <p className="text-gray-500 text-xs">Completion fee</p>
+              </div>
             </div>
 
-            <div className="bg-gradient-to-br from-green-500/10 to-emerald-500/10 backdrop-blur-xl border border-green-400/30 rounded-lg p-6">
-              <h3 className="text-xl font-semibold text-green-400 mb-3">PNL&apos;s Solution: Permissionless Capital</h3>
-              <ul className="text-gray-300 space-y-2">
-                <li>✅ <strong>100% access:</strong> Anyone can create market (no rejection)</li>
-                <li>✅ <strong>Global reach:</strong> Work from Lagos, Mumbai, São Paulo, Manila</li>
-                <li>✅ <strong>Meritocratic:</strong> Market decides, not gatekeepers</li>
-                <li>✅ <strong>Fast:</strong> 30-90 day timeline (vs 6-12 months)</li>
-                <li>✅ <strong>Non-dilutive:</strong> Founders keep equity, earn from fees</li>
-              </ul>
-              <p className="text-green-400 font-semibold mt-4">
-                Impact: Unlock $1T+ in untapped global talent
-              </p>
+            <p className="text-gray-400 text-base">
+              When YES wins, up to 50 SOL goes to Pump.fun for token launch. Any excess above 50 SOL goes to the
+              founder (8% immediate, 92% vested over 12 months)—keeping founders committed long-term.
+            </p>
+          </section>
+
+          {/* Vision & Roadmap */}
+          <section className="mb-12">
+            <h2 className="text-3xl font-bold text-white mb-6">Vision: Where We&apos;re Going</h2>
+
+            <p className="text-gray-300 text-lg leading-relaxed mb-6">
+              For too long, tokens and equity have been treated as different things. But what if they&apos;re
+              the same—just evolved for the internet age? <strong className="text-white">PNL is pioneering
+              Idea Tokenization</strong>—where your vision becomes an asset the world can believe in.
+            </p>
+
+            {/* The Big Picture */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+              <div className="bg-gradient-to-br from-red-500/10 to-orange-500/10 backdrop-blur-xl rounded-lg p-5 border border-red-400/30">
+                <h3 className="text-lg font-semibold text-red-400 mb-3">Traditional VC: Broken</h3>
+                <p className="text-gray-300 text-sm mb-3">
+                  Less than 1% of startups get funded. The other 99%? Rejected—often not because of merit,
+                  but geography, network, or pedigree.
+                </p>
+                <p className="text-gray-400 text-sm">
+                  Brilliant builders in Lagos, Manila, São Paulo—locked out of capital that flows freely
+                  in Silicon Valley.
+                </p>
+              </div>
+
+              <div className="bg-gradient-to-br from-green-500/10 to-emerald-500/10 backdrop-blur-xl rounded-lg p-5 border border-green-400/30">
+                <h3 className="text-lg font-semibold text-green-400 mb-3">PNL: Borderless</h3>
+                <p className="text-gray-300 text-sm mb-3">
+                  No rejection—every idea gets a fair shot. Build from anywhere, raise from everywhere.
+                  The crowd decides, not gatekeepers.
+                </p>
+                <p className="text-green-400 text-sm font-semibold">
+                  The next unicorn might be building in a bedroom right now. PNL will find them.
+                </p>
+              </div>
+            </div>
+
+            {/* Treasure Hunt */}
+            <p className="text-gray-300 text-base leading-relaxed mb-4">
+              For early supporters, PNL is a <strong className="text-yellow-400">treasure hunt</strong>—discover
+              hidden gems before the world knows about them. Every market is a potential breakthrough waiting
+              for believers to back it.
+            </p>
+
+            {/* What's Next */}
+            <h3 className="text-xl font-semibold text-white mt-8 mb-4">What We&apos;re Building Next</h3>
+            <p className="text-gray-400 mb-4">
+              PNL is just getting started. Here&apos;s what&apos;s coming:
+            </p>
+
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+              <div className="bg-black/30 rounded-lg p-3 border border-pink-400/20 text-center">
+                <p className="text-pink-400 font-semibold text-sm">Chat</p>
+                <p className="text-gray-500 text-xs">Real-time discussions</p>
+              </div>
+              <div className="bg-black/30 rounded-lg p-3 border border-cyan-400/20 text-center">
+                <p className="text-cyan-400 font-semibold text-sm">AI Analysis</p>
+                <p className="text-gray-500 text-xs">Smart project scoring</p>
+              </div>
+              <div className="bg-black/30 rounded-lg p-3 border border-emerald-400/20 text-center">
+                <p className="text-emerald-400 font-semibold text-sm">Reputation</p>
+                <p className="text-gray-500 text-xs">Track record system</p>
+              </div>
+              <div className="bg-black/30 rounded-lg p-3 border border-amber-400/20 text-center">
+                <p className="text-amber-400 font-semibold text-sm">Teams</p>
+                <p className="text-gray-500 text-xs">Talent marketplace</p>
+              </div>
             </div>
           </section>
 
@@ -525,43 +530,110 @@ export default function WhitepaperPage() {
               </div>
             </div>
 
-            {/* AMM Price Discovery */}
-            <div className="bg-gradient-to-br from-purple-500/10 to-pink-500/10 backdrop-blur-xl rounded-lg p-6 border border-purple-400/30 mb-6">
-              <h3 className="text-xl font-semibold text-purple-400 mb-4">AMM Price Discovery</h3>
-              <p className="text-gray-300 text-sm mb-4">
-                PNL uses a <strong className="text-white">Constant Product AMM</strong> for price discovery.
-                Prices adjust dynamically based on demand—early believers get better prices.
-              </p>
+            {/* AMM Price Discovery & Simulator - Side by Side */}
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6 items-stretch">
+              {/* AMM Price Discovery */}
+              <div className="bg-gradient-to-br from-purple-500/10 to-pink-500/10 backdrop-blur-xl rounded-lg p-6 border border-purple-400/30">
+                <h3 className="text-xl font-semibold text-purple-400 mb-4">AMM Price Discovery</h3>
 
-              <div className="bg-black/30 rounded p-4 font-mono text-sm text-gray-300 border border-purple-400/20 mb-4">
-                <p className="text-purple-400 mb-2">Price Formula:</p>
-                <p className="ml-2">YES Price = NO_Pool / (YES_Pool + NO_Pool)</p>
-                <p className="ml-2">NO Price = YES_Pool / (YES_Pool + NO_Pool)</p>
-                <p className="ml-2 mt-2 text-pink-400">→ Prices always sum to 1.0 (100%)</p>
-              </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm mb-4">
-                <div className="bg-black/30 rounded p-3 border border-purple-400/20">
-                  <p className="text-white font-semibold mb-1">Buying YES</p>
-                  <p className="text-gray-400">Your SOL goes to NO pool → YES price increases → You receive YES shares</p>
+                {/* What is an AMM */}
+                <div className="bg-black/20 rounded p-4 border border-purple-400/10 mb-4">
+                  <p className="text-white font-semibold mb-2">What is an AMM?</p>
+                  <p className="text-gray-300 text-sm leading-relaxed">
+                    An <strong className="text-purple-300">Automated Market Maker (AMM)</strong> is a smart contract that
+                    enables trading without order books. Users trade against liquidity pools using mathematical formulas,
+                    ensuring prices reflect real-time supply and demand.
+                  </p>
                 </div>
-                <div className="bg-black/30 rounded p-3 border border-purple-400/20">
-                  <p className="text-white font-semibold mb-1">Buying NO</p>
-                  <p className="text-gray-400">Your SOL goes to YES pool → NO price increases → You receive NO shares</p>
+
+                {/* Why Constant Product */}
+                <div className="bg-black/20 rounded p-4 border border-purple-400/10 mb-4">
+                  <p className="text-white font-semibold mb-2">Why Constant Product?</p>
+                  <p className="text-gray-300 text-sm mb-2">
+                    PNL uses the <strong className="text-white">x × y = k</strong> formula (same as Uniswap) because:
+                  </p>
+                  <ul className="text-gray-300 text-sm space-y-1 ml-4">
+                    <li>• <span className="text-green-400">Self-adjusting</span> — larger trades have more price impact</li>
+                    <li>• <span className="text-green-400">Always liquid</span> — you can always buy/sell</li>
+                    <li>• <span className="text-green-400">Manipulation-resistant</span> — moving price requires real capital</li>
+                    <li>• <span className="text-green-400">Battle-tested</span> — proven across billions in DeFi</li>
+                  </ul>
+                </div>
+
+                {/* Core Formula */}
+                <div className="bg-black/30 rounded p-4 font-mono text-gray-300 border border-purple-400/20 mb-4">
+                  <p className="text-purple-400 font-semibold mb-2">Core AMM Formula:</p>
+                  <p className="ml-2 text-xl text-white">x × y = k <span className="text-gray-500 text-sm">(constant product)</span></p>
+                  <p className="ml-2 mt-2 text-gray-400 text-sm">Where: x = YES pool, y = NO pool, k = constant</p>
+                  <p className="ml-2 mt-3 text-purple-400">Derived Price Formulas:</p>
+                  <p className="ml-2 text-sm">YES Price = NO_Pool / (YES_Pool + NO_Pool)</p>
+                  <p className="ml-2 text-sm">NO Price = YES_Pool / (YES_Pool + NO_Pool)</p>
+                  <p className="ml-2 mt-2 text-pink-400 text-sm">→ Prices always sum to 100%</p>
+                </div>
+
+                {/* How Trading Works */}
+                <div className="grid grid-cols-1 gap-3 mb-4">
+                  <div className="bg-black/30 rounded p-4 border border-green-400/20">
+                    <p className="text-green-400 font-semibold mb-1">Buying YES</p>
+                    <p className="text-gray-300 text-sm">Your SOL → NO pool → YES pool shrinks → You receive YES shares</p>
+                    <p className="text-gray-500 text-sm mt-1">Effect: YES price ↑, NO price ↓</p>
+                  </div>
+                  <div className="bg-black/30 rounded p-4 border border-red-400/20">
+                    <p className="text-red-400 font-semibold mb-1">Buying NO</p>
+                    <p className="text-gray-300 text-sm">Your SOL → YES pool → NO pool shrinks → You receive NO shares</p>
+                    <p className="text-gray-500 text-sm mt-1">Effect: NO price ↑, YES price ↓</p>
+                  </div>
+                </div>
+
+                {/* Example Trade */}
+                <div className="bg-black/30 rounded p-4 font-mono text-sm text-gray-300 border border-cyan-400/20 mb-4">
+                  <p className="text-cyan-400 font-semibold mb-2">Example Trade:</p>
+                  <p className="text-gray-400">Start: YES=15, NO=15, k=225 → Prices: 50%/50%</p>
+                  <p className="text-gray-400 mt-2">User buys YES with 5 SOL:</p>
+                  <p className="ml-3 text-gray-300">1. 5 SOL → NO pool (now 20)</p>
+                  <p className="ml-3 text-gray-300">2. YES pool = 225/20 = 11.25 (maintain k)</p>
+                  <p className="ml-3 text-gray-300">3. Shares = 15 - 11.25 = <span className="text-green-400">3.75 YES</span></p>
+                  <p className="text-gray-400 mt-2">After: YES=<span className="text-green-400">64%</span> ↑, NO=<span className="text-red-400">36%</span> ↓</p>
+                </div>
+
+                {/* Price Impact */}
+                <div className="bg-black/20 rounded p-4 border border-orange-400/20 mb-4">
+                  <p className="text-orange-400 font-semibold mb-2">Price Impact & Slippage</p>
+                  <p className="text-gray-300 text-sm mb-2">
+                    Larger trades move prices more. This is called <strong className="text-white">price impact</strong>:
+                  </p>
+                  <ul className="text-gray-300 text-sm space-y-1 ml-4">
+                    <li>• Small vote (0.1 SOL) → ~0.3% price move</li>
+                    <li>• Medium vote (1 SOL) → ~3% price move</li>
+                    <li>• Large vote (10 SOL) → ~25% price move</li>
+                  </ul>
+                  <p className="text-gray-500 text-sm mt-2 italic">This protects against manipulation—you can&apos;t move prices without real commitment.</p>
+                </div>
+
+                {/* Key Insight */}
+                <div className="bg-gradient-to-r from-yellow-500/10 to-orange-500/10 rounded p-4 border border-yellow-400/30">
+                  <p className="text-yellow-400 font-semibold mb-2">Key Insight: Shares Determine Winners</p>
+                  <p className="text-gray-300 text-sm mb-3">
+                    The winning side is determined by <strong className="text-white">total shares</strong>, not total SOL invested.
+                  </p>
+                  <div className="bg-black/30 rounded p-3 border border-yellow-400/20 mb-3">
+                    <p className="text-sm text-gray-300">
+                      <span className="text-green-400">Early voter:</span> 1 SOL @ 50% → <span className="text-white font-semibold">~0.67 shares</span>
+                    </p>
+                    <p className="text-sm text-gray-300 mt-1">
+                      <span className="text-red-400">Late voter:</span> 1 SOL @ 80% → <span className="text-white font-semibold">~0.25 shares</span>
+                    </p>
+                    <p className="text-sm text-gray-400 mt-2">Same SOL, 2.7x more voting power for early voter!</p>
+                  </div>
+                  <p className="text-gray-400 text-sm">
+                    This rewards <span className="text-green-400">early conviction</span> and discourages
+                    <span className="text-red-400"> bandwagon voting</span>—the core of prediction market accuracy.
+                  </p>
                 </div>
               </div>
 
-              <div className="bg-gradient-to-r from-yellow-500/10 to-orange-500/10 rounded p-4 border border-yellow-400/30">
-                <p className="text-yellow-400 font-semibold mb-2">Key Insight: Shares Determine Winners</p>
-                <p className="text-gray-300 text-sm mb-2">
-                  The winning side is determined by <strong className="text-white">total shares</strong>, not total SOL invested.
-                </p>
-                <ul className="text-gray-400 text-sm space-y-1 ml-4">
-                  <li>• <span className="text-green-400">Early voters</span> → Lower price → More shares per SOL</li>
-                  <li>• <span className="text-red-400">Late voters</span> → Higher price → Fewer shares per SOL</li>
-                  <li>• This rewards early conviction and enables true price discovery</li>
-                </ul>
-              </div>
+              {/* Interactive AMM Simulator */}
+              <AMMSimulator />
             </div>
 
             {/* Atomic Resolution */}
@@ -607,220 +679,100 @@ export default function WhitepaperPage() {
             </div>
           </section>
 
-          {/* Community & Links */}
+          {/* Join the Revolution - Conclusion + Community */}
           <section className="mb-12">
-            <h2 className="text-3xl font-bold text-white mb-6">Community & Links</h2>
+            <h2 className="text-3xl font-bold text-white mb-6">Join the Revolution</h2>
 
-            <div className="bg-gradient-to-br from-blue-500/10 to-purple-500/10 backdrop-blur-xl rounded-lg p-6 border border-blue-400/30">
-              <p className="text-gray-300 mb-6">
-                Join our community and follow our development progress:
-              </p>
+            <p className="text-gray-300 text-lg leading-relaxed mb-6">
+              The world is full of brilliant ideas waiting to be discovered—and brilliant people waiting
+              to discover them. PNL connects the two. Whether you&apos;re a dreamer with a vision, an early
+              supporter hunting for the next breakthrough, or a critic keeping the ecosystem honest—
+              <strong className="text-white"> this is where you belong.</strong>
+            </p>
 
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <a
-                  href="https://x.com/prelaunchmarket"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="flex items-center gap-3 bg-black/30 hover:bg-black/50 transition-colors rounded-lg p-4 border border-gray-600/30 hover:border-blue-400/50"
-                >
-                  <div className="p-2 bg-blue-500/20 rounded-full">
-                    <svg className="w-5 h-5 text-blue-400" fill="currentColor" viewBox="0 0 24 24">
-                      <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z" />
-                    </svg>
-                  </div>
-                  <div>
-                    <p className="text-white font-semibold">X (Twitter)</p>
-                    <p className="text-gray-400 text-sm">@prelaunchmarket</p>
-                  </div>
-                </a>
-
-                <a
-                  href="https://discord.gg/Ygknrrtn4"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="flex items-center gap-3 bg-black/30 hover:bg-black/50 transition-colors rounded-lg p-4 border border-gray-600/30 hover:border-indigo-400/50"
-                >
-                  <div className="p-2 bg-indigo-500/20 rounded-full">
-                    <svg className="w-5 h-5 text-indigo-400" fill="currentColor" viewBox="0 0 24 24">
-                      <path d="M20.317 4.3698a19.7913 19.7913 0 00-4.8851-1.5152.0741.0741 0 00-.0785.0371c-.211.3753-.4447.8648-.6083 1.2495-1.8447-.2762-3.68-.2762-5.4868 0-.1636-.3933-.4058-.8742-.6177-1.2495a.077.077 0 00-.0785-.037 19.7363 19.7363 0 00-4.8852 1.515.0699.0699 0 00-.0321.0277C.5334 9.0458-.319 13.5799.0992 18.0578a.0824.0824 0 00.0312.0561c2.0528 1.5076 4.0413 2.4228 5.9929 3.0294a.0777.0777 0 00.0842-.0276c.4616-.6304.8731-1.2952 1.226-1.9942a.076.076 0 00-.0416-.1057c-.6528-.2476-1.2743-.5495-1.8722-.8923a.077.077 0 01-.0076-.1277c.1258-.0943.2517-.1923.3718-.2914a.0743.0743 0 01.0776-.0105c3.9278 1.7933 8.18 1.7933 12.0614 0a.0739.0739 0 01.0785.0095c.1202.099.246.1981.3728.2924a.077.077 0 01-.0066.1276 12.2986 12.2986 0 01-1.873.8914.0766.0766 0 00-.0407.1067c.3604.698.7719 1.3628 1.225 1.9932a.076.076 0 00.0842.0286c1.961-.6067 3.9495-1.5219 6.0023-3.0294a.077.077 0 00.0313-.0552c.5004-5.177-.8382-9.6739-3.5485-13.6604a.061.061 0 00-.0312-.0286zM8.02 15.3312c-1.1825 0-2.1569-1.0857-2.1569-2.419 0-1.3332.9555-2.4189 2.157-2.4189 1.2108 0 2.1757 1.0952 2.1568 2.419 0 1.3332-.9555 2.4189-2.1569 2.4189zm7.9748 0c-1.1825 0-2.1569-1.0857-2.1569-2.419 0-1.3332.9554-2.4189 2.1569-2.4189 1.2108 0 2.1757 1.0952 2.1568 2.419 0 1.3332-.946 2.4189-2.1568 2.4189z" />
-                    </svg>
-                  </div>
-                  <div>
-                    <p className="text-white font-semibold">Discord</p>
-                    <p className="text-gray-400 text-sm">Join our community</p>
-                  </div>
-                </a>
-
-                <a
-                  href="https://github.com/aitankfish/PnL"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="flex items-center gap-3 bg-black/30 hover:bg-black/50 transition-colors rounded-lg p-4 border border-gray-600/30 hover:border-gray-400/50"
-                >
-                  <div className="p-2 bg-gray-500/20 rounded-full">
-                    <svg className="w-5 h-5 text-gray-300" fill="currentColor" viewBox="0 0 24 24">
-                      <path fillRule="evenodd" clipRule="evenodd" d="M12 2C6.477 2 2 6.484 2 12.017c0 4.425 2.865 8.18 6.839 9.504.5.092.682-.217.682-.483 0-.237-.008-.868-.013-1.703-2.782.605-3.369-1.343-3.369-1.343-.454-1.158-1.11-1.466-1.11-1.466-.908-.62.069-.608.069-.608 1.003.07 1.531 1.032 1.531 1.032.892 1.53 2.341 1.088 2.91.832.092-.647.35-1.088.636-1.338-2.22-.253-4.555-1.113-4.555-4.951 0-1.093.39-1.988 1.029-2.688-.103-.253-.446-1.272.098-2.65 0 0 .84-.27 2.75 1.026A9.564 9.564 0 0112 6.844c.85.004 1.705.115 2.504.337 1.909-1.296 2.747-1.027 2.747-1.027.546 1.379.202 2.398.1 2.651.64.7 1.028 1.595 1.028 2.688 0 3.848-2.339 4.695-4.566 4.943.359.309.678.92.678 1.855 0 1.338-.012 2.419-.012 2.747 0 .268.18.58.688.482A10.019 10.019 0 0022 12.017C22 6.484 17.522 2 12 2z" />
-                    </svg>
-                  </div>
-                  <div>
-                    <p className="text-white font-semibold">GitHub</p>
-                    <p className="text-gray-400 text-sm">View source code</p>
-                  </div>
-                </a>
+            {/* Why PNL */}
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
+              <div className="bg-black/30 rounded-lg p-4 border border-blue-400/20">
+                <p className="text-blue-400 font-bold text-lg mb-1">Needed</p>
+                <p className="text-gray-400 text-xs">Ideas die for lack of access. PNL fixes that.</p>
+              </div>
+              <div className="bg-black/30 rounded-lg p-4 border border-green-400/20">
+                <p className="text-green-400 font-bold text-lg mb-1">Aligned</p>
+                <p className="text-gray-400 text-xs">Everyone wins when quality rises.</p>
+              </div>
+              <div className="bg-black/30 rounded-lg p-4 border border-purple-400/20">
+                <p className="text-purple-400 font-bold text-lg mb-1">Proven</p>
+                <p className="text-gray-400 text-xs">Battle-tested AMM + prediction markets.</p>
+              </div>
+              <div className="bg-black/30 rounded-lg p-4 border border-yellow-400/20">
+                <p className="text-yellow-400 font-bold text-lg mb-1">Global</p>
+                <p className="text-gray-400 text-xs">The next unicorn could be anywhere.</p>
               </div>
             </div>
-          </section>
 
-          {/* Future Roadmap */}
-          <section className="mb-12">
-            <h2 className="text-3xl font-bold text-white mb-6">Future Roadmap</h2>
-
-            <div className="bg-gradient-to-br from-violet-500/10 to-fuchsia-500/10 backdrop-blur-xl rounded-lg p-6 border border-violet-400/30 mb-6">
-              <p className="text-gray-300 mb-6">
-                PNL is continuously evolving. Here&apos;s what we&apos;re building next to create the ultimate
-                community-driven token launch experience:
+            {/* Mission */}
+            <div className="bg-gradient-to-br from-blue-500/10 to-purple-500/10 backdrop-blur-xl border-2 border-blue-400/40 rounded-lg p-6 mb-8 text-center">
+              <p className="text-2xl text-white font-bold mb-2">
+                Fueling the world&apos;s brilliant ideas.
               </p>
-
-              <div className="space-y-4">
-                <div className="bg-black/30 rounded-lg p-4 border border-violet-400/20">
-                  <div className="flex items-center gap-3 mb-2">
-                    <div className="p-2 bg-violet-500/20 rounded-full">
-                      <svg className="w-5 h-5 text-violet-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z" />
-                      </svg>
-                    </div>
-                    <h3 className="text-xl font-semibold text-violet-400">Infrastructure Pipeline</h3>
-                  </div>
-                  <p className="text-gray-300 text-sm">
-                    Streamlining our deployment and operations pipeline for faster iteration, improved reliability,
-                    and seamless scaling as the platform grows.
-                  </p>
-                </div>
-
-                <div className="bg-black/30 rounded-lg p-4 border border-fuchsia-400/20">
-                  <div className="flex items-center gap-3 mb-2">
-                    <div className="p-2 bg-fuchsia-500/20 rounded-full">
-                      <svg className="w-5 h-5 text-fuchsia-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-                      </svg>
-                    </div>
-                    <h3 className="text-xl font-semibold text-fuchsia-400">System Upgrades</h3>
-                  </div>
-                  <p className="text-gray-300 text-sm">
-                    Continuous improvements to smart contracts, frontend performance, and user experience
-                    based on community feedback and usage patterns.
-                  </p>
-                </div>
-
-                <div className="bg-black/30 rounded-lg p-4 border border-pink-400/20">
-                  <div className="flex items-center gap-3 mb-2">
-                    <div className="p-2 bg-pink-500/20 rounded-full">
-                      <svg className="w-5 h-5 text-pink-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
-                      </svg>
-                    </div>
-                    <h3 className="text-xl font-semibold text-pink-400">Community Chat System</h3>
-                  </div>
-                  <p className="text-gray-300 text-sm mb-2">
-                    Transform every market details page into a vibrant classroom where users, founders, and
-                    supporters can connect and collaborate:
-                  </p>
-                  <ul className="text-gray-400 text-sm space-y-1 ml-4">
-                    <li>• Real-time text chat for discussions and Q&A</li>
-                    <li>• Voice chat rooms for live community calls</li>
-                    <li>• Direct founder-to-community communication</li>
-                    <li>• Moderation tools for healthy conversations</li>
-                  </ul>
-                </div>
-
-                <div className="bg-black/30 rounded-lg p-4 border border-cyan-400/20">
-                  <div className="flex items-center gap-3 mb-2">
-                    <div className="p-2 bg-cyan-500/20 rounded-full">
-                      <svg className="w-5 h-5 text-cyan-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
-                      </svg>
-                    </div>
-                    <h3 className="text-xl font-semibold text-cyan-400">AI Review Analysis</h3>
-                  </div>
-                  <p className="text-gray-300 text-sm mb-2">
-                    Intelligent AI-powered analysis to help voters make informed decisions:
-                  </p>
-                  <ul className="text-gray-400 text-sm space-y-1 ml-4">
-                    <li>• Automated project assessment and risk scoring</li>
-                    <li>• Tokenomics analysis and comparison</li>
-                    <li>• Team credibility evaluation</li>
-                    <li>• Market sentiment aggregation</li>
-                  </ul>
-                </div>
-
-                <div className="bg-black/30 rounded-lg p-4 border border-emerald-400/20">
-                  <div className="flex items-center gap-3 mb-2">
-                    <div className="p-2 bg-emerald-500/20 rounded-full">
-                      <svg className="w-5 h-5 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
-                      </svg>
-                    </div>
-                    <h3 className="text-xl font-semibold text-emerald-400">Community Development</h3>
-                  </div>
-                  <p className="text-gray-300 text-sm">
-                    Tools and features to help projects build engaged communities from day one—gamification,
-                    reputation systems, contributor rewards, and community governance features.
-                  </p>
-                </div>
-
-                <div className="bg-black/30 rounded-lg p-4 border border-amber-400/20">
-                  <div className="flex items-center gap-3 mb-2">
-                    <div className="p-2 bg-amber-500/20 rounded-full">
-                      <svg className="w-5 h-5 text-amber-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
-                      </svg>
-                    </div>
-                    <h3 className="text-xl font-semibold text-amber-400">Team Formation</h3>
-                  </div>
-                  <p className="text-gray-300 text-sm">
-                    Connect founders with talented developers, designers, marketers, and advisors.
-                    Build your dream team through our talent marketplace and collaboration tools.
-                  </p>
-                </div>
-              </div>
+              <p className="text-gray-400">
+                From anywhere, for everyone. Yours could be next.
+              </p>
             </div>
-          </section>
 
-          {/* Conclusion */}
-          <section className="mb-12">
-            <h2 className="text-3xl font-bold text-white mb-6">Conclusion</h2>
-
-            <div className="bg-gradient-to-br from-blue-500/10 to-purple-500/10 backdrop-blur-xl border-2 border-blue-400/40 rounded-lg p-8">
-              <h3 className="text-2xl font-semibold text-blue-400 mb-4">Why PNL Will Succeed</h3>
-
-              <div className="space-y-4 text-gray-300">
-                <div>
-                  <p className="font-semibold text-white">1. Perfect Timing</p>
-                  <p className="text-sm">Crypto scams at peak → Prediction markets proven → Solana thriving → Global talent seeking access</p>
+            {/* Connect */}
+            <h3 className="text-xl font-semibold text-white mb-4">Connect With Us</h3>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <a
+                href="https://x.com/prelaunchmarket"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex items-center gap-3 bg-black/30 hover:bg-black/50 transition-colors rounded-lg p-4 border border-gray-600/30 hover:border-blue-400/50"
+              >
+                <div className="p-2 bg-blue-500/20 rounded-full">
+                  <svg className="w-5 h-5 text-blue-400" fill="currentColor" viewBox="0 0 24 24">
+                    <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z" />
+                  </svg>
                 </div>
-
                 <div>
-                  <p className="font-semibold text-white">2. Unique Moat</p>
-                  <p className="text-sm">First mover, network effects, data moat, engaged community</p>
+                  <p className="text-white font-semibold">X (Twitter)</p>
+                  <p className="text-gray-400 text-sm">@prelaunchmarket</p>
                 </div>
+              </a>
 
+              <a
+                href="https://discord.gg/Ygknrrtn4"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex items-center gap-3 bg-black/30 hover:bg-black/50 transition-colors rounded-lg p-4 border border-gray-600/30 hover:border-indigo-400/50"
+              >
+                <div className="p-2 bg-indigo-500/20 rounded-full">
+                  <svg className="w-5 h-5 text-indigo-400" fill="currentColor" viewBox="0 0 24 24">
+                    <path d="M20.317 4.3698a19.7913 19.7913 0 00-4.8851-1.5152.0741.0741 0 00-.0785.0371c-.211.3753-.4447.8648-.6083 1.2495-1.8447-.2762-3.68-.2762-5.4868 0-.1636-.3933-.4058-.8742-.6177-1.2495a.077.077 0 00-.0785-.037 19.7363 19.7363 0 00-4.8852 1.515.0699.0699 0 00-.0321.0277C.5334 9.0458-.319 13.5799.0992 18.0578a.0824.0824 0 00.0312.0561c2.0528 1.5076 4.0413 2.4228 5.9929 3.0294a.0777.0777 0 00.0842-.0276c.4616-.6304.8731-1.2952 1.226-1.9942a.076.076 0 00-.0416-.1057c-.6528-.2476-1.2743-.5495-1.8722-.8923a.077.077 0 01-.0076-.1277c.1258-.0943.2517-.1923.3718-.2914a.0743.0743 0 01.0776-.0105c3.9278 1.7933 8.18 1.7933 12.0614 0a.0739.0739 0 01.0785.0095c.1202.099.246.1981.3728.2924a.077.077 0 01-.0066.1276 12.2986 12.2986 0 01-1.873.8914.0766.0766 0 00-.0407.1067c.3604.698.7719 1.3628 1.225 1.9932a.076.076 0 00.0842.0286c1.961-.6067 3.9495-1.5219 6.0023-3.0294a.077.077 0 00.0313-.0552c.5004-5.177-.8382-9.6739-3.5485-13.6604a.061.061 0 00-.0312-.0286zM8.02 15.3312c-1.1825 0-2.1569-1.0857-2.1569-2.419 0-1.3332.9555-2.4189 2.157-2.4189 1.2108 0 2.1757 1.0952 2.1568 2.419 0 1.3332-.9555 2.4189-2.1569 2.4189zm7.9748 0c-1.1825 0-2.1569-1.0857-2.1569-2.419 0-1.3332.9554-2.4189 2.1569-2.4189 1.2108 0 2.1757 1.0952 2.1568 2.419 0 1.3332-.946 2.4189-2.1568 2.4189z" />
+                  </svg>
+                </div>
                 <div>
-                  <p className="font-semibold text-white">3. Aligned Incentives</p>
-                  <p className="text-sm">Founders, voters, and platform all benefit from quality projects succeeding</p>
+                  <p className="text-white font-semibold">Discord</p>
+                  <p className="text-gray-400 text-sm">Join the community</p>
                 </div>
+              </a>
 
+              <a
+                href="https://github.com/pnl-market"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex items-center gap-3 bg-black/30 hover:bg-black/50 transition-colors rounded-lg p-4 border border-gray-600/30 hover:border-gray-400/50"
+              >
+                <div className="p-2 bg-gray-500/20 rounded-full">
+                  <svg className="w-5 h-5 text-gray-300" fill="currentColor" viewBox="0 0 24 24">
+                    <path fillRule="evenodd" clipRule="evenodd" d="M12 2C6.477 2 2 6.484 2 12.017c0 4.425 2.865 8.18 6.839 9.504.5.092.682-.217.682-.483 0-.237-.008-.868-.013-1.703-2.782.605-3.369-1.343-3.369-1.343-.454-1.158-1.11-1.466-1.11-1.466-.908-.62.069-.608.069-.608 1.003.07 1.531 1.032 1.531 1.032.892 1.53 2.341 1.088 2.91.832.092-.647.35-1.088.636-1.338-2.22-.253-4.555-1.113-4.555-4.951 0-1.093.39-1.988 1.029-2.688-.103-.253-.446-1.272.098-2.65 0 0 .84-.27 2.75 1.026A9.564 9.564 0 0112 6.844c.85.004 1.705.115 2.504.337 1.909-1.296 2.747-1.027 2.747-1.027.546 1.379.202 2.398.1 2.651.64.7 1.028 1.595 1.028 2.688 0 3.848-2.339 4.695-4.566 4.943.359.309.678.92.678 1.855 0 1.338-.012 2.419-.012 2.747 0 .268.18.58.688.482A10.019 10.019 0 0022 12.017C22 6.484 17.522 2 12 2z" />
+                  </svg>
+                </div>
                 <div>
-                  <p className="font-semibold text-white">4. Real-World Utility</p>
-                  <p className="text-sm">Solves actual pain points with proven primitives, fully transparent and on-chain</p>
+                  <p className="text-white font-semibold">GitHub</p>
+                  <p className="text-gray-400 text-sm">Open source</p>
                 </div>
-              </div>
-
-              <div className="mt-8 pt-6 border-t border-blue-400/30">
-                <p className="text-xl text-center text-blue-400 font-semibold italic">
-                  &quot;Let the market decide. Launch with confidence. Build with accountability.&quot;
-                </p>
-                <p className="text-center text-gray-400 mt-2">— PNL Team</p>
-              </div>
+              </a>
             </div>
           </section>
 

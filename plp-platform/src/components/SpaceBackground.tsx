@@ -1,6 +1,6 @@
 'use client';
 
-import React, { memo } from 'react';
+import React, { memo, useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import '../styles/starry-background.css';
 
@@ -19,10 +19,52 @@ interface SpaceBackgroundProps {
   constellation: Constellation | null;
 }
 
+// Generate star data with seeded positions (deterministic)
+interface ColorfulStar {
+  size: string;
+  color: string;
+  left: number;
+  top: number;
+  duration: number;
+  delay: number;
+  glow: string;
+}
+
+// Seeded random function for consistent values
+function seededRandom(seed: number): number {
+  const x = Math.sin(seed) * 10000;
+  return x - Math.floor(x);
+}
+
+// Pre-generate star data with deterministic positions
+function generateStarData(): ColorfulStar[] {
+  const colors = [
+    '#ffffff', '#93c5fd', '#c4b5fd', '#fde047', '#7dd3fc',
+    '#fbbf24', '#f9a8d4', '#6ee7b7', '#d8b4fe', '#fb923c',
+    '#60a5fa', '#a78bfa',
+  ];
+
+  return [...Array(400)].map((_, i) => {
+    const sizeRand = seededRandom(i * 1);
+    const size = sizeRand > 0.95 ? '3px' : sizeRand > 0.85 ? '2.5px' : sizeRand > 0.7 ? '2px' : sizeRand > 0.5 ? '1.5px' : '1px';
+    const color = colors[Math.floor(seededRandom(i * 2) * colors.length)];
+    const duration = 1.5 + seededRandom(i * 3) * 5;
+    const delay = seededRandom(i * 4) * 6;
+    const left = seededRandom(i * 5) * 100;
+    const top = seededRandom(i * 6) * 100;
+    const glow = size === '3px' ? '6px' : size === '2.5px' ? '5px' : size === '2px' ? '4px' : '2px';
+
+    return { size, color, left, top, duration, delay, glow };
+  });
+}
+
+// Pre-generate on module load (same on server and client)
+const starData = generateStarData();
+
 // Memoized component for space background - only re-renders when constellation changes
 const SpaceBackground = memo(function SpaceBackground({ constellation }: SpaceBackgroundProps) {
   return (
-    <div className="absolute inset-0 pointer-events-none" style={{ willChange: 'transform' }}>
+    <div className="fixed inset-0 pointer-events-none overflow-hidden" style={{ willChange: 'transform' }}>
       {/* Large Stars - Very Bright */}
       {[...Array(30)].map((_, i) => (
         <div key={`large-${i}`} className="star star-large bg-white" style={{ willChange: 'transform, opacity' }}></div>
@@ -79,58 +121,31 @@ const SpaceBackground = memo(function SpaceBackground({ constellation }: SpaceBa
       ))}
 
       {/* Dense twinkling colorful stars - Landing page style */}
-      {[...Array(400)].map((_, i) => {
-        // More size variety
-        const sizeRand = Math.random();
-        const size = sizeRand > 0.95 ? '3px' : sizeRand > 0.85 ? '2.5px' : sizeRand > 0.7 ? '2px' : sizeRand > 0.5 ? '1.5px' : '1px';
-
-        // More vibrant color variety with cosmic palette
-        const colors = [
-          '#ffffff',   // white
-          '#93c5fd',   // blue
-          '#c4b5fd',   // purple
-          '#fde047',   // yellow
-          '#7dd3fc',   // cyan
-          '#fbbf24',   // amber/gold
-          '#f9a8d4',   // pink
-          '#6ee7b7',   // emerald
-          '#d8b4fe',   // violet
-          '#fb923c',   // orange
-          '#60a5fa',   // bright blue
-          '#a78bfa',   // lavender
-        ];
-        const color = colors[Math.floor(Math.random() * colors.length)];
-
-        // More varied durations
-        const duration = 1.5 + Math.random() * 5;
-        const delay = Math.random() * 6;
-
-        return (
-          <motion.div
-            key={`colorful-star-${i}`}
-            className="absolute rounded-full"
-            style={{
-              width: size,
-              height: size,
-              background: color,
-              boxShadow: `0 0 ${size === '3px' ? '6px' : size === '2.5px' ? '5px' : size === '2px' ? '4px' : '2px'} ${color}`,
-              left: `${Math.random() * 100}%`,
-              top: `${Math.random() * 100}%`,
-            }}
-            initial={{ opacity: 0, scale: 0 }}
-            animate={{
-              opacity: [0, 0.4, 1, 0.4],
-              scale: [0, 0.8, 1.2, 0.8],
-            }}
-            transition={{
-              duration: duration,
-              repeat: Infinity,
-              delay: delay,
-              ease: 'easeInOut',
-            }}
-          />
-        );
-      })}
+      {starData.map((star, i) => (
+        <motion.div
+          key={`colorful-star-${i}`}
+          className="absolute rounded-full"
+          style={{
+            width: star.size,
+            height: star.size,
+            background: star.color,
+            boxShadow: `0 0 ${star.glow} ${star.color}`,
+            left: `${star.left}%`,
+            top: `${star.top}%`,
+          }}
+          initial={{ opacity: 0, scale: 0 }}
+          animate={{
+            opacity: [0, 0.4, 1, 0.4],
+            scale: [0, 0.8, 1.2, 0.8],
+          }}
+          transition={{
+            duration: star.duration,
+            repeat: Infinity,
+            delay: star.delay,
+            ease: 'easeInOut',
+          }}
+        />
+      ))}
 
       {/* Daily Constellation */}
       {constellation && (
