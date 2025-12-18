@@ -525,6 +525,45 @@ export default function WhitepaperPage() {
               </div>
             </div>
 
+            {/* AMM Price Discovery */}
+            <div className="bg-gradient-to-br from-purple-500/10 to-pink-500/10 backdrop-blur-xl rounded-lg p-6 border border-purple-400/30 mb-6">
+              <h3 className="text-xl font-semibold text-purple-400 mb-4">AMM Price Discovery</h3>
+              <p className="text-gray-300 text-sm mb-4">
+                PNL uses a <strong className="text-white">Constant Product AMM</strong> for price discovery.
+                Prices adjust dynamically based on demand—early believers get better prices.
+              </p>
+
+              <div className="bg-black/30 rounded p-4 font-mono text-sm text-gray-300 border border-purple-400/20 mb-4">
+                <p className="text-purple-400 mb-2">Price Formula:</p>
+                <p className="ml-2">YES Price = NO_Pool / (YES_Pool + NO_Pool)</p>
+                <p className="ml-2">NO Price = YES_Pool / (YES_Pool + NO_Pool)</p>
+                <p className="ml-2 mt-2 text-pink-400">→ Prices always sum to 1.0 (100%)</p>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm mb-4">
+                <div className="bg-black/30 rounded p-3 border border-purple-400/20">
+                  <p className="text-white font-semibold mb-1">Buying YES</p>
+                  <p className="text-gray-400">Your SOL goes to NO pool → YES price increases → You receive YES shares</p>
+                </div>
+                <div className="bg-black/30 rounded p-3 border border-purple-400/20">
+                  <p className="text-white font-semibold mb-1">Buying NO</p>
+                  <p className="text-gray-400">Your SOL goes to YES pool → NO price increases → You receive NO shares</p>
+                </div>
+              </div>
+
+              <div className="bg-gradient-to-r from-yellow-500/10 to-orange-500/10 rounded p-4 border border-yellow-400/30">
+                <p className="text-yellow-400 font-semibold mb-2">Key Insight: Shares Determine Winners</p>
+                <p className="text-gray-300 text-sm mb-2">
+                  The winning side is determined by <strong className="text-white">total shares</strong>, not total SOL invested.
+                </p>
+                <ul className="text-gray-400 text-sm space-y-1 ml-4">
+                  <li>• <span className="text-green-400">Early voters</span> → Lower price → More shares per SOL</li>
+                  <li>• <span className="text-red-400">Late voters</span> → Higher price → Fewer shares per SOL</li>
+                  <li>• This rewards early conviction and enables true price discovery</li>
+                </ul>
+              </div>
+            </div>
+
             {/* Atomic Resolution */}
             <div className="bg-gradient-to-br from-green-500/10 to-emerald-500/10 backdrop-blur-xl rounded-lg p-6 border border-green-400/30 mb-6">
               <h3 className="text-xl font-semibold text-green-400 mb-4">Atomic Token Launch</h3>
