@@ -94,8 +94,13 @@ Open [http://localhost:3000](http://localhost:3000) to view the application.
 - **Notifications System**: Real-time notifications for market events, voting results, and rewards
 - **Global Search**: Search for users and markets across the platform
 - **Wallet Management**: View SOL balance, transaction history, and manage your portfolio
+- **Tabbed Portfolio**: Switch between Predictions, Projects, and Watchlist with filtered tabs
+- **Creator Fees**: Claim pump.fun trading fees from launched tokens directly in-app
+- **First-time Onboarding**: Zero-balance users see guided options to buy with card or deposit crypto
+- **Jupiter Swap**: In-app token swapping powered by Jupiter aggregator
 - **Claim Rewards**: Claim SOL rewards for NO voters or token airdrops for YES voters
 - **My Projects**: Project creators can view and manage their launched markets
+- **Grok Roast**: AI-powered project roasting for entertainment
 - **Multiple Categories**: Support for DeFi, NFT, Gaming, DAO, AI/ML, Meme, Creator, and more
 
 ## 🏗️ Tech Stack
@@ -290,8 +295,10 @@ src/
 │   │   ├── markets/       # Market CRUD, voting, claiming rewards
 │   │   ├── projects/      # Project creation and management
 │   │   ├── profile/       # User profiles, follow system, favorites
-│   │   ├── user/          # User positions, history, stats
+│   │   ├── user/          # User positions, history, stats, creator-fees
 │   │   ├── search/        # Global search for users and markets
+│   │   ├── grok/          # AI roasting endpoints
+│   │   ├── pump/          # Pump.fun IPFS uploads
 │   │   ├── admin/         # Admin tools (treasury, market fixes)
 │   │   └── health/        # Health check endpoints
 │   ├── browse/            # Browse and filter active markets
@@ -304,15 +311,18 @@ src/
 │   └── whitepaper/        # Platform whitepaper
 ├── components/             # Reusable UI components
 │   ├── ui/                # shadcn/ui components
+│   ├── auth/              # Headless auth components (OTP, OAuth, etc.)
 │   ├── providers/         # React context providers
 │   ├── Sidebar.tsx        # Main navigation
 │   ├── GlobalSearch.tsx   # Search component
-│   └── CosmicOnboardingModal.tsx  # Onboarding flow
+│   ├── JupiterSwap.tsx    # Token swap modal (Jupiter aggregator)
+│   ├── GrokRoast.tsx      # AI project roasting
+│   └── CosmicOnboardingModal.tsx  # Custom onboarding flow
 ├── services/               # Backend services
 │   ├── blockchain-sync/   # Helius WebSocket, event processing
 │   └── socket/            # Socket.IO server for real-time updates
 ├── lib/                    # Utilities and shared code
-│   ├── hooks/             # React hooks (useSocket, useWallet, etc.)
+│   ├── hooks/             # React hooks (useSocket, useWallet, useCreatorFees, etc.)
 │   ├── database/          # MongoDB models and connection
 │   ├── redis/             # Redis queue and caching
 │   ├── solana/            # Solana RPC and program interactions
