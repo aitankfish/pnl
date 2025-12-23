@@ -1,6 +1,26 @@
-# PNL - Predict & Launch
+# P&L - Predict & Launch
 
-Community-driven token launch platform powered by prediction markets on Solana.
+**Tokenize ideas. Validate through community. Launch what deserves to exist.**
+
+P&L is a new paradigm for fundraising on Solana. Not every token deserves to launch - let the crowd decide.
+
+## The Problem
+The crypto space is flooded with tokens that never needed to exist. Meanwhile, talented builders worldwide lack access to traditional fundraising.
+
+## The Solution
+P&L turns token launches into prediction markets. The community stakes SOL to vote YES (launch) or NO (don't launch). Market dynamics determine which ideas deserve to become tokens.
+
+- **YES wins** → Token launches on pump.fun. Voters receive airdrops. Founders earn ongoing trading fees.
+- **NO wins** → NO voters share the pool. Bad ideas filtered out.
+
+## Why It Matters
+- **For Builders**: Raise funds from anywhere in the world through community validation. Earn creator fees from pump.fun trading.
+- **For Voters**: Back ideas you believe in and earn rewards. Filter out noise by voting NO.
+- **For Crypto**: Only community-validated tokens launch. Better signal, less noise.
+
+*The launchpad where community conviction decides which tokens deserve to exist.*
+
+---
 
 ## 🚀 Quick Start
 
