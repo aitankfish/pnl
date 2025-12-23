@@ -32,7 +32,10 @@ import {
   XCircle,
   ArrowLeftRight,
   ExternalLink,
-  History
+  History,
+  Sparkles,
+  CreditCard,
+  ArrowRight
 } from 'lucide-react';
 import { Connection, PublicKey, LAMPORTS_PER_SOL, SystemProgram, VersionedTransaction, TransactionMessage } from '@solana/web3.js';
 import { getAssociatedTokenAddressSync, createTransferInstruction, createAssociatedTokenAccountInstruction, TOKEN_PROGRAM_ID, TOKEN_2022_PROGRAM_ID } from '@solana/spl-token';
@@ -735,6 +738,78 @@ function DepositModal({ isOpen, onClose, address }: { isOpen: boolean; onClose: 
           >
             Done
           </Button>
+        </CardContent>
+      </Card>
+    </div>
+  );
+}
+
+// First-time user onboarding banner for zero-balance accounts
+function FirstTimeUserBanner({
+  onBuySol,
+  onDeposit,
+}: {
+  onBuySol: () => void;
+  onDeposit: () => void;
+}) {
+  return (
+    <div className="max-w-4xl mx-auto mb-6">
+      <Card className="bg-gradient-to-br from-cyan-500/10 via-purple-500/10 to-pink-500/10 border-cyan-500/30 overflow-hidden relative">
+        {/* Decorative elements */}
+        <div className="absolute top-0 right-0 w-32 h-32 bg-cyan-500/10 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2"></div>
+        <div className="absolute bottom-0 left-0 w-24 h-24 bg-purple-500/10 rounded-full blur-2xl translate-y-1/2 -translate-x-1/2"></div>
+
+        <CardContent className="p-5 sm:p-6 relative">
+          <div className="flex items-start gap-4">
+            <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-cyan-500 to-purple-500 flex items-center justify-center flex-shrink-0">
+              <Sparkles className="w-6 h-6 text-white" />
+            </div>
+            <div className="flex-1 min-w-0">
+              <h3 className="text-lg sm:text-xl font-semibold text-white mb-1">
+                Welcome to P&L! 🚀
+              </h3>
+              <p className="text-sm text-gray-300 mb-4">
+                Add funds to your wallet to start trading on prediction markets.
+              </p>
+
+              {/* Funding options */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                {/* Buy with Card */}
+                <button
+                  onClick={onBuySol}
+                  className="group flex items-center gap-3 p-3 rounded-xl bg-white/5 border border-white/10 hover:bg-white/10 hover:border-green-400/30 transition-all text-left"
+                >
+                  <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-green-500 to-emerald-500 flex items-center justify-center flex-shrink-0 group-hover:scale-110 transition-transform">
+                    <CreditCard className="w-5 h-5 text-white" />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="font-medium text-white text-sm">Buy with Card</p>
+                    <p className="text-xs text-gray-400">Use credit/debit card</p>
+                  </div>
+                  <ArrowRight className="w-4 h-4 text-gray-500 group-hover:text-green-400 group-hover:translate-x-1 transition-all" />
+                </button>
+
+                {/* Deposit from Wallet */}
+                <button
+                  onClick={onDeposit}
+                  className="group flex items-center gap-3 p-3 rounded-xl bg-white/5 border border-white/10 hover:bg-white/10 hover:border-cyan-400/30 transition-all text-left"
+                >
+                  <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-cyan-500 to-blue-500 flex items-center justify-center flex-shrink-0 group-hover:scale-110 transition-transform">
+                    <Download className="w-5 h-5 text-white" />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="font-medium text-white text-sm">Deposit Crypto</p>
+                    <p className="text-xs text-gray-400">From another wallet</p>
+                  </div>
+                  <ArrowRight className="w-4 h-4 text-gray-500 group-hover:text-cyan-400 group-hover:translate-x-1 transition-all" />
+                </button>
+              </div>
+
+              <p className="text-xs text-gray-500 mt-3">
+                💡 Tip: You'll need SOL to pay for trades and transaction fees on Solana.
+              </p>
+            </div>
+          </div>
         </CardContent>
       </Card>
     </div>
@@ -1535,6 +1610,14 @@ export default function WalletPage() {
           </div>
         )}
       </div>
+
+      {/* First-time user onboarding banner - shows when balance is 0 */}
+      {solBalance === 0 && usdcBalance === 0 && !balanceLoading && (
+        <FirstTimeUserBanner
+          onBuySol={handleBuySol}
+          onDeposit={() => setShowDepositModal(true)}
+        />
+      )}
 
       {/* Tokens List */}
       <div className="max-w-4xl mx-auto space-y-3">
