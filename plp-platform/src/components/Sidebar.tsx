@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation';
 import { useWallet } from '@/hooks/useWallet';
 import { useUserProfile } from '@/hooks/useUserProfile';
 import { useNotifications } from '@/hooks/useNotifications';
+import { useAuthModal } from '@/contexts/AuthModalContext';
 import {
   Plus,
   Target,
@@ -65,7 +66,8 @@ function Sidebar({ currentPage }: SidebarProps) {
   const [walletBalance, setWalletBalance] = useState<number | null>(null);
   const [shouldGlowWallet, setShouldGlowWallet] = useState(false);
   const router = useRouter();
-  const { ready, authenticated, login, primaryWallet } = useWallet();
+  const { ready, authenticated, primaryWallet } = useWallet();
+  const { showAuthModal } = useAuthModal();
   const { displayName, profilePhotoUrl } = useUserProfile();
   const { unreadCount } = useNotifications();
 
@@ -138,15 +140,15 @@ function Sidebar({ currentPage }: SidebarProps) {
     if (!ready) return; // Wait for wallet provider to be ready
 
     if (!authenticated) {
-      // User is not authenticated, show login modal
-      login();
+      // User is not authenticated, show custom auth modal
+      showAuthModal();
     } else {
       // User is authenticated, navigate to wallet page with smooth transition
       startTransition(() => {
         router.push('/wallet');
       });
     }
-  }, [ready, authenticated, login, router, startTransition]);
+  }, [ready, authenticated, showAuthModal, router, startTransition]);
 
   // Memoize enriched sidebar items to prevent recalculation
   const enrichedSidebarItems = useMemo(() => {

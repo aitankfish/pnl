@@ -3,16 +3,27 @@
 import { motion, AnimatePresence } from 'framer-motion';
 import { Sparkles, Rocket, ArrowRight, UserCircle } from 'lucide-react';
 import { usePrivy } from '@privy-io/react-auth';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { ipfsUtils } from '@/lib/ipfs';
+import { useHeadlessAuth, getErrorMessage } from '@/hooks/useHeadlessAuth';
+import type { OAuthProvider, WalletType } from '@/hooks/useHeadlessAuth';
+import {
+  AuthMethodSelection,
+  EmailInput,
+  OTPInput,
+  WalletSelection,
+  OAuthPending,
+  CosmicLoader,
+} from '@/components/auth';
 
 interface CosmicOnboardingModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onJoinUniverse: () => void;
-  onContinueAsGuest: () => void;
+  onJoinUniverse?: () => void; // Now optional, kept for backwards compatibility
+  onContinueAsGuest?: () => void; // Optional - not needed when skipGreeting is true
   isSettingUpProfile?: boolean;
+  skipGreeting?: boolean; // Skip to auth selection directly
 }
 
 // Random cosmic names for greeting
@@ -61,12 +72,13 @@ const cosmicAvatars = [
   { id: 'moonphase', name: 'Moon Phase', path: '/cosmic-avatars/moonphase.svg' },
 ];
 
-type OnboardingStep = 'greeting' | 'welcome' | 'choice' | 'profile';
+type OnboardingStep = 'greeting' | 'welcome' | 'choice' | 'auth-selection' | 'profile';
 
-export default function CosmicOnboardingModal({ isOpen, onClose, onJoinUniverse, onContinueAsGuest, isSettingUpProfile = false }: CosmicOnboardingModalProps) {
-  const { login, user, authenticated } = usePrivy();
+export function CosmicOnboardingModal({ isOpen, onClose, onJoinUniverse, onContinueAsGuest, isSettingUpProfile = false, skipGreeting = false }: CosmicOnboardingModalProps) {
+  const { user, authenticated } = usePrivy();
   const router = useRouter();
-  const [step, setStep] = useState<OnboardingStep>('choice');
+  // Start at auth-selection if skipping greeting, otherwise start at choice
+  const [step, setStep] = useState<OnboardingStep>(skipGreeting ? 'auth-selection' : 'choice');
   const [cosmicName, setCosmicName] = useState('');
   const [displayedName, setDisplayedName] = useState('');
   const [username, setUsername] = useState('');
@@ -75,7 +87,22 @@ export default function CosmicOnboardingModal({ isOpen, onClose, onJoinUniverse,
   const [selectedTemplate, setSelectedTemplate] = useState<string>('');
   const [isSavingProfile, setIsSavingProfile] = useState(false);
   const [isCheckingUsername, setIsCheckingUsername] = useState(false);
-  const [isWaitingForAuth, setIsWaitingForAuth] = useState(false);
+  const [isResendingCode, setIsResendingCode] = useState(false);
+  const hasRedirectedRef = useRef(false);
+
+  // Headless auth hook
+  const {
+    state: authState,
+    authenticated: isAuthenticated,
+    selectEmail,
+    selectWallet,
+    handleSendCode,
+    handleVerifyCode,
+    handleOAuth,
+    handleConnectWallet,
+    goBack: authGoBack,
+    reset: resetAuth,
+  } = useHeadlessAuth();
 
   // Generate random username
   const generateRandomUsername = async (): Promise<string> => {
@@ -111,19 +138,29 @@ export default function CosmicOnboardingModal({ isOpen, onClose, onJoinUniverse,
     }
   };
 
+  // Handle auth success - transition to profile setup
+  useEffect(() => {
+    if (authState.status === 'success' && !hasRedirectedRef.current) {
+      setStep('profile');
+    }
+  }, [authState.status]);
+
   // Generate random cosmic name when modal opens
   useEffect(() => {
     if (isOpen) {
       const randomName = cosmicNames[Math.floor(Math.random() * cosmicNames.length)];
       setCosmicName(randomName);
       setDisplayedName('');
-      setStep('greeting');
+      // Skip to auth-selection if skipGreeting is true, otherwise start at greeting
+      setStep(skipGreeting ? 'auth-selection' : 'greeting');
       setUsername('');
       setProfilePicture(null);
       setProfilePreview('');
       setSelectedTemplate('');
+      resetAuth();
+      hasRedirectedRef.current = false;
     }
-  }, [isOpen]);
+  }, [isOpen, resetAuth, skipGreeting]);
 
   // Set the full name immediately for the animation
   useEffect(() => {
@@ -149,11 +186,28 @@ export default function CosmicOnboardingModal({ isOpen, onClose, onJoinUniverse,
   }, [step]);
 
   const handleGuestProceed = () => {
-    onContinueAsGuest();
+    onContinueAsGuest?.();
   };
 
   const handleJoinClick = () => {
-    onJoinUniverse();
+    setStep('auth-selection');
+  };
+
+  // Auth method handlers
+  const handleAuthBack = () => {
+    if (authState.status === 'idle') {
+      setStep('choice');
+    } else {
+      authGoBack();
+    }
+  };
+
+  const handleResendCode = async () => {
+    if (authState.email) {
+      setIsResendingCode(true);
+      await handleSendCode(authState.email);
+      setIsResendingCode(false);
+    }
   };
 
   const handleRandomUsername = async () => {
@@ -222,9 +276,9 @@ export default function CosmicOnboardingModal({ isOpen, onClose, onJoinUniverse,
       console.log('📦 Backend response:', result);
 
       if (result.success) {
-        console.log('✅ Profile saved successfully! Redirecting to /browse...');
+        console.log('✅ Profile saved successfully! Redirecting to /wallet...');
         // Just redirect - keep modal/loading visible until new page loads
-        router.push('/browse');
+        router.push('/wallet');
         // Don't call onClose() - let the page navigation handle cleanup
       } else {
         console.error('❌ Profile save failed:', result);
@@ -267,33 +321,18 @@ export default function CosmicOnboardingModal({ isOpen, onClose, onJoinUniverse,
             }}
           />
 
-          {/* Full-Screen Loading Overlay for Auth/Save */}
-          {(isWaitingForAuth || isSavingProfile || isSettingUpProfile) && (
+          {/* Full-Screen Loading Overlay for Profile Save */}
+          {(isSavingProfile || isSettingUpProfile) && (
             <motion.div
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
               className="fixed inset-0 z-[60] bg-black/80 backdrop-blur-lg flex items-center justify-center px-4"
             >
-              <div className="text-center">
-                <motion.div
-                  animate={{ rotate: 360 }}
-                  transition={{
-                    duration: 2,
-                    repeat: Infinity,
-                    ease: "linear",
-                  }}
-                  className="mx-auto mb-4 sm:mb-6"
-                >
-                  <Sparkles className="w-12 h-12 sm:w-16 sm:h-16 text-cyan-300" />
-                </motion.div>
-                <p className="text-white text-lg sm:text-2xl font-medium mb-2 sm:mb-3">
-                  {isWaitingForAuth || isSettingUpProfile ? 'Waiting for authentication...' : 'Setting up your cosmic profile...'}
-                </p>
-                <p className="text-gray-400 text-sm sm:text-base">
-                  {isWaitingForAuth || isSettingUpProfile ? 'Complete login in the Privy window' : 'Uploading to the stars'}
-                </p>
-              </div>
+              <CosmicLoader
+                message={isSettingUpProfile ? 'Setting up your account...' : 'Setting up your cosmic profile...'}
+                size="lg"
+              />
             </motion.div>
           )}
 
@@ -434,7 +473,91 @@ export default function CosmicOnboardingModal({ isOpen, onClose, onJoinUniverse,
                 </motion.div>
               )}
 
-              {/* Step 4: Profile Setup */}
+              {/* Step 4: Auth Selection (Headless) */}
+              {step === 'auth-selection' && (
+                <motion.div
+                  key="auth-selection"
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  exit={{ opacity: 0 }}
+                  transition={{ duration: 0.3 }}
+                  className="w-full flex items-center justify-center"
+                >
+                  {/* Auth Method Selection */}
+                  {authState.status === 'idle' && (
+                    <AuthMethodSelection
+                      onSelectEmail={selectEmail}
+                      onSelectOAuth={handleOAuth}
+                      onSelectWallet={selectWallet}
+                      onBack={skipGreeting ? onClose : handleAuthBack}
+                      showCloseButton={skipGreeting}
+                    />
+                  )}
+
+                  {/* Email Input */}
+                  {authState.status === 'email-input' && (
+                    <EmailInput
+                      onSubmit={handleSendCode}
+                      onBack={authGoBack}
+                      isLoading={false}
+                      error={authState.error ? getErrorMessage(authState.error) : null}
+                    />
+                  )}
+
+                  {/* Sending Code Loading */}
+                  {authState.status === 'email-sending' && (
+                    <motion.div
+                      initial={{ opacity: 0 }}
+                      animate={{ opacity: 1 }}
+                      className="w-full max-w-md px-4"
+                    >
+                      <CosmicLoader message="Sending verification code..." />
+                    </motion.div>
+                  )}
+
+                  {/* OTP Input */}
+                  {(authState.status === 'otp-input' || authState.status === 'otp-verifying') && (
+                    <OTPInput
+                      email={authState.email || ''}
+                      onSubmit={handleVerifyCode}
+                      onResend={handleResendCode}
+                      onBack={authGoBack}
+                      isLoading={authState.status === 'otp-verifying'}
+                      isResending={isResendingCode}
+                      error={authState.error ? getErrorMessage(authState.error) : null}
+                    />
+                  )}
+
+                  {/* OAuth Pending */}
+                  {authState.status === 'oauth-pending' && authState.provider && (
+                    <OAuthPending
+                      provider={authState.provider}
+                      onCancel={() => {
+                        resetAuth();
+                      }}
+                      onRetry={() => {
+                        if (authState.provider) {
+                          handleOAuth(authState.provider);
+                        }
+                      }}
+                      error={authState.error ? getErrorMessage(authState.error) : null}
+                    />
+                  )}
+
+                  {/* Wallet Selection */}
+                  {(authState.status === 'wallet-selecting' || authState.status === 'wallet-connecting') && (
+                    <WalletSelection
+                      onSelectWallet={handleConnectWallet}
+                      onBack={authGoBack}
+                      isConnecting={authState.status === 'wallet-connecting'}
+                      connectingWallet={authState.walletType}
+                      error={authState.error ? getErrorMessage(authState.error) : null}
+                    />
+                  )}
+                </motion.div>
+              )}
+
+              {/* Step 5: Profile Setup */}
               {step === 'profile' && (
                 <motion.div
                   key="profile"
@@ -551,17 +674,19 @@ export default function CosmicOnboardingModal({ isOpen, onClose, onJoinUniverse,
                         </p>
                       </div>
 
-                      {/* Connect to Join Button */}
+                      {/* Complete Setup Button */}
                       <button
                         onClick={() => {
-                          setIsWaitingForAuth(true);
-                          login();
+                          if (user?.wallet?.address) {
+                            hasRedirectedRef.current = true;
+                            saveProfileToBackend(user.wallet.address);
+                          }
                         }}
-                        disabled={isWaitingForAuth}
+                        disabled={isSavingProfile}
                         className="w-full group relative overflow-hidden bg-gradient-to-r from-purple-600 to-cyan-600 hover:from-purple-500 hover:to-cyan-500 disabled:from-gray-600 disabled:to-gray-600 rounded-lg sm:rounded-xl px-4 sm:px-6 py-3 sm:py-4 transition-all duration-300"
                       >
                         <div className="relative flex items-center justify-center gap-2">
-                          {isWaitingForAuth ? (
+                          {isSavingProfile ? (
                             <>
                               <motion.div
                                 animate={{ rotate: 360 }}
@@ -569,31 +694,21 @@ export default function CosmicOnboardingModal({ isOpen, onClose, onJoinUniverse,
                               >
                                 <Sparkles className="w-4 h-4 sm:w-5 sm:h-5 text-white" />
                               </motion.div>
-                              <span className="text-sm sm:text-base font-semibold text-white">Connecting...</span>
+                              <span className="text-sm sm:text-base font-semibold text-white">Setting up...</span>
                             </>
                           ) : (
                             <>
                               <Rocket className="w-4 h-4 sm:w-5 sm:h-5 text-white" />
-                              <span className="text-sm sm:text-base font-semibold text-white">Connect to Join</span>
+                              <span className="text-sm sm:text-base font-semibold text-white">Complete Setup</span>
                               <ArrowRight className="w-4 h-4 sm:w-5 sm:h-5 text-white group-hover:translate-x-2 transition-transform" />
                             </>
                           )}
                         </div>
                       </button>
 
-                      {!isWaitingForAuth && (
-                        <p className="text-xs text-center text-gray-500">
-                          Email, Google, Twitter, or Solana Wallet
-                        </p>
-                      )}
-
-                      {/* Back Link */}
-                      <button
-                        onClick={() => setStep('choice')}
-                        className="w-full text-xs sm:text-sm text-gray-400 hover:text-gray-300 transition-colors"
-                      >
-                        ← Back to options
-                      </button>
+                      <p className="text-xs text-center text-gray-500">
+                        You can customize these later in your profile
+                      </p>
                     </motion.div>
                   </div>
                 </motion.div>
@@ -606,3 +721,6 @@ export default function CosmicOnboardingModal({ isOpen, onClose, onJoinUniverse,
     </AnimatePresence>
   );
 }
+
+// Default export for backward compatibility
+export default CosmicOnboardingModal;

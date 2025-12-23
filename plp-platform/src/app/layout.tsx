@@ -6,6 +6,7 @@ import { ToastProvider } from '@/lib/hooks/useToast';
 import { NetworkProvider } from '@/contexts/NetworkContext';
 import { SWRProvider } from '@/components/providers/SWRProvider';
 import AppLayoutWrapper from '@/components/AppLayoutWrapper';
+import { AuthModalProvider } from '@/contexts/AuthModalContext';
 
 const inter = Inter({ subsets: ['latin'] });
 
@@ -45,9 +46,10 @@ export default function RootLayout({
     <html lang="en" className="dark">
       <body className={`${inter.className} min-h-screen bg-black text-white`}>
         <WalletProvider>
-          <NetworkProvider>
-            <SWRProvider>
-              <ToastProvider>
+          <AuthModalProvider>
+            <NetworkProvider>
+              <SWRProvider>
+                <ToastProvider>
                 <AppLayoutWrapper footer={
                 <footer className="py-6 border-t border-white/5">
                   <div className="container px-4 sm:px-6">
@@ -111,9 +113,10 @@ export default function RootLayout({
               }>
                 {children}
                 </AppLayoutWrapper>
-              </ToastProvider>
-            </SWRProvider>
-          </NetworkProvider>
+                </ToastProvider>
+              </SWRProvider>
+            </NetworkProvider>
+          </AuthModalProvider>
         </WalletProvider>
       </body>
     </html>

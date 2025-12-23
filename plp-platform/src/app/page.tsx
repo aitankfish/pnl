@@ -145,7 +145,7 @@ export default function HomePage() {
       if (authenticated && user && !hasSetupProfileRef.current) {
         const walletAddress = user.wallet?.address;
         if (!walletAddress) {
-          router.push('/browse');
+          router.push('/wallet');
           setShowOnboardingModal(false);
           setIsSettingUpProfile(false);
           return;
@@ -153,11 +153,11 @@ export default function HomePage() {
 
         hasSetupProfileRef.current = true;
 
-        // Immediately redirect to browse - profile creation happens in background
-        console.log('🚀 User authenticated! Redirecting to /browse...');
+        // Immediately redirect to wallet - user needs to deposit SOL before trading
+        console.log('🚀 User authenticated! Redirecting to /wallet...');
         setShowOnboardingModal(false);
         setIsSettingUpProfile(false);
-        router.push('/browse');
+        router.push('/wallet');
 
         // Background profile setup
         try {
@@ -230,8 +230,8 @@ export default function HomePage() {
       // User not logged in - show onboarding modal with choice
       setShowOnboardingModal(true);
     } else {
-      // User is authenticated - navigate to browse page
-      router.push('/browse');
+      // User is authenticated - navigate to wallet page
+      router.push('/wallet');
     }
   };
 
@@ -250,8 +250,8 @@ export default function HomePage() {
   // Check auth on mount - redirect authenticated users immediately
   useEffect(() => {
     if (ready && authenticated && user) {
-      console.log('🎯 User already authenticated, redirecting to /browse');
-      router.push('/browse');
+      console.log('🎯 User already authenticated, redirecting to /wallet');
+      router.push('/wallet');
     }
   }, [ready, authenticated, user, router]);
 

@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { useWallet } from '@/hooks/useWallet';
+import { useAuthModal } from '@/contexts/AuthModalContext';
 import { useFundWallet, useSignAndSendTransaction, useWallets, useStandardWallets, useExportWallet } from '@privy-io/react-auth/solana';
 import { useSolPrice } from '@/hooks/useSolPrice';
 import { Card, CardContent } from '@/components/ui/card';
@@ -915,7 +916,8 @@ function SettingsModal({ isOpen, onClose, wallet, onLogout, primaryWallet, expor
 }
 
 export default function WalletPage() {
-  const { primaryWallet, logout, login, user: contextUser } = useWallet();
+  const { primaryWallet, logout, user: contextUser } = useWallet();
+  const { showAuthModal } = useAuthModal();
   const { exportWallet } = useExportWallet(); // Get exportWallet from Solana-specific hook
   const { solPrice, isLoading: isPriceLoading } = useSolPrice();
   const { wallets } = useWallets(); // External wallets
@@ -1328,16 +1330,16 @@ export default function WalletPage() {
           <CardContent className="p-6 sm:p-8 text-center space-y-4">
             <Wallet className="w-12 h-12 sm:w-16 sm:h-16 mx-auto text-cyan-400" />
             <div>
-              <h2 className="text-xl sm:text-2xl font-semibold mb-2">Connect Solana Wallet</h2>
+              <h2 className="text-xl sm:text-2xl font-semibold mb-2">Sign in to Continue</h2>
               <p className="text-sm sm:text-base text-gray-400 mb-2">
-                This platform requires a Solana wallet to access features.
+                Create an account or sign in to access your wallet and start trading.
               </p>
             </div>
             <button
-              onClick={() => login()}
+              onClick={showAuthModal}
               className="w-full px-4 sm:px-6 py-2.5 sm:py-3 bg-gradient-to-r from-cyan-500 to-blue-500 hover:from-cyan-600 hover:to-blue-600 rounded-lg font-semibold transition-all text-sm sm:text-base"
             >
-              Connect Solana Wallet
+              Sign in
             </button>
           </CardContent>
         </Card>
