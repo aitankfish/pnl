@@ -35,7 +35,10 @@ import {
   History,
   Sparkles,
   CreditCard,
-  ArrowRight
+  ArrowRight,
+  Gift,
+  Coins,
+  Loader2
 } from 'lucide-react';
 import { Connection, PublicKey, LAMPORTS_PER_SOL, SystemProgram, VersionedTransaction, TransactionMessage } from '@solana/web3.js';
 import { getAssociatedTokenAddressSync, createTransferInstruction, createAssociatedTokenAccountInstruction, TOKEN_PROGRAM_ID, TOKEN_2022_PROGRAM_ID } from '@solana/spl-token';
@@ -50,6 +53,7 @@ import { getUsdcMint, TOKEN_DECIMALS } from '@/config/tokens';
 import { useNetwork } from '@/lib/hooks/useNetwork';
 import { JupiterSwap } from '@/components/JupiterSwap';
 import { useAllTokenBalances } from '@/lib/hooks/useAllTokenBalances';
+import { useCreatorFees } from '@/lib/hooks/useCreatorFees';
 
 const fetcher = (url: string) => fetch(url).then((res) => res.json());
 
@@ -1011,6 +1015,18 @@ export default function WalletPage() {
   // Fetch all token balances (SPL Token + Token2022)
   const { tokens: allTokens, isLoading: isTokensLoading } = useAllTokenBalances(primaryWallet?.address);
 
+  // Creator fees from pump.fun (for launched tokens)
+  const {
+    totalClaimable: creatorFeesClaimable,
+    hasClaimableFees,
+    launchedTokenCount,
+    launchedTokens,
+    claimFees,
+    isClaiming: isClaimingFees,
+    refresh: refreshCreatorFees,
+    isLoading: isCreatorFeesLoading,
+  } = useCreatorFees(primaryWallet?.address || null);
+
   // Privy fiat onramp hook
   const { fundWallet } = useFundWallet({
     onUserExited: ({ balance }) => {
@@ -1040,6 +1056,9 @@ export default function WalletPage() {
   const [showAllPositions, setShowAllPositions] = useState(false);
   const [showAllProjects, setShowAllProjects] = useState(false);
   const [showAllWatchlist, setShowAllWatchlist] = useState(false);
+
+  // Portfolio section tab state
+  const [portfolioTab, setPortfolioTab] = useState<'predictions' | 'projects' | 'watchlist'>('predictions');
 
   // Fetch user profile
   const { data: profileData, mutate: mutateProfile } = useSWR(
@@ -1757,10 +1776,178 @@ export default function WalletPage() {
         )}
       </div>
 
-      {/* Your Predictions Section */}
+      {/* Fundraising Rewards Section - Creator fees from pump.fun */}
+      {launchedTokenCount > 0 && (
+        <div className="max-w-4xl mx-auto space-y-3 mt-6">
+          <div className="flex items-center justify-between px-2 sm:px-0">
+            <div className="flex items-center space-x-2">
+              <Gift className="w-5 h-5 text-green-400" />
+              <h3 className="text-base font-semibold text-white">Fundraising Rewards</h3>
+            </div>
+            <button
+              onClick={refreshCreatorFees}
+              disabled={isCreatorFeesLoading}
+              className="text-sm text-cyan-400 hover:text-cyan-300 transition-colors flex items-center gap-1"
+            >
+              <RefreshCw className={`w-3 h-3 ${isCreatorFeesLoading ? 'animate-spin' : ''}`} />
+              Refresh
+            </button>
+          </div>
+
+          {/* Individual token cards */}
+          <div className="space-y-2">
+            {launchedTokens.map((token) => (
+              <div
+                key={token.tokenAddress}
+                className="flex items-center gap-3 p-3 bg-white/5 border border-white/10 rounded-lg hover:bg-white/[0.07] transition-colors"
+              >
+                {/* Token image */}
+                <div className="w-9 h-9 rounded-lg overflow-hidden bg-gradient-to-br from-green-500/20 to-emerald-500/20 flex-shrink-0">
+                  {token.imageUrl ? (
+                    <img
+                      src={token.imageUrl.replace('ipfs://', 'https://ipfs.io/ipfs/')}
+                      alt={token.symbol}
+                      className="w-full h-full object-cover"
+                      onError={(e) => {
+                        (e.target as HTMLImageElement).style.display = 'none';
+                      }}
+                    />
+                  ) : (
+                    <div className="w-full h-full flex items-center justify-center">
+                      <Coins className="w-4 h-4 text-green-400" />
+                    </div>
+                  )}
+                </div>
+
+                {/* Token info */}
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2">
+                    <span className="font-medium text-white text-sm truncate">{token.name}</span>
+                    <span className="text-xs text-gray-500">${token.symbol}</span>
+                  </div>
+                  <p className="text-[11px] text-gray-500 truncate">
+                    Generating creator fees from trades
+                  </p>
+                </div>
+
+                {/* External link */}
+                <a
+                  href={`https://pump.fun/coin/${token.tokenAddress}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="p-1.5 text-gray-500 hover:text-cyan-400 transition-colors"
+                  title="View on pump.fun"
+                >
+                  <ExternalLink className="w-4 h-4" />
+                </a>
+              </div>
+            ))}
+          </div>
+
+          {/* Total claimable card */}
+          <Card className="bg-gradient-to-br from-green-500/10 via-emerald-500/5 to-cyan-500/10 border-green-500/20 overflow-hidden relative">
+            <CardContent className="p-4 relative">
+              <div className="flex items-center justify-between gap-4">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-green-500 to-emerald-500 flex items-center justify-center flex-shrink-0">
+                    <Coins className="w-5 h-5 text-white" />
+                  </div>
+                  <div>
+                    <p className="text-xs text-gray-400">Total Claimable</p>
+                    <div className="flex items-baseline gap-2">
+                      <span className="text-xl font-bold text-white">
+                        {isCreatorFeesLoading ? '...' : creatorFeesClaimable.toFixed(4)}
+                      </span>
+                      <span className="text-sm text-gray-400">SOL</span>
+                      {solPrice && !isPriceLoading && creatorFeesClaimable > 0 && (
+                        <span className="text-xs text-gray-500">
+                          (${(creatorFeesClaimable * solPrice).toFixed(2)})
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                </div>
+
+                <Button
+                  onClick={async () => {
+                    const result = await claimFees();
+                    if (result.success) {
+                      console.log('Fees claimed successfully:', result.signature);
+                    } else {
+                      console.error('Failed to claim fees:', result.error);
+                    }
+                  }}
+                  disabled={!hasClaimableFees || isClaimingFees}
+                  className={`px-5 py-2 text-sm font-semibold transition-all ${
+                    hasClaimableFees
+                      ? 'bg-gradient-to-r from-green-500 to-emerald-500 hover:from-green-600 hover:to-emerald-600 text-white'
+                      : 'bg-gray-700 text-gray-400 cursor-not-allowed'
+                  }`}
+                >
+                  {isClaimingFees ? (
+                    <span className="flex items-center gap-2">
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                      Claiming...
+                    </span>
+                  ) : hasClaimableFees ? (
+                    <span className="flex items-center gap-2">
+                      <Gift className="w-4 h-4" />
+                      Claim All
+                    </span>
+                  ) : (
+                    'No Rewards Yet'
+                  )}
+                </Button>
+              </div>
+
+              {/* Note about combined fees */}
+              <p className="text-[10px] text-gray-600 mt-3 pt-3 border-t border-white/5">
+                Note: Creator fees from all your tokens are pooled together by pump.fun
+              </p>
+            </CardContent>
+          </Card>
+        </div>
+      )}
+
+      {/* Portfolio Section with Tabs */}
       <div className="max-w-4xl mx-auto space-y-6 mt-8">
+        {/* Tab Navigation */}
+        <div className="flex items-center justify-center gap-2 px-2 sm:px-0 flex-wrap">
+          {[
+            { value: 'predictions' as const, label: 'Predictions', icon: TrendingUp, count: positionsData?.data?.all?.length || 0 },
+            { value: 'projects' as const, label: 'Projects', icon: Rocket, count: projectsData?.data?.projects?.length || 0 },
+            { value: 'watchlist' as const, label: 'Watchlist', icon: Heart, count: profileData?.data?.favoriteMarkets?.length || 0 },
+          ].map((tab) => {
+            const IconComponent = tab.icon;
+            return (
+              <button
+                key={tab.value}
+                onClick={() => setPortfolioTab(tab.value)}
+                className={`flex items-center gap-2 px-3 sm:px-4 py-2 text-xs sm:text-sm font-medium rounded-lg transition-all ${
+                  portfolioTab === tab.value
+                    ? 'bg-gradient-to-r from-purple-500 to-cyan-500 text-white shadow-lg shadow-purple-500/25'
+                    : 'bg-white/5 text-gray-400 hover:bg-white/10 hover:text-white border border-white/10'
+                }`}
+              >
+                <IconComponent className={`w-4 h-4 ${tab.value === 'watchlist' && portfolioTab === tab.value ? 'fill-current' : ''}`} />
+                <span>{tab.label}</span>
+                {tab.count > 0 && (
+                  <span className={`px-1.5 py-0.5 text-xs rounded-full ${
+                    portfolioTab === tab.value
+                      ? 'bg-white/20 text-white'
+                      : 'bg-white/10 text-gray-400'
+                  }`}>
+                    {tab.count}
+                  </span>
+                )}
+              </button>
+            );
+          })}
+        </div>
+
+        {/* Tab Content */}
+        {portfolioTab === 'predictions' && (
         <div className="space-y-4">
-          <h3 className="text-lg sm:text-xl font-semibold text-white px-2 sm:px-0">Your Predictions</h3>
 
           {positionsLoading ? (
             <Card className="bg-white/5 border-white/10">
@@ -2066,18 +2253,16 @@ export default function WalletPage() {
             </Card>
           )}
         </div>
+        )}
 
-        {/* My Projects Section */}
-        <div className="space-y-4 mt-8">
-          <div className="flex items-center justify-between px-2 sm:px-0">
-            <div className="flex items-center space-x-2">
-              <Rocket className="w-5 h-5 text-purple-400" />
-              <h3 className="text-lg sm:text-xl font-semibold text-white">My Projects</h3>
-            </div>
-            {projectsData?.success && projectsData.data?.projects?.length > 3 && (
+        {/* My Projects Tab Content */}
+        {portfolioTab === 'projects' && (
+        <div className="space-y-4">
+          <div className="flex items-center justify-between">
+            {projectsData?.success && projectsData.data?.projects?.length > 4 && (
               <button
                 onClick={() => setShowAllProjects(!showAllProjects)}
-                className="text-sm text-cyan-400 hover:text-cyan-300 transition-colors"
+                className="text-sm text-cyan-400 hover:text-cyan-300 transition-colors ml-auto"
               >
                 {showAllProjects ? 'View Less' : `View All (${projectsData.data.projects.length})`}
               </button>
@@ -2117,18 +2302,16 @@ export default function WalletPage() {
             </Card>
           )}
         </div>
+        )}
 
-        {/* Watchlist/Favorites Section */}
-        <div className="space-y-4 mt-8">
-          <div className="flex items-center justify-between px-2 sm:px-0">
-            <div className="flex items-center space-x-2">
-              <Heart className="w-5 h-5 text-red-400 fill-red-400" />
-              <h3 className="text-lg sm:text-xl font-semibold text-white">Your Watchlist</h3>
-            </div>
-            {profileData?.success && profileData.data?.favoriteMarkets?.length > 3 && (
+        {/* Watchlist Tab Content */}
+        {portfolioTab === 'watchlist' && (
+        <div className="space-y-4">
+          <div className="flex items-center justify-between">
+            {profileData?.success && profileData.data?.favoriteMarkets?.length > 4 && (
               <button
                 onClick={() => setShowAllWatchlist(!showAllWatchlist)}
-                className="text-sm text-cyan-400 hover:text-cyan-300 transition-colors"
+                className="text-sm text-cyan-400 hover:text-cyan-300 transition-colors ml-auto"
               >
                 {showAllWatchlist ? 'View Less' : `View All (${profileData.data.favoriteMarkets.length})`}
               </button>
@@ -2153,6 +2336,7 @@ export default function WalletPage() {
             </Card>
           )}
         </div>
+        )}
       </div>
 
       {/* Modals */}
