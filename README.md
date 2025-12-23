@@ -88,13 +88,6 @@ NEXT_PUBLIC_JUPITER_API_KEY=your_jupiter_api_key
 
 # Grok AI (Optional - for project roasting feature)
 GROK_API_KEY=your_grok_api_key
-
-# Platform Configuration
-PLATFORM_FEE_PERCENTAGE=3
-CREATOR_FEE_PERCENTAGE=2
-TARGET_POOL_SOL=5
-YES_VOTE_COST_SOL=0.05
-PLATFORM_FEE_SOL=0.5
 ```
 
 ### 3. Run Development Server
