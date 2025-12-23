@@ -7,6 +7,7 @@
 
 import { Metadata } from 'next';
 import AMMSimulator from '@/components/whitepaper/AMMSimulator';
+import WhitepaperSidebar from '@/components/whitepaper/WhitepaperSidebar';
 
 export const metadata: Metadata = {
   title: 'Whitepaper | PNL Platform',
@@ -16,7 +17,12 @@ export const metadata: Metadata = {
 
 export default function WhitepaperPage() {
   return (
-    <div className="space-y-8 p-6 md:p-8">
+    <div className="min-h-screen">
+      {/* Floating Sidebar Navigation */}
+      <WhitepaperSidebar />
+
+      {/* Main Content - centered with space for floating sidebar */}
+      <div className="space-y-8 p-6 md:p-8 lg:pl-64">
       <div className="max-w-6xl mx-auto">
         {/* Header */}
         <div className="text-center mb-16">
@@ -36,17 +42,17 @@ export default function WhitepaperPage() {
         <div className="prose prose-invert prose-xl max-w-none">
 
           {/* Mission Statement */}
-          <section className="mb-8 bg-gradient-to-br from-yellow-500/10 to-orange-500/10 backdrop-blur-xl rounded-lg p-6 border-2 border-yellow-400/40">
-            <p className="text-2xl md:text-3xl font-bold text-center text-white leading-relaxed">
+          <section className="mb-6 bg-gradient-to-br from-yellow-500/10 to-orange-500/10 backdrop-blur-xl rounded-lg p-4 border border-yellow-400/30 max-w-2xl mx-auto">
+            <p className="text-lg md:text-xl font-semibold text-center text-white leading-relaxed">
               &quot;Fueling the world&apos;s brilliant ideas — from anywhere, for everyone.&quot;
             </p>
-            <p className="text-center text-yellow-400 mt-3 text-lg">
+            <p className="text-center text-yellow-400 mt-2 text-sm">
               Yours could be next.
             </p>
           </section>
 
           {/* Abstract */}
-          <section className="mb-12 bg-gradient-to-br from-blue-500/10 to-purple-500/10 backdrop-blur-xl rounded-lg p-8 border border-blue-400/30">
+          <section id="abstract" className="mb-12 bg-gradient-to-br from-blue-500/10 to-purple-500/10 backdrop-blur-xl rounded-lg p-8 border border-blue-400/30 scroll-mt-28">
             <h2 className="text-3xl font-bold text-white mb-4">Abstract</h2>
             <p className="text-gray-300 text-lg leading-relaxed">
               <strong className="text-white">VC funding isn&apos;t accessible to everyone.</strong> The traditional
@@ -76,7 +82,7 @@ export default function WhitepaperPage() {
           </section>
 
           {/* The Problem */}
-          <section className="mb-12">
+          <section id="problem" className="mb-12 scroll-mt-28">
             <h2 className="text-3xl font-bold text-white mb-6">The Problem: Capital is Gatekept</h2>
 
             <p className="text-gray-300 text-lg leading-relaxed mb-4">
@@ -119,7 +125,7 @@ export default function WhitepaperPage() {
           </section>
 
           {/* The Solution */}
-          <section className="mb-12">
+          <section id="solution" className="mb-12 scroll-mt-28">
             <h2 className="text-3xl font-bold text-white mb-6">The Solution: Idea Tokenization</h2>
 
             <div className="bg-gradient-to-br from-cyan-500/10 to-blue-500/10 backdrop-blur-xl border border-cyan-400/30 rounded-lg p-6 mb-6">
@@ -152,7 +158,7 @@ export default function WhitepaperPage() {
           </section>
 
           {/* How PNL Works */}
-          <section className="mb-12">
+          <section id="how-it-works" className="mb-12 scroll-mt-28">
             <h2 className="text-3xl font-bold text-white mb-6">How PNL Works</h2>
 
             {/* Complete Lifecycle Diagram - Simplified */}
@@ -291,7 +297,7 @@ export default function WhitepaperPage() {
           </section>
 
           {/* Benefits - Why should you care? */}
-          <section className="mb-12">
+          <section id="benefits" className="mb-12 scroll-mt-28">
             <h2 className="text-3xl font-bold text-white mb-6">Why Build & Invest on PNL?</h2>
 
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
@@ -334,7 +340,7 @@ export default function WhitepaperPage() {
           </section>
 
           {/* Economics - Token Distribution & Fees */}
-          <section className="mb-12">
+          <section id="economics" className="mb-12 scroll-mt-28">
             <h2 className="text-3xl font-bold text-white mb-6">Economics: Fair by Design</h2>
 
             <p className="text-gray-300 text-lg leading-relaxed mb-6">
@@ -400,7 +406,7 @@ export default function WhitepaperPage() {
           </section>
 
           {/* Vision & Roadmap */}
-          <section className="mb-12">
+          <section id="vision" className="mb-12 scroll-mt-28">
             <h2 className="text-3xl font-bold text-white mb-6">Vision: Where We&apos;re Going</h2>
 
             <p className="text-gray-300 text-lg leading-relaxed mb-6">
@@ -469,7 +475,7 @@ export default function WhitepaperPage() {
           </section>
 
           {/* Technical */}
-          <section className="mb-12">
+          <section id="technical" className="mb-12 scroll-mt-28">
             <h2 className="text-3xl font-bold text-white mb-6">Technical Architecture</h2>
 
             <div className="bg-gradient-to-br from-slate-500/10 to-gray-500/10 backdrop-blur-xl rounded-lg p-6 border border-slate-400/30 mb-6">
@@ -680,7 +686,7 @@ export default function WhitepaperPage() {
           </section>
 
           {/* Join the Revolution - Conclusion + Community */}
-          <section className="mb-12">
+          <section id="community" className="mb-12 scroll-mt-28">
             <h2 className="text-3xl font-bold text-white mb-6">Join the Revolution</h2>
 
             <p className="text-gray-300 text-lg leading-relaxed mb-6">
@@ -777,7 +783,7 @@ export default function WhitepaperPage() {
           </section>
 
           {/* Disclaimer */}
-          <section className="mb-12">
+          <section id="disclaimer" className="mb-12 scroll-mt-28">
             <div className="bg-gradient-to-br from-yellow-500/10 to-orange-500/10 backdrop-blur-xl border border-yellow-400/30 rounded-lg p-6">
               <p className="text-sm text-gray-400 leading-relaxed">
                 <strong className="text-yellow-400">Disclaimer:</strong> This whitepaper is for informational purposes only
@@ -792,6 +798,7 @@ export default function WhitepaperPage() {
           </section>
 
         </div>
+      </div>
       </div>
     </div>
   );
