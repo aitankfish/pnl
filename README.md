@@ -53,8 +53,8 @@ NEXT_PUBLIC_PLP_PROGRAM_ID_MAINNET=your_mainnet_program_id
 HELIUS_API_KEY=your_helius_api_key
 NEXT_PUBLIC_HELIUS_MAINNET_RPC=https://mainnet.helius-rpc.com/?api-key=your_api_key
 NEXT_PUBLIC_HELIUS_DEVNET_RPC=https://devnet.helius-rpc.com/?api-key=your_api_key
-HELIUS_WS_DEVNET=wss://devnet.helius-rpc.com/?api-key=your_api_key
-HELIUS_WS_MAINNET=wss://mainnet.helius-rpc.com/?api-key=your_api_key
+NEXT_PUBLIC_HELIUS_WS_DEVNET=wss://devnet.helius-rpc.com/?api-key=your_api_key
+NEXT_PUBLIC_HELIUS_WS_MAINNET=wss://mainnet.helius-rpc.com/?api-key=your_api_key
 
 # Redis Configuration (Upstash)
 REDIS_URL=redis://default:password@your-redis.upstash.io:6379
@@ -77,8 +77,17 @@ NEXT_PUBLIC_PINATA_SECRET_KEY=your_pinata_secret_key
 NEXT_PUBLIC_PINATA_GATEWAY_URL=https://your-gateway.mypinata.cloud
 NEXT_PUBLIC_PINATA_JWT=your_pinata_jwt
 
-# Server-side IPFS Gateway (used by API routes)
+# Server-side IPFS (used by API routes)
+PINATA_API_KEY=your_pinata_api_key
+PINATA_SECRET_KEY=your_pinata_secret_key
+PINATA_JWT=your_pinata_jwt
 PINATA_GATEWAY_URL=your-gateway.mypinata.cloud
+
+# Jupiter Swap (Optional - for token swapping)
+NEXT_PUBLIC_JUPITER_API_KEY=your_jupiter_api_key
+
+# Grok AI (Optional - for project roasting feature)
+GROK_API_KEY=your_grok_api_key
 
 # Platform Configuration
 PLATFORM_FEE_PERCENTAGE=3
