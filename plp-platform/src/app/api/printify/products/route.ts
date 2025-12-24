@@ -84,8 +84,8 @@ export async function GET() {
 
     const result = await response.json();
 
-    // Platform markup (15%)
-    const MARKUP_PERCENTAGE = 0.15;
+    // Platform markup (45% - includes shipping costs)
+    const MARKUP_PERCENTAGE = 0.45;
 
     // Transform products for frontend
     const products = (result.data || []).map((product: PrintifyProduct) => {

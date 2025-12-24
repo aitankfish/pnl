@@ -669,7 +669,7 @@ export default function MerchPage() {
                   Print-on-Demand
                 </div>
                 <div className="px-3 py-1.5 bg-blue-500/20 text-blue-400 text-xs rounded-lg border border-blue-500/30">
-                  Global Shipping
+                  US & Canada Only
                 </div>
                 <div className="px-3 py-1.5 bg-purple-500/20 text-purple-400 text-xs rounded-lg border border-purple-500/30">
                   Pay with SOL
@@ -809,13 +809,18 @@ export default function MerchPage() {
                         onChange={(e) => setShippingAddress(prev => ({ ...prev, zipCode: e.target.value }))}
                         className="bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-white text-sm placeholder-gray-500 focus:border-pink-500/50 focus:outline-none"
                       />
-                      <input
-                        type="text"
-                        placeholder="Country *"
-                        value={shippingAddress.country}
-                        onChange={(e) => setShippingAddress(prev => ({ ...prev, country: e.target.value }))}
-                        className="bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-white text-sm placeholder-gray-500 focus:border-pink-500/50 focus:outline-none"
-                      />
+                      <div className="relative">
+                        <select
+                          value={shippingAddress.country}
+                          onChange={(e) => setShippingAddress(prev => ({ ...prev, country: e.target.value }))}
+                          className="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-white text-sm appearance-none cursor-pointer focus:border-pink-500/50 focus:outline-none"
+                        >
+                          <option value="" disabled className="bg-gray-900">Country *</option>
+                          <option value="United States" className="bg-gray-900">United States</option>
+                          <option value="Canada" className="bg-gray-900">Canada</option>
+                        </select>
+                        <ChevronDown className="absolute right-2 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
+                      </div>
                     </div>
                   </div>
 
