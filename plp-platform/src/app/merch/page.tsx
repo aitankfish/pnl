@@ -658,7 +658,7 @@ export default function MerchPage() {
       {/* Product Modal */}
       {selectedProduct && (
         <div
-          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/90 backdrop-blur-md overflow-hidden"
+          className="fixed inset-0 z-50 flex items-center justify-center p-0 sm:p-4 bg-black/90 backdrop-blur-md overflow-hidden"
           onClick={closeProductModal}
         >
           {/* Cosmic Background Effects */}
@@ -693,27 +693,27 @@ export default function MerchPage() {
           </div>
 
           <div
-            className="relative bg-gradient-to-br from-gray-900/95 via-gray-900/98 to-gray-800/95 rounded-2xl border border-pink-500/20 max-w-2xl w-full max-h-[90vh] overflow-y-auto shadow-[0_0_60px_rgba(236,72,153,0.15),0_0_120px_rgba(249,115,22,0.1)]"
+            className="relative bg-gradient-to-br from-gray-900/95 via-gray-900/98 to-gray-800/95 rounded-none sm:rounded-2xl border-0 sm:border border-pink-500/20 max-w-2xl w-full h-full sm:h-auto sm:max-h-[90vh] overflow-y-auto shadow-[0_0_60px_rgba(236,72,153,0.15),0_0_120px_rgba(249,115,22,0.1)]"
             onClick={(e) => e.stopPropagation()}
           >
             {/* Modal Header */}
-            <div className="sticky top-0 bg-gradient-to-r from-gray-900/95 to-gray-800/95 backdrop-blur-sm border-b border-pink-500/20 p-4 flex items-center justify-between z-10">
-              <h2 className="text-xl font-bold text-white">{selectedProduct.title}</h2>
+            <div className="sticky top-0 bg-gradient-to-r from-gray-900/95 to-gray-800/95 backdrop-blur-sm border-b border-pink-500/20 p-3 sm:p-4 flex items-center justify-between z-10">
+              <h2 className="text-base sm:text-xl font-bold text-white truncate pr-2">{selectedProduct.title}</h2>
               <button
                 onClick={closeProductModal}
-                className="p-2 hover:bg-white/10 rounded-lg transition-colors"
+                className="p-2 hover:bg-white/10 rounded-lg transition-colors flex-shrink-0"
               >
                 <X className="w-5 h-5 text-gray-400 hover:text-pink-400 transition-colors" />
               </button>
             </div>
 
             {/* Modal Content */}
-            <div className="p-6">
-              <div className="grid md:grid-cols-2 gap-6">
+            <div className="p-4 sm:p-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6">
                 {/* Left Column - Image + Details */}
-                <div className="space-y-4">
+                <div className="space-y-3 sm:space-y-4">
                   {/* Product Image - Updates based on selected variant */}
-                  <div className="aspect-square bg-gradient-to-br from-pink-500/10 to-orange-500/10 rounded-xl overflow-hidden relative">
+                  <div className="aspect-square max-h-[40vh] sm:max-h-none bg-gradient-to-br from-pink-500/10 to-orange-500/10 rounded-xl overflow-hidden relative mx-auto w-full max-w-[280px] sm:max-w-none">
                     {getVariantImage ? (
                       <img
                         src={getVariantImage}
@@ -735,7 +735,7 @@ export default function MerchPage() {
                   </div>
 
                   {/* Key Features - Below image */}
-                  <div className="text-gray-300 text-sm bg-white/5 rounded-lg p-4">
+                  <div className="text-gray-300 text-xs sm:text-sm bg-white/5 rounded-lg p-3 sm:p-4">
                     {(() => {
                       const desc = selectedProduct.description?.replace(/<[^>]*>/g, '') || '';
 
@@ -865,9 +865,9 @@ export default function MerchPage() {
                   )}
 
                   {/* Shipping Address Form */}
-                  <div className="space-y-3">
-                    <h3 className="text-sm font-medium text-gray-300">Shipping Address</h3>
-                    <div className="grid grid-cols-2 gap-2">
+                  <div className="space-y-2 sm:space-y-3">
+                    <h3 className="text-xs sm:text-sm font-medium text-gray-300">Shipping Address</h3>
+                    <div className="grid grid-cols-2 gap-2 text-sm">
                       <input
                         type="text"
                         placeholder="Full Name *"
@@ -926,20 +926,20 @@ export default function MerchPage() {
                   </div>
 
                   {/* Price Display */}
-                  <div className="bg-white/5 rounded-xl p-4">
+                  <div className="bg-white/5 rounded-xl p-3 sm:p-4">
                     <div className="flex items-center justify-between">
-                      <span className="text-gray-400">Total</span>
+                      <span className="text-gray-400 text-sm">Total</span>
                       {selectedVariant ? (
                         <div className="text-right">
-                          <div className="text-purple-400 font-bold text-xl">
+                          <div className="text-purple-400 font-bold text-lg sm:text-xl">
                             {usdToSolString(selectedVariant.priceUSD)} SOL
                           </div>
-                          <div className="text-gray-500 text-sm">
+                          <div className="text-gray-500 text-xs sm:text-sm">
                             ${selectedVariant.priceUSD.toFixed(2)} USD
                           </div>
                         </div>
                       ) : (
-                        <span className="text-gray-500">Select options</span>
+                        <span className="text-gray-500 text-sm">Select options</span>
                       )}
                     </div>
                   </div>
@@ -999,7 +999,7 @@ export default function MerchPage() {
                     onClick={handlePayment}
                     disabled={!selectedVariant || !isShippingComplete() || paymentStatus === 'signing' || paymentStatus === 'confirming' || paymentStatus === 'preparing' || paymentStatus === 'creating_order' || paymentStatus === 'success'}
                     className={`
-                      w-full py-3 px-4 rounded-xl font-semibold transition-all flex items-center justify-center gap-2
+                      w-full py-2.5 sm:py-3 px-4 rounded-xl font-semibold text-sm sm:text-base transition-all flex items-center justify-center gap-2
                       ${!selectedVariant || !isShippingComplete() || paymentStatus === 'success'
                         ? 'bg-gray-600 text-gray-400 cursor-not-allowed'
                         : paymentStatus === 'signing' || paymentStatus === 'confirming' || paymentStatus === 'preparing' || paymentStatus === 'creating_order'
