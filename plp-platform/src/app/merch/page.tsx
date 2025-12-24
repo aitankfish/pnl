@@ -442,30 +442,30 @@ export default function MerchPage() {
     <div className="min-h-screen pb-20">
       <Sidebar currentPage="merch" />
 
-      <div className="pt-24 px-4 md:px-8">
+      <div className="pt-20 px-4 md:px-8">
         <div className="max-w-6xl mx-auto">
           {/* Header */}
-          <div className="text-center mb-12">
-            <div className="inline-flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-pink-500/20 to-orange-500/20 rounded-full border border-pink-500/30 mb-4">
-              <Sparkles className="w-4 h-4 text-pink-400" />
-              <span className="text-sm text-pink-300">Official Merch</span>
+          <div className="text-center mb-6">
+            <div className="inline-flex items-center gap-2 px-3 py-1.5 bg-gradient-to-r from-pink-500/20 to-orange-500/20 rounded-full border border-pink-500/30 mb-2">
+              <Sparkles className="w-3 h-3 text-pink-400" />
+              <span className="text-xs text-pink-300">Official Merch</span>
             </div>
-            <h1 className="text-4xl md:text-5xl font-bold text-white mb-4">
+            <h1 className="text-3xl md:text-4xl font-bold text-white mb-2">
               P&L Merch Shop
             </h1>
-            <p className="text-gray-400 text-lg max-w-2xl mx-auto">
-              Wear your belief. Rep the revolution. Every purchase supports the P&L ecosystem.
+            <p className="text-gray-400 text-sm max-w-xl mx-auto">
+              Wear your belief. Rep the revolution.
             </p>
             {/* SOL Price Indicator */}
             {!solPriceLoading && solPrice && (
-              <p className="text-gray-500 text-sm mt-2">
+              <p className="text-gray-500 text-xs mt-1">
                 1 SOL = ${solPrice.toFixed(2)} USD
               </p>
             )}
           </div>
 
           {/* Category Filter */}
-          <div className="flex justify-center gap-2 mb-8 flex-wrap">
+          <div className="flex justify-center gap-2 mb-4 flex-wrap">
             {categories.map((cat) => {
               const Icon = cat.icon;
               const count = cat.id === 'all'
@@ -568,40 +568,15 @@ export default function MerchPage() {
                   </div>
 
                   {/* Product Info */}
-                  <div className="p-4">
-                    <div className="flex items-start justify-between gap-2 mb-1">
-                      <h3 className="text-white font-semibold line-clamp-1 flex-1">{product.title}</h3>
-                      <span className="text-xs px-2 py-0.5 bg-white/10 text-gray-400 rounded capitalize">
-                        {product.category}
+                  <div className="p-3">
+                    <h3 className="text-white font-medium text-sm line-clamp-1 mb-1">{product.title}</h3>
+                    <div className="flex items-center justify-between">
+                      <span className="text-purple-400 font-bold">
+                        {usdToSolString(product.priceUSD)} SOL
                       </span>
-                    </div>
-                    <p className="text-gray-500 text-sm mb-3 line-clamp-2">
-                      {product.description?.replace(/<[^>]*>/g, '') || 'Premium quality merch'}
-                    </p>
-
-                    {/* Prices */}
-                    <div className="space-y-1">
-                      {/* SOL Price */}
-                      <div className="flex items-center justify-between">
-                        <span className="text-purple-400 font-bold text-lg">
-                          {product.priceRangeUSD
-                            ? `${usdToSolString(product.priceRangeUSD.min)} - ${usdToSolString(product.priceRangeUSD.max)} SOL`
-                            : `${usdToSolString(product.priceUSD)} SOL`
-                          }
-                        </span>
-                      </div>
-                      {/* USD Price (smaller) */}
-                      <div className="flex items-center justify-between">
-                        <span className="text-gray-500 text-sm">
-                          {product.priceRangeUSD
-                            ? `$${product.priceRangeUSD.min.toFixed(2)} - $${product.priceRangeUSD.max.toFixed(2)}`
-                            : `$${product.priceUSD.toFixed(2)}`
-                          }
-                        </span>
-                        <span className="text-xs text-gray-600">
-                          {product.variants?.length || 0} variants
-                        </span>
-                      </div>
+                      <span className="text-gray-500 text-xs">
+                        ${product.priceUSD.toFixed(0)}
+                      </span>
                     </div>
                   </div>
                 </div>
@@ -683,55 +658,181 @@ export default function MerchPage() {
       {/* Product Modal */}
       {selectedProduct && (
         <div
-          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm"
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/90 backdrop-blur-md overflow-hidden"
           onClick={closeProductModal}
         >
+          {/* Cosmic Background Effects */}
+          <div className="absolute inset-0 overflow-hidden pointer-events-none">
+            {/* Stars */}
+            <div
+              className="absolute inset-0 opacity-40"
+              style={{
+                backgroundImage: `
+                  radial-gradient(2px 2px at 20% 30%, white, transparent),
+                  radial-gradient(2px 2px at 60% 70%, white, transparent),
+                  radial-gradient(1px 1px at 50% 50%, white, transparent),
+                  radial-gradient(1px 1px at 80% 10%, cyan, transparent),
+                  radial-gradient(2px 2px at 90% 60%, white, transparent),
+                  radial-gradient(1px 1px at 33% 80%, #ec4899, transparent),
+                  radial-gradient(1px 1px at 70% 40%, white, transparent),
+                  radial-gradient(2px 2px at 10% 90%, #f97316, transparent),
+                  radial-gradient(1px 1px at 45% 15%, white, transparent)
+                `,
+                backgroundSize: '200% 200%',
+                animation: 'float 20s ease-in-out infinite',
+              }}
+            />
+            {/* Nebula Glow */}
+            <div
+              className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[800px] h-[800px] rounded-full opacity-20"
+              style={{
+                background: 'radial-gradient(ellipse at center, rgba(236, 72, 153, 0.3) 0%, rgba(249, 115, 22, 0.1) 40%, transparent 70%)',
+                animation: 'rotate 30s linear infinite',
+              }}
+            />
+          </div>
+
           <div
-            className="bg-gray-900 rounded-2xl border border-white/10 max-w-2xl w-full max-h-[90vh] overflow-y-auto"
+            className="relative bg-gradient-to-br from-gray-900/95 via-gray-900/98 to-gray-800/95 rounded-2xl border border-pink-500/20 max-w-2xl w-full max-h-[90vh] overflow-y-auto shadow-[0_0_60px_rgba(236,72,153,0.15),0_0_120px_rgba(249,115,22,0.1)]"
             onClick={(e) => e.stopPropagation()}
           >
             {/* Modal Header */}
-            <div className="sticky top-0 bg-gray-900 border-b border-white/10 p-4 flex items-center justify-between">
+            <div className="sticky top-0 bg-gradient-to-r from-gray-900/95 to-gray-800/95 backdrop-blur-sm border-b border-pink-500/20 p-4 flex items-center justify-between z-10">
               <h2 className="text-xl font-bold text-white">{selectedProduct.title}</h2>
               <button
                 onClick={closeProductModal}
                 className="p-2 hover:bg-white/10 rounded-lg transition-colors"
               >
-                <X className="w-5 h-5 text-gray-400" />
+                <X className="w-5 h-5 text-gray-400 hover:text-pink-400 transition-colors" />
               </button>
             </div>
 
             {/* Modal Content */}
             <div className="p-6">
               <div className="grid md:grid-cols-2 gap-6">
-                {/* Product Image - Updates based on selected variant */}
-                <div className="aspect-square bg-gradient-to-br from-pink-500/10 to-orange-500/10 rounded-xl overflow-hidden relative">
-                  {getVariantImage ? (
-                    <img
-                      src={getVariantImage}
-                      alt={selectedProduct.title}
-                      className="w-full h-full object-cover transition-opacity duration-300"
-                      key={getVariantImage} // Force re-render on image change
-                    />
-                  ) : (
-                    <div className="w-full h-full flex items-center justify-center">
-                      <ShoppingBag className="w-20 h-20 text-white/20" />
-                    </div>
-                  )}
-                  {/* Image loading indicator */}
-                  {selectedVariant && (
-                    <div className="absolute bottom-2 right-2 px-2 py-1 bg-black/50 rounded-lg text-xs text-gray-300">
-                      {selectedVariant.title}
-                    </div>
-                  )}
+                {/* Left Column - Image + Details */}
+                <div className="space-y-4">
+                  {/* Product Image - Updates based on selected variant */}
+                  <div className="aspect-square bg-gradient-to-br from-pink-500/10 to-orange-500/10 rounded-xl overflow-hidden relative">
+                    {getVariantImage ? (
+                      <img
+                        src={getVariantImage}
+                        alt={selectedProduct.title}
+                        className="w-full h-full object-cover transition-opacity duration-300"
+                        key={getVariantImage} // Force re-render on image change
+                      />
+                    ) : (
+                      <div className="w-full h-full flex items-center justify-center">
+                        <ShoppingBag className="w-20 h-20 text-white/20" />
+                      </div>
+                    )}
+                    {/* Image loading indicator */}
+                    {selectedVariant && (
+                      <div className="absolute bottom-2 right-2 px-2 py-1 bg-black/50 rounded-lg text-xs text-gray-300">
+                        {selectedVariant.title}
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Key Features - Below image */}
+                  <div className="text-gray-300 text-sm bg-white/5 rounded-lg p-4">
+                    {(() => {
+                      const desc = selectedProduct.description?.replace(/<[^>]*>/g, '') || '';
+
+                      // Extract key features from description
+                      const features: string[] = [];
+
+                      // Look for material info (capture until period or end)
+                      const materialMatch = desc.match(/made of\s+([^.]+)/i);
+                      if (materialMatch) {
+                        let material = materialMatch[0].trim();
+                        // Clean up trailing words like "in 11-ounce"
+                        material = material.replace(/\s+in\s+\d+.*$/i, '');
+                        // Capitalize first letter
+                        material = material.charAt(0).toUpperCase() + material.slice(1);
+                        features.push(material);
+                      }
+
+                      // Look for size info - normalize to consistent format
+                      const sizeMatch = desc.match(/(\d+)[-\s]?(ounce|oz)/gi);
+                      if (sizeMatch) {
+                        // Extract unique numbers and format consistently
+                        const sizes = [...new Set(sizeMatch.map(s => {
+                          const num = s.match(/\d+/)?.[0];
+                          return num ? `${num}oz` : null;
+                        }).filter(Boolean))];
+                        if (sizes.length > 1) {
+                          features.push(`Available in ${sizes.join(' & ')} sizes`);
+                        } else if (sizes.length === 1) {
+                          features.push(`${sizes[0]} size`);
+                        }
+                      }
+
+                      // Look for safety/care info
+                      const safetyFeatures: string[] = [];
+                      if (/BPA[- ]?free/i.test(desc)) safetyFeatures.push('BPA-free');
+                      if (/lead[- ]?free/i.test(desc)) safetyFeatures.push('Lead-free');
+                      if (safetyFeatures.length > 0) {
+                        features.push(safetyFeatures.join(' & '));
+                      }
+
+                      // Care instructions
+                      const careFeatures: string[] = [];
+                      if (/microwave/i.test(desc)) careFeatures.push('Microwave-safe');
+                      if (/dishwasher/i.test(desc)) careFeatures.push('Dishwasher-safe');
+                      if (/machine wash/i.test(desc)) careFeatures.push('Machine washable');
+                      if (careFeatures.length > 0) {
+                        features.push(careFeatures.join(' & '));
+                      }
+
+                      // Fabric/material specifics for apparel
+                      if (/100%\s*cotton/i.test(desc)) features.push('100% Cotton');
+                      else if (/cotton/i.test(desc) && /polyester/i.test(desc)) features.push('Cotton-Polyester blend');
+                      else if (/polyester/i.test(desc)) features.push('Polyester');
+
+                      if (/organic/i.test(desc)) features.push('Organic material');
+                      if (/pre-?shrunk/i.test(desc)) features.push('Pre-shrunk');
+                      if (/double[- ]?stitched/i.test(desc)) features.push('Double-stitched');
+                      if (/unisex/i.test(desc)) features.push('Unisex fit');
+                      if (/slim fit/i.test(desc)) features.push('Slim fit');
+                      if (/relaxed fit/i.test(desc)) features.push('Relaxed fit');
+
+                      // Limit to 6 features
+                      const uniqueFeatures = [...new Set(features)].slice(0, 6);
+
+                      if (uniqueFeatures.length > 0) {
+                        return (
+                          <ul className="space-y-2">
+                            {uniqueFeatures.map((feature, i) => (
+                              <li key={i} className="flex items-start gap-2">
+                                <span className="text-pink-400">•</span>
+                                <span>{feature}</span>
+                              </li>
+                            ))}
+                          </ul>
+                        );
+                      }
+
+                      // Fallback: show product tags if available
+                      if (selectedProduct.tags && selectedProduct.tags.length > 0) {
+                        return (
+                          <div className="flex flex-wrap gap-2">
+                            {selectedProduct.tags.slice(0, 4).map((tag, i) => (
+                              <span key={i} className="px-2 py-1 bg-white/10 rounded-lg text-gray-300">
+                                {tag}
+                              </span>
+                            ))}
+                          </div>
+                        );
+                      }
+
+                      return <p>Premium quality merch</p>;
+                    })()}
+                  </div>
                 </div>
 
-                {/* Product Details */}
+                {/* Right Column - Options, Shipping & Payment */}
                 <div className="space-y-4">
-                  <p className="text-gray-400 text-sm">
-                    {selectedProduct.description?.replace(/<[^>]*>/g, '') || 'Premium quality merch'}
-                  </p>
-
                   {/* Variant Selectors */}
                   {selectedProduct.options && selectedProduct.options.length > 0 && (
                     <div className="space-y-3">
