@@ -13,7 +13,8 @@ import {
   Rocket,
   Bell,
   User,
-  Loader2
+  Loader2,
+  ShoppingBag
 } from 'lucide-react';
 import UserInfo from './UserInfo';
 import GlobalSearch from './GlobalSearch';
@@ -231,6 +232,21 @@ function Sidebar({ currentPage }: SidebarProps) {
           <div className="flex items-center space-x-1 sm:space-x-3 flex-shrink-0">
             {/* User Info Component - Always show on larger screens */}
             <UserInfo compact={true} className="hidden lg:flex" />
+            {/* Merch Shop Link */}
+            <Link
+              href="/merch"
+              prefetch={true}
+              className={`
+                flex items-center justify-center w-9 h-9 sm:w-10 sm:h-10 rounded-xl transition-all duration-200 group relative flex-shrink-0
+                ${currentPage === 'merch'
+                  ? 'bg-gradient-to-r from-pink-500 to-orange-500 text-white shadow-lg shadow-pink-500/30'
+                  : 'bg-white/10 text-white/70 hover:text-white hover:bg-white/20'
+                }
+              `}
+              title="P&L Merch Shop"
+            >
+              <ShoppingBag className="w-4 h-4 sm:w-5 sm:h-5" />
+            </Link>
             <button
               onClick={handleWalletClick}
               disabled={isPending}

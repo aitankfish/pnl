@@ -88,6 +88,11 @@ NEXT_PUBLIC_JUPITER_API_KEY=your_jupiter_api_key
 
 # Grok AI (Optional - for project roasting feature)
 GROK_API_KEY=your_grok_api_key
+
+# Printify Merch Store (Optional - for merch shop)
+# Get your API token from: https://printify.com/app/account/api
+PRINTIFY_API_TOKEN=your_printify_api_token
+PRINTIFY_SHOP_ID=your_printify_shop_id
 ```
 
 ### 3. Run Development Server
@@ -124,6 +129,7 @@ Open [http://localhost:3000](http://localhost:3000) to view the application.
 - **My Projects**: Project creators can view and manage their launched markets
 - **Grok Roast**: AI-powered project roasting for entertainment
 - **Multiple Categories**: Support for DeFi, NFT, Gaming, DAO, AI/ML, Meme, Creator, and more
+- **Merch Shop**: Integrated print-on-demand merchandise store powered by Printify, pay with SOL
 
 ## 🏗️ Tech Stack
 
@@ -321,9 +327,11 @@ src/
 │   │   ├── search/        # Global search for users and markets
 │   │   ├── grok/          # AI roasting endpoints
 │   │   ├── pump/          # Pump.fun IPFS uploads
+│   │   ├── printify/      # Merch shop API (products, orders)
 │   │   ├── admin/         # Admin tools (treasury, market fixes)
 │   │   └── health/        # Health check endpoints
 │   ├── browse/            # Browse and filter active markets
+│   ├── merch/             # Merch shop with Printify integration
 │   ├── create/            # Project creation with IPFS upload
 │   ├── market/[id]/       # Market details, trading, activity
 │   ├── launched/          # Successfully launched projects
