@@ -155,6 +155,18 @@ export default function CreatePage() {
     if (!formData.targetPool) newErrors.targetPool = 'Target pool is required';
     if (!formData.marketDuration) newErrors.marketDuration = 'Market duration is required';
     if (!formData.projectImage) (newErrors as any).projectImage = 'Project image is required';
+
+    // Validate video URL if provided
+    if (formData.videoUrl.trim()) {
+      const videoUrl = formData.videoUrl.trim();
+      const youtubePattern = /(?:youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/embed\/|youtube\.com\/shorts\/)([a-zA-Z0-9_-]{11})/;
+      const twitterPattern = /(?:twitter\.com|x\.com)\/\w+\/status\/\d+/;
+
+      if (!youtubePattern.test(videoUrl) && !twitterPattern.test(videoUrl)) {
+        newErrors.videoUrl = 'Please enter a valid YouTube or X (Twitter) URL';
+      }
+    }
+
     if (formData.additionalNotes.length > config.ui.maxAdditionalNotesLength) {
       newErrors.additionalNotes = `Additional notes must be less than ${config.ui.maxAdditionalNotesLength} characters`;
     }
@@ -991,8 +1003,9 @@ export default function CreatePage() {
                     className="bg-white/10 border-white/20 text-white placeholder:text-white/50 focus:ring-2 focus:ring-red-500/50 transition-all"
                   />
                   <p className="text-xs text-white/60">
-                    Supports YouTube videos and X (Twitter) posts with videos
+                    Supports YouTube videos and X (Twitter) posts
                   </p>
+                  {errors.videoUrl && <p className="text-sm text-red-400">{errors.videoUrl}</p>}
                 </div>
               </CardContent>
             </Card>
