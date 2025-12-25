@@ -3,7 +3,7 @@
  * Buffers blockchain events for processing
  */
 
-import { getRedisClient } from './client';
+import { getRedisClient, prefixKey } from './client';
 import { createClientLogger } from '@/lib/logger';
 
 const logger = createClientLogger();
@@ -32,10 +32,11 @@ export interface BlockchainEvent {
   error?: string;
 }
 
-const QUEUE_KEY = 'blockchain:events';
-const PROCESSING_KEY = 'blockchain:processing';
-const DLQ_KEY = 'blockchain:dlq'; // Dead letter queue for failed events
-const DEDUP_KEY = 'blockchain:dedup'; // Deduplication set
+// Redis keys (prefixed with environment to prevent dev/prod collisions)
+const QUEUE_KEY = prefixKey('blockchain:events');
+const PROCESSING_KEY = prefixKey('blockchain:processing');
+const DLQ_KEY = prefixKey('blockchain:dlq'); // Dead letter queue for failed events
+const DEDUP_KEY = prefixKey('blockchain:dedup'); // Deduplication set
 const MAX_RETRIES = 3;
 const DEDUP_TTL_SECONDS = 10; // Dedupe events within 10 second window
 

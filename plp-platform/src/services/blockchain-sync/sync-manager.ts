@@ -7,13 +7,13 @@ import { HeliusClient } from './helius-client';
 import { getEventProcessor } from './event-processor';
 import { createClientLogger } from '@/lib/logger';
 import { getQueueStats } from '@/lib/redis/queue';
-import { getRedisClient } from '@/lib/redis/client';
+import { getRedisClient, prefixKey } from '@/lib/redis/client';
 import { connectToDatabase, getDatabase } from '@/lib/database';
 import { PublicKey, Connection } from '@solana/web3.js';
 import { parseMarketAccount, calculateDerivedFields } from './account-parser';
 
-// Redis key for storing sync status (shared across processes)
-const SYNC_STATUS_KEY = 'sync:status';
+// Redis key for storing sync status (prefixed with environment)
+const SYNC_STATUS_KEY = prefixKey('sync:status');
 
 const logger = createClientLogger();
 

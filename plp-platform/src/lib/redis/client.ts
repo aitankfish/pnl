@@ -8,6 +8,44 @@ import { createClientLogger } from '@/lib/logger';
 
 const logger = createClientLogger();
 
+// ========================================
+// Environment-Based Key Prefix
+// ========================================
+// Prevents dev/test/prod data collisions when using same Redis instance
+
+/**
+ * Get environment prefix for Redis keys
+ * Format: {env}-{network}:
+ * Examples: dev-devnet:, dev-mainnet:, prod-mainnet:
+ */
+function getEnvironmentPrefix(): string {
+  const nodeEnv = process.env.NODE_ENV || 'development';
+  const network = process.env.NEXT_PUBLIC_SOLANA_NETWORK || 'devnet';
+
+  const envPrefix = nodeEnv === 'production' ? 'prod' : 'dev';
+  const networkPrefix = network === 'mainnet-beta' ? 'mainnet' : 'devnet';
+
+  return `${envPrefix}-${networkPrefix}:`;
+}
+
+// Cache the prefix (won't change during runtime)
+const REDIS_PREFIX = getEnvironmentPrefix();
+
+/**
+ * Prefix a Redis key with environment info
+ * Use this for all Redis keys to prevent dev/prod collisions
+ */
+export function prefixKey(key: string): string {
+  return `${REDIS_PREFIX}${key}`;
+}
+
+/**
+ * Get the current environment prefix (for debugging)
+ */
+export function getRedisPrefix(): string {
+  return REDIS_PREFIX;
+}
+
 let redisClient: Redis | null = null;
 
 export function getRedisClient(): Redis {
@@ -49,7 +87,7 @@ export function getRedisClient(): Redis {
     });
 
     redisClient.on('connect', () => {
-      logger.info('✅ Redis connected successfully');
+      logger.info(`✅ Redis connected successfully (prefix: ${REDIS_PREFIX})`);
     });
 
     redisClient.on('error', (err) => {
@@ -118,12 +156,12 @@ export function getRedisSubClient(): Redis {
   return subClient;
 }
 
-// Chat message channels
+// Chat message channels (prefixed with environment)
 export const REDIS_CHANNELS = {
-  CHAT_MESSAGE: 'chat:message',
-  CHAT_TYPING: 'chat:typing',
-  CHAT_DELETED: 'chat:deleted',
-  CHAT_PINNED: 'chat:pinned',
+  CHAT_MESSAGE: prefixKey('chat:message'),
+  CHAT_TYPING: prefixKey('chat:typing'),
+  CHAT_DELETED: prefixKey('chat:deleted'),
+  CHAT_PINNED: prefixKey('chat:pinned'),
 };
 
 // Publish chat message via Redis

@@ -8,7 +8,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { ObjectId } from 'mongodb';
 import { connectToDatabase, getDatabase } from '@/lib/database/index';
 import { COLLECTIONS, ChatMessage, PredictionMarket, Project } from '@/lib/database/models';
-import { publishChatMessage, getRedisClient } from '@/lib/redis/client';
+import { publishChatMessage, getRedisClient, prefixKey } from '@/lib/redis/client';
 import { verifyAuth } from '@/lib/auth/privy-server';
 
 // Disable Next.js caching for this route
@@ -78,7 +78,7 @@ async function checkRateLimitRedis(walletAddress: string, message: string): Prom
   try {
     const redis = getRedisClient();
     const now = Date.now();
-    const key = `chat:ratelimit:${walletAddress}`;
+    const key = prefixKey(`chat:ratelimit:${walletAddress}`);
 
     // Get current rate limit data
     const data = await redis.get(key);

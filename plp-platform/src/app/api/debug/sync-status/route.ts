@@ -5,7 +5,7 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { getQueueStats, getDLQ } from '@/lib/redis/queue';
-import { getRedisClient } from '@/lib/redis/client';
+import { getRedisClient, prefixKey } from '@/lib/redis/client';
 import { createClientLogger } from '@/lib/logger';
 
 // Force dynamic rendering - this route uses request.url
@@ -32,7 +32,7 @@ export async function GET(request: NextRequest) {
     const redis = getRedisClient();
 
     // Get currently processing events
-    const processingKeys = await redis.keys('blockchain:processing:*');
+    const processingKeys = await redis.keys(prefixKey('blockchain:processing:*'));
     const processingEvents = [];
     for (const key of processingKeys.slice(0, 10)) {
       const eventJson = await redis.get(key);
