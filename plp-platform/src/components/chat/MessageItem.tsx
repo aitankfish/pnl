@@ -101,7 +101,7 @@ export default function MessageItem({
       className={`group relative p-2 rounded-lg transition-all ${
         isOwn
           ? 'bg-cyan-500/10 border border-cyan-500/20'
-          : 'bg-gray-800/20 border border-gray-700/20 hover:border-gray-600/40 hover:bg-gray-800/30'
+          : 'bg-white/5 border border-white/10 hover:border-white/20 hover:bg-white/10'
       }`}
     >
       {/* Header */}
@@ -120,7 +120,7 @@ export default function MessageItem({
             <div className="relative">
               <button
                 onClick={() => setShowMenu(!showMenu)}
-                className="p-1 rounded opacity-0 group-hover:opacity-100 hover:bg-gray-700/50 transition-all"
+                className="p-1 rounded opacity-0 group-hover:opacity-100 hover:bg-white/10 transition-all"
               >
                 <MoreHorizontal className="w-3 h-3 text-gray-400" />
               </button>
@@ -132,11 +132,11 @@ export default function MessageItem({
                     className="fixed inset-0 z-10"
                     onClick={() => setShowMenu(false)}
                   />
-                  <div className="absolute right-0 top-full mt-1 z-20 bg-gray-800 border border-gray-700 rounded-lg shadow-lg py-1 min-w-[120px]">
+                  <div className="absolute right-0 top-full mt-1 z-20 bg-black/80 backdrop-blur-md border border-white/20 rounded-lg shadow-lg py-1 min-w-[120px]">
                     {canModerate && (
                       <button
                         onClick={handlePin}
-                        className="w-full flex items-center gap-2 px-3 py-1.5 text-xs text-gray-300 hover:bg-gray-700/50"
+                        className="w-full flex items-center gap-2 px-3 py-1.5 text-xs text-gray-300 hover:bg-white/10"
                       >
                         <Pin className="w-3 h-3" />
                         {message.isPinned ? 'Unpin' : 'Pin'}
@@ -145,7 +145,7 @@ export default function MessageItem({
                     {(isOwn || canModerate) && (
                       <button
                         onClick={handleDelete}
-                        className="w-full flex items-center gap-2 px-3 py-1.5 text-xs text-red-400 hover:bg-gray-700/50"
+                        className="w-full flex items-center gap-2 px-3 py-1.5 text-xs text-red-400 hover:bg-white/10"
                       >
                         <Trash2 className="w-3 h-3" />
                         Delete
@@ -161,7 +161,7 @@ export default function MessageItem({
 
       {/* Reply preview - show if this message is a reply */}
       {message.replyTo && (
-        <div className="mb-1.5 pl-2 border-l-2 border-gray-600/40 bg-gray-800/20 rounded-r py-1 px-2">
+        <div className="mb-1.5 pl-2 border-l-2 border-cyan-500/30 bg-white/5 rounded-r py-1 px-2">
           <div className="flex items-center gap-1 text-[10px] text-gray-500">
             <CornerDownRight className="w-2.5 h-2.5" />
             <span>Replying to <span className="text-gray-400">{message.replyTo.displayName}</span></span>
@@ -181,7 +181,7 @@ export default function MessageItem({
         {canReply && (
           <button
             onClick={() => onReply(message._id, message.displayName)}
-            className="p-1 rounded text-gray-500 hover:text-cyan-400 hover:bg-gray-700/50 transition-all opacity-0 group-hover:opacity-100 flex items-center gap-0.5"
+            className="p-1 rounded text-gray-500 hover:text-cyan-400 hover:bg-white/10 transition-all opacity-0 group-hover:opacity-100 flex items-center gap-0.5"
           >
             <Reply className="w-3 h-3" />
             <span className="text-[10px]">Reply</span>
@@ -192,7 +192,7 @@ export default function MessageItem({
         <div className="relative">
           <button
             onClick={() => setShowReactions(!showReactions)}
-            className="p-1 rounded text-gray-500 hover:text-gray-400 hover:bg-gray-700/50 transition-all opacity-0 group-hover:opacity-100"
+            className="p-1 rounded text-gray-500 hover:text-gray-400 hover:bg-white/10 transition-all opacity-0 group-hover:opacity-100"
           >
             <span className="text-xs">+</span>
           </button>
@@ -204,12 +204,12 @@ export default function MessageItem({
                 className="fixed inset-0 z-10"
                 onClick={() => setShowReactions(false)}
               />
-              <div className="absolute left-0 bottom-full mb-1 z-20 flex gap-1 bg-gray-800 border border-gray-700 rounded-lg shadow-lg p-1">
+              <div className="absolute left-0 bottom-full mb-1 z-20 flex gap-1 bg-black/80 backdrop-blur-md border border-white/20 rounded-lg shadow-lg p-1">
                 {REACTION_EMOJIS.map((emoji) => (
                   <button
                     key={emoji}
                     onClick={() => handleReact(emoji)}
-                    className="p-1 rounded hover:bg-gray-700/50 transition-colors text-sm"
+                    className="p-1 rounded hover:bg-white/20 transition-colors text-sm"
                   >
                     {emoji}
                   </button>

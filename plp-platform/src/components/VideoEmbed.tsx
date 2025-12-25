@@ -120,27 +120,10 @@ function TwitterEmbed({ url, tweetId }: { url: string; tweetId: string }) {
   }, [tweetId]);
 
   return (
-    <div className="overflow-hidden rounded-xl bg-gray-900/50 border border-gray-700/50">
-      {/* Header */}
-      <div className="flex items-center justify-between px-4 py-2 border-b border-gray-700/50 bg-gray-800/30">
-        <div className="flex items-center gap-2">
-          <svg className="w-4 h-4 text-gray-300" viewBox="0 0 24 24" fill="currentColor">
-            <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/>
-          </svg>
-          <span className="text-sm font-medium text-gray-300">Post from X</span>
-        </div>
-        <a
-          href={url}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="text-xs text-gray-500 hover:text-cyan-400 flex items-center gap-1 transition-colors"
-        >
-          Open <ExternalLink className="w-3 h-3" />
-        </a>
-      </div>
-
-      {/* Tweet container */}
-      <div className="p-4 min-h-[200px] flex items-center justify-center">
+    <div className="flex justify-center">
+      <div className="overflow-hidden rounded-xl bg-gray-900/30 w-full max-w-2xl border border-cyan-500/30 shadow-[0_0_20px_rgba(6,182,212,0.15)]">
+        {/* Tweet container */}
+        <div className="p-4 min-h-[200px] flex items-center justify-center">
         {isLoading && !hasError && (
           <div className="flex flex-col items-center gap-2">
             <Loader2 className="w-8 h-8 text-gray-400 animate-spin" />
@@ -173,6 +156,7 @@ function TwitterEmbed({ url, tweetId }: { url: string; tweetId: string }) {
             margin: '0 auto',
           }}
         />
+        </div>
       </div>
     </div>
   );
@@ -189,52 +173,48 @@ export default function VideoEmbed({ url, className = '' }: VideoEmbedProps) {
   // YouTube embed
   if (parsedVideo.type === 'youtube' && parsedVideo.embedUrl) {
     return (
-      <div className={`relative overflow-hidden rounded-xl bg-gray-900/50 border border-gray-700/50 ${className}`}>
-        {/* Header */}
-        <div className="flex items-center gap-2 px-4 py-2 border-b border-gray-700/50 bg-gray-800/30">
-          <Video className="w-4 h-4 text-red-500" />
-          <span className="text-sm font-medium text-gray-300">Project Video</span>
-        </div>
-
-        {/* Video container with 16:9 aspect ratio */}
-        <div className="relative w-full" style={{ paddingBottom: '56.25%' }}>
-          {isLoading && (
-            <div className="absolute inset-0 flex items-center justify-center bg-gray-900/80">
-              <div className="flex flex-col items-center gap-2">
-                <div className="w-12 h-12 rounded-full bg-red-500/20 flex items-center justify-center animate-pulse">
-                  <Play className="w-6 h-6 text-red-500" />
+      <div className={`flex justify-center ${className}`}>
+        <div className="relative overflow-hidden rounded-xl w-full max-w-2xl border border-cyan-500/30 shadow-[0_0_20px_rgba(6,182,212,0.15)] hover:shadow-[0_0_30px_rgba(6,182,212,0.25)] transition-shadow duration-300">
+          {/* Video container with 16:9 aspect ratio */}
+          <div className="relative w-full" style={{ paddingBottom: '56.25%' }}>
+            {isLoading && (
+              <div className="absolute inset-0 flex items-center justify-center bg-gray-900/80">
+                <div className="flex flex-col items-center gap-2">
+                  <div className="w-12 h-12 rounded-full bg-red-500/20 flex items-center justify-center animate-pulse">
+                    <Play className="w-6 h-6 text-red-500" />
+                  </div>
+                  <span className="text-sm text-gray-400">Loading video...</span>
                 </div>
-                <span className="text-sm text-gray-400">Loading video...</span>
               </div>
-            </div>
-          )}
-          {hasError && (
-            <div className="absolute inset-0 flex items-center justify-center bg-gray-900/80">
-              <div className="flex flex-col items-center gap-2 text-center p-4">
-                <Video className="w-8 h-8 text-gray-500" />
-                <span className="text-sm text-gray-400">Video unavailable</span>
-                <a
-                  href={url}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="text-xs text-cyan-400 hover:text-cyan-300 flex items-center gap-1"
-                >
-                  Watch on YouTube <ExternalLink className="w-3 h-3" />
-                </a>
+            )}
+            {hasError && (
+              <div className="absolute inset-0 flex items-center justify-center bg-gray-900/80">
+                <div className="flex flex-col items-center gap-2 text-center p-4">
+                  <Video className="w-8 h-8 text-gray-500" />
+                  <span className="text-sm text-gray-400">Video unavailable</span>
+                  <a
+                    href={url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-xs text-cyan-400 hover:text-cyan-300 flex items-center gap-1"
+                  >
+                    Watch on YouTube <ExternalLink className="w-3 h-3" />
+                  </a>
+                </div>
               </div>
-            </div>
-          )}
-          <iframe
-            src={parsedVideo.embedUrl}
-            className="absolute inset-0 w-full h-full"
-            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-            allowFullScreen
-            onLoad={() => setIsLoading(false)}
-            onError={() => {
-              setIsLoading(false);
-              setHasError(true);
-            }}
-          />
+            )}
+            <iframe
+              src={parsedVideo.embedUrl}
+              className="absolute inset-0 w-full h-full rounded-xl"
+              allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+              allowFullScreen
+              onLoad={() => setIsLoading(false)}
+              onError={() => {
+                setIsLoading(false);
+                setHasError(true);
+              }}
+            />
+          </div>
         </div>
       </div>
     );
@@ -251,22 +231,15 @@ export default function VideoEmbed({ url, className = '' }: VideoEmbedProps) {
 
   // Unknown video type - show as generic link
   return (
-    <div className={`overflow-hidden rounded-xl bg-gray-900/50 border border-gray-700/50 ${className}`}>
-      {/* Header */}
-      <div className="flex items-center gap-2 px-4 py-2 border-b border-gray-700/50 bg-gray-800/30">
-        <Video className="w-4 h-4 text-gray-400" />
-        <span className="text-sm font-medium text-gray-300">Project Video</span>
-      </div>
-
-      {/* Generic link */}
+    <div className={`flex justify-center ${className}`}>
       <a
         href={url}
         target="_blank"
         rel="noopener noreferrer"
-        className="flex items-center gap-4 p-4 hover:bg-gray-800/30 transition-colors group"
+        className="flex items-center gap-4 p-4 w-full max-w-2xl rounded-xl bg-gray-900/30 border border-cyan-500/30 shadow-[0_0_20px_rgba(6,182,212,0.15)] hover:shadow-[0_0_30px_rgba(6,182,212,0.25)] hover:bg-gray-800/30 transition-all duration-300 group"
       >
-        <div className="w-16 h-16 rounded-xl bg-gray-800 flex items-center justify-center flex-shrink-0 group-hover:bg-gray-700/50 transition-colors">
-          <Play className="w-8 h-8 text-gray-400" />
+        <div className="w-14 h-14 rounded-xl bg-gray-800/50 flex items-center justify-center flex-shrink-0 group-hover:bg-gray-700/50 transition-colors">
+          <Play className="w-7 h-7 text-cyan-400" />
         </div>
         <div className="flex-1 min-w-0">
           <div className="text-sm font-medium text-white group-hover:text-cyan-400 transition-colors">

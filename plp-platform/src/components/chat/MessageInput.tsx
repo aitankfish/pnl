@@ -92,7 +92,7 @@ export default function MessageInput({
   };
 
   return (
-    <div className="px-3 py-2 border-t border-gray-700/30 bg-gray-900/30">
+    <div className="px-3 py-2 border-t border-cyan-500/10 bg-transparent">
       {/* Error message */}
       {error && (
         <div className="mb-2 px-2 py-1 text-xs text-red-400 bg-red-500/10 rounded">
@@ -102,7 +102,7 @@ export default function MessageInput({
 
       {/* Disabled state message */}
       {disabled && !error && (
-        <div className="mb-2 px-3 py-2 text-sm text-gray-300 bg-gray-700/30 rounded-lg text-center">
+        <div className="mb-2 px-3 py-2 text-sm text-gray-300 bg-white/5 rounded-lg text-center border border-white/10">
           Sign in to join the conversation
         </div>
       )}
@@ -125,7 +125,7 @@ export default function MessageInput({
           </div>
           <button
             onClick={onCancelReply}
-            className="p-1 rounded hover:bg-gray-700/50 text-gray-400 hover:text-gray-300 transition-colors flex-shrink-0"
+            className="p-1 rounded hover:bg-white/10 text-gray-400 hover:text-gray-300 transition-colors flex-shrink-0"
           >
             <X className="w-3.5 h-3.5" />
           </button>
@@ -149,7 +149,7 @@ export default function MessageInput({
             }
             disabled={disabled || isSending || (!hasPosition && !isFounder)}
             rows={1}
-            className="w-full px-3 py-2 text-sm bg-gray-800/30 border border-gray-700/30 rounded-lg text-gray-200 placeholder-gray-500 resize-none focus:outline-none focus:border-cyan-500/50 focus:ring-1 focus:ring-cyan-500/20 disabled:opacity-50 disabled:cursor-not-allowed"
+            className="w-full px-3 py-2 text-sm bg-white/5 border border-white/10 rounded-lg text-gray-200 placeholder-gray-500 resize-none focus:outline-none focus:border-cyan-500/50 focus:ring-1 focus:ring-cyan-500/20 disabled:opacity-50 disabled:cursor-not-allowed"
             style={{ maxHeight: '100px' }}
           />
           {/* Character count */}
@@ -167,7 +167,7 @@ export default function MessageInput({
         <button
           onClick={handleSubmit}
           disabled={!message.trim() || disabled || isSending || !isConnected || (!hasPosition && !isFounder)}
-          className="p-2 rounded-lg bg-cyan-500 hover:bg-cyan-600 disabled:bg-gray-700 disabled:cursor-not-allowed transition-colors"
+          className="p-2 rounded-lg bg-cyan-500 hover:bg-cyan-600 disabled:bg-white/10 disabled:cursor-not-allowed transition-colors"
         >
           {isSending ? (
             <Loader2 className="w-4 h-4 text-white animate-spin" />

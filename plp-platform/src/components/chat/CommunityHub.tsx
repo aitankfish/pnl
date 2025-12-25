@@ -61,10 +61,10 @@ export default function CommunityHub({
   const hasSocialLinks = socialLinks && (socialLinks.twitter || socialLinks.discord || socialLinks.telegram || socialLinks.linkedin);
 
   return (
-    <div className={`flex flex-col bg-gray-900/20 backdrop-blur-[2px] rounded-lg border border-gray-700/30 overflow-hidden ${className || 'h-[500px] sm:h-[600px]'}`}>
+    <div className={`flex flex-col bg-gradient-to-br from-cyan-500/5 via-blue-500/5 to-purple-500/5 backdrop-blur-sm rounded-xl border border-cyan-500/20 shadow-[0_0_20px_rgba(6,182,212,0.08)] overflow-hidden ${className || 'h-[500px] sm:h-[600px]'}`}>
       {/* Social Links Bar */}
       {hasSocialLinks && (
-        <div className="flex items-center justify-center gap-2 px-3 py-1.5 border-b border-gray-700/30 bg-gray-800/20">
+        <div className="flex items-center justify-center gap-2 px-3 py-1.5 border-b border-cyan-500/10 bg-transparent">
           <span className="text-[10px] text-gray-500 mr-1">Join:</span>
           {socialLinks.twitter && (
             <a
@@ -114,7 +114,7 @@ export default function CommunityHub({
       )}
 
       {/* Tab Header */}
-      <div className="flex border-b border-gray-700/30 bg-gray-900/30">
+      <div className="flex border-b border-cyan-500/10 bg-transparent">
         {tabs.map((tab) => {
           const Icon = tab.icon;
           return (

@@ -6,7 +6,7 @@ import { useParams, useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { CheckCircle, XCircle, Loader2, ArrowLeft, ExternalLink, Users, Target, MapPin, Briefcase, Globe, Github, MessageCircle, Share2, Heart, FileText, Copy, Check, Sparkles, X } from 'lucide-react';
+import { CheckCircle, XCircle, Loader2, ArrowLeft, ExternalLink, Users, Target, MapPin, Globe, Github, MessageCircle, Share2, Heart, FileText, Copy, Check, Sparkles, X } from 'lucide-react';
 import Link from 'next/link';
 import { FEES, SOLANA_NETWORK } from '@/config/solana';
 import { useVoting } from '@/lib/hooks/useVoting';
@@ -1221,7 +1221,7 @@ export default function MarketDetailsPage() {
                 {market.description}
               </CardDescription>
 
-              {/* Token, Category, Stage & Social Links - Full Width */}
+              {/* Token, Category, Stage, Project Info & Social Links - Full Width */}
               <div className="flex items-center flex-wrap gap-1.5 sm:gap-2">
                     <div className="flex items-center gap-1 px-2 sm:px-3 py-1 sm:py-1.5 bg-white/5 rounded-lg border border-white/10">
                       <Target className="w-3 h-3 sm:w-4 sm:h-4 text-gray-400" />
@@ -1233,6 +1233,26 @@ export default function MarketDetailsPage() {
                     <Badge className="bg-white/10 text-white border-white/20 text-xs">
                       {formatLabel(market.stage)}
                     </Badge>
+                    {/* Project Type */}
+                    {market.metadata?.projectType && (
+                      <Badge className="bg-cyan-500/20 text-cyan-300 border-cyan-400/30 text-xs capitalize">
+                        {market.metadata.projectType}
+                      </Badge>
+                    )}
+                    {/* Team Size */}
+                    {market.metadata?.teamSize && (
+                      <div className="flex items-center gap-1 px-2 py-1 bg-orange-500/10 rounded-lg border border-orange-400/20">
+                        <Users className="w-3 h-3 text-orange-400" />
+                        <span className="text-xs text-orange-300">{market.metadata.teamSize}</span>
+                      </div>
+                    )}
+                    {/* Location */}
+                    {market.metadata?.location && (
+                      <div className="flex items-center gap-1 px-2 py-1 bg-green-500/10 rounded-lg border border-green-400/20">
+                        <MapPin className="w-3 h-3 text-green-400" />
+                        <span className="text-xs text-green-300">{market.metadata.location}</span>
+                      </div>
+                    )}
 
                     {/* Documentation Link */}
                     {market.documentUrls && market.documentUrls.length > 0 && (
@@ -1240,12 +1260,11 @@ export default function MarketDetailsPage() {
                         href={market.documentUrls[0]}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="flex items-center gap-1 px-2 sm:px-3 py-1 sm:py-1.5 bg-blue-500/20 rounded-lg border border-blue-400/30 hover:bg-blue-500/30 transition-colors"
+                        className="flex items-center gap-1 px-2 py-1 bg-white/5 rounded-lg border border-white/10 hover:bg-white/10 hover:border-white/20 transition-all"
                         title="View project documentation"
                       >
-                        <FileText className="w-3 h-3 sm:w-4 sm:h-4 text-blue-300" />
-                        <span className="text-xs sm:text-sm font-medium text-blue-300 hidden sm:inline">Documentation</span>
-                        <ExternalLink className="w-2.5 h-2.5 sm:w-3 sm:h-3 text-blue-300 sm:inline hidden" />
+                        <FileText className="w-3 h-3 text-blue-400" />
+                        <span className="text-xs text-blue-300 hidden sm:inline">Docs</span>
                       </a>
                     )}
 
@@ -1257,11 +1276,11 @@ export default function MarketDetailsPage() {
                             href={market.metadata.socialLinks.website}
                             target="_blank"
                             rel="noopener noreferrer"
-                            className="flex items-center gap-0.5 sm:gap-1 px-2 sm:px-3 py-1 sm:py-1.5 bg-gradient-to-r from-blue-500/20 to-cyan-500/20 hover:from-blue-500/30 hover:to-cyan-500/30 border border-blue-400/30 rounded-lg transition-all hover:scale-105"
+                            className="flex items-center gap-1 px-2 py-1 bg-white/5 rounded-lg border border-white/10 hover:bg-white/10 hover:border-white/20 transition-all"
                             title="Website"
                           >
-                            <Globe className="w-3 h-3 sm:w-4 sm:h-4 text-blue-400" />
-                            <span className="text-white text-xs sm:text-sm font-medium hidden sm:inline">Website</span>
+                            <Globe className="w-3 h-3 text-cyan-400" />
+                            <span className="text-xs text-cyan-300 hidden sm:inline">Website</span>
                           </a>
                         )}
                         {market.metadata.socialLinks.github && (
@@ -1269,11 +1288,11 @@ export default function MarketDetailsPage() {
                             href={market.metadata.socialLinks.github}
                             target="_blank"
                             rel="noopener noreferrer"
-                            className="flex items-center gap-0.5 sm:gap-1 px-2 sm:px-3 py-1 sm:py-1.5 bg-gradient-to-r from-gray-500/20 to-slate-500/20 hover:from-gray-500/30 hover:to-slate-500/30 border border-gray-400/30 rounded-lg transition-all hover:scale-105"
+                            className="flex items-center gap-1 px-2 py-1 bg-white/5 rounded-lg border border-white/10 hover:bg-white/10 hover:border-white/20 transition-all"
                             title="GitHub"
                           >
-                            <Github className="w-3 h-3 sm:w-4 sm:h-4 text-gray-300" />
-                            <span className="text-white text-xs sm:text-sm font-medium hidden sm:inline">GitHub</span>
+                            <Github className="w-3 h-3 text-gray-300" />
+                            <span className="text-xs text-gray-300 hidden sm:inline">GitHub</span>
                           </a>
                         )}
                       </>
@@ -1283,9 +1302,25 @@ export default function MarketDetailsPage() {
           </CardHeader>
         </Card>
 
-        {/* Project Video - Show if video URL is available */}
-        {market.metadata?.videoUrl && (
-          <VideoEmbed url={market.metadata.videoUrl} />
+        {/* What This Project Offers & Video - Side by Side */}
+        {(market.metadata?.videoUrl || market.metadata?.additionalNotes) && (
+          <div className={`grid gap-4 ${market.metadata?.videoUrl && market.metadata?.additionalNotes ? 'md:grid-cols-2' : ''}`}>
+            {/* What This Project Offers - Left */}
+            {market.metadata?.additionalNotes && (
+              <div className="p-4 sm:p-5 bg-gradient-to-br from-cyan-500/5 via-blue-500/5 to-purple-500/5 rounded-xl border border-cyan-500/20 shadow-[0_0_20px_rgba(6,182,212,0.08)] flex flex-col">
+                <h3 className="text-cyan-400 text-xs sm:text-sm mb-3 font-semibold flex items-center gap-2 uppercase tracking-wider">
+                  <span>✨</span> What This Project Offers
+                </h3>
+                <div className="border-l-2 border-cyan-500/50 pl-4 flex-1">
+                  <p className="text-white/85 text-sm sm:text-base leading-relaxed whitespace-pre-wrap italic">{market.metadata.additionalNotes}</p>
+                </div>
+              </div>
+            )}
+            {/* Video - Right */}
+            {market.metadata?.videoUrl && (
+              <VideoEmbed url={market.metadata.videoUrl} className="h-full" />
+            )}
+          </div>
         )}
 
         {/* Grok Analysis and Trading - Side by Side */}
@@ -2615,84 +2650,14 @@ export default function MarketDetailsPage() {
         </div>
         </div>
 
-        {/* Metadata/Project Details Section - Moved above Holders */}
-        {market.metadata && (
+        {/* Full Description - Only show if different from intro description */}
+        {market.metadata?.description && market.metadata.description !== market.description && (
           <Card className="bg-white/5 backdrop-blur-xl border-white/10 text-white">
-            <CardHeader>
-              <CardTitle className="text-lg sm:text-2xl text-white">Project Details</CardTitle>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-lg sm:text-xl text-white">Full Description</CardTitle>
             </CardHeader>
-            <CardContent className="space-y-4 sm:space-y-6">
-              {/* What This Project Offers */}
-              {market.metadata.additionalNotes && (
-                <div className="p-3 sm:p-4 bg-gradient-to-r from-cyan-500/10 to-blue-500/10 rounded-lg border border-cyan-400/30">
-                  <h3 className="text-cyan-400 text-sm sm:text-base mb-1.5 sm:mb-2 font-bold flex items-center gap-1.5 sm:gap-2">
-                    <span className="text-base sm:text-xl">✨</span> What This Project Offers
-                  </h3>
-                  <p className="text-white text-sm sm:text-base leading-relaxed whitespace-pre-wrap text-justify">{market.metadata.additionalNotes}</p>
-                </div>
-              )}
-
-              {/* Project Info Grid */}
-              <div className="grid gap-2.5 sm:gap-4 sm:grid-cols-2 lg:grid-cols-3">
-                {market.metadata.projectType && (
-                  <div className="flex items-start space-x-2 sm:space-x-3 p-2.5 sm:p-4 bg-white/5 rounded-lg">
-                    <Briefcase className="w-4 h-4 sm:w-5 sm:h-5 text-cyan-400 mt-0.5 sm:mt-1 flex-shrink-0" />
-                    <div>
-                      <h3 className="text-gray-400 text-xs sm:text-sm mb-0.5 sm:mb-1">Project Type</h3>
-                      <p className="text-white text-sm sm:text-lg font-medium capitalize">{market.metadata.projectType}</p>
-                    </div>
-                  </div>
-                )}
-
-                {market.metadata.projectStage && (
-                  <div className="flex items-start space-x-2 sm:space-x-3 p-2.5 sm:p-4 bg-white/5 rounded-lg">
-                    <Target className="w-4 h-4 sm:w-5 sm:h-5 text-purple-400 mt-0.5 sm:mt-1 flex-shrink-0" />
-                    <div>
-                      <h3 className="text-gray-400 text-xs sm:text-sm mb-0.5 sm:mb-1">Stage</h3>
-                      <p className="text-white text-sm sm:text-lg font-medium">{formatLabel(market.metadata.projectStage)}</p>
-                    </div>
-                  </div>
-                )}
-
-                {market.metadata.category && (
-                  <div className="flex items-start space-x-2 sm:space-x-3 p-2.5 sm:p-4 bg-white/5 rounded-lg">
-                    <Target className="w-4 h-4 sm:w-5 sm:h-5 text-pink-400 mt-0.5 sm:mt-1 flex-shrink-0" />
-                    <div>
-                      <h3 className="text-gray-400 text-xs sm:text-sm mb-0.5 sm:mb-1">Category</h3>
-                      <p className="text-white text-sm sm:text-lg font-medium">{formatLabel(market.metadata.category)}</p>
-                    </div>
-                  </div>
-                )}
-
-                {market.metadata.location && (
-                  <div className="flex items-start space-x-2 sm:space-x-3 p-2.5 sm:p-4 bg-white/5 rounded-lg">
-                    <MapPin className="w-4 h-4 sm:w-5 sm:h-5 text-green-400 mt-0.5 sm:mt-1 flex-shrink-0" />
-                    <div>
-                      <h3 className="text-gray-400 text-xs sm:text-sm mb-0.5 sm:mb-1">Location</h3>
-                      <p className="text-white text-sm sm:text-lg font-medium">{market.metadata.location}</p>
-                    </div>
-                  </div>
-                )}
-
-                {market.metadata.teamSize && (
-                  <div className="flex items-start space-x-2 sm:space-x-3 p-2.5 sm:p-4 bg-white/5 rounded-lg">
-                    <Users className="w-4 h-4 sm:w-5 sm:h-5 text-orange-400 mt-0.5 sm:mt-1 flex-shrink-0" />
-                    <div>
-                      <h3 className="text-gray-400 text-xs sm:text-sm mb-0.5 sm:mb-1">Team Size</h3>
-                      <p className="text-white text-sm sm:text-lg font-medium">{market.metadata.teamSize} {market.metadata.teamSize === 1 ? 'member' : 'members'}</p>
-                    </div>
-                  </div>
-                )}
-              </div>
-
-              {/* Description */}
-              {market.metadata.description && market.metadata.description !== market.description && (
-                <div className="p-3 sm:p-4 bg-white/5 rounded-lg">
-                  <h3 className="text-gray-400 text-xs sm:text-sm mb-1.5 sm:mb-2 font-semibold">Full Description</h3>
-                  <p className="text-white text-sm sm:text-base leading-relaxed whitespace-pre-wrap">{market.metadata.description}</p>
-                </div>
-              )}
-
+            <CardContent>
+              <p className="text-white/90 text-sm sm:text-base leading-relaxed whitespace-pre-wrap">{market.metadata.description}</p>
             </CardContent>
           </Card>
         )}
