@@ -7,6 +7,48 @@ import { NextRequest, NextResponse } from 'next/server';
 
 const PRINTIFY_API_BASE = 'https://api.printify.com/v1';
 
+// Country name to ISO 3166-1 alpha-2 code mapping
+const COUNTRY_CODES: Record<string, string> = {
+  'United States': 'US',
+  'USA': 'US',
+  'United Kingdom': 'GB',
+  'UK': 'GB',
+  'Canada': 'CA',
+  'Australia': 'AU',
+  'Germany': 'DE',
+  'France': 'FR',
+  'Spain': 'ES',
+  'Italy': 'IT',
+  'Netherlands': 'NL',
+  'Belgium': 'BE',
+  'Austria': 'AT',
+  'Switzerland': 'CH',
+  'Sweden': 'SE',
+  'Norway': 'NO',
+  'Denmark': 'DK',
+  'Finland': 'FI',
+  'Ireland': 'IE',
+  'Portugal': 'PT',
+  'Poland': 'PL',
+  'Czech Republic': 'CZ',
+  'Japan': 'JP',
+  'South Korea': 'KR',
+  'China': 'CN',
+  'India': 'IN',
+  'Brazil': 'BR',
+  'Mexico': 'MX',
+  'New Zealand': 'NZ',
+  'Singapore': 'SG',
+  'Hong Kong': 'HK',
+};
+
+function getCountryCode(country: string): string {
+  // If already a 2-letter code, return it
+  if (country.length === 2) return country.toUpperCase();
+  // Look up the country name
+  return COUNTRY_CODES[country] || country;
+}
+
 interface OrderLineItem {
   product_id: string;
   variant_id: number;
@@ -77,6 +119,9 @@ export async function POST(request: NextRequest) {
     const firstName = nameParts[0] || '';
     const lastName = nameParts.slice(1).join(' ') || firstName; // Use first name if no last name
 
+    // Convert country name to ISO code
+    const countryCode = getCountryCode(shippingAddress.country);
+
     // Prepare Printify order payload
     const orderPayload = {
       external_id: txSignature.slice(0, 32), // Use tx signature as external reference
@@ -95,7 +140,7 @@ export async function POST(request: NextRequest) {
         last_name: lastName,
         email: shippingAddress.email,
         phone: '', // Optional
-        country: shippingAddress.country,
+        country: countryCode,
         region: shippingAddress.state || '',
         address1: shippingAddress.address,
         address2: '',
@@ -108,7 +153,7 @@ export async function POST(request: NextRequest) {
       productId,
       variantId,
       txSignature: txSignature.slice(0, 16) + '...',
-      shipping: `${shippingAddress.city}, ${shippingAddress.country}`,
+      shipping: `${shippingAddress.city}, ${countryCode} (from: ${shippingAddress.country})`,
     });
 
     // Create order on Printify
