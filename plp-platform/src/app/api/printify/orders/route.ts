@@ -85,6 +85,20 @@ interface CreateOrderRequest {
 }
 
 export async function POST(request: NextRequest) {
+  // Only allow order creation on mainnet
+  const network = process.env.NEXT_PUBLIC_SOLANA_NETWORK;
+  if (network !== 'mainnet-beta') {
+    console.log('Printify order blocked: not on mainnet', { network });
+    return NextResponse.json(
+      {
+        success: false,
+        error: 'Orders can only be placed on mainnet. This is a test environment.',
+        isTestMode: true
+      },
+      { status: 403 }
+    );
+  }
+
   const apiToken = process.env.PRINTIFY_API_TOKEN;
   const shopId = process.env.PRINTIFY_SHOP_ID;
 

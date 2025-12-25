@@ -399,6 +399,14 @@ export default function MerchPage() {
             message: `Your order has been placed successfully. Order ID: ${orderResult.data.orderId}`,
             details: [`Shipping to: ${shippingAddress.city}, ${shippingAddress.country}`],
           });
+        } else if (orderResult.isTestMode) {
+          // Test mode - payment went through but no real order created
+          console.log('Test mode: Printify order skipped');
+          showToast({
+            type: 'success',
+            title: 'Test Payment Successful!',
+            message: 'Payment confirmed on devnet. No real order created (test mode).',
+          });
         } else {
           // Log error but don't fail - payment was successful
           console.error('Failed to create Printify order:', orderResult.error);
