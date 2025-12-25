@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
+import Link from 'next/link';
 import { MoreHorizontal, Pin, Trash2, Star, Reply, CornerDownRight } from 'lucide-react';
 
 interface Message {
@@ -107,9 +108,12 @@ export default function MessageItem({
       {/* Header */}
       <div className="flex items-center justify-between gap-2 mb-1">
         <div className="flex items-center gap-2 min-w-0">
-          <span className="text-xs font-medium text-gray-300 truncate">
+          <Link
+            href={`/profile/${message.walletAddress}`}
+            className="text-xs font-medium text-gray-300 truncate hover:text-cyan-400 transition-colors"
+          >
             {message.displayName}
-          </span>
+          </Link>
           {getPositionBadge()}
         </div>
         <div className="flex items-center gap-1 flex-shrink-0">
