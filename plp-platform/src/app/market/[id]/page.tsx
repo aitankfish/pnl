@@ -6,7 +6,7 @@ import { useParams, useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { CheckCircle, XCircle, Loader2, ArrowLeft, ExternalLink, Users, Target, MapPin, Briefcase, Globe, Github, Twitter, MessageCircle, Send, Share2, Heart, FileText, Copy, Check, Sparkles, X } from 'lucide-react';
+import { CheckCircle, XCircle, Loader2, ArrowLeft, ExternalLink, Users, Target, MapPin, Briefcase, Globe, Github, MessageCircle, Share2, Heart, FileText, Copy, Check, Sparkles, X } from 'lucide-react';
 import Link from 'next/link';
 import { FEES, SOLANA_NETWORK } from '@/config/solana';
 import { useVoting } from '@/lib/hooks/useVoting';
@@ -1258,30 +1258,6 @@ export default function MarketDetailsPage() {
                             <span className="text-white text-xs sm:text-sm font-medium hidden sm:inline">Website</span>
                           </a>
                         )}
-                        {market.metadata.socialLinks.twitter && (
-                          <a
-                            href={market.metadata.socialLinks.twitter}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="flex items-center gap-0.5 sm:gap-1 px-2 sm:px-3 py-1 sm:py-1.5 bg-gradient-to-r from-sky-500/20 to-blue-500/20 hover:from-sky-500/30 hover:to-blue-500/30 border border-sky-400/30 rounded-lg transition-all hover:scale-105"
-                            title="Twitter"
-                          >
-                            <Twitter className="w-3 h-3 sm:w-4 sm:h-4 text-sky-400" />
-                            <span className="text-white text-xs sm:text-sm font-medium hidden sm:inline">Twitter</span>
-                          </a>
-                        )}
-                        {market.metadata.socialLinks.discord && (
-                          <a
-                            href={market.metadata.socialLinks.discord}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="flex items-center gap-0.5 sm:gap-1 px-2 sm:px-3 py-1 sm:py-1.5 bg-gradient-to-r from-indigo-500/20 to-purple-500/20 hover:from-indigo-500/30 hover:to-purple-500/30 border border-indigo-400/30 rounded-lg transition-all hover:scale-105"
-                            title="Discord"
-                          >
-                            <MessageCircle className="w-3 h-3 sm:w-4 sm:h-4 text-indigo-400" />
-                            <span className="text-white text-xs sm:text-sm font-medium hidden sm:inline">Discord</span>
-                          </a>
-                        )}
                         {market.metadata.socialLinks.github && (
                           <a
                             href={market.metadata.socialLinks.github}
@@ -1292,30 +1268,6 @@ export default function MarketDetailsPage() {
                           >
                             <Github className="w-3 h-3 sm:w-4 sm:h-4 text-gray-300" />
                             <span className="text-white text-xs sm:text-sm font-medium hidden sm:inline">GitHub</span>
-                          </a>
-                        )}
-                        {market.metadata.socialLinks.telegram && (
-                          <a
-                            href={market.metadata.socialLinks.telegram}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="flex items-center gap-0.5 sm:gap-1 px-2 sm:px-3 py-1 sm:py-1.5 bg-gradient-to-r from-blue-400/20 to-cyan-400/20 hover:from-blue-400/30 hover:to-cyan-400/30 border border-blue-300/30 rounded-lg transition-all hover:scale-105"
-                            title="Telegram"
-                          >
-                            <Send className="w-3 h-3 sm:w-4 sm:h-4 text-blue-400" />
-                            <span className="text-white text-xs sm:text-sm font-medium hidden sm:inline">Telegram</span>
-                          </a>
-                        )}
-                        {market.metadata.socialLinks.linkedin && (
-                          <a
-                            href={market.metadata.socialLinks.linkedin}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="flex items-center gap-0.5 sm:gap-1 px-2 sm:px-3 py-1 sm:py-1.5 bg-gradient-to-r from-blue-600/20 to-blue-700/20 hover:from-blue-600/30 hover:to-blue-700/30 border border-blue-500/30 rounded-lg transition-all hover:scale-105"
-                            title="LinkedIn"
-                          >
-                            <Globe className="w-3 h-3 sm:w-4 sm:h-4 text-blue-500" />
-                            <span className="text-white text-xs sm:text-sm font-medium hidden sm:inline">LinkedIn</span>
                           </a>
                         )}
                       </>
@@ -2782,6 +2734,12 @@ export default function MarketDetailsPage() {
             walletAddress={primaryWallet?.address}
             founderWallet={market.founderWallet}
             hasPosition={positionData?.data?.hasPosition}
+            socialLinks={{
+              twitter: market.metadata?.socialLinks?.twitter,
+              discord: market.metadata?.socialLinks?.discord,
+              telegram: market.metadata?.socialLinks?.telegram,
+              linkedin: market.metadata?.socialLinks?.linkedin,
+            }}
             className="h-[calc(100vh-7.5rem)]"
           />
         </div>
@@ -2824,6 +2782,12 @@ export default function MarketDetailsPage() {
                 walletAddress={primaryWallet?.address}
                 founderWallet={market.founderWallet}
                 hasPosition={positionData?.data?.hasPosition}
+                socialLinks={{
+                  twitter: market.metadata?.socialLinks?.twitter,
+                  discord: market.metadata?.socialLinks?.discord,
+                  telegram: market.metadata?.socialLinks?.telegram,
+                  linkedin: market.metadata?.socialLinks?.linkedin,
+                }}
                 className="h-full rounded-none border-0"
               />
             </div>
