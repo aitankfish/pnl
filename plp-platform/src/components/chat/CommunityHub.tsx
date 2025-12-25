@@ -1,8 +1,9 @@
 'use client';
 
 import React, { useState } from 'react';
-import { MessageSquare, Mic, Users, Send } from 'lucide-react';
+import { MessageSquare, Mic, Send } from 'lucide-react';
 import ChatRoom from './ChatRoom';
+import VoiceRoom from '../voice/VoiceRoom';
 
 // Custom Discord icon component
 const DiscordIcon = ({ className }: { className?: string }) => (
@@ -55,7 +56,7 @@ export default function CommunityHub({
 
   const tabs = [
     { id: 'chat' as TabType, label: 'Chat', icon: MessageSquare },
-    { id: 'voice' as TabType, label: 'Voice', icon: Mic, disabled: true, soon: true },
+    { id: 'voice' as TabType, label: 'Voice', icon: Mic },
   ];
 
   const hasSocialLinks = socialLinks && (socialLinks.twitter || socialLinks.discord || socialLinks.telegram || socialLinks.linkedin);
@@ -156,21 +157,12 @@ export default function CommunityHub({
         )}
 
         {activeTab === 'voice' && (
-          <div className="flex flex-col items-center justify-center h-full text-center p-6 space-y-4">
-            <div className="w-16 h-16 rounded-full bg-gradient-to-br from-purple-500/20 to-pink-500/20 flex items-center justify-center">
-              <Mic className="w-8 h-8 text-purple-400" />
-            </div>
-            <div>
-              <h3 className="text-lg font-medium text-white mb-1">Voice Rooms</h3>
-              <p className="text-sm text-gray-400 max-w-xs">
-                Coming soon! Host live discussions, AMAs, and debates with the community.
-              </p>
-            </div>
-            <div className="flex items-center gap-1.5 px-3 py-1.5 bg-purple-500/10 rounded-full">
-              <Users className="w-3.5 h-3.5 text-purple-400" />
-              <span className="text-xs text-purple-300">Beta access coming Q1 2025</span>
-            </div>
-          </div>
+          <VoiceRoom
+            marketAddress={marketAddress}
+            walletAddress={walletAddress}
+            founderWallet={founderWallet}
+            hasPosition={hasPosition}
+          />
         )}
       </div>
     </div>
