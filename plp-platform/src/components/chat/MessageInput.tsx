@@ -92,7 +92,7 @@ export default function MessageInput({
   };
 
   return (
-    <div className="px-3 py-2 border-t border-gray-700/50">
+    <div className="px-3 py-2 border-t border-gray-700/30 bg-gray-900/30">
       {/* Error message */}
       {error && (
         <div className="mb-2 px-2 py-1 text-xs text-red-400 bg-red-500/10 rounded">
@@ -149,7 +149,7 @@ export default function MessageInput({
             }
             disabled={disabled || isSending || (!hasPosition && !isFounder)}
             rows={1}
-            className="w-full px-3 py-2 text-sm bg-gray-800/50 border border-gray-700/50 rounded-lg text-gray-200 placeholder-gray-500 resize-none focus:outline-none focus:border-cyan-500/50 focus:ring-1 focus:ring-cyan-500/20 disabled:opacity-50 disabled:cursor-not-allowed"
+            className="w-full px-3 py-2 text-sm bg-gray-800/30 border border-gray-700/30 rounded-lg text-gray-200 placeholder-gray-500 resize-none focus:outline-none focus:border-cyan-500/50 focus:ring-1 focus:ring-cyan-500/20 disabled:opacity-50 disabled:cursor-not-allowed"
             style={{ maxHeight: '100px' }}
           />
           {/* Character count */}

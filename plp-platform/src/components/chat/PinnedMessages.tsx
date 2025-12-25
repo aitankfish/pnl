@@ -31,7 +31,7 @@ export default function PinnedMessages({
   const displayMessage = expanded ? messages : [messages[0]];
 
   return (
-    <div className="border-b border-gray-700/50 bg-yellow-500/5">
+    <div className="border-b border-gray-700/30 bg-yellow-500/10 backdrop-blur-sm">
       {displayMessage.map((msg, index) => (
         <div
           key={msg._id}

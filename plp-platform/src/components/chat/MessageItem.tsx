@@ -101,7 +101,7 @@ export default function MessageItem({
       className={`group relative p-2 rounded-lg transition-all ${
         isOwn
           ? 'bg-cyan-500/10 border border-cyan-500/20'
-          : 'bg-gray-800/30 border border-gray-700/30 hover:border-gray-600/50'
+          : 'bg-gray-800/20 border border-gray-700/20 hover:border-gray-600/40 hover:bg-gray-800/30'
       }`}
     >
       {/* Header */}
@@ -161,7 +161,7 @@ export default function MessageItem({
 
       {/* Reply preview - show if this message is a reply */}
       {message.replyTo && (
-        <div className="mb-1.5 pl-2 border-l-2 border-gray-600/50 bg-gray-800/30 rounded-r py-1 px-2">
+        <div className="mb-1.5 pl-2 border-l-2 border-gray-600/40 bg-gray-800/20 rounded-r py-1 px-2">
           <div className="flex items-center gap-1 text-[10px] text-gray-500">
             <CornerDownRight className="w-2.5 h-2.5" />
             <span>Replying to <span className="text-gray-400">{message.replyTo.displayName}</span></span>

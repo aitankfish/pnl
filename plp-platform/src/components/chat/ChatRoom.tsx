@@ -53,7 +53,7 @@ export default function ChatRoom({ marketAddress, walletAddress, founderWallet, 
 
   if (error && !messages.length) {
     return (
-      <div className={`flex flex-col h-full bg-gradient-to-br from-gray-900/50 to-gray-800/30 backdrop-blur-sm rounded-lg border border-gray-700/50 ${className}`}>
+      <div className={`flex flex-col h-full bg-transparent ${className}`}>
         <div className="flex-1 flex items-center justify-center">
           <div className="text-center space-y-2 p-4">
             <div className="text-3xl">😕</div>
@@ -66,9 +66,9 @@ export default function ChatRoom({ marketAddress, walletAddress, founderWallet, 
   }
 
   return (
-    <div className={`flex flex-col h-full bg-gradient-to-br from-gray-900/50 to-gray-800/30 backdrop-blur-sm rounded-lg border border-gray-700/50 ${className}`}>
+    <div className={`flex flex-col h-full bg-transparent ${className}`}>
       {/* Header */}
-      <div className="flex items-center justify-between px-3 py-2 border-b border-gray-700/50">
+      <div className="flex items-center justify-between px-3 py-2 border-b border-gray-700/30 bg-gray-900/30">
         <div className="flex items-center gap-2">
           <span className="text-sm font-medium text-white">Chat</span>
           <div className="flex items-center gap-1 text-xs text-gray-400">

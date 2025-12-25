@@ -29,9 +29,9 @@ export default function CommunityHub({
   ];
 
   return (
-    <div className={`flex flex-col bg-gradient-to-br from-gray-900/50 to-gray-800/30 backdrop-blur-sm rounded-lg border border-gray-700/50 overflow-hidden ${className || 'h-[500px] sm:h-[600px]'}`}>
+    <div className={`flex flex-col bg-gray-900/20 backdrop-blur-[2px] rounded-lg border border-gray-700/30 overflow-hidden ${className || 'h-[500px] sm:h-[600px]'}`}>
       {/* Tab Header */}
-      <div className="flex border-b border-gray-700/50">
+      <div className="flex border-b border-gray-700/30 bg-gray-900/30">
         {tabs.map((tab) => {
           const Icon = tab.icon;
           return (
