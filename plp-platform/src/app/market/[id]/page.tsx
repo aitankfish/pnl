@@ -49,6 +49,11 @@ const CommunityHub = dynamic(() => import('@/components/chat/CommunityHub'), {
   ssr: false,
 });
 
+const VideoEmbed = dynamic(() => import('@/components/VideoEmbed'), {
+  loading: () => <div className="h-64 bg-white/5 animate-pulse rounded-lg" />,
+  ssr: false,
+});
+
 interface MarketDetails {
   id: string;
   marketAddress: string;
@@ -89,6 +94,7 @@ interface MarketDetails {
       telegram?: string;
       linkedin?: string;
     };
+    videoUrl?: string;
     additionalNotes?: string;
     documents?: string[];
   };
@@ -1276,6 +1282,11 @@ export default function MarketDetailsPage() {
             </div>
           </CardHeader>
         </Card>
+
+        {/* Project Video - Show if video URL is available */}
+        {market.metadata?.videoUrl && (
+          <VideoEmbed url={market.metadata.videoUrl} />
+        )}
 
         {/* Grok Analysis and Trading - Side by Side */}
         <div className="grid gap-4 md:grid-cols-2">

@@ -122,6 +122,7 @@ export async function POST(request: NextRequest) {
           telegram: body.socialLinks?.telegram || undefined,
           discord: body.socialLinks?.discord || undefined,
         },
+        videoUrl: body.videoUrl || undefined,
         additionalNotes: body.additionalNotes || undefined,
         image: imageUri,
         createdAt: new Date().toISOString(),

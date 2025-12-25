@@ -27,6 +27,7 @@ export interface ProjectMetadata {
     telegram?: string;
     discord?: string;
   };
+  videoUrl?: string; // YouTube or X/Twitter video URL
   additionalNotes?: string;
   image?: string;
   documents?: string[];

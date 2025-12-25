@@ -42,6 +42,7 @@ interface ProjectFormData {
     telegram: string;
     discord: string;
   };
+  videoUrl: string;
   additionalNotes: string;
 }
 
@@ -64,6 +65,7 @@ const initialFormData: ProjectFormData = {
     telegram: '',
     discord: '',
   },
+  videoUrl: '',
   additionalNotes: '',
 };
 
@@ -230,6 +232,7 @@ export default function CreatePage() {
           telegram: formData.socialLinks.telegram || undefined,
           discord: formData.socialLinks.discord || undefined,
         },
+        videoUrl: formData.videoUrl || undefined,
         additionalNotes: formData.additionalNotes || undefined,
         image: imageUri,
         documents: documentUri ? [documentUri] : undefined,
@@ -960,6 +963,40 @@ export default function CreatePage() {
               </CardContent>
             </Card>
 
+            {/* Project Video (Optional) */}
+            <Card className="bg-gradient-to-br from-white/10 to-white/5 backdrop-blur-xl border-white/20 text-white hover:border-red-500/30 transition-colors">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-3">
+                  <div className="p-2 bg-red-500/20 rounded-lg">
+                    <svg className="w-5 h-5 text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z" />
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                  </div>
+                  Project Video
+                </CardTitle>
+                <CardDescription className="text-white/70 ml-12">
+                  Add a YouTube or X (Twitter) video to showcase your project (optional)
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-2">
+                  <Label htmlFor="videoUrl" className="text-white/80">Video URL</Label>
+                  <Input
+                    id="videoUrl"
+                    type="url"
+                    placeholder="https://youtube.com/watch?v=... or https://x.com/user/status/..."
+                    value={formData.videoUrl}
+                    onChange={(e) => handleInputChange('videoUrl', e.target.value)}
+                    className="bg-white/10 border-white/20 text-white placeholder:text-white/50 focus:ring-2 focus:ring-red-500/50 transition-all"
+                  />
+                  <p className="text-xs text-white/60">
+                    Supports YouTube videos and X (Twitter) posts with videos
+                  </p>
+                </div>
+              </CardContent>
+            </Card>
+
             {/* What This Project Has to Offer */}
             <Card className="bg-gradient-to-br from-white/10 to-white/5 backdrop-blur-xl border-white/20 text-white hover:border-emerald-500/30 transition-colors">
               <CardHeader>
@@ -1126,6 +1163,7 @@ export default function CreatePage() {
                     apiFormData.append('tokenSymbol', formData.tokenSymbol);
                     apiFormData.append('marketDuration', formData.marketDuration);
                     apiFormData.append('socialLinks', JSON.stringify(formData.socialLinks));
+                    apiFormData.append('videoUrl', formData.videoUrl || '');
                     apiFormData.append('additionalNotes', formData.additionalNotes || '');
                     apiFormData.append('creatorWalletAddress', primaryWallet.address);
                     
