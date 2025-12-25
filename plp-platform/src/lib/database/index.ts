@@ -181,5 +181,7 @@ export const getPredictionMarketsCollection = () => databaseManager.getDb().coll
 export const getPredictionParticipantsCollection = () => databaseManager.getDb().collection(COLLECTIONS.PREDICTION_PARTICIPANTS);
 export const getUserProfilesCollection = () => databaseManager.getDb().collection(COLLECTIONS.USER_PROFILES);
 export const getTransactionHistoryCollection = () => databaseManager.getDb().collection(COLLECTIONS.TRANSACTION_HISTORY);
+export const getChatMessagesCollection = () => databaseManager.getDb().collection(COLLECTIONS.CHAT_MESSAGES);
+export const getMessageReactionsCollection = () => databaseManager.getDb().collection(COLLECTIONS.MESSAGE_REACTIONS);
 
 export default databaseManager;

@@ -620,6 +620,100 @@ const UserFollowSchema = new mongoose.Schema({
 // Compound index for efficient follow lookups
 UserFollowSchema.index({ followerWallet: 1, followingWallet: 1 }, { unique: true });
 
+// ========================================
+// Chat System Schemas
+// ========================================
+
+// Chat Message Schema
+const ChatMessageSchema = new mongoose.Schema({
+  marketAddress: {
+    type: String,
+    required: true,
+    index: true,
+  },
+  walletAddress: {
+    type: String,
+    required: true,
+    index: true,
+  },
+  displayName: {
+    type: String,
+    default: '',
+  },
+  message: {
+    type: String,
+    required: true,
+    maxlength: 500,
+  },
+  position: {
+    type: String,
+    enum: ['YES', 'NO', 'NONE'],
+    default: 'NONE',
+  },
+  positionSize: {
+    type: Number,
+    default: 0,
+  },
+  isFounder: {
+    type: Boolean,
+    default: false,
+  },
+  isPinned: {
+    type: Boolean,
+    default: false,
+    index: true,
+  },
+  replyTo: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'ChatMessage',
+    default: null,
+  },
+  editedAt: {
+    type: Date,
+    default: null,
+  },
+  deletedAt: {
+    type: Date,
+    default: null,
+  },
+  createdAt: {
+    type: Date,
+    default: Date.now,
+    index: true,
+  },
+});
+
+// Compound indexes for chat messages
+ChatMessageSchema.index({ marketAddress: 1, createdAt: -1 }); // Fetch messages by market
+ChatMessageSchema.index({ marketAddress: 1, isPinned: 1 }); // Fetch pinned messages
+ChatMessageSchema.index({ createdAt: 1 }, { expireAfterSeconds: 30 * 24 * 60 * 60 }); // TTL: 30 days
+
+// Message Reaction Schema
+const MessageReactionSchema = new mongoose.Schema({
+  messageId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'ChatMessage',
+    required: true,
+    index: true,
+  },
+  walletAddress: {
+    type: String,
+    required: true,
+  },
+  emoji: {
+    type: String,
+    required: true,
+    maxlength: 4, // Single emoji
+  },
+  createdAt: {
+    type: Date,
+    default: Date.now,
+  },
+});
+
+// Compound index to ensure one reaction per user per message per emoji
+MessageReactionSchema.index({ messageId: 1, walletAddress: 1, emoji: 1 }, { unique: true });
+
 // Export models - Force recreation to pick up schema changes
 if (mongoose.models.Project) {
   delete mongoose.models.Project;
@@ -639,6 +733,12 @@ if (mongoose.models.UserProfile) {
 if (mongoose.models.UserFollow) {
   delete mongoose.models.UserFollow;
 }
+if (mongoose.models.ChatMessage) {
+  delete mongoose.models.ChatMessage;
+}
+if (mongoose.models.MessageReaction) {
+  delete mongoose.models.MessageReaction;
+}
 
 export const Project = mongoose.model('Project', ProjectSchema);
 export const PredictionMarket = mongoose.model('PredictionMarket', PredictionMarketSchema);
@@ -646,6 +746,8 @@ export const PredictionParticipant = mongoose.model('PredictionParticipant', Pre
 export const Notification = mongoose.model('Notification', NotificationSchema);
 export const UserProfile = mongoose.model('UserProfile', UserProfileSchema, 'user_profiles');
 export const UserFollow = mongoose.model('UserFollow', UserFollowSchema, 'user_follows');
+export const ChatMessage = mongoose.model('ChatMessage', ChatMessageSchema, 'chat_messages');
+export const MessageReaction = mongoose.model('MessageReaction', MessageReactionSchema, 'message_reactions');
 
 // Type definitions
 export interface IProject {
@@ -702,5 +804,30 @@ export interface IPredictionParticipant {
   tokensAirdropped: number;
   solRewarded: number;
   claimed: boolean;
+  createdAt: Date;
+}
+
+// Chat System Types
+export interface IChatMessage {
+  _id: string;
+  marketAddress: string;
+  walletAddress: string;
+  displayName: string;
+  message: string;
+  position: 'YES' | 'NO' | 'NONE';
+  positionSize: number;
+  isFounder: boolean;
+  isPinned: boolean;
+  replyTo: string | null;
+  editedAt: Date | null;
+  deletedAt: Date | null;
+  createdAt: Date;
+}
+
+export interface IMessageReaction {
+  _id: string;
+  messageId: string;
+  walletAddress: string;
+  emoji: string;
   createdAt: Date;
 }

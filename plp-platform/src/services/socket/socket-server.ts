@@ -6,6 +6,7 @@
 import { Server as SocketIOServer } from 'socket.io';
 import { Server as HTTPServer } from 'http';
 import { createClientLogger } from '@/lib/logger';
+import { getRedisSubClient, REDIS_CHANNELS } from '@/lib/redis/client';
 
 const logger = createClientLogger();
 
@@ -76,9 +77,57 @@ export class SocketServer {
     });
 
     this.setupEventHandlers();
+    this.setupRedisSubscription();
 
     console.log('✅ Socket.IO server initialized on path /api/socket/io');
     logger.info('✅ Socket.IO server initialized');
+  }
+
+  /**
+   * Setup Redis subscription for cross-process communication
+   * This allows API routes to publish messages that get broadcast via Socket.IO
+   */
+  private setupRedisSubscription(): void {
+    try {
+      console.log('🔄 Setting up Redis subscription for chat...');
+      const sub = getRedisSubClient();
+
+      // Subscribe to chat channels
+      sub.subscribe(REDIS_CHANNELS.CHAT_MESSAGE, (err: Error | null) => {
+        if (err) {
+          console.error('❌ Failed to subscribe to chat:message channel:', err.message);
+          logger.error('Failed to subscribe to chat:message channel:', { error: err.message });
+        } else {
+          console.log('📡 Subscribed to Redis chat:message channel');
+          logger.info('📡 Subscribed to Redis chat:message channel');
+        }
+      });
+
+      // Handle incoming messages from Redis
+      sub.on('message', (channel: string, message: string) => {
+        try {
+          console.log(`📨 Redis message received on channel: ${channel}`);
+          const data = JSON.parse(message);
+
+          if (channel === REDIS_CHANNELS.CHAT_MESSAGE) {
+            // Broadcast chat message via Socket.IO
+            console.log(`💬 Broadcasting chat message for market: ${data.marketAddress?.slice(0, 8)}...`);
+            this.broadcastChatMessage(data.marketAddress, data.message);
+          }
+        } catch (error) {
+          console.error('Failed to process Redis message:', error);
+          logger.error('Failed to process Redis message:', { error, channel });
+        }
+      });
+
+      console.log('✅ Redis subscription setup complete');
+      logger.info('✅ Redis subscription setup complete');
+    } catch (error) {
+      console.warn('⚠️ Redis subscription not available:', error instanceof Error ? error.message : String(error));
+      logger.warn('⚠️ Redis subscription not available (chat will work via direct broadcast):', {
+        error: error instanceof Error ? error.message : String(error)
+      });
+    }
   }
 
   /**
@@ -126,6 +175,44 @@ export class SocketServer {
 
       socket.on('broadcast:notification', (payload: { userWallet: string; notification: any; timestamp: number }) => {
         this.broadcastNotification(payload.userWallet, payload.notification);
+      });
+
+      // ========================================
+      // Chat Events
+      // ========================================
+
+      // Handle chat room joins
+      socket.on('chat:join', (payload: { marketAddress: string; walletAddress?: string }) => {
+        const roomName = `chat:${payload.marketAddress}`;
+        logger.debug(`💬 Client joining chat room: ${payload.marketAddress.slice(0, 8)}...`);
+        socket.join(roomName);
+
+        // Notify others in the room about user count
+        const roomSize = this.getRoomSize(roomName);
+        this.io?.to(roomName).emit('chat:user_count', { count: roomSize, marketAddress: payload.marketAddress });
+
+        socket.emit('chat:joined', { marketAddress: payload.marketAddress, userCount: roomSize });
+      });
+
+      // Handle chat room leaves
+      socket.on('chat:leave', (payload: { marketAddress: string }) => {
+        const roomName = `chat:${payload.marketAddress}`;
+        socket.leave(roomName);
+
+        // Notify others about updated user count
+        const roomSize = this.getRoomSize(roomName);
+        this.io?.to(roomName).emit('chat:user_count', { count: roomSize, marketAddress: payload.marketAddress });
+      });
+
+      // Handle typing indicator
+      socket.on('chat:typing', (payload: { marketAddress: string; walletAddress: string; displayName?: string }) => {
+        const roomName = `chat:${payload.marketAddress}`;
+        // Broadcast to all other users in the room (except sender)
+        socket.to(roomName).emit('chat:typing', {
+          walletAddress: payload.walletAddress,
+          displayName: payload.displayName,
+          marketAddress: payload.marketAddress,
+        });
       });
 
       // Handle disconnection
@@ -248,6 +335,63 @@ export class SocketServer {
     });
   }
 
+  // ========================================
+  // Chat Broadcast Methods
+  // ========================================
+
+  /**
+   * Broadcast new chat message to market chat room
+   */
+  broadcastChatMessage(marketAddress: string, message: any): void {
+    if (!this.io) return;
+
+    logger.debug(`💬 Broadcasting chat message in ${marketAddress.slice(0, 8)}...`);
+
+    this.io.to(`chat:${marketAddress}`).emit('chat:message', {
+      message,
+      marketAddress,
+      timestamp: Date.now(),
+    });
+  }
+
+  /**
+   * Broadcast message reaction update
+   */
+  broadcastChatReaction(marketAddress: string, messageId: string, reactions: any): void {
+    if (!this.io) return;
+
+    this.io.to(`chat:${marketAddress}`).emit('chat:reaction', {
+      messageId,
+      reactions,
+      timestamp: Date.now(),
+    });
+  }
+
+  /**
+   * Broadcast message deleted
+   */
+  broadcastChatDeleted(marketAddress: string, messageId: string): void {
+    if (!this.io) return;
+
+    this.io.to(`chat:${marketAddress}`).emit('chat:deleted', {
+      messageId,
+      timestamp: Date.now(),
+    });
+  }
+
+  /**
+   * Broadcast message pinned/unpinned
+   */
+  broadcastChatPinned(marketAddress: string, messageId: string, isPinned: boolean): void {
+    if (!this.io) return;
+
+    this.io.to(`chat:${marketAddress}`).emit('chat:pinned', {
+      messageId,
+      isPinned,
+      timestamp: Date.now(),
+    });
+  }
+
   /**
    * Get connection count
    */
@@ -329,4 +473,25 @@ export function broadcastPositionUpdate(
 export function broadcastNotification(walletAddress: string, notification: any): void {
   const server = getSocketServer();
   server.broadcastNotification(walletAddress, notification);
+}
+
+// Chat broadcast helpers
+export function broadcastChatMessage(marketAddress: string, message: any): void {
+  const server = getSocketServer();
+  server.broadcastChatMessage(marketAddress, message);
+}
+
+export function broadcastChatReaction(marketAddress: string, messageId: string, reactions: any): void {
+  const server = getSocketServer();
+  server.broadcastChatReaction(marketAddress, messageId, reactions);
+}
+
+export function broadcastChatDeleted(marketAddress: string, messageId: string): void {
+  const server = getSocketServer();
+  server.broadcastChatDeleted(marketAddress, messageId);
+}
+
+export function broadcastChatPinned(marketAddress: string, messageId: string, isPinned: boolean): void {
+  const server = getSocketServer();
+  server.broadcastChatPinned(marketAddress, messageId, isPinned);
 }

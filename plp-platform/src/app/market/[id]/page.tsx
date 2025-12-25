@@ -6,7 +6,7 @@ import { useParams, useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { CheckCircle, XCircle, Loader2, ArrowLeft, ExternalLink, Users, Target, MapPin, Briefcase, Globe, Github, Twitter, MessageCircle, Send, Share2, Heart, FileText, Copy, Check, Sparkles } from 'lucide-react';
+import { CheckCircle, XCircle, Loader2, ArrowLeft, ExternalLink, Users, Target, MapPin, Briefcase, Globe, Github, Twitter, MessageCircle, Send, Share2, Heart, FileText, Copy, Check, Sparkles, X } from 'lucide-react';
 import Link from 'next/link';
 import { FEES, SOLANA_NETWORK } from '@/config/solana';
 import { useVoting } from '@/lib/hooks/useVoting';
@@ -41,6 +41,11 @@ const MarketHolders = dynamic(() => import('@/components/MarketHolders'), {
 
 const GrokRoast = dynamic(() => import('@/components/GrokRoast'), {
   loading: () => <div className="h-64 bg-white/5 animate-pulse rounded-lg" />,
+  ssr: false,
+});
+
+const CommunityHub = dynamic(() => import('@/components/chat/CommunityHub'), {
+  loading: () => <div className="h-[500px] sm:h-[600px] bg-white/5 animate-pulse rounded-lg" />,
   ssr: false,
 });
 
@@ -271,6 +276,9 @@ export default function MarketDetailsPage() {
   // Swipe gesture state for mobile navigation
   const [touchStart, setTouchStart] = useState<number | null>(null);
   const [touchEnd, setTouchEnd] = useState<number | null>(null);
+
+  // Community Hub sidebar state (mobile)
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
 
   // Minimum swipe distance (in px) to trigger navigation
   const minSwipeDistance = 50;
@@ -1076,22 +1084,16 @@ export default function MarketDetailsPage() {
 
   return (
     <div
-      className="pt-0.5 px-3 pb-3 sm:p-4 max-w-6xl mx-auto space-y-3 sm:space-y-4"
+      className="pt-0.5 px-3 pb-3 sm:p-4 max-w-[1600px] mx-auto"
       onTouchStart={onTouchStart}
       onTouchMove={onTouchMove}
       onTouchEnd={onTouchEnd}
     >
-        {/* Back Button - Hidden on mobile */}
-        <Button
-          variant="ghost"
-          onClick={() => router.push('/browse')}
-          className="hidden sm:flex text-white hover:bg-white/10 text-sm sm:text-base"
-        >
-          <ArrowLeft className="w-3 h-3 sm:w-4 sm:h-4 mr-1 sm:mr-2" />
-          Back to Markets
-        </Button>
-
-        {/* Combined Header & Voting Stats Section */}
+      {/* Main Layout: Content + Sidebar */}
+      <div className="flex flex-col lg:flex-row gap-4">
+        {/* Left Content Area (70% on desktop) */}
+        <div className="flex-1 lg:w-[70%] space-y-3 sm:space-y-4">
+          {/* Combined Header & Voting Stats Section */}
         <Card className="bg-white/5 backdrop-blur-xl border-white/10">
           <CardHeader className="pb-3 sm:pb-4">
             <div className="flex flex-col gap-3">
@@ -2732,7 +2734,7 @@ export default function MarketDetailsPage() {
           </Card>
         )}
 
-        {/* Market Holders and Live Activity Feed - Only show for resolved markets to prevent bandwagon voting */}
+        {/* Market Holders and Activity - Only show for resolved markets */}
         {mergedOnchainData?.data?.resolution !== 'Unresolved' ? (
           <div className="grid gap-3 sm:gap-4 md:grid-cols-2">
             <LiveActivityFeed
@@ -2764,6 +2766,70 @@ export default function MarketDetailsPage() {
             </CardContent>
           </Card>
         )}
+
+        </div>
+        {/* End Left Content Area */}
+
+        {/* Right Sidebar - Community Hub (Desktop) - Fixed position floats in place while scrolling */}
+        <div className="hidden lg:block lg:w-[30%] lg:min-w-[320px] lg:max-w-[400px]">
+          {/* Placeholder to maintain layout spacing */}
+        </div>
+
+        {/* Fixed sidebar that stays in place */}
+        <div className="hidden lg:block fixed top-[6.5rem] right-4 w-[28%] min-w-[320px] max-w-[400px] z-30">
+          <CommunityHub
+            marketAddress={market.marketAddress}
+            walletAddress={primaryWallet?.address}
+            founderWallet={market.founderWallet}
+            hasPosition={positionData?.data?.hasPosition}
+            className="h-[calc(100vh-7.5rem)]"
+          />
+        </div>
+
+      </div>
+      {/* End Main Layout */}
+
+      {/* Mobile Chat Button */}
+      <button
+        onClick={() => setIsSidebarOpen(true)}
+        className="lg:hidden fixed bottom-6 right-6 z-40 p-4 bg-gradient-to-r from-cyan-500 to-blue-500 rounded-full shadow-lg shadow-cyan-500/25 hover:shadow-cyan-500/40 transition-all hover:scale-105"
+      >
+        <MessageCircle className="w-6 h-6 text-white" />
+      </button>
+
+      {/* Mobile Sidebar Overlay */}
+      {isSidebarOpen && (
+        <div className="lg:hidden fixed inset-0 z-50">
+          {/* Backdrop */}
+          <div
+            className="absolute inset-0 bg-black/60 backdrop-blur-sm"
+            onClick={() => setIsSidebarOpen(false)}
+          />
+          {/* Sidebar Panel */}
+          <div className="absolute right-0 top-0 bottom-0 w-full max-w-md bg-gray-900 border-l border-gray-700/50 shadow-2xl animate-in slide-in-from-right duration-300">
+            {/* Header */}
+            <div className="flex items-center justify-between px-4 py-3 border-b border-gray-700/50">
+              <h2 className="text-lg font-semibold text-white">Community Hub</h2>
+              <button
+                onClick={() => setIsSidebarOpen(false)}
+                className="p-2 rounded-lg hover:bg-gray-800 transition-colors"
+              >
+                <X className="w-5 h-5 text-gray-400" />
+              </button>
+            </div>
+            {/* Content */}
+            <div className="h-[calc(100%-60px)]">
+              <CommunityHub
+                marketAddress={market.marketAddress}
+                walletAddress={primaryWallet?.address}
+                founderWallet={market.founderWallet}
+                hasPosition={positionData?.data?.hasPosition}
+                className="h-full rounded-none border-0"
+              />
+            </div>
+          </div>
+        </div>
+      )}
 
         {/* Error Dialog */}
         <ErrorDialog

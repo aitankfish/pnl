@@ -76,15 +76,91 @@ export async function disconnectRedis(): Promise<void> {
   }
 }
 
+// ========================================
+// Redis Pub/Sub for Cross-Process Communication
+// ========================================
+
+// Separate Redis client for pub/sub (ioredis recommends separate clients)
+let pubClient: Redis | null = null;
+let subClient: Redis | null = null;
+
+export function getRedisPubClient(): Redis {
+  if (!pubClient) {
+    const redisUrl = process.env.REDIS_URL;
+    if (!redisUrl) {
+      throw new Error('REDIS_URL environment variable is not set');
+    }
+    pubClient = new Redis(redisUrl, {
+      maxRetriesPerRequest: 3,
+      tls: { rejectUnauthorized: false },
+    });
+    pubClient.on('error', (err) => {
+      logger.error('Redis pub client error:', { message: err.message });
+    });
+  }
+  return pubClient;
+}
+
+export function getRedisSubClient(): Redis {
+  if (!subClient) {
+    const redisUrl = process.env.REDIS_URL;
+    if (!redisUrl) {
+      throw new Error('REDIS_URL environment variable is not set');
+    }
+    subClient = new Redis(redisUrl, {
+      maxRetriesPerRequest: 3,
+      tls: { rejectUnauthorized: false },
+    });
+    subClient.on('error', (err) => {
+      logger.error('Redis sub client error:', { message: err.message });
+    });
+  }
+  return subClient;
+}
+
+// Chat message channels
+export const REDIS_CHANNELS = {
+  CHAT_MESSAGE: 'chat:message',
+  CHAT_TYPING: 'chat:typing',
+  CHAT_DELETED: 'chat:deleted',
+  CHAT_PINNED: 'chat:pinned',
+};
+
+// Publish chat message via Redis
+export async function publishChatMessage(marketAddress: string, message: any): Promise<void> {
+  try {
+    const pub = getRedisPubClient();
+    await pub.publish(REDIS_CHANNELS.CHAT_MESSAGE, JSON.stringify({
+      marketAddress,
+      message,
+      timestamp: Date.now(),
+    }));
+  } catch (error) {
+    logger.error('Failed to publish chat message:', { error });
+  }
+}
+
 // Graceful shutdown
 if (typeof process !== 'undefined') {
-  process.on('SIGINT', async () => {
+  const cleanup = async () => {
     await disconnectRedis();
+    if (pubClient) {
+      await pubClient.quit();
+      pubClient = null;
+    }
+    if (subClient) {
+      await subClient.quit();
+      subClient = null;
+    }
+  };
+
+  process.on('SIGINT', async () => {
+    await cleanup();
     process.exit(0);
   });
 
   process.on('SIGTERM', async () => {
-    await disconnectRedis();
+    await cleanup();
     process.exit(0);
   });
 }

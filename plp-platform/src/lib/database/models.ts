@@ -134,6 +134,36 @@ export interface TradeHistory {
   createdAt: Date;
 }
 
+// ========================================
+// Chat System Models
+// ========================================
+
+// Chat Message Schema
+export interface ChatMessage {
+  _id?: ObjectId;
+  marketAddress: string;
+  walletAddress: string;
+  displayName: string;
+  message: string;
+  position: 'YES' | 'NO' | 'NONE';
+  positionSize: number;
+  isFounder: boolean;
+  isPinned: boolean;
+  replyTo?: ObjectId | null;
+  editedAt?: Date | null;
+  deletedAt?: Date | null;
+  createdAt: Date;
+}
+
+// Message Reaction Schema
+export interface MessageReaction {
+  _id?: ObjectId;
+  messageId: ObjectId;
+  walletAddress: string;
+  emoji: string;
+  createdAt: Date;
+}
+
 // Database Collection Names
 export const COLLECTIONS = {
   PROJECTS: 'projects',
@@ -143,6 +173,8 @@ export const COLLECTIONS = {
   USER_FOLLOWS: 'user_follows',
   TRANSACTION_HISTORY: 'transaction_history',
   TRADE_HISTORY: 'trade_history',
+  CHAT_MESSAGES: 'chat_messages',
+  MESSAGE_REACTIONS: 'message_reactions',
 } as const;
 
 // Index definitions for better performance
@@ -205,4 +237,15 @@ export const INDEXES = {
   ],
   // TRADE_HISTORY indexes removed - collection deprecated (data now from Helius)
   TRADE_HISTORY: [],
+  // Chat system indexes
+  CHAT_MESSAGES: [
+    { marketAddress: 1, createdAt: -1 }, // Fetch messages by market
+    { marketAddress: 1, isPinned: 1 }, // Fetch pinned messages
+    { walletAddress: 1 }, // Messages by user
+    // TTL index handled separately
+  ],
+  MESSAGE_REACTIONS: [
+    { messageId: 1, walletAddress: 1, emoji: 1 }, // Unique reaction per user per message
+    { messageId: 1 }, // Get all reactions for a message
+  ],
 } as const;
