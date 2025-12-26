@@ -1,7 +1,7 @@
 'use client';
 
-import React, { useState } from 'react';
-import { Mic, MicOff, PhoneOff, Loader2, Users, AlertCircle, Hand, MoreVertical, UserX, VolumeX, Check, X, Edit2 } from 'lucide-react';
+import React, { useState, useEffect, useRef } from 'react';
+import { Mic, MicOff, PhoneOff, Loader2, Users, AlertCircle, Hand, MoreVertical, UserX, VolumeX, Check, X, Edit2, Share2, Link, Star, Crown, Wifi, WifiOff } from 'lucide-react';
 import { useVoiceRoom, REACTION_EMOJIS } from '@/lib/hooks/useVoiceRoom';
 
 interface VoiceRoomProps {
@@ -34,23 +34,31 @@ function SpeakerAvatar({
   isSpeaking,
   isSelf,
   isFounder,
+  isCoHost,
   hasRaisedHand,
   isHost,
+  isViewerFounder,
   onKick,
   onMute,
   onApproveHand,
+  onAddCoHost,
+  onRemoveCoHost,
 }: {
   address: string;
-  role: 'Host' | 'Speaker';
+  role: 'Host' | 'Co-host' | 'Speaker';
   isMuted: boolean;
   isSpeaking?: boolean;
   isSelf?: boolean;
   isFounder?: boolean;
+  isCoHost?: boolean;
   hasRaisedHand?: boolean;
   isHost?: boolean;
+  isViewerFounder?: boolean;
   onKick?: () => void;
   onMute?: () => void;
   onApproveHand?: () => void;
+  onAddCoHost?: () => void;
+  onRemoveCoHost?: () => void;
 }) {
   const [showMenu, setShowMenu] = useState(false);
   const initials = address.slice(0, 2).toUpperCase();
@@ -66,11 +74,25 @@ function SpeakerAvatar({
               ? 'bg-gradient-to-br from-cyan-500 to-purple-500'
               : isFounder
               ? 'bg-gradient-to-br from-amber-500 to-orange-500'
+              : isCoHost
+              ? 'bg-gradient-to-br from-purple-500 to-pink-500'
               : 'bg-gradient-to-br from-gray-600 to-gray-700'
           } ${isSpeaking ? 'ring-2 ring-green-400 ring-offset-2 ring-offset-gray-900 animate-pulse' : ''}`}
         >
           {initials}
         </div>
+        {/* Founder crown badge */}
+        {isFounder && !isSelf && (
+          <div className="absolute -top-1 -left-1 w-5 h-5 rounded-full bg-amber-500 flex items-center justify-center">
+            <Crown className="w-3 h-3 text-white" />
+          </div>
+        )}
+        {/* Co-host star badge */}
+        {isCoHost && !isFounder && !isSelf && (
+          <div className="absolute -top-1 -left-1 w-5 h-5 rounded-full bg-purple-500 flex items-center justify-center">
+            <Star className="w-3 h-3 text-white" />
+          </div>
+        )}
         {/* Raised hand indicator */}
         {hasRaisedHand && (
           <div className="absolute -top-1 -left-1 w-5 h-5 rounded-full bg-yellow-500 flex items-center justify-center animate-bounce">
@@ -117,6 +139,23 @@ function SpeakerAvatar({
                 <VolumeX className="w-3 h-3" /> Mute
               </button>
             )}
+            {/* Co-host controls - founder only */}
+            {isViewerFounder && !isCoHost && !isFounder && onAddCoHost && (
+              <button
+                onClick={() => { onAddCoHost(); setShowMenu(false); }}
+                className="w-full px-3 py-1.5 text-xs text-left text-purple-400 hover:bg-gray-700 flex items-center gap-2"
+              >
+                <Star className="w-3 h-3" /> Make Co-host
+              </button>
+            )}
+            {isViewerFounder && isCoHost && onRemoveCoHost && (
+              <button
+                onClick={() => { onRemoveCoHost(); setShowMenu(false); }}
+                className="w-full px-3 py-1.5 text-xs text-left text-gray-400 hover:bg-gray-700 flex items-center gap-2"
+              >
+                <Star className="w-3 h-3" /> Remove Co-host
+              </button>
+            )}
             {onKick && (
               <button
                 onClick={() => { onKick(); setShowMenu(false); }}
@@ -146,10 +185,14 @@ export default function VoiceRoom({
 }: VoiceRoomProps) {
   const [isEditingTitle, setIsEditingTitle] = useState(false);
   const [titleInput, setTitleInput] = useState('');
+  const [showCopied, setShowCopied] = useState(false);
+  const [joinToast, setJoinToast] = useState<string | null>(null);
 
   const {
     isConnected,
     isConnecting,
+    isReconnecting,
+    reconnectAttempts,
     participants,
     isMuted,
     isSpeaking,
@@ -157,6 +200,8 @@ export default function VoiceRoom({
     reactions,
     roomTitle,
     isHost,
+    isFounder,
+    coHosts,
     error,
     join,
     leave,
@@ -167,10 +212,54 @@ export default function VoiceRoom({
     muteUser,
     updateRoomTitle,
     approveHand,
+    addCoHost,
+    removeCoHost,
   } = useVoiceRoom({ marketAddress, walletAddress, founderWallet });
 
   const canJoin = walletAddress && (hasPosition || walletAddress === founderWallet);
-  const isFounder = walletAddress === founderWallet;
+  const prevParticipantsRef = useRef<number>(0);
+
+  // Join notification effect
+  useEffect(() => {
+    if (isConnected && participants.length > prevParticipantsRef.current) {
+      // Someone joined
+      const newCount = participants.length - prevParticipantsRef.current;
+      const latestParticipant = participants[participants.length - 1];
+      const shortAddr = latestParticipant ?
+        `${latestParticipant.peerId.slice(0, 4)}...${latestParticipant.peerId.slice(-4)}` :
+        'Someone';
+
+      setJoinToast(`${shortAddr} joined the room`);
+
+      // Play a subtle notification sound
+      const audioCtx = new (window.AudioContext || (window as any).webkitAudioContext)();
+      const oscillator = audioCtx.createOscillator();
+      const gainNode = audioCtx.createGain();
+      oscillator.connect(gainNode);
+      gainNode.connect(audioCtx.destination);
+      oscillator.frequency.value = 880;
+      oscillator.type = 'sine';
+      gainNode.gain.setValueAtTime(0.1, audioCtx.currentTime);
+      gainNode.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.3);
+      oscillator.start(audioCtx.currentTime);
+      oscillator.stop(audioCtx.currentTime + 0.3);
+
+      // Clear toast after 3 seconds
+      setTimeout(() => setJoinToast(null), 3000);
+    }
+    prevParticipantsRef.current = participants.length;
+  }, [participants.length, isConnected]);
+
+  const handleShareLink = async () => {
+    const roomUrl = `${window.location.origin}/market/${marketAddress}`;
+    try {
+      await navigator.clipboard.writeText(roomUrl);
+      setShowCopied(true);
+      setTimeout(() => setShowCopied(false), 2000);
+    } catch (err) {
+      console.error('Failed to copy:', err);
+    }
+  };
 
   const handleSaveTitle = () => {
     updateRoomTitle(titleInput);
@@ -237,6 +326,28 @@ export default function VoiceRoom({
         <FloatingReaction key={reaction.id} emoji={reaction.emoji} id={reaction.id} />
       ))}
 
+      {/* Reconnecting banner */}
+      {isReconnecting && (
+        <div className="absolute top-0 left-0 right-0 z-30 bg-yellow-500/90 px-4 py-2">
+          <div className="flex items-center justify-center gap-2 text-sm text-black font-medium">
+            <Loader2 className="w-4 h-4 animate-spin" />
+            Reconnecting... (attempt {reconnectAttempts}/5)
+          </div>
+        </div>
+      )}
+
+      {/* Join toast notification */}
+      {joinToast && (
+        <div className="absolute top-4 left-1/2 -translate-x-1/2 z-20 animate-fade-in">
+          <div className="px-4 py-2 bg-gray-800/90 backdrop-blur-sm border border-white/10 rounded-full shadow-lg">
+            <div className="flex items-center gap-2 text-sm text-white">
+              <div className="w-2 h-2 rounded-full bg-green-400" />
+              {joinToast}
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Header with room title */}
       <div className="flex flex-col px-4 py-3 border-b border-white/5">
         <div className="flex items-center justify-between">
@@ -244,9 +355,28 @@ export default function VoiceRoom({
             <div className="w-2 h-2 rounded-full bg-green-400 animate-pulse" />
             <span className="text-sm font-medium text-white">Live</span>
           </div>
-          <div className="flex items-center gap-1.5 text-xs text-gray-400">
-            <Users className="w-3.5 h-3.5" />
-            <span>{participants.length + 1} listening</span>
+          <div className="flex items-center gap-3">
+            <div className="flex items-center gap-1.5 text-xs text-gray-400">
+              <Users className="w-3.5 h-3.5" />
+              <span>{participants.length + 1} listening</span>
+            </div>
+            <button
+              onClick={handleShareLink}
+              className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-white/5 hover:bg-white/10 text-xs text-gray-300 transition-all"
+              title="Share room link"
+            >
+              {showCopied ? (
+                <>
+                  <Check className="w-3.5 h-3.5 text-green-400" />
+                  <span className="text-green-400">Copied!</span>
+                </>
+              ) : (
+                <>
+                  <Link className="w-3.5 h-3.5" />
+                  <span>Share</span>
+                </>
+              )}
+            </button>
           </div>
         </div>
         {/* Room title */}
@@ -299,33 +429,44 @@ export default function VoiceRoom({
       {/* Speakers Grid */}
       <div className="flex-1 overflow-y-auto p-4">
         <div className="flex flex-wrap justify-center gap-4">
-          {/* Self - Host if founder, otherwise Speaker */}
+          {/* Self - Host if founder, Co-host if co-host, otherwise Speaker */}
           <SpeakerAvatar
             address={walletAddress || ''}
-            role={isFounder ? 'Host' : 'Speaker'}
+            role={isFounder ? 'Host' : coHosts.includes(walletAddress || '') ? 'Co-host' : 'Speaker'}
             isMuted={isMuted}
             isSpeaking={isSpeaking}
             isSelf={true}
             isFounder={isFounder}
+            isCoHost={coHosts.includes(walletAddress || '')}
             hasRaisedHand={hasRaisedHand}
           />
 
           {/* Other participants */}
-          {participants.map((participant) => (
-            <SpeakerAvatar
-              key={participant.peerId}
-              address={participant.peerId}
-              role={participant.peerId === founderWallet ? 'Host' : 'Speaker'}
-              isMuted={participant.isMuted}
-              isSpeaking={participant.isSpeaking}
-              isFounder={participant.peerId === founderWallet}
-              hasRaisedHand={participant.hasRaisedHand}
-              isHost={isHost}
-              onKick={() => kickUser(participant.peerId)}
-              onMute={() => muteUser(participant.peerId)}
-              onApproveHand={participant.hasRaisedHand ? () => approveHand(participant.peerId) : undefined}
-            />
-          ))}
+          {participants.map((participant) => {
+            const isParticipantFounder = participant.peerId === founderWallet;
+            const isParticipantCoHost = coHosts.includes(participant.peerId);
+            const participantRole = isParticipantFounder ? 'Host' : isParticipantCoHost ? 'Co-host' : 'Speaker';
+
+            return (
+              <SpeakerAvatar
+                key={participant.peerId}
+                address={participant.peerId}
+                role={participantRole}
+                isMuted={participant.isMuted}
+                isSpeaking={participant.isSpeaking}
+                isFounder={isParticipantFounder}
+                isCoHost={isParticipantCoHost}
+                hasRaisedHand={participant.hasRaisedHand}
+                isHost={isHost}
+                isViewerFounder={isFounder}
+                onKick={() => kickUser(participant.peerId)}
+                onMute={() => muteUser(participant.peerId)}
+                onApproveHand={participant.hasRaisedHand ? () => approveHand(participant.peerId) : undefined}
+                onAddCoHost={() => addCoHost(participant.peerId)}
+                onRemoveCoHost={() => removeCoHost(participant.peerId)}
+              />
+            );
+          })}
         </div>
 
         {/* Raised hands queue for host */}

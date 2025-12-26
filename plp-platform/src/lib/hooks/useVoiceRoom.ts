@@ -31,12 +31,15 @@ interface UseVoiceRoomProps {
 export function useVoiceRoom({ marketAddress, walletAddress, founderWallet }: UseVoiceRoomProps) {
   const [isConnected, setIsConnected] = useState(false);
   const [isConnecting, setIsConnecting] = useState(false);
+  const [isReconnecting, setIsReconnecting] = useState(false);
+  const [reconnectAttempts, setReconnectAttempts] = useState(0);
   const [participants, setParticipants] = useState<VoiceParticipant[]>([]);
   const [isMuted, setIsMuted] = useState(true);
   const [isSpeaking, setIsSpeaking] = useState(false);
   const [hasRaisedHand, setHasRaisedHand] = useState(false);
   const [reactions, setReactions] = useState<Reaction[]>([]);
   const [roomTitle, setRoomTitle] = useState<string>('');
+  const [coHosts, setCoHosts] = useState<string[]>([]);
   const [error, setError] = useState<string | null>(null);
 
   const socketRef = useRef<Socket | null>(null);
@@ -50,12 +53,28 @@ export function useVoiceRoom({ marketAddress, walletAddress, founderWallet }: Us
   const audioContextRef = useRef<AudioContext | null>(null);
   const analyserRef = useRef<AnalyserNode | null>(null);
   const speakingIntervalRef = useRef<NodeJS.Timeout | null>(null);
+  const reconnectTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const shouldReconnectRef = useRef(false);
+  const maxReconnectAttempts = 5;
 
-  const isHost = walletAddress === founderWallet;
+  const isFounder = walletAddress === founderWallet;
+  const isCoHost = walletAddress ? coHosts.includes(walletAddress) : false;
+  const isHost = isFounder || isCoHost;
 
   const VOICE_SERVER_URL = process.env.NEXT_PUBLIC_VOICE_SERVER_URL || 'http://localhost:3002';
 
-  const cleanup = useCallback(() => {
+  const cleanup = useCallback((intentional = true) => {
+    // If intentional leave, don't reconnect
+    if (intentional) {
+      shouldReconnectRef.current = false;
+    }
+
+    // Clear reconnect timeout
+    if (reconnectTimeoutRef.current) {
+      clearTimeout(reconnectTimeoutRef.current);
+      reconnectTimeoutRef.current = null;
+    }
+
     // Stop speaking detection
     if (speakingIntervalRef.current) {
       clearInterval(speakingIntervalRef.current);
@@ -101,6 +120,11 @@ export function useVoiceRoom({ marketAddress, walletAddress, founderWallet }: Us
     setIsSpeaking(false);
     setParticipants([]);
     setRoomTitle('');
+    setCoHosts([]);
+    if (intentional) {
+      setReconnectAttempts(0);
+      setIsReconnecting(false);
+    }
   }, []);
 
   const consumeProducer = useCallback(async (producerId: string, peerId: string) => {
@@ -284,6 +308,45 @@ export function useVoiceRoom({ marketAddress, walletAddress, founderWallet }: Us
         setIsMuted(true);
       });
 
+      // Listen for co-host updates
+      socket.on('coHostAdded', ({ peerId }) => {
+        setCoHosts(prev => [...prev, peerId]);
+      });
+
+      socket.on('coHostRemoved', ({ peerId }) => {
+        setCoHosts(prev => prev.filter(id => id !== peerId));
+      });
+
+      // Listen for disconnect and handle auto-reconnect
+      socket.on('disconnect', (reason) => {
+        console.log('Socket disconnected:', reason);
+        setIsConnected(false);
+
+        // Only auto-reconnect if it wasn't intentional
+        if (shouldReconnectRef.current && reason !== 'io client disconnect') {
+          setIsReconnecting(true);
+          const attempt = reconnectAttempts + 1;
+          setReconnectAttempts(attempt);
+
+          if (attempt <= maxReconnectAttempts) {
+            // Exponential backoff: 1s, 2s, 4s, 8s, 16s
+            const delay = Math.min(1000 * Math.pow(2, attempt - 1), 16000);
+            console.log(`Reconnecting in ${delay}ms (attempt ${attempt}/${maxReconnectAttempts})`);
+
+            reconnectTimeoutRef.current = setTimeout(() => {
+              cleanup(false);
+              join();
+            }, delay);
+          } else {
+            setIsReconnecting(false);
+            setError('Connection lost. Please rejoin the room.');
+          }
+        }
+      });
+
+      // Mark that we should reconnect on unexpected disconnect
+      shouldReconnectRef.current = true;
+
       // Set up speaking detection
       const audioContext = new AudioContext();
       audioContextRef.current = audioContext;
@@ -328,6 +391,8 @@ export function useVoiceRoom({ marketAddress, walletAddress, founderWallet }: Us
 
       setIsConnected(true);
       setIsMuted(true);
+      setIsReconnecting(false);
+      setReconnectAttempts(0);
     } catch (err: any) {
       console.error('Join error:', err);
       setError(err.message || 'Failed to join voice room');
@@ -404,6 +469,19 @@ export function useVoiceRoom({ marketAddress, walletAddress, founderWallet }: Us
     socketRef.current.emit('approveHand', { peerId });
   }, [isHost]);
 
+  // Co-host controls (founder only)
+  const addCoHost = useCallback((peerId: string) => {
+    if (!socketRef.current || !isFounder) return;
+    socketRef.current.emit('addCoHost', { peerId });
+    setCoHosts(prev => [...prev, peerId]);
+  }, [isFounder]);
+
+  const removeCoHost = useCallback((peerId: string) => {
+    if (!socketRef.current || !isFounder) return;
+    socketRef.current.emit('removeCoHost', { peerId });
+    setCoHosts(prev => prev.filter(id => id !== peerId));
+  }, [isFounder]);
+
   // Cleanup on unmount
   useEffect(() => {
     return () => {
@@ -414,6 +492,8 @@ export function useVoiceRoom({ marketAddress, walletAddress, founderWallet }: Us
   return {
     isConnected,
     isConnecting,
+    isReconnecting,
+    reconnectAttempts,
     participants,
     isMuted,
     isSpeaking,
@@ -421,6 +501,9 @@ export function useVoiceRoom({ marketAddress, walletAddress, founderWallet }: Us
     reactions,
     roomTitle,
     isHost,
+    isFounder,
+    isCoHost,
+    coHosts,
     error,
     join,
     leave,
@@ -432,5 +515,8 @@ export function useVoiceRoom({ marketAddress, walletAddress, founderWallet }: Us
     muteUser,
     updateRoomTitle,
     approveHand,
+    // Founder-only controls
+    addCoHost,
+    removeCoHost,
   };
 }

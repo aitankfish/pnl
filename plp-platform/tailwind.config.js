@@ -85,11 +85,22 @@ module.exports = {
             opacity: 0
           },
         },
+        "fade-in": {
+          "0%": {
+            opacity: 0,
+            transform: "translateX(-50%) translateY(-10px)"
+          },
+          "100%": {
+            opacity: 1,
+            transform: "translateX(-50%) translateY(0)"
+          },
+        },
       },
       animation: {
         "accordion-down": "accordion-down 0.2s ease-out",
         "accordion-up": "accordion-up 0.2s ease-out",
         "float-up": "float-up 3s ease-out forwards",
+        "fade-in": "fade-in 0.3s ease-out forwards",
       },
     },
   },
