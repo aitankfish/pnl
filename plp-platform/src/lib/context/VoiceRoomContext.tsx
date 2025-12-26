@@ -11,7 +11,10 @@ export interface VoiceParticipant {
   isMuted: boolean;
   isSpeaking: boolean;
   hasRaisedHand: boolean;
+  isSpeaker: boolean; // true = speaker, false = listener
 }
+
+export const MAX_SPEAKERS = 8;
 
 export interface Reaction {
   id: string;
@@ -39,38 +42,52 @@ interface VoiceRoomState {
   // Participants
   participants: VoiceParticipant[];
   coHosts: string[];
+  tempHostId: string | null; // First speaker becomes temp host if no founder
 
   // User state
   isMuted: boolean;
   isSpeaking: boolean;
   hasRaisedHand: boolean;
+  isSpeaker: boolean; // User's speaker/listener status
+
+  // Speaker management
+  speakerCount: number;
+  canJoinAsSpeaker: boolean; // true if < MAX_SPEAKERS
 
   // UI state
   reactions: Reaction[];
   error: string | null;
   isMinimized: boolean;
+  showJoinChoice: boolean; // Show speaker/listener choice dialog
 
   // Computed
   isHost: boolean;
   isFounder: boolean;
   isCoHost: boolean;
+  isTempHost: boolean;
 }
 
 interface VoiceRoomContextType extends VoiceRoomState {
   // Actions
   join: (marketAddress: string, marketName: string, walletAddress: string, founderWallet: string | null) => Promise<void>;
+  joinAsSpeaker: () => void;
+  joinAsListener: () => void;
   leave: () => void;
   toggleMute: () => void;
   toggleHand: () => void;
   sendReaction: (emoji: ReactionEmoji) => void;
   kickUser: (peerId: string) => void;
   muteUser: (peerId: string) => void;
+  muteAll: () => void;
   updateRoomTitle: (title: string) => void;
   approveHand: (peerId: string) => void;
+  promoteToSpeaker: (peerId: string) => void;
+  demoteToListener: (peerId: string) => void;
   addCoHost: (peerId: string) => void;
   removeCoHost: (peerId: string) => void;
   setMinimized: (minimized: boolean) => void;
   expandToRoom: () => void;
+  cancelJoinChoice: () => void;
 }
 
 const VoiceRoomContext = createContext<VoiceRoomContextType | null>(null);
@@ -108,16 +125,30 @@ export function VoiceRoomProvider({ children }: VoiceRoomProviderProps) {
   // Participants
   const [participants, setParticipants] = useState<VoiceParticipant[]>([]);
   const [coHosts, setCoHosts] = useState<string[]>([]);
+  const [tempHostId, setTempHostId] = useState<string | null>(null);
 
   // User state
   const [isMuted, setIsMuted] = useState(true);
   const [isSpeaking, setIsSpeaking] = useState(false);
   const [hasRaisedHand, setHasRaisedHand] = useState(false);
+  const [isSpeaker, setIsSpeaker] = useState(false);
+
+  // Speaker management
+  const [speakerCount, setSpeakerCount] = useState(0);
 
   // UI state
   const [reactions, setReactions] = useState<Reaction[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [isMinimized, setIsMinimized] = useState(false);
+  const [showJoinChoice, setShowJoinChoice] = useState(false);
+
+  // Pending join data (stored while showing choice dialog)
+  const pendingJoinRef = useRef<{
+    marketAddress: string;
+    marketName: string;
+    walletAddress: string;
+    founderWallet: string | null;
+  } | null>(null);
 
   // Refs
   const socketRef = useRef<Socket | null>(null);
@@ -138,7 +169,9 @@ export function VoiceRoomProvider({ children }: VoiceRoomProviderProps) {
   // Computed values
   const isFounder = walletAddress === founderWallet;
   const isCoHost = walletAddress ? coHosts.includes(walletAddress) : false;
-  const isHost = isFounder || isCoHost;
+  const isTempHost = walletAddress === tempHostId && !isFounder;
+  const isHost = isFounder || isCoHost || isTempHost;
+  const canJoinAsSpeaker = speakerCount < MAX_SPEAKERS;
 
   const VOICE_SERVER_URL = process.env.NEXT_PUBLIC_VOICE_SERVER_URL || 'http://localhost:3002';
 
@@ -191,6 +224,8 @@ export function VoiceRoomProvider({ children }: VoiceRoomProviderProps) {
     setRoomTitle('');
     setCoHosts([]);
     setHasRaisedHand(false);
+    setTempHostId(null);
+    setSpeakerCount(0);
 
     if (intentional) {
       setMarketAddress(null);
@@ -201,6 +236,9 @@ export function VoiceRoomProvider({ children }: VoiceRoomProviderProps) {
       setIsReconnecting(false);
       setIsMinimized(false);
       setError(null);
+      setIsSpeaker(false);
+      setShowJoinChoice(false);
+      pendingJoinRef.current = null;
     }
   }, []);
 
@@ -232,25 +270,29 @@ export function VoiceRoomProvider({ children }: VoiceRoomProviderProps) {
 
       setParticipants(prev => {
         if (prev.find(p => p.peerId === peerId)) return prev;
-        return [...prev, { peerId, isMuted: false, isSpeaking: false, hasRaisedHand: false }];
+        return [...prev, { peerId, isMuted: false, isSpeaking: false, hasRaisedHand: false, isSpeaker: true }];
       });
     });
   }, []);
 
-  const join = useCallback(async (
-    newMarketAddress: string,
-    newMarketName: string,
-    newWalletAddress: string,
-    newFounderWallet: string | null
-  ) => {
-    if (isConnected || isConnecting) return;
+  // Internal join function that actually connects
+  const doJoin = useCallback(async (joinAsSpeaker: boolean) => {
+    const pending = pendingJoinRef.current;
+    if (!pending || isConnected || isConnecting) return;
+
+    const { marketAddress: newMarketAddress, marketName: newMarketName, walletAddress: newWalletAddress, founderWallet: newFounderWallet } = pending;
 
     setMarketAddress(newMarketAddress);
     setMarketName(newMarketName);
     setWalletAddress(newWalletAddress);
     setFounderWallet(newFounderWallet);
     setIsConnecting(true);
+    setShowJoinChoice(false);
     setError(null);
+
+    // Founder always joins as speaker
+    const willBeSpeaker = newWalletAddress === newFounderWallet || joinAsSpeaker;
+    setIsSpeaker(willBeSpeaker);
 
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
@@ -381,6 +423,39 @@ export function VoiceRoomProvider({ children }: VoiceRoomProviderProps) {
         setCoHosts(prev => prev.filter(id => id !== peerId));
       });
 
+      // Listen for speaker role changes from server
+      socket.on('promotedToSpeaker', ({ peerId }) => {
+        if (peerId === newWalletAddress) {
+          // Self was promoted
+          setIsSpeaker(true);
+          setHasRaisedHand(false);
+        }
+        setParticipants(prev =>
+          prev.map(p =>
+            p.peerId === peerId ? { ...p, isSpeaker: true, hasRaisedHand: false } : p
+          )
+        );
+        setSpeakerCount(prev => prev + 1);
+      });
+
+      socket.on('demotedToListener', ({ peerId }) => {
+        if (peerId === newWalletAddress) {
+          // Self was demoted
+          setIsSpeaker(false);
+        }
+        setParticipants(prev =>
+          prev.map(p =>
+            p.peerId === peerId ? { ...p, isSpeaker: false } : p
+          )
+        );
+        setSpeakerCount(prev => Math.max(0, prev - 1));
+      });
+
+      // Listen for temp host changes
+      socket.on('tempHostChanged', ({ peerId }) => {
+        setTempHostId(peerId);
+      });
+
       socket.on('disconnect', (reason) => {
         console.log('Socket disconnected:', reason);
         setIsConnected(false);
@@ -443,12 +518,24 @@ export function VoiceRoomProvider({ children }: VoiceRoomProviderProps) {
         }
       }, 100);
 
+      // Process existing peers
+      let currentSpeakerCount = 0;
       joinResponse.peers?.forEach((peer: any) => {
+        const peerIsSpeaker = peer.isSpeaker !== false; // Default to speaker for backwards compat
+        if (peerIsSpeaker) currentSpeakerCount++;
         setParticipants(prev => {
           if (prev.find(p => p.peerId === peer.id)) return prev;
-          return [...prev, { peerId: peer.id, isMuted: false, isSpeaking: false, hasRaisedHand: false }];
+          return [...prev, { peerId: peer.id, isMuted: false, isSpeaking: false, hasRaisedHand: false, isSpeaker: peerIsSpeaker }];
         });
       });
+
+      // Set temp host if no founder and this is first speaker
+      if (willBeSpeaker && currentSpeakerCount === 0 && newWalletAddress !== newFounderWallet) {
+        setTempHostId(newWalletAddress);
+      }
+
+      // Update speaker count
+      setSpeakerCount(currentSpeakerCount + (willBeSpeaker ? 1 : 0));
 
       setIsConnected(true);
       setIsMuted(true);
@@ -460,8 +547,50 @@ export function VoiceRoomProvider({ children }: VoiceRoomProviderProps) {
       cleanup();
     } finally {
       setIsConnecting(false);
+      pendingJoinRef.current = null;
     }
-  }, [isConnected, isConnecting, cleanup, consumeProducer, VOICE_SERVER_URL, marketAddress, marketName, walletAddress, founderWallet, reconnectAttempts, isMuted]);
+  }, [isConnected, isConnecting, cleanup, consumeProducer, VOICE_SERVER_URL, isMuted]);
+
+  // Public join function - shows choice dialog or auto-joins
+  const join = useCallback(async (
+    newMarketAddress: string,
+    newMarketName: string,
+    newWalletAddress: string,
+    newFounderWallet: string | null
+  ) => {
+    if (isConnected || isConnecting) return;
+
+    // Store pending join data
+    pendingJoinRef.current = {
+      marketAddress: newMarketAddress,
+      marketName: newMarketName,
+      walletAddress: newWalletAddress,
+      founderWallet: newFounderWallet,
+    };
+
+    // Founder always joins as speaker automatically
+    if (newWalletAddress === newFounderWallet) {
+      doJoin(true);
+      return;
+    }
+
+    // TODO: Get actual speaker count from server
+    // For now, show choice dialog if potentially room for speakers
+    setShowJoinChoice(true);
+  }, [isConnected, isConnecting, doJoin]);
+
+  const joinAsSpeaker = useCallback(() => {
+    doJoin(true);
+  }, [doJoin]);
+
+  const joinAsListener = useCallback(() => {
+    doJoin(false);
+  }, [doJoin]);
+
+  const cancelJoinChoice = useCallback(() => {
+    setShowJoinChoice(false);
+    pendingJoinRef.current = null;
+  }, []);
 
   const leave = useCallback(() => {
     cleanup();
@@ -526,6 +655,34 @@ export function VoiceRoomProvider({ children }: VoiceRoomProviderProps) {
   const approveHand = useCallback((peerId: string) => {
     if (!socketRef.current || !isHost) return;
     socketRef.current.emit('approveHand', { peerId });
+    // Also promote to speaker
+    setParticipants(prev =>
+      prev.map(p => p.peerId === peerId ? { ...p, hasRaisedHand: false, isSpeaker: true } : p)
+    );
+    setSpeakerCount(prev => prev + 1);
+  }, [isHost]);
+
+  const muteAll = useCallback(() => {
+    if (!socketRef.current || !isHost) return;
+    socketRef.current.emit('muteAll');
+  }, [isHost]);
+
+  const promoteToSpeaker = useCallback((peerId: string) => {
+    if (!socketRef.current || !isHost) return;
+    socketRef.current.emit('promoteToSpeaker', { peerId });
+    setParticipants(prev =>
+      prev.map(p => p.peerId === peerId ? { ...p, isSpeaker: true, hasRaisedHand: false } : p)
+    );
+    setSpeakerCount(prev => prev + 1);
+  }, [isHost]);
+
+  const demoteToListener = useCallback((peerId: string) => {
+    if (!socketRef.current || !isHost) return;
+    socketRef.current.emit('demoteToListener', { peerId });
+    setParticipants(prev =>
+      prev.map(p => p.peerId === peerId ? { ...p, isSpeaker: false } : p)
+    );
+    setSpeakerCount(prev => Math.max(0, prev - 1));
   }, [isHost]);
 
   const addCoHost = useCallback((peerId: string) => {
@@ -567,29 +724,41 @@ export function VoiceRoomProvider({ children }: VoiceRoomProviderProps) {
     roomTitle,
     participants,
     coHosts,
+    tempHostId,
     isMuted,
     isSpeaking,
     hasRaisedHand,
+    isSpeaker,
+    speakerCount,
+    canJoinAsSpeaker,
     reactions,
     error,
     isMinimized,
+    showJoinChoice,
     isHost,
     isFounder,
     isCoHost,
+    isTempHost,
     // Actions
     join,
+    joinAsSpeaker,
+    joinAsListener,
     leave,
     toggleMute,
     toggleHand,
     sendReaction,
     kickUser,
     muteUser,
+    muteAll,
     updateRoomTitle,
     approveHand,
+    promoteToSpeaker,
+    demoteToListener,
     addCoHost,
     removeCoHost,
     setMinimized: setIsMinimized,
     expandToRoom,
+    cancelJoinChoice,
   };
 
   return (

@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 import { Mic, MicOff, PhoneOff, Loader2, Users, AlertCircle, Hand, MoreVertical, UserX, VolumeX, Check, X, Edit2, Share2, Link, Star, Crown, Wifi, WifiOff } from 'lucide-react';
-import { useVoiceRoomContext, REACTION_EMOJIS } from '@/lib/context/VoiceRoomContext';
+import { useVoiceRoomContext, REACTION_EMOJIS, MAX_SPEAKERS } from '@/lib/context/VoiceRoomContext';
 
 interface VoiceRoomProps {
   marketAddress: string;
@@ -199,21 +199,32 @@ export default function VoiceRoom({
     isMuted,
     isSpeaking,
     hasRaisedHand,
+    isSpeaker,
+    speakerCount,
+    canJoinAsSpeaker,
     reactions,
     roomTitle,
     isHost,
     isFounder,
+    isTempHost,
     coHosts,
+    showJoinChoice,
     error,
     join,
+    joinAsSpeaker,
+    joinAsListener,
+    cancelJoinChoice,
     leave,
     toggleMute,
     toggleHand,
     sendReaction,
     kickUser,
     muteUser,
+    muteAll,
     updateRoomTitle,
     approveHand,
+    promoteToSpeaker,
+    demoteToListener,
     addCoHost,
     removeCoHost,
   } = useVoiceRoomContext();
@@ -275,6 +286,61 @@ export default function VoiceRoom({
     setIsEditingTitle(false);
   };
 
+  // Separate speakers and listeners
+  const speakers = participants.filter(p => p.isSpeaker);
+  const listeners = participants.filter(p => !p.isSpeaker);
+
+  // Join choice dialog
+  if (showJoinChoice) {
+    return (
+      <div className="flex flex-col items-center justify-center h-full p-6 space-y-4">
+        <div className="w-16 h-16 rounded-full bg-gradient-to-br from-cyan-500/20 to-purple-500/20 flex items-center justify-center">
+          <Mic className="w-8 h-8 text-cyan-400" />
+        </div>
+
+        <div className="text-center">
+          <h3 className="text-lg font-medium text-white mb-1">How do you want to join?</h3>
+          <p className="text-sm text-gray-400 max-w-xs">
+            {canJoinAsSpeaker
+              ? `${MAX_SPEAKERS - speakerCount} speaker slots available`
+              : 'All speaker slots are full'}
+          </p>
+        </div>
+
+        <div className="w-full space-y-3">
+          {canJoinAsSpeaker && (
+            <button
+              onClick={joinAsSpeaker}
+              className="w-full flex items-center justify-center gap-2 px-6 py-3.5 bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 rounded-full font-semibold text-white text-base transition-all"
+            >
+              <Mic className="w-5 h-5" />
+              Join as Speaker
+            </button>
+          )}
+
+          <button
+            onClick={joinAsListener}
+            className="w-full flex items-center justify-center gap-2 px-6 py-3.5 bg-white/10 hover:bg-white/20 rounded-full font-medium text-white text-base transition-all"
+          >
+            <Users className="w-5 h-5" />
+            Join as Listener
+          </button>
+
+          <button
+            onClick={cancelJoinChoice}
+            className="w-full text-center text-sm text-gray-500 hover:text-gray-400 py-2"
+          >
+            Cancel
+          </button>
+        </div>
+
+        <p className="text-xs text-gray-500 text-center">
+          Listeners can raise hand to request speaking
+        </p>
+      </div>
+    );
+  }
+
   // Not connected state
   if (!isConnected) {
     return (
@@ -319,7 +385,7 @@ export default function VoiceRoom({
                 Connecting...
               </>
             ) : (
-              'Start listening'
+              'Join Voice Room'
             )}
           </button>
         )}
@@ -437,74 +503,104 @@ export default function VoiceRoom({
 
       {/* Speakers Grid */}
       <div className="flex-1 overflow-y-auto p-4">
-        <div className="flex flex-wrap justify-center gap-4">
-          {/* Self - Host if founder, Co-host if co-host, otherwise Speaker */}
-          <SpeakerAvatar
-            address={walletAddress || ''}
-            role={isFounder ? 'Host' : coHosts.includes(walletAddress || '') ? 'Co-host' : 'Speaker'}
-            isMuted={isMuted}
-            isSpeaking={isSpeaking}
-            isSelf={true}
-            isFounder={isFounder}
-            isCoHost={coHosts.includes(walletAddress || '')}
-            hasRaisedHand={hasRaisedHand}
-          />
-
-          {/* Other participants */}
-          {participants.map((participant) => {
-            const isParticipantFounder = participant.peerId === founderWallet;
-            const isParticipantCoHost = coHosts.includes(participant.peerId);
-            const participantRole = isParticipantFounder ? 'Host' : isParticipantCoHost ? 'Co-host' : 'Speaker';
-
-            return (
+        {/* Speakers Section */}
+        <div className="mb-4">
+          <p className="text-xs text-gray-500 mb-2 flex items-center gap-1">
+            <Mic className="w-3 h-3" /> Speakers ({isSpeaker ? speakers.length + 1 : speakers.length}/{MAX_SPEAKERS})
+          </p>
+          <div className="flex flex-wrap justify-center gap-4">
+            {/* Self - only show in speakers if isSpeaker */}
+            {isSpeaker && (
               <SpeakerAvatar
-                key={participant.peerId}
-                address={participant.peerId}
-                role={participantRole}
-                isMuted={participant.isMuted}
-                isSpeaking={participant.isSpeaking}
-                isFounder={isParticipantFounder}
-                isCoHost={isParticipantCoHost}
-                hasRaisedHand={participant.hasRaisedHand}
-                isHost={isHost}
-                isViewerFounder={isFounder}
-                onKick={() => kickUser(participant.peerId)}
-                onMute={() => muteUser(participant.peerId)}
-                onApproveHand={participant.hasRaisedHand ? () => approveHand(participant.peerId) : undefined}
-                onAddCoHost={() => addCoHost(participant.peerId)}
-                onRemoveCoHost={() => removeCoHost(participant.peerId)}
+                address={walletAddress || ''}
+                role={isFounder ? 'Host' : isTempHost ? 'Host' : coHosts.includes(walletAddress || '') ? 'Co-host' : 'Speaker'}
+                isMuted={isMuted}
+                isSpeaking={isSpeaking}
+                isSelf={true}
+                isFounder={isFounder}
+                isCoHost={coHosts.includes(walletAddress || '')}
+                hasRaisedHand={hasRaisedHand}
               />
-            );
-          })}
+            )}
+
+            {/* Other speakers */}
+            {speakers.map((participant) => {
+              const isParticipantFounder = participant.peerId === founderWallet;
+              const isParticipantCoHost = coHosts.includes(participant.peerId);
+              const participantRole = isParticipantFounder ? 'Host' : isParticipantCoHost ? 'Co-host' : 'Speaker';
+
+              return (
+                <SpeakerAvatar
+                  key={participant.peerId}
+                  address={participant.peerId}
+                  role={participantRole}
+                  isMuted={participant.isMuted}
+                  isSpeaking={participant.isSpeaking}
+                  isFounder={isParticipantFounder}
+                  isCoHost={isParticipantCoHost}
+                  hasRaisedHand={participant.hasRaisedHand}
+                  isHost={isHost}
+                  isViewerFounder={isFounder}
+                  onKick={() => kickUser(participant.peerId)}
+                  onMute={() => muteUser(participant.peerId)}
+                  onApproveHand={participant.hasRaisedHand ? () => approveHand(participant.peerId) : undefined}
+                  onAddCoHost={() => addCoHost(participant.peerId)}
+                  onRemoveCoHost={() => removeCoHost(participant.peerId)}
+                />
+              );
+            })}
+          </div>
         </div>
 
         {/* Raised hands queue for host */}
-        {isHost && participants.some(p => p.hasRaisedHand) && (
-          <div className="mt-6 pt-4 border-t border-white/5">
+        {isHost && listeners.some(p => p.hasRaisedHand) && (
+          <div className="mb-4 p-3 bg-yellow-500/10 rounded-lg border border-yellow-500/20">
             <p className="text-xs text-yellow-400 mb-2 flex items-center gap-1">
-              <Hand className="w-3 h-3" /> Raised hands
+              <Hand className="w-3 h-3" /> Requesting to speak
             </p>
             <div className="flex flex-wrap gap-2">
-              {participants.filter(p => p.hasRaisedHand).map(p => (
+              {listeners.filter(p => p.hasRaisedHand).map(p => (
                 <button
                   key={p.peerId}
                   onClick={() => approveHand(p.peerId)}
-                  className="px-2 py-1 text-xs bg-yellow-500/20 text-yellow-300 rounded-lg hover:bg-yellow-500/30 flex items-center gap-1"
+                  className="px-3 py-1.5 text-xs bg-yellow-500/20 text-yellow-300 rounded-lg hover:bg-yellow-500/30 flex items-center gap-1.5"
                 >
                   <Check className="w-3 h-3" />
-                  {p.peerId.slice(0, 4)}...
+                  Approve {p.peerId.slice(0, 4)}...
                 </button>
               ))}
             </div>
           </div>
         )}
 
-        {/* Listener count */}
-        {participants.length > 0 && !participants.some(p => p.hasRaisedHand) && (
-          <div className="mt-6 pt-4 border-t border-white/5">
-            <p className="text-sm text-gray-400 px-2">
-              {participants.length} other {participants.length === 1 ? 'listener' : 'listeners'}
+        {/* Listeners Section */}
+        {(listeners.length > 0 || !isSpeaker) && (
+          <div className="pt-4 border-t border-white/5">
+            <p className="text-xs text-gray-500 mb-2 flex items-center gap-1">
+              <Users className="w-3 h-3" /> Listeners ({!isSpeaker ? listeners.length + 1 : listeners.length})
             </p>
+            <div className="flex flex-wrap gap-2">
+              {/* Self as listener */}
+              {!isSpeaker && (
+                <div className="flex items-center gap-1.5 px-2 py-1 bg-white/5 rounded-full">
+                  <div className="w-6 h-6 rounded-full bg-gradient-to-br from-cyan-500 to-purple-500 flex items-center justify-center text-[10px] text-white font-bold">
+                    You
+                  </div>
+                  {hasRaisedHand && <Hand className="w-3 h-3 text-yellow-400" />}
+                </div>
+              )}
+
+              {/* Other listeners */}
+              {listeners.map((p) => (
+                <div key={p.peerId} className="flex items-center gap-1.5 px-2 py-1 bg-white/5 rounded-full">
+                  <div className="w-6 h-6 rounded-full bg-gradient-to-br from-gray-600 to-gray-700 flex items-center justify-center text-[10px] text-white font-bold">
+                    {p.peerId.slice(0, 2).toUpperCase()}
+                  </div>
+                  <span className="text-xs text-gray-400">{p.peerId.slice(0, 4)}...</span>
+                  {p.hasRaisedHand && <Hand className="w-3 h-3 text-yellow-400" />}
+                </div>
+              ))}
+            </div>
           </div>
         )}
       </div>
@@ -548,6 +644,17 @@ export default function VoiceRoom({
         >
           <Hand className="w-6 h-6" />
         </button>
+
+        {/* Mute All button - only for hosts */}
+        {isHost && (
+          <button
+            onClick={muteAll}
+            className="p-4 rounded-full bg-orange-500/20 hover:bg-orange-500/30 text-orange-400 transition-all"
+            title="Mute all speakers"
+          >
+            <VolumeX className="w-6 h-6" />
+          </button>
+        )}
 
         <button
           onClick={leave}
