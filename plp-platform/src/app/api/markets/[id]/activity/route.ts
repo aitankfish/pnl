@@ -17,6 +17,11 @@ export const dynamic = 'force-dynamic';
 
 const logger = createClientLogger();
 
+// Helper to check if string is valid MongoDB ObjectId
+function isValidObjectId(id: string): boolean {
+  return /^[a-f\d]{24}$/i.test(id);
+}
+
 interface PositionHolder {
   wallet: string;
   totalAmount: number;
@@ -66,8 +71,14 @@ export async function GET(
     await connectToDatabase();
     await connectRawDb();
 
-    // Get market document to find on-chain address
-    const market = await PredictionMarket.findById(marketId).lean();
+    // Get market document - support both MongoDB ObjectId and Solana address
+    let market;
+    if (isValidObjectId(marketId)) {
+      market = await PredictionMarket.findById(marketId).lean();
+    } else {
+      // It's a Solana market address
+      market = await PredictionMarket.findOne({ marketAddress: marketId }).lean();
+    }
 
     if (!market) {
       return NextResponse.json(

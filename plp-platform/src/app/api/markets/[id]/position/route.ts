@@ -6,7 +6,7 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { connectToDatabase as connectNative, getDatabase } from '@/lib/database/index';
-import { connectToDatabase, PredictionParticipant } from '@/lib/mongodb';
+import { connectToDatabase, PredictionParticipant, PredictionMarket } from '@/lib/mongodb';
 import { COLLECTIONS } from '@/lib/database/models';
 import { ObjectId } from 'mongodb';
 import { createClientLogger } from '@/lib/logger';
@@ -15,6 +15,11 @@ import { createClientLogger } from '@/lib/logger';
 export const dynamic = 'force-dynamic';
 
 const logger = createClientLogger();
+
+// Helper to check if string is valid MongoDB ObjectId
+function isValidObjectId(id: string): boolean {
+  return /^[a-f\d]{24}$/i.test(id);
+}
 
 export async function GET(
   request: NextRequest,
@@ -39,13 +44,35 @@ export async function GET(
 
     // Connect to database
     await connectNative();
+    await connectToDatabase();
     const db = await getDatabase();
+
+    // Determine if marketId is MongoDB ObjectId or Solana address
+    let mongoMarketId: ObjectId;
+    if (isValidObjectId(marketId)) {
+      mongoMarketId = new ObjectId(marketId);
+    } else {
+      // It's a Solana market address - look up the MongoDB ID
+      const market = await PredictionMarket.findOne({ marketAddress: marketId });
+      if (!market) {
+        return NextResponse.json({
+          success: true,
+          data: {
+            hasPosition: false,
+            side: null,
+            totalAmount: 0,
+            tradeCount: 0,
+          },
+        });
+      }
+      mongoMarketId = market._id;
+    }
 
     // Check if user has any trade history on this market
     const userTrades = await db
       .collection(COLLECTIONS.TRADE_HISTORY)
       .find({
-        marketId: new ObjectId(marketId),
+        marketId: mongoMarketId,
         traderWallet: userWallet,
       })
       .toArray();
@@ -70,9 +97,8 @@ export async function GET(
     const totalAmount = userTrades.reduce((sum, trade) => sum + trade.amount, 0);
 
     // Check if user has claimed rewards (from database)
-    await connectToDatabase();
     const participant = await PredictionParticipant.findOne({
-      marketId: new ObjectId(marketId),
+      marketId: mongoMarketId,
       participantWallet: userWallet,
     });
 
@@ -88,7 +114,7 @@ export async function GET(
 
         // Get market address from database
         const market = await db.collection(COLLECTIONS.PREDICTION_MARKETS).findOne({
-          _id: new ObjectId(marketId),
+          _id: mongoMarketId,
         });
 
         if (market?.marketAddress) {
