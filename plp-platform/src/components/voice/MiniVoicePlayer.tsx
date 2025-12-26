@@ -146,20 +146,22 @@ export default function MiniVoicePlayer() {
             {participants.slice(0, 4).map((p) => {
               const pProfile = profiles[p.peerId];
               const pInitials = pProfile?.username?.slice(0, 2).toUpperCase() || p.peerId.slice(0, 2).toUpperCase();
+              const pName = pProfile?.username || `${p.peerId.slice(0, 4)}...${p.peerId.slice(-4)}`;
               return (
-                <div
+                <Link
                   key={p.peerId}
-                  className={`w-8 h-8 rounded-full flex items-center justify-center text-white text-xs font-bold flex-shrink-0 overflow-hidden ${
+                  href={`/profile/${p.peerId}`}
+                  className={`w-8 h-8 rounded-full flex items-center justify-center text-white text-xs font-bold flex-shrink-0 overflow-hidden hover:opacity-80 transition-opacity ${
                     p.isSpeaking ? 'ring-2 ring-green-400 ring-offset-1 ring-offset-gray-900' : ''
                   } bg-gradient-to-br from-gray-600 to-gray-700`}
-                  title={pProfile?.username || `${p.peerId.slice(0, 4)}...${p.peerId.slice(-4)}`}
+                  title={`View ${pName}'s profile`}
                 >
                   {pProfile?.profilePhotoUrl ? (
                     <img src={pProfile.profilePhotoUrl} alt={pProfile.username || 'Participant'} className="w-full h-full object-cover" />
                   ) : (
                     pInitials
                   )}
-                </div>
+                </Link>
               );
             })}
 

@@ -1,8 +1,9 @@
 'use client';
 
 import React, { useState, useEffect, useRef } from 'react';
-import { Mic, MicOff, PhoneOff, Loader2, Users, AlertCircle, Hand, MoreVertical, UserX, VolumeX, Check, X, Edit2, Share2, Link, Star, Crown, Wifi, WifiOff } from 'lucide-react';
+import { Mic, MicOff, PhoneOff, Loader2, Users, AlertCircle, Hand, MoreVertical, UserX, VolumeX, Check, X, Edit2, Share2, Link as LinkIcon, Star, Crown, Wifi, WifiOff } from 'lucide-react';
 import { useVoiceRoomContext, REACTION_EMOJIS, MAX_SPEAKERS } from '@/lib/context/VoiceRoomContext';
+import Link from 'next/link';
 
 interface VoiceRoomProps {
   marketId: string; // URL param ID (MongoDB ID or Solana address)
@@ -71,27 +72,37 @@ function SpeakerAvatar({
   const shortAddress = `${address.slice(0, 4)}...${address.slice(-4)}`;
   const displayLabel = displayName || shortAddress;
 
+  const avatarContent = (
+    <div
+      className={`w-14 h-14 rounded-full flex items-center justify-center text-white font-bold text-sm transition-all overflow-hidden ${
+        isSelf
+          ? 'bg-gradient-to-br from-cyan-500 to-purple-500'
+          : isFounder
+          ? 'bg-gradient-to-br from-amber-500 to-orange-500'
+          : isCoHost
+          ? 'bg-gradient-to-br from-purple-500 to-pink-500'
+          : 'bg-gradient-to-br from-gray-600 to-gray-700'
+      } ${isSpeaking ? 'ring-2 ring-green-400 ring-offset-2 ring-offset-gray-900 animate-pulse' : ''} ${!isSelf ? 'cursor-pointer hover:opacity-80' : ''}`}
+    >
+      {profilePhotoUrl ? (
+        <img src={profilePhotoUrl} alt={displayLabel} className="w-full h-full object-cover" />
+      ) : (
+        initials
+      )}
+    </div>
+  );
+
   return (
     <div className="flex flex-col items-center gap-1.5 w-20 relative">
       {/* Avatar with speaking indicator */}
       <div className="relative">
-        <div
-          className={`w-14 h-14 rounded-full flex items-center justify-center text-white font-bold text-sm transition-all overflow-hidden ${
-            isSelf
-              ? 'bg-gradient-to-br from-cyan-500 to-purple-500'
-              : isFounder
-              ? 'bg-gradient-to-br from-amber-500 to-orange-500'
-              : isCoHost
-              ? 'bg-gradient-to-br from-purple-500 to-pink-500'
-              : 'bg-gradient-to-br from-gray-600 to-gray-700'
-          } ${isSpeaking ? 'ring-2 ring-green-400 ring-offset-2 ring-offset-gray-900 animate-pulse' : ''}`}
-        >
-          {profilePhotoUrl ? (
-            <img src={profilePhotoUrl} alt={displayLabel} className="w-full h-full object-cover" />
-          ) : (
-            initials
-          )}
-        </div>
+        {isSelf ? (
+          avatarContent
+        ) : (
+          <Link href={`/profile/${address}`} title={`View ${displayLabel}'s profile`}>
+            {avatarContent}
+          </Link>
+        )}
         {/* Founder crown badge */}
         {isFounder && !isSelf && (
           <div className="absolute -top-1 -left-1 w-5 h-5 rounded-full bg-amber-500 flex items-center justify-center">
@@ -179,9 +190,13 @@ function SpeakerAvatar({
         )}
       </div>
       {/* Name */}
-      <p className="text-xs text-white font-medium truncate max-w-full">
-        {isSelf ? 'You' : displayLabel}
-      </p>
+      {isSelf ? (
+        <p className="text-xs text-white font-medium truncate max-w-full">You</p>
+      ) : (
+        <Link href={`/profile/${address}`} className="text-xs text-white font-medium truncate max-w-full hover:text-cyan-400 transition-colors">
+          {displayLabel}
+        </Link>
+      )}
       {/* Role */}
       <p className="text-[10px] text-gray-400">{role}</p>
     </div>
@@ -512,7 +527,7 @@ export default function VoiceRoom({
                 </>
               ) : (
                 <>
-                  <Link className="w-3.5 h-3.5" />
+                  <LinkIcon className="w-3.5 h-3.5" />
                   <span>Share</span>
                 </>
               )}
@@ -674,7 +689,12 @@ export default function VoiceRoom({
                 const lInitials = lProfile?.username?.slice(0, 2).toUpperCase() || p.peerId.slice(0, 2).toUpperCase();
                 const lName = lProfile?.username || `${p.peerId.slice(0, 4)}...`;
                 return (
-                  <div key={p.peerId} className="flex items-center gap-1.5 px-2 py-1 bg-white/5 rounded-full">
+                  <Link
+                    key={p.peerId}
+                    href={`/profile/${p.peerId}`}
+                    className="flex items-center gap-1.5 px-2 py-1 bg-white/5 rounded-full hover:bg-white/10 transition-colors"
+                    title={`View ${lName}'s profile`}
+                  >
                     <div className="w-6 h-6 rounded-full bg-gradient-to-br from-gray-600 to-gray-700 flex items-center justify-center text-[10px] text-white font-bold overflow-hidden">
                       {lProfile?.profilePhotoUrl ? (
                         <img src={lProfile.profilePhotoUrl} alt={lName} className="w-full h-full object-cover" />
@@ -682,9 +702,9 @@ export default function VoiceRoom({
                         lInitials
                       )}
                     </div>
-                    <span className="text-xs text-gray-400">{lName}</span>
+                    <span className="text-xs text-gray-400 hover:text-white transition-colors">{lName}</span>
                     {p.hasRaisedHand && <Hand className="w-3 h-3 text-yellow-400" />}
-                  </div>
+                  </Link>
                 );
               })}
             </div>
