@@ -486,6 +486,7 @@ const NotificationSchema = new mongoose.Schema({
       'market_resolved',
       'claim_ready',
       'pool_complete',
+      'founder_voice_live',
     ],
   },
   title: {
