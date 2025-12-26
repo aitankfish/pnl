@@ -562,6 +562,20 @@ export function VoiceRoomProvider({ children }: VoiceRoomProviderProps) {
       setIsMuted(true);
       setIsReconnecting(false);
       setReconnectAttempts(0);
+
+      // If founder joins, send notification to all voters (fire and forget)
+      if (newWalletAddress === newFounderWallet) {
+        fetch('/api/voice/founder-joined', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            marketAddress: newMarketAddress,
+            marketName: newMarketName,
+            founderWallet: newFounderWallet,
+            walletAddress: newWalletAddress,
+          }),
+        }).catch(err => console.error('Failed to send founder notification:', err));
+      }
     } catch (err: any) {
       console.error('Join error:', err);
       setError(err.message || 'Failed to join voice room');

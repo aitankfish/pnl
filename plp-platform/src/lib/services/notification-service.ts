@@ -104,6 +104,66 @@ export async function notifyPoolCompletion(marketId: string) {
 }
 
 /**
+ * Send notifications when a founder joins voice room
+ */
+export async function notifyFounderJoinedVoice(marketAddress: string, marketName: string) {
+  try {
+    await connectToDatabase();
+
+    // Get market details using marketAddress
+    const market = await PredictionMarket.findOne({ marketAddress });
+    if (!market) {
+      logger.error('Market not found for founder voice notification', { marketAddress });
+      return { success: false, error: 'Market not found' };
+    }
+
+    // Get all participants who voted on this market
+    const participants = await PredictionParticipant.find({
+      marketId: market._id
+    }).distinct('participantWallet');
+
+    // Filter out the founder from notification recipients
+    const founderWallet = market.founderWallet;
+    const recipients = participants.filter((wallet: string) => wallet !== founderWallet);
+
+    if (recipients.length === 0) {
+      logger.info('No participants to notify for founder voice join', { marketAddress });
+      return { success: true, notified: 0 };
+    }
+
+    // Send notifications to all participants
+    const notificationPromises = recipients.map(async (userWallet: string) => {
+      await createNotification({
+        userId: userWallet,
+        type: 'founder_voice_live',
+        title: `${marketName} founder is live!`,
+        message: `The founder of ${marketName} just joined the voice room. Tune in to ask questions and chat!`,
+        priority: 'high',
+        marketId: market._id?.toString(),
+        actionUrl: `/market/${marketAddress}`,
+        metadata: {
+          action: 'join_voice',
+          founderWallet,
+        },
+      });
+    });
+
+    await Promise.all(notificationPromises);
+
+    logger.info('Founder voice join notifications sent', {
+      marketAddress,
+      marketName,
+      participantCount: recipients.length,
+    });
+
+    return { success: true, notified: recipients.length };
+  } catch (error) {
+    logger.error('Failed to send founder voice join notifications:', error);
+    return { success: false, error: 'Failed to send notifications' };
+  }
+}
+
+/**
  * Send notifications when a market is resolved
  */
 export async function notifyMarketResolution(marketId: string, resolution: string) {
