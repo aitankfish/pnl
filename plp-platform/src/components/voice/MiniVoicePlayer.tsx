@@ -16,17 +16,17 @@ export default function MiniVoicePlayer() {
   }
 
   // Don't render mini player if we're on the market page for this room
-  // Use includes() for more robust matching (handles case sensitivity, trailing slashes, etc.)
+  // Use marketId (URL param) for comparison since that's what's in the URL
   const isOnRoomPage = pathname?.startsWith('/market/') &&
-    voiceRoom.marketAddress &&
-    pathname.toLowerCase().includes(voiceRoom.marketAddress.toLowerCase());
+    voiceRoom.marketId &&
+    pathname.toLowerCase().includes(voiceRoom.marketId.toLowerCase());
 
   if (isOnRoomPage) {
     return null;
   }
 
   const {
-    marketAddress,
+    marketId,
     marketName,
     participants,
     isMuted,
@@ -70,7 +70,7 @@ export default function MiniVoicePlayer() {
 
             {/* Expand button */}
             <Link
-              href={`/market/${marketAddress}`}
+              href={`/market/${marketId}`}
               className="p-2 rounded-lg bg-white/5 hover:bg-white/10 text-gray-400 hover:text-white transition-all"
               title="Open full room"
             >

@@ -33,6 +33,7 @@ interface VoiceRoomState {
   reconnectAttempts: number;
 
   // Room info
+  marketId: string | null; // URL param ID (MongoDB ID or Solana address)
   marketAddress: string | null;
   marketName: string | null;
   walletAddress: string | null;
@@ -69,7 +70,7 @@ interface VoiceRoomState {
 
 interface VoiceRoomContextType extends VoiceRoomState {
   // Actions
-  join: (marketAddress: string, marketName: string, walletAddress: string, founderWallet: string | null) => Promise<void>;
+  join: (marketId: string, marketAddress: string, marketName: string, walletAddress: string, founderWallet: string | null) => Promise<void>;
   joinAsSpeaker: () => void;
   joinAsListener: () => void;
   leave: () => void;
@@ -116,6 +117,7 @@ export function VoiceRoomProvider({ children }: VoiceRoomProviderProps) {
   const [reconnectAttempts, setReconnectAttempts] = useState(0);
 
   // Room info
+  const [marketId, setMarketId] = useState<string | null>(null); // URL param ID (MongoDB ID or Solana address)
   const [marketAddress, setMarketAddress] = useState<string | null>(null);
   const [marketName, setMarketName] = useState<string | null>(null);
   const [walletAddress, setWalletAddress] = useState<string | null>(null);
@@ -228,6 +230,7 @@ export function VoiceRoomProvider({ children }: VoiceRoomProviderProps) {
     setSpeakerCount(0);
 
     if (intentional) {
+      setMarketId(null);
       setMarketAddress(null);
       setMarketName(null);
       setWalletAddress(null);
@@ -492,8 +495,8 @@ export function VoiceRoomProvider({ children }: VoiceRoomProviderProps) {
 
             reconnectTimeoutRef.current = setTimeout(() => {
               cleanup(false);
-              if (marketAddress && walletAddress) {
-                join(marketAddress, marketName || '', walletAddress, founderWallet);
+              if (marketId && marketAddress && walletAddress) {
+                join(marketId, marketAddress, marketName || '', walletAddress, founderWallet);
               }
             }, delay);
           } else {
@@ -588,12 +591,16 @@ export function VoiceRoomProvider({ children }: VoiceRoomProviderProps) {
 
   // Public join function - shows choice dialog or auto-joins
   const join = useCallback(async (
+    newMarketId: string,
     newMarketAddress: string,
     newMarketName: string,
     newWalletAddress: string,
     newFounderWallet: string | null
   ) => {
     if (isConnected || isConnecting) return;
+
+    // Store the URL ID for navigation/comparison
+    setMarketId(newMarketId);
 
     // Store pending join data
     pendingJoinRef.current = {
@@ -733,11 +740,11 @@ export function VoiceRoomProvider({ children }: VoiceRoomProviderProps) {
   }, [isFounder]);
 
   const expandToRoom = useCallback(() => {
-    if (marketAddress) {
+    if (marketId) {
       setIsMinimized(false);
-      window.location.href = `/market/${marketAddress}`;
+      window.location.href = `/market/${marketId}`;
     }
-  }, [marketAddress]);
+  }, [marketId]);
 
   // Cleanup on unmount
   useEffect(() => {
@@ -752,6 +759,7 @@ export function VoiceRoomProvider({ children }: VoiceRoomProviderProps) {
     isConnecting,
     isReconnecting,
     reconnectAttempts,
+    marketId,
     marketAddress,
     marketName,
     walletAddress,

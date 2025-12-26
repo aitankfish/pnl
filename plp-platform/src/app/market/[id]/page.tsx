@@ -2706,6 +2706,7 @@ export default function MarketDetailsPage() {
         {/* Fixed sidebar that stays in place */}
         <div className="hidden lg:block fixed top-[6.5rem] right-4 w-[28%] min-w-[320px] max-w-[400px] z-30">
           <CommunityHub
+            marketId={params.id as string}
             marketAddress={market.marketAddress}
             marketName={market.name}
             walletAddress={primaryWallet?.address}
@@ -2755,6 +2756,7 @@ export default function MarketDetailsPage() {
             {/* Content */}
             <div className="h-[calc(100%-60px)]">
               <CommunityHub
+                marketId={params.id as string}
                 marketAddress={market.marketAddress}
                 marketName={market.name}
                 walletAddress={primaryWallet?.address}

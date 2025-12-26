@@ -5,6 +5,7 @@ import { Mic, MicOff, PhoneOff, Loader2, Users, AlertCircle, Hand, MoreVertical,
 import { useVoiceRoomContext, REACTION_EMOJIS, MAX_SPEAKERS } from '@/lib/context/VoiceRoomContext';
 
 interface VoiceRoomProps {
+  marketId: string; // URL param ID (MongoDB ID or Solana address)
   marketAddress: string;
   marketName?: string;
   walletAddress?: string | null;
@@ -179,6 +180,7 @@ function SpeakerAvatar({
 }
 
 export default function VoiceRoom({
+  marketId,
   marketAddress,
   marketName,
   walletAddress,
@@ -235,7 +237,7 @@ export default function VoiceRoom({
   // Handle join with context
   const handleJoin = () => {
     if (walletAddress) {
-      join(marketAddress, marketName || '', walletAddress, founderWallet || null);
+      join(marketId, marketAddress, marketName || '', walletAddress, founderWallet || null);
     }
   };
 

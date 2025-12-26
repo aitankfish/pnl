@@ -34,6 +34,7 @@ interface SocialLinks {
 }
 
 interface CommunityHubProps {
+  marketId: string; // URL param ID (MongoDB ID or Solana address)
   marketAddress: string;
   marketName?: string;
   walletAddress?: string | null;
@@ -46,6 +47,7 @@ interface CommunityHubProps {
 type TabType = 'chat' | 'voice';
 
 export default function CommunityHub({
+  marketId,
   marketAddress,
   marketName,
   walletAddress,
@@ -160,6 +162,7 @@ export default function CommunityHub({
 
         {activeTab === 'voice' && (
           <VoiceRoom
+            marketId={marketId}
             marketAddress={marketAddress}
             marketName={marketName}
             walletAddress={walletAddress}
