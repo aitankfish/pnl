@@ -16,7 +16,11 @@ export default function MiniVoicePlayer() {
   }
 
   // Don't render mini player if we're on the market page for this room
-  const isOnRoomPage = pathname === `/market/${voiceRoom.marketAddress}`;
+  // Use includes() for more robust matching (handles case sensitivity, trailing slashes, etc.)
+  const isOnRoomPage = pathname?.startsWith('/market/') &&
+    voiceRoom.marketAddress &&
+    pathname.toLowerCase().includes(voiceRoom.marketAddress.toLowerCase());
+
   if (isOnRoomPage) {
     return null;
   }
