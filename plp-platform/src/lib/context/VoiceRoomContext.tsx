@@ -295,7 +295,16 @@ export function VoiceRoomProvider({ children }: VoiceRoomProviderProps) {
     setIsSpeaker(willBeSpeaker);
 
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      // Enhanced audio constraints for better voice quality
+      const stream = await navigator.mediaDevices.getUserMedia({
+        audio: {
+          echoCancellation: true,
+          noiseSuppression: true,
+          autoGainControl: true,
+          sampleRate: 48000,
+          channelCount: 1,
+        }
+      });
       localStreamRef.current = stream;
       stream.getAudioTracks().forEach(track => track.enabled = false);
 
@@ -356,7 +365,19 @@ export function VoiceRoomProvider({ children }: VoiceRoomProviderProps) {
       });
 
       const track = stream.getAudioTracks()[0];
-      const producer = await sendTransport.produce({ track });
+      // Produce with higher quality Opus codec settings
+      const producer = await sendTransport.produce({
+        track,
+        codecOptions: {
+          opusStereo: false,
+          opusDtx: true, // Discontinuous transmission - saves bandwidth during silence
+          opusFec: true, // Forward error correction for better quality on lossy connections
+          opusMaxPlaybackRate: 48000,
+        },
+        encodings: [
+          { maxBitrate: 64000 } // 64kbps for voice (default is often 32kbps)
+        ],
+      });
       producerRef.current = producer;
 
       socket.emit('getProducers', (response: any) => {
