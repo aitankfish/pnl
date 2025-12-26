@@ -64,32 +64,20 @@ export default function CommunityHub({
 
   // Check if there's an active voice room for this market
   useEffect(() => {
-    if (voiceRoom && voiceRoom.isConnected && voiceRoom.marketAddress === marketAddress) {
-      setVoiceRoomActive(true);
-      setVoiceParticipantCount(voiceRoom.participants.length + 1); // +1 for self
-    } else {
-      // Poll the voice server for active room status
-      const checkRoomStatus = async () => {
-        try {
-          const voiceServerUrl = process.env.NEXT_PUBLIC_VOICE_SERVER_URL;
-          if (voiceServerUrl) {
-            const response = await fetch(`${voiceServerUrl}/room-status/${marketAddress}`);
-            if (response.ok) {
-              const data = await response.json();
-              setVoiceRoomActive(data.active && data.participantCount > 0);
-              setVoiceParticipantCount(data.participantCount || 0);
-            }
-          }
-        } catch (error) {
-          // Silently fail - voice server may not have this endpoint yet
-        }
-      };
+    // Check if user is connected to voice room for this market
+    const isConnectedToThisRoom = voiceRoom?.isConnected && voiceRoom?.marketAddress === marketAddress;
 
-      checkRoomStatus();
-      const interval = setInterval(checkRoomStatus, 10000); // Poll every 10s
-      return () => clearInterval(interval);
+    if (isConnectedToThisRoom) {
+      setVoiceRoomActive(true);
+      setVoiceParticipantCount((voiceRoom?.participants?.length || 0) + 1); // +1 for self
+    } else {
+      setVoiceRoomActive(false);
+      setVoiceParticipantCount(0);
     }
-  }, [voiceRoom, marketAddress]);
+
+    // Note: To show live indicator for OTHER users in the room (when you're not connected),
+    // implement /room-status/:marketAddress endpoint on voice server
+  }, [voiceRoom?.isConnected, voiceRoom?.marketAddress, voiceRoom?.participants?.length, marketAddress]);
 
   const tabs = [
     { id: 'chat' as TabType, label: 'Chat', icon: MessageSquare },
