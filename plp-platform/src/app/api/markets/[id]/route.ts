@@ -16,6 +16,11 @@ export const dynamic = 'force-dynamic';
 
 const logger = createClientLogger();
 
+// Helper to check if string is valid MongoDB ObjectId
+function isValidObjectId(id: string): boolean {
+  return /^[a-f\d]{24}$/i.test(id);
+}
+
 export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
@@ -28,9 +33,15 @@ export async function GET(
 
     // Use aggregation pipeline to fetch market + project + founder profile in a single query
     const mongoose = await import('mongoose');
+
+    // Build match query - support both MongoDB ObjectId and Solana address
+    const matchQuery = isValidObjectId(id)
+      ? { _id: new mongoose.Types.ObjectId(id) }
+      : { marketAddress: id };
+
     const marketAggregation = await PredictionMarket.aggregate([
-      // Match the market by ID
-      { $match: { _id: new mongoose.Types.ObjectId(id) } },
+      // Match the market by ID or marketAddress
+      { $match: matchQuery },
       // Join with project collection
       {
         $lookup: {
