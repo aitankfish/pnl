@@ -1,14 +1,20 @@
 'use client';
 
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { usePathname } from 'next/navigation';
 import { Mic, MicOff, PhoneOff, Users, Maximize2, X } from 'lucide-react';
 import { useVoiceRoomContextSafe, REACTION_EMOJIS } from '@/lib/context/VoiceRoomContext';
 import Link from 'next/link';
 
+interface ProfileData {
+  username?: string;
+  profilePhotoUrl?: string;
+}
+
 export default function MiniVoicePlayer() {
   const voiceRoom = useVoiceRoomContextSafe();
   const pathname = usePathname();
+  const [profiles, setProfiles] = useState<Record<string, ProfileData>>({});
 
   // Don't render if no voice room context or not connected
   if (!voiceRoom || !voiceRoom.isConnected) {
@@ -28,6 +34,7 @@ export default function MiniVoicePlayer() {
   const {
     marketId,
     marketName,
+    walletAddress,
     participants,
     isMuted,
     isSpeaking,
@@ -38,6 +45,48 @@ export default function MiniVoicePlayer() {
     isReconnecting,
     reconnectAttempts,
   } = voiceRoom;
+
+  // Fetch profiles for participants
+  useEffect(() => {
+    const fetchProfiles = async () => {
+      const walletsToFetch: string[] = [];
+
+      // Add self wallet
+      if (walletAddress && !profiles[walletAddress]) {
+        walletsToFetch.push(walletAddress);
+      }
+
+      // Add participant wallets
+      participants.slice(0, 4).forEach(p => {
+        if (!profiles[p.peerId]) {
+          walletsToFetch.push(p.peerId);
+        }
+      });
+
+      if (walletsToFetch.length === 0) return;
+
+      try {
+        const response = await fetch('/api/profiles/batch', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ wallets: walletsToFetch }),
+        });
+
+        if (response.ok) {
+          const data = await response.json();
+          if (data.success && data.data) {
+            setProfiles(prev => ({ ...prev, ...data.data }));
+          }
+        }
+      } catch (error) {
+        console.error('Failed to fetch profiles:', error);
+      }
+    };
+
+    fetchProfiles();
+  }, [participants, walletAddress]);
+
+  const selfProfile = walletAddress ? profiles[walletAddress] : null;
 
   return (
     <div className="fixed bottom-4 left-4 right-4 md:left-auto md:right-4 md:w-80 z-50 animate-slide-up">
@@ -82,24 +131,37 @@ export default function MiniVoicePlayer() {
           <div className="flex items-center gap-1 mb-3 overflow-hidden">
             {/* Self */}
             <div
-              className={`w-8 h-8 rounded-full flex items-center justify-center text-white text-xs font-bold flex-shrink-0 ${
+              className={`w-8 h-8 rounded-full flex items-center justify-center text-white text-xs font-bold flex-shrink-0 overflow-hidden ${
                 isSpeaking ? 'ring-2 ring-green-400 ring-offset-1 ring-offset-gray-900' : ''
               } bg-gradient-to-br from-cyan-500 to-purple-500`}
             >
-              You
+              {selfProfile?.profilePhotoUrl ? (
+                <img src={selfProfile.profilePhotoUrl} alt="You" className="w-full h-full object-cover" />
+              ) : (
+                'You'
+              )}
             </div>
 
             {/* Other participants (show up to 4) */}
-            {participants.slice(0, 4).map((p) => (
-              <div
-                key={p.peerId}
-                className={`w-8 h-8 rounded-full flex items-center justify-center text-white text-xs font-bold flex-shrink-0 ${
-                  p.isSpeaking ? 'ring-2 ring-green-400 ring-offset-1 ring-offset-gray-900' : ''
-                } bg-gradient-to-br from-gray-600 to-gray-700`}
-              >
-                {p.peerId.slice(0, 2).toUpperCase()}
-              </div>
-            ))}
+            {participants.slice(0, 4).map((p) => {
+              const pProfile = profiles[p.peerId];
+              const pInitials = pProfile?.username?.slice(0, 2).toUpperCase() || p.peerId.slice(0, 2).toUpperCase();
+              return (
+                <div
+                  key={p.peerId}
+                  className={`w-8 h-8 rounded-full flex items-center justify-center text-white text-xs font-bold flex-shrink-0 overflow-hidden ${
+                    p.isSpeaking ? 'ring-2 ring-green-400 ring-offset-1 ring-offset-gray-900' : ''
+                  } bg-gradient-to-br from-gray-600 to-gray-700`}
+                  title={pProfile?.username || `${p.peerId.slice(0, 4)}...${p.peerId.slice(-4)}`}
+                >
+                  {pProfile?.profilePhotoUrl ? (
+                    <img src={pProfile.profilePhotoUrl} alt={pProfile.username || 'Participant'} className="w-full h-full object-cover" />
+                  ) : (
+                    pInitials
+                  )}
+                </div>
+              );
+            })}
 
             {/* More indicator */}
             {participants.length > 4 && (

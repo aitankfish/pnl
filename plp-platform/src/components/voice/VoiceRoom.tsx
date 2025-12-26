@@ -31,6 +31,8 @@ function FloatingReaction({ emoji, id }: { emoji: string; id: string }) {
 // Avatar component for speakers
 function SpeakerAvatar({
   address,
+  displayName,
+  profilePhotoUrl,
   role,
   isMuted,
   isSpeaking,
@@ -47,6 +49,8 @@ function SpeakerAvatar({
   onRemoveCoHost,
 }: {
   address: string;
+  displayName?: string;
+  profilePhotoUrl?: string;
   role: 'Host' | 'Co-host' | 'Speaker';
   isMuted: boolean;
   isSpeaking?: boolean;
@@ -63,15 +67,16 @@ function SpeakerAvatar({
   onRemoveCoHost?: () => void;
 }) {
   const [showMenu, setShowMenu] = useState(false);
-  const initials = address.slice(0, 2).toUpperCase();
+  const initials = displayName ? displayName.slice(0, 2).toUpperCase() : address.slice(0, 2).toUpperCase();
   const shortAddress = `${address.slice(0, 4)}...${address.slice(-4)}`;
+  const displayLabel = displayName || shortAddress;
 
   return (
     <div className="flex flex-col items-center gap-1.5 w-20 relative">
       {/* Avatar with speaking indicator */}
       <div className="relative">
         <div
-          className={`w-14 h-14 rounded-full flex items-center justify-center text-white font-bold text-sm transition-all ${
+          className={`w-14 h-14 rounded-full flex items-center justify-center text-white font-bold text-sm transition-all overflow-hidden ${
             isSelf
               ? 'bg-gradient-to-br from-cyan-500 to-purple-500'
               : isFounder
@@ -81,7 +86,11 @@ function SpeakerAvatar({
               : 'bg-gradient-to-br from-gray-600 to-gray-700'
           } ${isSpeaking ? 'ring-2 ring-green-400 ring-offset-2 ring-offset-gray-900 animate-pulse' : ''}`}
         >
-          {initials}
+          {profilePhotoUrl ? (
+            <img src={profilePhotoUrl} alt={displayLabel} className="w-full h-full object-cover" />
+          ) : (
+            initials
+          )}
         </div>
         {/* Founder crown badge */}
         {isFounder && !isSelf && (
@@ -171,12 +180,18 @@ function SpeakerAvatar({
       </div>
       {/* Name */}
       <p className="text-xs text-white font-medium truncate max-w-full">
-        {isSelf ? 'You' : shortAddress}
+        {isSelf ? 'You' : displayLabel}
       </p>
       {/* Role */}
       <p className="text-[10px] text-gray-400">{role}</p>
     </div>
   );
+}
+
+// Profile data type
+interface ProfileData {
+  username?: string;
+  profilePhotoUrl?: string;
 }
 
 export default function VoiceRoom({
@@ -191,6 +206,7 @@ export default function VoiceRoom({
   const [titleInput, setTitleInput] = useState('');
   const [showCopied, setShowCopied] = useState(false);
   const [joinToast, setJoinToast] = useState<string | null>(null);
+  const [profiles, setProfiles] = useState<Record<string, ProfileData>>({});
 
   const {
     isConnected,
@@ -241,17 +257,64 @@ export default function VoiceRoom({
     }
   };
 
+  // Fetch profiles for participants
+  useEffect(() => {
+    const fetchProfiles = async () => {
+      // Collect all wallet addresses that need profiles
+      const walletsToFetch: string[] = [];
+
+      // Add self wallet if connected
+      if (walletAddress && !profiles[walletAddress]) {
+        walletsToFetch.push(walletAddress);
+      }
+
+      // Add founder wallet
+      if (founderWallet && !profiles[founderWallet]) {
+        walletsToFetch.push(founderWallet);
+      }
+
+      // Add participant wallets
+      participants.forEach(p => {
+        if (!profiles[p.peerId]) {
+          walletsToFetch.push(p.peerId);
+        }
+      });
+
+      if (walletsToFetch.length === 0) return;
+
+      try {
+        const response = await fetch('/api/profiles/batch', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ wallets: walletsToFetch }),
+        });
+
+        if (response.ok) {
+          const data = await response.json();
+          if (data.success && data.data) {
+            setProfiles(prev => ({ ...prev, ...data.data }));
+          }
+        }
+      } catch (error) {
+        console.error('Failed to fetch profiles:', error);
+      }
+    };
+
+    if (isConnected) {
+      fetchProfiles();
+    }
+  }, [isConnected, participants, walletAddress, founderWallet]);
+
   // Join notification effect
   useEffect(() => {
     if (isConnected && participants.length > prevParticipantsRef.current) {
       // Someone joined
-      const newCount = participants.length - prevParticipantsRef.current;
       const latestParticipant = participants[participants.length - 1];
-      const shortAddr = latestParticipant ?
-        `${latestParticipant.peerId.slice(0, 4)}...${latestParticipant.peerId.slice(-4)}` :
-        'Someone';
+      const profile = latestParticipant ? profiles[latestParticipant.peerId] : null;
+      const displayName = profile?.username ||
+        (latestParticipant ? `${latestParticipant.peerId.slice(0, 4)}...${latestParticipant.peerId.slice(-4)}` : 'Someone');
 
-      setJoinToast(`${shortAddr} joined the room`);
+      setJoinToast(`${displayName} joined the room`);
 
       // Play a subtle notification sound
       const audioCtx = new (window.AudioContext || (window as any).webkitAudioContext)();
@@ -270,7 +333,7 @@ export default function VoiceRoom({
       setTimeout(() => setJoinToast(null), 3000);
     }
     prevParticipantsRef.current = participants.length;
-  }, [participants.length, isConnected]);
+  }, [participants.length, isConnected, profiles]);
 
   const handleShareLink = async () => {
     const roomUrl = `${window.location.origin}/market/${marketAddress}`;
@@ -512,15 +575,17 @@ export default function VoiceRoom({
           </p>
           <div className="flex flex-wrap justify-center gap-4">
             {/* Self - only show in speakers if isSpeaker */}
-            {isSpeaker && (
+            {isSpeaker && walletAddress && (
               <SpeakerAvatar
-                address={walletAddress || ''}
-                role={isFounder ? 'Host' : isTempHost ? 'Host' : coHosts.includes(walletAddress || '') ? 'Co-host' : 'Speaker'}
+                address={walletAddress}
+                displayName={profiles[walletAddress]?.username}
+                profilePhotoUrl={profiles[walletAddress]?.profilePhotoUrl}
+                role={isFounder ? 'Host' : isTempHost ? 'Host' : coHosts.includes(walletAddress) ? 'Co-host' : 'Speaker'}
                 isMuted={isMuted}
                 isSpeaking={isSpeaking}
                 isSelf={true}
                 isFounder={isFounder}
-                isCoHost={coHosts.includes(walletAddress || '')}
+                isCoHost={coHosts.includes(walletAddress)}
                 hasRaisedHand={hasRaisedHand}
               />
             )}
@@ -530,11 +595,14 @@ export default function VoiceRoom({
               const isParticipantFounder = participant.peerId === founderWallet;
               const isParticipantCoHost = coHosts.includes(participant.peerId);
               const participantRole = isParticipantFounder ? 'Host' : isParticipantCoHost ? 'Co-host' : 'Speaker';
+              const participantProfile = profiles[participant.peerId];
 
               return (
                 <SpeakerAvatar
                   key={participant.peerId}
                   address={participant.peerId}
+                  displayName={participantProfile?.username}
+                  profilePhotoUrl={participantProfile?.profilePhotoUrl}
                   role={participantRole}
                   isMuted={participant.isMuted}
                   isSpeaking={participant.isSpeaking}
@@ -561,16 +629,20 @@ export default function VoiceRoom({
               <Hand className="w-3 h-3" /> Requesting to speak
             </p>
             <div className="flex flex-wrap gap-2">
-              {listeners.filter(p => p.hasRaisedHand).map(p => (
-                <button
-                  key={p.peerId}
-                  onClick={() => approveHand(p.peerId)}
-                  className="px-3 py-1.5 text-xs bg-yellow-500/20 text-yellow-300 rounded-lg hover:bg-yellow-500/30 flex items-center gap-1.5"
-                >
-                  <Check className="w-3 h-3" />
-                  Approve {p.peerId.slice(0, 4)}...
-                </button>
-              ))}
+              {listeners.filter(p => p.hasRaisedHand).map(p => {
+                const pProfile = profiles[p.peerId];
+                const pName = pProfile?.username || `${p.peerId.slice(0, 4)}...`;
+                return (
+                  <button
+                    key={p.peerId}
+                    onClick={() => approveHand(p.peerId)}
+                    className="px-3 py-1.5 text-xs bg-yellow-500/20 text-yellow-300 rounded-lg hover:bg-yellow-500/30 flex items-center gap-1.5"
+                  >
+                    <Check className="w-3 h-3" />
+                    Approve {pName}
+                  </button>
+                );
+              })}
             </div>
           </div>
         )}
@@ -583,25 +655,38 @@ export default function VoiceRoom({
             </p>
             <div className="flex flex-wrap gap-2">
               {/* Self as listener */}
-              {!isSpeaker && (
+              {!isSpeaker && walletAddress && (
                 <div className="flex items-center gap-1.5 px-2 py-1 bg-white/5 rounded-full">
-                  <div className="w-6 h-6 rounded-full bg-gradient-to-br from-cyan-500 to-purple-500 flex items-center justify-center text-[10px] text-white font-bold">
-                    You
+                  <div className="w-6 h-6 rounded-full bg-gradient-to-br from-cyan-500 to-purple-500 flex items-center justify-center text-[10px] text-white font-bold overflow-hidden">
+                    {profiles[walletAddress]?.profilePhotoUrl ? (
+                      <img src={profiles[walletAddress].profilePhotoUrl} alt="You" className="w-full h-full object-cover" />
+                    ) : (
+                      'You'
+                    )}
                   </div>
                   {hasRaisedHand && <Hand className="w-3 h-3 text-yellow-400" />}
                 </div>
               )}
 
               {/* Other listeners */}
-              {listeners.map((p) => (
-                <div key={p.peerId} className="flex items-center gap-1.5 px-2 py-1 bg-white/5 rounded-full">
-                  <div className="w-6 h-6 rounded-full bg-gradient-to-br from-gray-600 to-gray-700 flex items-center justify-center text-[10px] text-white font-bold">
-                    {p.peerId.slice(0, 2).toUpperCase()}
+              {listeners.map((p) => {
+                const lProfile = profiles[p.peerId];
+                const lInitials = lProfile?.username?.slice(0, 2).toUpperCase() || p.peerId.slice(0, 2).toUpperCase();
+                const lName = lProfile?.username || `${p.peerId.slice(0, 4)}...`;
+                return (
+                  <div key={p.peerId} className="flex items-center gap-1.5 px-2 py-1 bg-white/5 rounded-full">
+                    <div className="w-6 h-6 rounded-full bg-gradient-to-br from-gray-600 to-gray-700 flex items-center justify-center text-[10px] text-white font-bold overflow-hidden">
+                      {lProfile?.profilePhotoUrl ? (
+                        <img src={lProfile.profilePhotoUrl} alt={lName} className="w-full h-full object-cover" />
+                      ) : (
+                        lInitials
+                      )}
+                    </div>
+                    <span className="text-xs text-gray-400">{lName}</span>
+                    {p.hasRaisedHand && <Hand className="w-3 h-3 text-yellow-400" />}
                   </div>
-                  <span className="text-xs text-gray-400">{p.peerId.slice(0, 4)}...</span>
-                  {p.hasRaisedHand && <Hand className="w-3 h-3 text-yellow-400" />}
-                </div>
-              ))}
+                );
+              })}
             </div>
           </div>
         )}

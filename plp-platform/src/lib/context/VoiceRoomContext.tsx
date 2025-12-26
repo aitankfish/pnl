@@ -8,6 +8,7 @@ import type { Transport, Producer, Consumer } from 'mediasoup-client/lib/types';
 export interface VoiceParticipant {
   peerId: string;
   displayName?: string;
+  profilePhotoUrl?: string;
   isMuted: boolean;
   isSpeaking: boolean;
   hasRaisedHand: boolean;
