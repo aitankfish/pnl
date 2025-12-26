@@ -1,9 +1,10 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { MessageSquare, Mic, Send } from 'lucide-react';
 import ChatRoom from './ChatRoom';
 import VoiceRoom from '../voice/VoiceRoom';
+import { useVoiceRoomContextSafe } from '@/lib/context/VoiceRoomContext';
 
 // Custom Discord icon component
 const DiscordIcon = ({ className }: { className?: string }) => (
@@ -57,6 +58,38 @@ export default function CommunityHub({
   className,
 }: CommunityHubProps) {
   const [activeTab, setActiveTab] = useState<TabType>('chat');
+  const [voiceRoomActive, setVoiceRoomActive] = useState(false);
+  const [voiceParticipantCount, setVoiceParticipantCount] = useState(0);
+  const voiceRoom = useVoiceRoomContextSafe();
+
+  // Check if there's an active voice room for this market
+  useEffect(() => {
+    if (voiceRoom && voiceRoom.isConnected && voiceRoom.marketAddress === marketAddress) {
+      setVoiceRoomActive(true);
+      setVoiceParticipantCount(voiceRoom.participants.length + 1); // +1 for self
+    } else {
+      // Poll the voice server for active room status
+      const checkRoomStatus = async () => {
+        try {
+          const voiceServerUrl = process.env.NEXT_PUBLIC_VOICE_SERVER_URL;
+          if (voiceServerUrl) {
+            const response = await fetch(`${voiceServerUrl}/room-status/${marketAddress}`);
+            if (response.ok) {
+              const data = await response.json();
+              setVoiceRoomActive(data.active && data.participantCount > 0);
+              setVoiceParticipantCount(data.participantCount || 0);
+            }
+          }
+        } catch (error) {
+          // Silently fail - voice server may not have this endpoint yet
+        }
+      };
+
+      checkRoomStatus();
+      const interval = setInterval(checkRoomStatus, 10000); // Poll every 10s
+      return () => clearInterval(interval);
+    }
+  }, [voiceRoom, marketAddress]);
 
   const tabs = [
     { id: 'chat' as TabType, label: 'Chat', icon: MessageSquare },
@@ -122,6 +155,9 @@ export default function CommunityHub({
       <div className="flex border-b border-cyan-500/10 bg-transparent">
         {tabs.map((tab) => {
           const Icon = tab.icon;
+          const isVoiceTab = tab.id === 'voice';
+          const showLiveIndicator = isVoiceTab && voiceRoomActive;
+
           return (
             <button
               key={tab.id}
@@ -135,18 +171,51 @@ export default function CommunityHub({
                   : 'text-gray-400 hover:text-gray-300 hover:bg-gray-800/30'
               }`}
             >
-              <Icon className="w-4 h-4" />
-              <span className="hidden sm:inline">{tab.label}</span>
+              {/* Live indicator glow effect */}
+              {showLiveIndicator && (
+                <div className="absolute inset-0 overflow-hidden rounded-t-lg">
+                  <div className="absolute inset-0 bg-gradient-to-r from-green-500/20 via-emerald-500/20 to-green-500/20 animate-pulse" />
+                  <div className="absolute -inset-1 bg-gradient-to-r from-green-500/0 via-green-400/30 to-green-500/0 blur-sm animate-glow-sweep" />
+                </div>
+              )}
+
+              <div className="relative flex items-center gap-1.5">
+                {showLiveIndicator && (
+                  <span className="relative flex h-2 w-2">
+                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
+                    <span className="relative inline-flex rounded-full h-2 w-2 bg-green-500"></span>
+                  </span>
+                )}
+                <Icon className={`w-4 h-4 ${showLiveIndicator ? 'text-green-400' : ''}`} />
+                <span className="hidden sm:inline">{tab.label}</span>
+                {showLiveIndicator && voiceParticipantCount > 0 && (
+                  <span className="text-[10px] text-green-400 font-bold">
+                    ({voiceParticipantCount})
+                  </span>
+                )}
+              </div>
+
               {tab.soon && (
                 <span className="text-[10px] text-gray-500 hidden sm:inline">(Soon)</span>
               )}
               {activeTab === tab.id && (
-                <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-cyan-400" />
+                <div className={`absolute bottom-0 left-0 right-0 h-0.5 ${showLiveIndicator ? 'bg-green-400' : 'bg-cyan-400'}`} />
               )}
             </button>
           );
         })}
       </div>
+
+      {/* CSS for glow animation */}
+      <style jsx>{`
+        @keyframes glow-sweep {
+          0%, 100% { transform: translateX(-100%); }
+          50% { transform: translateX(100%); }
+        }
+        .animate-glow-sweep {
+          animation: glow-sweep 2s ease-in-out infinite;
+        }
+      `}</style>
 
       {/* Tab Content */}
       <div className="flex-1 overflow-hidden">
