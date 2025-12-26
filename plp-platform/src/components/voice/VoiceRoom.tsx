@@ -29,6 +29,11 @@ function FloatingReaction({ emoji, id }: { emoji: string; id: string }) {
   );
 }
 
+// Check if string looks like a valid Solana wallet address (base58, 32-44 chars)
+const isValidWalletAddress = (str: string): boolean => {
+  return str.length >= 32 && str.length <= 44 && /^[1-9A-HJ-NP-Za-km-z]+$/.test(str);
+};
+
 // Avatar component for speakers
 function SpeakerAvatar({
   address,
@@ -71,6 +76,7 @@ function SpeakerAvatar({
   const initials = displayName ? displayName.slice(0, 2).toUpperCase() : address.slice(0, 2).toUpperCase();
   const shortAddress = `${address.slice(0, 4)}...${address.slice(-4)}`;
   const displayLabel = displayName || shortAddress;
+  const canLinkToProfile = isValidWalletAddress(address);
 
   const avatarContent = (
     <div
@@ -98,10 +104,12 @@ function SpeakerAvatar({
       <div className="relative">
         {isSelf ? (
           avatarContent
-        ) : (
+        ) : canLinkToProfile ? (
           <Link href={`/profile/${address}`} title={`View ${displayLabel}'s profile`}>
             {avatarContent}
           </Link>
+        ) : (
+          avatarContent
         )}
         {/* Founder crown badge */}
         {isFounder && !isSelf && (
@@ -192,10 +200,12 @@ function SpeakerAvatar({
       {/* Name */}
       {isSelf ? (
         <p className="text-xs text-white font-medium truncate max-w-full">You</p>
-      ) : (
+      ) : canLinkToProfile ? (
         <Link href={`/profile/${address}`} className="text-xs text-white font-medium truncate max-w-full hover:text-cyan-400 transition-colors">
           {displayLabel}
         </Link>
+      ) : (
+        <p className="text-xs text-white font-medium truncate max-w-full">{displayLabel}</p>
       )}
       {/* Role */}
       <p className="text-[10px] text-gray-400">{role}</p>
@@ -688,13 +698,10 @@ export default function VoiceRoom({
                 const lProfile = profiles[p.peerId];
                 const lInitials = lProfile?.username?.slice(0, 2).toUpperCase() || p.peerId.slice(0, 2).toUpperCase();
                 const lName = lProfile?.username || `${p.peerId.slice(0, 4)}...`;
-                return (
-                  <Link
-                    key={p.peerId}
-                    href={`/profile/${p.peerId}`}
-                    className="flex items-center gap-1.5 px-2 py-1 bg-white/5 rounded-full hover:bg-white/10 transition-colors"
-                    title={`View ${lName}'s profile`}
-                  >
+                const canLink = isValidWalletAddress(p.peerId);
+
+                const listenerContent = (
+                  <>
                     <div className="w-6 h-6 rounded-full bg-gradient-to-br from-gray-600 to-gray-700 flex items-center justify-center text-[10px] text-white font-bold overflow-hidden">
                       {lProfile?.profilePhotoUrl ? (
                         <img src={lProfile.profilePhotoUrl} alt={lName} className="w-full h-full object-cover" />
@@ -702,9 +709,27 @@ export default function VoiceRoom({
                         lInitials
                       )}
                     </div>
-                    <span className="text-xs text-gray-400 hover:text-white transition-colors">{lName}</span>
+                    <span className="text-xs text-gray-400">{lName}</span>
                     {p.hasRaisedHand && <Hand className="w-3 h-3 text-yellow-400" />}
+                  </>
+                );
+
+                return canLink ? (
+                  <Link
+                    key={p.peerId}
+                    href={`/profile/${p.peerId}`}
+                    className="flex items-center gap-1.5 px-2 py-1 bg-white/5 rounded-full hover:bg-white/10 transition-colors"
+                    title={`View ${lName}'s profile`}
+                  >
+                    {listenerContent}
                   </Link>
+                ) : (
+                  <div
+                    key={p.peerId}
+                    className="flex items-center gap-1.5 px-2 py-1 bg-white/5 rounded-full"
+                  >
+                    {listenerContent}
+                  </div>
                 );
               })}
             </div>

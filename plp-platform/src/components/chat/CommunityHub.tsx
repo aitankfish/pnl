@@ -47,6 +47,9 @@ interface CommunityHubProps {
 
 type TabType = 'chat' | 'voice';
 
+// Use same env var pattern as VoiceRoomContext
+const VOICE_SERVER_URL = process.env.NEXT_PUBLIC_VOICE_SERVER_URL || 'http://localhost:3002';
+
 export default function CommunityHub({
   marketId,
   marketAddress,
@@ -62,22 +65,53 @@ export default function CommunityHub({
   const [voiceParticipantCount, setVoiceParticipantCount] = useState(0);
   const voiceRoom = useVoiceRoomContextSafe();
 
-  // Check if there's an active voice room for this market
-  useEffect(() => {
-    // Check if user is connected to voice room for this market
-    const isConnectedToThisRoom = voiceRoom?.isConnected && voiceRoom?.marketAddress === marketAddress;
+  // Check if user is connected to this room
+  const isConnectedToThisRoom = voiceRoom?.isConnected && voiceRoom?.marketAddress === marketAddress;
 
+  // Update state when user is connected to this room
+  useEffect(() => {
     if (isConnectedToThisRoom) {
       setVoiceRoomActive(true);
       setVoiceParticipantCount((voiceRoom?.participants?.length || 0) + 1); // +1 for self
-    } else {
-      setVoiceRoomActive(false);
-      setVoiceParticipantCount(0);
     }
+  }, [isConnectedToThisRoom, voiceRoom?.participants?.length]);
 
-    // Note: To show live indicator for OTHER users in the room (when you're not connected),
-    // implement /room-status/:marketAddress endpoint on voice server
-  }, [voiceRoom?.isConnected, voiceRoom?.marketAddress, voiceRoom?.participants?.length, marketAddress]);
+  // Poll voice server for room status when NOT connected (for visitors)
+  useEffect(() => {
+    // Don't poll if user is already connected to this room
+    if (isConnectedToThisRoom) return;
+
+    const fetchRoomStatus = async () => {
+      try {
+        const response = await fetch(`${VOICE_SERVER_URL}/room-status/${marketAddress}`, {
+          method: 'GET',
+          headers: { 'Accept': 'application/json' },
+        });
+
+        if (response.ok) {
+          const data = await response.json();
+          setVoiceRoomActive(data.active && data.participantCount > 0);
+          setVoiceParticipantCount(data.participantCount || 0);
+        } else {
+          // Room doesn't exist or server error - assume inactive
+          setVoiceRoomActive(false);
+          setVoiceParticipantCount(0);
+        }
+      } catch (error) {
+        // Network error or endpoint not available - silently fail
+        setVoiceRoomActive(false);
+        setVoiceParticipantCount(0);
+      }
+    };
+
+    // Initial fetch
+    fetchRoomStatus();
+
+    // Poll every 10 seconds
+    const interval = setInterval(fetchRoomStatus, 10000);
+
+    return () => clearInterval(interval);
+  }, [marketAddress, isConnectedToThisRoom]);
 
   const tabs = [
     { id: 'chat' as TabType, label: 'Chat', icon: MessageSquare },

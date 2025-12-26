@@ -11,6 +11,11 @@ interface ProfileData {
   profilePhotoUrl?: string;
 }
 
+// Check if string looks like a valid Solana wallet address (base58, 32-44 chars)
+const isValidWalletAddress = (str: string): boolean => {
+  return str.length >= 32 && str.length <= 44 && /^[1-9A-HJ-NP-Za-km-z]+$/.test(str);
+};
+
 export default function MiniVoicePlayer() {
   const voiceRoom = useVoiceRoomContextSafe();
   const pathname = usePathname();
@@ -147,21 +152,35 @@ export default function MiniVoicePlayer() {
               const pProfile = profiles[p.peerId];
               const pInitials = pProfile?.username?.slice(0, 2).toUpperCase() || p.peerId.slice(0, 2).toUpperCase();
               const pName = pProfile?.username || `${p.peerId.slice(0, 4)}...${p.peerId.slice(-4)}`;
-              return (
-                <Link
-                  key={p.peerId}
-                  href={`/profile/${p.peerId}`}
-                  className={`w-8 h-8 rounded-full flex items-center justify-center text-white text-xs font-bold flex-shrink-0 overflow-hidden hover:opacity-80 transition-opacity ${
-                    p.isSpeaking ? 'ring-2 ring-green-400 ring-offset-1 ring-offset-gray-900' : ''
-                  } bg-gradient-to-br from-gray-600 to-gray-700`}
-                  title={`View ${pName}'s profile`}
-                >
+              const canLink = isValidWalletAddress(p.peerId);
+
+              const avatarContent = (
+                <>
                   {pProfile?.profilePhotoUrl ? (
                     <img src={pProfile.profilePhotoUrl} alt={pProfile.username || 'Participant'} className="w-full h-full object-cover" />
                   ) : (
                     pInitials
                   )}
+                </>
+              );
+
+              const avatarClasses = `w-8 h-8 rounded-full flex items-center justify-center text-white text-xs font-bold flex-shrink-0 overflow-hidden ${
+                p.isSpeaking ? 'ring-2 ring-green-400 ring-offset-1 ring-offset-gray-900' : ''
+              } bg-gradient-to-br from-gray-600 to-gray-700`;
+
+              return canLink ? (
+                <Link
+                  key={p.peerId}
+                  href={`/profile/${p.peerId}`}
+                  className={`${avatarClasses} hover:opacity-80 transition-opacity`}
+                  title={`View ${pName}'s profile`}
+                >
+                  {avatarContent}
                 </Link>
+              ) : (
+                <div key={p.peerId} className={avatarClasses}>
+                  {avatarContent}
+                </div>
               );
             })}
 
