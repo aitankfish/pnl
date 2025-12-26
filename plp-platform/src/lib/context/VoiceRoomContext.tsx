@@ -1,0 +1,600 @@
+'use client';
+
+import React, { createContext, useContext, useState, useCallback, useRef, useEffect, ReactNode } from 'react';
+import { io, Socket } from 'socket.io-client';
+import { Device } from 'mediasoup-client';
+import type { Transport, Producer, Consumer } from 'mediasoup-client/lib/types';
+
+export interface VoiceParticipant {
+  peerId: string;
+  displayName?: string;
+  isMuted: boolean;
+  isSpeaking: boolean;
+  hasRaisedHand: boolean;
+}
+
+export interface Reaction {
+  id: string;
+  emoji: string;
+  peerId: string;
+}
+
+export const REACTION_EMOJIS = ['👏', '🔥', '💯', '❤️', '😂', '🚀'] as const;
+export type ReactionEmoji = typeof REACTION_EMOJIS[number];
+
+interface VoiceRoomState {
+  // Connection state
+  isConnected: boolean;
+  isConnecting: boolean;
+  isReconnecting: boolean;
+  reconnectAttempts: number;
+
+  // Room info
+  marketAddress: string | null;
+  marketName: string | null;
+  walletAddress: string | null;
+  founderWallet: string | null;
+  roomTitle: string;
+
+  // Participants
+  participants: VoiceParticipant[];
+  coHosts: string[];
+
+  // User state
+  isMuted: boolean;
+  isSpeaking: boolean;
+  hasRaisedHand: boolean;
+
+  // UI state
+  reactions: Reaction[];
+  error: string | null;
+  isMinimized: boolean;
+
+  // Computed
+  isHost: boolean;
+  isFounder: boolean;
+  isCoHost: boolean;
+}
+
+interface VoiceRoomContextType extends VoiceRoomState {
+  // Actions
+  join: (marketAddress: string, marketName: string, walletAddress: string, founderWallet: string | null) => Promise<void>;
+  leave: () => void;
+  toggleMute: () => void;
+  toggleHand: () => void;
+  sendReaction: (emoji: ReactionEmoji) => void;
+  kickUser: (peerId: string) => void;
+  muteUser: (peerId: string) => void;
+  updateRoomTitle: (title: string) => void;
+  approveHand: (peerId: string) => void;
+  addCoHost: (peerId: string) => void;
+  removeCoHost: (peerId: string) => void;
+  setMinimized: (minimized: boolean) => void;
+  expandToRoom: () => void;
+}
+
+const VoiceRoomContext = createContext<VoiceRoomContextType | null>(null);
+
+export function useVoiceRoomContext() {
+  const context = useContext(VoiceRoomContext);
+  if (!context) {
+    throw new Error('useVoiceRoomContext must be used within VoiceRoomProvider');
+  }
+  return context;
+}
+
+export function useVoiceRoomContextSafe() {
+  return useContext(VoiceRoomContext);
+}
+
+interface VoiceRoomProviderProps {
+  children: ReactNode;
+}
+
+export function VoiceRoomProvider({ children }: VoiceRoomProviderProps) {
+  // Connection state
+  const [isConnected, setIsConnected] = useState(false);
+  const [isConnecting, setIsConnecting] = useState(false);
+  const [isReconnecting, setIsReconnecting] = useState(false);
+  const [reconnectAttempts, setReconnectAttempts] = useState(0);
+
+  // Room info
+  const [marketAddress, setMarketAddress] = useState<string | null>(null);
+  const [marketName, setMarketName] = useState<string | null>(null);
+  const [walletAddress, setWalletAddress] = useState<string | null>(null);
+  const [founderWallet, setFounderWallet] = useState<string | null>(null);
+  const [roomTitle, setRoomTitle] = useState('');
+
+  // Participants
+  const [participants, setParticipants] = useState<VoiceParticipant[]>([]);
+  const [coHosts, setCoHosts] = useState<string[]>([]);
+
+  // User state
+  const [isMuted, setIsMuted] = useState(true);
+  const [isSpeaking, setIsSpeaking] = useState(false);
+  const [hasRaisedHand, setHasRaisedHand] = useState(false);
+
+  // UI state
+  const [reactions, setReactions] = useState<Reaction[]>([]);
+  const [error, setError] = useState<string | null>(null);
+  const [isMinimized, setIsMinimized] = useState(false);
+
+  // Refs
+  const socketRef = useRef<Socket | null>(null);
+  const deviceRef = useRef<Device | null>(null);
+  const sendTransportRef = useRef<Transport | null>(null);
+  const recvTransportRef = useRef<Transport | null>(null);
+  const producerRef = useRef<Producer | null>(null);
+  const consumersRef = useRef<Map<string, Consumer>>(new Map());
+  const audioElementsRef = useRef<Map<string, HTMLAudioElement>>(new Map());
+  const localStreamRef = useRef<MediaStream | null>(null);
+  const audioContextRef = useRef<AudioContext | null>(null);
+  const analyserRef = useRef<AnalyserNode | null>(null);
+  const speakingIntervalRef = useRef<NodeJS.Timeout | null>(null);
+  const reconnectTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const shouldReconnectRef = useRef(false);
+  const maxReconnectAttempts = 5;
+
+  // Computed values
+  const isFounder = walletAddress === founderWallet;
+  const isCoHost = walletAddress ? coHosts.includes(walletAddress) : false;
+  const isHost = isFounder || isCoHost;
+
+  const VOICE_SERVER_URL = process.env.NEXT_PUBLIC_VOICE_SERVER_URL || 'http://localhost:3002';
+
+  const cleanup = useCallback((intentional = true) => {
+    if (intentional) {
+      shouldReconnectRef.current = false;
+    }
+
+    if (reconnectTimeoutRef.current) {
+      clearTimeout(reconnectTimeoutRef.current);
+      reconnectTimeoutRef.current = null;
+    }
+
+    if (speakingIntervalRef.current) {
+      clearInterval(speakingIntervalRef.current);
+      speakingIntervalRef.current = null;
+    }
+
+    audioContextRef.current?.close();
+    audioContextRef.current = null;
+    analyserRef.current = null;
+
+    localStreamRef.current?.getTracks().forEach(track => track.stop());
+    localStreamRef.current = null;
+
+    producerRef.current?.close();
+    producerRef.current = null;
+
+    consumersRef.current.forEach(consumer => consumer.close());
+    consumersRef.current.clear();
+
+    audioElementsRef.current.forEach(audio => {
+      audio.pause();
+      audio.srcObject = null;
+    });
+    audioElementsRef.current.clear();
+
+    sendTransportRef.current?.close();
+    recvTransportRef.current?.close();
+    sendTransportRef.current = null;
+    recvTransportRef.current = null;
+
+    socketRef.current?.disconnect();
+    socketRef.current = null;
+
+    deviceRef.current = null;
+    setIsConnected(false);
+    setIsSpeaking(false);
+    setParticipants([]);
+    setRoomTitle('');
+    setCoHosts([]);
+    setHasRaisedHand(false);
+
+    if (intentional) {
+      setMarketAddress(null);
+      setMarketName(null);
+      setWalletAddress(null);
+      setFounderWallet(null);
+      setReconnectAttempts(0);
+      setIsReconnecting(false);
+      setIsMinimized(false);
+      setError(null);
+    }
+  }, []);
+
+  const consumeProducer = useCallback(async (producerId: string, peerId: string) => {
+    if (!socketRef.current || !deviceRef.current || !recvTransportRef.current) return;
+
+    socketRef.current.emit('consume', {
+      producerId,
+      rtpCapabilities: deviceRef.current.rtpCapabilities,
+    }, async (response: any) => {
+      if (response.error) {
+        console.error('Consume error:', response.error);
+        return;
+      }
+
+      const consumer = await recvTransportRef.current!.consume({
+        id: response.id,
+        producerId: response.producerId,
+        kind: response.kind,
+        rtpParameters: response.rtpParameters,
+      });
+
+      consumersRef.current.set(producerId, consumer);
+
+      const audio = new Audio();
+      audio.srcObject = new MediaStream([consumer.track]);
+      audio.autoplay = true;
+      audioElementsRef.current.set(producerId, audio);
+
+      setParticipants(prev => {
+        if (prev.find(p => p.peerId === peerId)) return prev;
+        return [...prev, { peerId, isMuted: false, isSpeaking: false, hasRaisedHand: false }];
+      });
+    });
+  }, []);
+
+  const join = useCallback(async (
+    newMarketAddress: string,
+    newMarketName: string,
+    newWalletAddress: string,
+    newFounderWallet: string | null
+  ) => {
+    if (isConnected || isConnecting) return;
+
+    setMarketAddress(newMarketAddress);
+    setMarketName(newMarketName);
+    setWalletAddress(newWalletAddress);
+    setFounderWallet(newFounderWallet);
+    setIsConnecting(true);
+    setError(null);
+
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      localStreamRef.current = stream;
+      stream.getAudioTracks().forEach(track => track.enabled = false);
+
+      const socket = io(VOICE_SERVER_URL, { transports: ['websocket'] });
+      socketRef.current = socket;
+
+      await new Promise<void>((resolve, reject) => {
+        socket.on('connect', () => resolve());
+        socket.on('connect_error', (err) => reject(err));
+        setTimeout(() => reject(new Error('Connection timeout')), 10000);
+      });
+
+      const joinResponse = await new Promise<any>((resolve, reject) => {
+        socket.emit('joinRoom', {
+          roomId: newMarketAddress,
+          peerId: newWalletAddress,
+        }, (response: any) => {
+          if (response.error) reject(new Error(response.error));
+          else resolve(response);
+        });
+      });
+
+      const device = new Device();
+      await device.load({ routerRtpCapabilities: joinResponse.rtpCapabilities });
+      deviceRef.current = device;
+
+      const sendTransport = device.createSendTransport(joinResponse.sendTransportOptions);
+      sendTransportRef.current = sendTransport;
+
+      sendTransport.on('connect', ({ dtlsParameters }, callback, errback) => {
+        socket.emit('connectTransport', {
+          transportId: sendTransport.id,
+          dtlsParameters,
+        }, (response: any) => {
+          if (response.error) errback(new Error(response.error));
+          else callback();
+        });
+      });
+
+      sendTransport.on('produce', ({ kind, rtpParameters }, callback, errback) => {
+        socket.emit('produce', { kind, rtpParameters }, (response: any) => {
+          if (response.error) errback(new Error(response.error));
+          else callback({ id: response.id });
+        });
+      });
+
+      const recvTransport = device.createRecvTransport(joinResponse.recvTransportOptions);
+      recvTransportRef.current = recvTransport;
+
+      recvTransport.on('connect', ({ dtlsParameters }, callback, errback) => {
+        socket.emit('connectTransport', {
+          transportId: recvTransport.id,
+          dtlsParameters,
+        }, (response: any) => {
+          if (response.error) errback(new Error(response.error));
+          else callback();
+        });
+      });
+
+      const track = stream.getAudioTracks()[0];
+      const producer = await sendTransport.produce({ track });
+      producerRef.current = producer;
+
+      socket.emit('getProducers', (response: any) => {
+        response.producers?.forEach((p: any) => {
+          consumeProducer(p.producerId, p.peerId);
+        });
+      });
+
+      socket.on('newProducer', ({ producerId, peerId }) => {
+        consumeProducer(producerId, peerId);
+      });
+
+      socket.on('peerLeft', ({ peerId }) => {
+        setParticipants(prev => prev.filter(p => p.peerId !== peerId));
+      });
+
+      socket.on('handRaised', ({ peerId }) => {
+        setParticipants(prev =>
+          prev.map(p => p.peerId === peerId ? { ...p, hasRaisedHand: true } : p)
+        );
+      });
+
+      socket.on('handLowered', ({ peerId }) => {
+        setParticipants(prev =>
+          prev.map(p => p.peerId === peerId ? { ...p, hasRaisedHand: false } : p)
+        );
+      });
+
+      socket.on('reaction', ({ peerId, emoji }) => {
+        const reactionId = `${peerId}-${Date.now()}-${Math.random()}`;
+        setReactions(prev => [...prev, { id: reactionId, emoji, peerId }]);
+        setTimeout(() => {
+          setReactions(prev => prev.filter(r => r.id !== reactionId));
+        }, 3000);
+      });
+
+      socket.on('speakingChanged', ({ peerId, isSpeaking: speaking }) => {
+        setParticipants(prev =>
+          prev.map(p => p.peerId === peerId ? { ...p, isSpeaking: speaking } : p)
+        );
+      });
+
+      socket.on('roomTitleChanged', ({ title }) => {
+        setRoomTitle(title);
+      });
+
+      socket.on('kicked', () => {
+        cleanup();
+        setError('You have been removed from the room');
+      });
+
+      socket.on('forceMuted', () => {
+        localStreamRef.current?.getAudioTracks().forEach(track => {
+          track.enabled = false;
+        });
+        setIsMuted(true);
+      });
+
+      socket.on('coHostAdded', ({ peerId }) => {
+        setCoHosts(prev => [...prev, peerId]);
+      });
+
+      socket.on('coHostRemoved', ({ peerId }) => {
+        setCoHosts(prev => prev.filter(id => id !== peerId));
+      });
+
+      socket.on('disconnect', (reason) => {
+        console.log('Socket disconnected:', reason);
+        setIsConnected(false);
+
+        if (shouldReconnectRef.current && reason !== 'io client disconnect') {
+          setIsReconnecting(true);
+          const attempt = reconnectAttempts + 1;
+          setReconnectAttempts(attempt);
+
+          if (attempt <= maxReconnectAttempts) {
+            const delay = Math.min(1000 * Math.pow(2, attempt - 1), 16000);
+            console.log(`Reconnecting in ${delay}ms (attempt ${attempt}/${maxReconnectAttempts})`);
+
+            reconnectTimeoutRef.current = setTimeout(() => {
+              cleanup(false);
+              if (marketAddress && walletAddress) {
+                join(marketAddress, marketName || '', walletAddress, founderWallet);
+              }
+            }, delay);
+          } else {
+            setIsReconnecting(false);
+            setError('Connection lost. Please rejoin the room.');
+          }
+        }
+      });
+
+      shouldReconnectRef.current = true;
+
+      // Speaking detection
+      const audioContext = new AudioContext();
+      audioContextRef.current = audioContext;
+      const analyser = audioContext.createAnalyser();
+      analyserRef.current = analyser;
+      analyser.fftSize = 256;
+
+      const source = audioContext.createMediaStreamSource(stream);
+      source.connect(analyser);
+
+      const dataArray = new Uint8Array(analyser.frequencyBinCount);
+      let wasSpeaking = false;
+
+      speakingIntervalRef.current = setInterval(() => {
+        if (!analyserRef.current || isMuted) {
+          if (wasSpeaking) {
+            wasSpeaking = false;
+            setIsSpeaking(false);
+            socketRef.current?.emit('speakingChanged', { isSpeaking: false });
+          }
+          return;
+        }
+
+        analyserRef.current.getByteFrequencyData(dataArray);
+        const average = dataArray.reduce((a, b) => a + b) / dataArray.length;
+        const speaking = average > 20;
+
+        if (speaking !== wasSpeaking) {
+          wasSpeaking = speaking;
+          setIsSpeaking(speaking);
+          socketRef.current?.emit('speakingChanged', { isSpeaking: speaking });
+        }
+      }, 100);
+
+      joinResponse.peers?.forEach((peer: any) => {
+        setParticipants(prev => {
+          if (prev.find(p => p.peerId === peer.id)) return prev;
+          return [...prev, { peerId: peer.id, isMuted: false, isSpeaking: false, hasRaisedHand: false }];
+        });
+      });
+
+      setIsConnected(true);
+      setIsMuted(true);
+      setIsReconnecting(false);
+      setReconnectAttempts(0);
+    } catch (err: any) {
+      console.error('Join error:', err);
+      setError(err.message || 'Failed to join voice room');
+      cleanup();
+    } finally {
+      setIsConnecting(false);
+    }
+  }, [isConnected, isConnecting, cleanup, consumeProducer, VOICE_SERVER_URL, marketAddress, marketName, walletAddress, founderWallet, reconnectAttempts, isMuted]);
+
+  const leave = useCallback(() => {
+    cleanup();
+  }, [cleanup]);
+
+  const toggleMute = useCallback(() => {
+    if (!localStreamRef.current) return;
+
+    const newMuted = !isMuted;
+    localStreamRef.current.getAudioTracks().forEach(track => {
+      track.enabled = !newMuted;
+    });
+    setIsMuted(newMuted);
+  }, [isMuted]);
+
+  const raiseHand = useCallback(() => {
+    if (!socketRef.current || hasRaisedHand) return;
+    socketRef.current.emit('raiseHand');
+    setHasRaisedHand(true);
+  }, [hasRaisedHand]);
+
+  const lowerHand = useCallback(() => {
+    if (!socketRef.current || !hasRaisedHand) return;
+    socketRef.current.emit('lowerHand');
+    setHasRaisedHand(false);
+  }, [hasRaisedHand]);
+
+  const toggleHand = useCallback(() => {
+    if (hasRaisedHand) {
+      lowerHand();
+    } else {
+      raiseHand();
+    }
+  }, [hasRaisedHand, raiseHand, lowerHand]);
+
+  const sendReaction = useCallback((emoji: ReactionEmoji) => {
+    if (!socketRef.current || !walletAddress) return;
+    socketRef.current.emit('reaction', { emoji });
+    const reactionId = `${walletAddress}-${Date.now()}-${Math.random()}`;
+    setReactions(prev => [...prev, { id: reactionId, emoji, peerId: walletAddress }]);
+    setTimeout(() => {
+      setReactions(prev => prev.filter(r => r.id !== reactionId));
+    }, 3000);
+  }, [walletAddress]);
+
+  const kickUser = useCallback((peerId: string) => {
+    if (!socketRef.current || !isHost) return;
+    socketRef.current.emit('kickUser', { peerId });
+  }, [isHost]);
+
+  const muteUser = useCallback((peerId: string) => {
+    if (!socketRef.current || !isHost) return;
+    socketRef.current.emit('muteUser', { peerId });
+  }, [isHost]);
+
+  const updateRoomTitle = useCallback((title: string) => {
+    if (!socketRef.current || !isHost) return;
+    socketRef.current.emit('setRoomTitle', { title });
+    setRoomTitle(title);
+  }, [isHost]);
+
+  const approveHand = useCallback((peerId: string) => {
+    if (!socketRef.current || !isHost) return;
+    socketRef.current.emit('approveHand', { peerId });
+  }, [isHost]);
+
+  const addCoHost = useCallback((peerId: string) => {
+    if (!socketRef.current || !isFounder) return;
+    socketRef.current.emit('addCoHost', { peerId });
+    setCoHosts(prev => [...prev, peerId]);
+  }, [isFounder]);
+
+  const removeCoHost = useCallback((peerId: string) => {
+    if (!socketRef.current || !isFounder) return;
+    socketRef.current.emit('removeCoHost', { peerId });
+    setCoHosts(prev => prev.filter(id => id !== peerId));
+  }, [isFounder]);
+
+  const expandToRoom = useCallback(() => {
+    if (marketAddress) {
+      setIsMinimized(false);
+      window.location.href = `/market/${marketAddress}`;
+    }
+  }, [marketAddress]);
+
+  // Cleanup on unmount
+  useEffect(() => {
+    return () => {
+      cleanup();
+    };
+  }, [cleanup]);
+
+  const value: VoiceRoomContextType = {
+    // State
+    isConnected,
+    isConnecting,
+    isReconnecting,
+    reconnectAttempts,
+    marketAddress,
+    marketName,
+    walletAddress,
+    founderWallet,
+    roomTitle,
+    participants,
+    coHosts,
+    isMuted,
+    isSpeaking,
+    hasRaisedHand,
+    reactions,
+    error,
+    isMinimized,
+    isHost,
+    isFounder,
+    isCoHost,
+    // Actions
+    join,
+    leave,
+    toggleMute,
+    toggleHand,
+    sendReaction,
+    kickUser,
+    muteUser,
+    updateRoomTitle,
+    approveHand,
+    addCoHost,
+    removeCoHost,
+    setMinimized: setIsMinimized,
+    expandToRoom,
+  };
+
+  return (
+    <VoiceRoomContext.Provider value={value}>
+      {children}
+    </VoiceRoomContext.Provider>
+  );
+}

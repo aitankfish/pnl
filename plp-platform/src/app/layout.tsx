@@ -7,6 +7,8 @@ import { NetworkProvider } from '@/contexts/NetworkContext';
 import { SWRProvider } from '@/components/providers/SWRProvider';
 import AppLayoutWrapper from '@/components/AppLayoutWrapper';
 import { AuthModalProvider } from '@/contexts/AuthModalContext';
+import { VoiceRoomProvider } from '@/lib/context/VoiceRoomContext';
+import MiniVoicePlayer from '@/components/voice/MiniVoicePlayer';
 
 const inter = Inter({ subsets: ['latin'] });
 
@@ -49,7 +51,9 @@ export default function RootLayout({
           <AuthModalProvider>
             <NetworkProvider>
               <SWRProvider>
+                <VoiceRoomProvider>
                 <ToastProvider>
+                <MiniVoicePlayer />
                 <AppLayoutWrapper footer={
                 <footer className="py-6 border-t border-white/5">
                   <div className="container px-4 sm:px-6">
@@ -114,6 +118,7 @@ export default function RootLayout({
                 {children}
                 </AppLayoutWrapper>
                 </ToastProvider>
+                </VoiceRoomProvider>
               </SWRProvider>
             </NetworkProvider>
           </AuthModalProvider>

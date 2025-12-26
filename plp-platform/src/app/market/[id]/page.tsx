@@ -2707,6 +2707,7 @@ export default function MarketDetailsPage() {
         <div className="hidden lg:block fixed top-[6.5rem] right-4 w-[28%] min-w-[320px] max-w-[400px] z-30">
           <CommunityHub
             marketAddress={market.marketAddress}
+            marketName={market.name}
             walletAddress={primaryWallet?.address}
             founderWallet={market.founderWallet}
             hasPosition={positionData?.data?.hasPosition}
@@ -2755,6 +2756,7 @@ export default function MarketDetailsPage() {
             <div className="h-[calc(100%-60px)]">
               <CommunityHub
                 marketAddress={market.marketAddress}
+                marketName={market.name}
                 walletAddress={primaryWallet?.address}
                 founderWallet={market.founderWallet}
                 hasPosition={positionData?.data?.hasPosition}

@@ -35,6 +35,7 @@ interface SocialLinks {
 
 interface CommunityHubProps {
   marketAddress: string;
+  marketName?: string;
   walletAddress?: string | null;
   founderWallet?: string | null;
   hasPosition?: boolean;
@@ -46,6 +47,7 @@ type TabType = 'chat' | 'voice';
 
 export default function CommunityHub({
   marketAddress,
+  marketName,
   walletAddress,
   founderWallet,
   hasPosition,
@@ -159,6 +161,7 @@ export default function CommunityHub({
         {activeTab === 'voice' && (
           <VoiceRoom
             marketAddress={marketAddress}
+            marketName={marketName}
             walletAddress={walletAddress}
             founderWallet={founderWallet}
             hasPosition={hasPosition}

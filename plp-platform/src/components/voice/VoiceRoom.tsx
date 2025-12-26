@@ -2,10 +2,11 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 import { Mic, MicOff, PhoneOff, Loader2, Users, AlertCircle, Hand, MoreVertical, UserX, VolumeX, Check, X, Edit2, Share2, Link, Star, Crown, Wifi, WifiOff } from 'lucide-react';
-import { useVoiceRoom, REACTION_EMOJIS } from '@/lib/hooks/useVoiceRoom';
+import { useVoiceRoomContext, REACTION_EMOJIS } from '@/lib/context/VoiceRoomContext';
 
 interface VoiceRoomProps {
   marketAddress: string;
+  marketName?: string;
   walletAddress?: string | null;
   founderWallet?: string | null;
   hasPosition?: boolean;
@@ -179,6 +180,7 @@ function SpeakerAvatar({
 
 export default function VoiceRoom({
   marketAddress,
+  marketName,
   walletAddress,
   founderWallet,
   hasPosition,
@@ -214,10 +216,17 @@ export default function VoiceRoom({
     approveHand,
     addCoHost,
     removeCoHost,
-  } = useVoiceRoom({ marketAddress, walletAddress, founderWallet });
+  } = useVoiceRoomContext();
 
   const canJoin = walletAddress && (hasPosition || walletAddress === founderWallet);
   const prevParticipantsRef = useRef<number>(0);
+
+  // Handle join with context
+  const handleJoin = () => {
+    if (walletAddress) {
+      join(marketAddress, marketName || '', walletAddress, founderWallet || null);
+    }
+  };
 
   // Join notification effect
   useEffect(() => {
@@ -300,7 +309,7 @@ export default function VoiceRoom({
           </div>
         ) : (
           <button
-            onClick={join}
+            onClick={handleJoin}
             disabled={isConnecting}
             className="w-full flex items-center justify-center gap-2 px-6 py-3.5 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 rounded-full font-semibold text-white text-base transition-all disabled:opacity-50"
           >
