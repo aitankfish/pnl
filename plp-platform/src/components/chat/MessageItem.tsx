@@ -99,9 +99,9 @@ export default function MessageItem({
 
   return (
     <div
-      className={`group relative p-2 rounded-lg transition-all ${
+      className={`group relative p-2 rounded-lg transition-all max-w-[85%] w-fit ${
         isOwn
-          ? 'bg-cyan-500/10 border border-cyan-500/20'
+          ? 'bg-cyan-500/10 border border-cyan-500/20 ml-auto'
           : 'bg-white/5 border border-white/10 hover:border-white/20 hover:bg-white/10'
       }`}
     >
