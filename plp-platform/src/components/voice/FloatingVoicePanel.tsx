@@ -62,6 +62,22 @@ export default function FloatingVoicePanel() {
     }
   }, []);
 
+  // Touch handlers for expanded view (must be before any returns to follow Rules of Hooks)
+  const handleExpandedTouchStart = useCallback((e: React.TouchEvent) => {
+    touchStartY.current = e.touches[0].clientY;
+    touchStartTime.current = Date.now();
+  }, []);
+
+  const handleExpandedTouchEnd = useCallback((e: React.TouchEvent) => {
+    const touchEndY = e.changedTouches[0].clientY;
+    const deltaY = touchEndY - touchStartY.current;
+    const deltaTime = Date.now() - touchStartTime.current;
+
+    if (deltaY > 50 && deltaTime < 300) {
+      setIsExpanded(false);
+    }
+  }, []);
+
   // Check if we're on a market page
   const isOnMarketPage = pathname?.startsWith('/market/');
   const currentMarketId = params?.id as string | undefined;
@@ -262,22 +278,6 @@ export default function FloatingVoicePanel() {
   }
 
   // Expanded view - floating panel for voice room from another market
-  // Create touch handlers for expanded view
-  const handleExpandedTouchStart = useCallback((e: React.TouchEvent) => {
-    touchStartY.current = e.touches[0].clientY;
-    touchStartTime.current = Date.now();
-  }, []);
-
-  const handleExpandedTouchEnd = useCallback((e: React.TouchEvent) => {
-    const touchEndY = e.changedTouches[0].clientY;
-    const deltaY = touchEndY - touchStartY.current;
-    const deltaTime = Date.now() - touchStartTime.current;
-
-    if (deltaY > 50 && deltaTime < 300) {
-      setIsExpanded(false);
-    }
-  }, []);
-
   return (
     <>
       {/* Mobile: Full screen slide-in panel */}
