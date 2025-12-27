@@ -373,7 +373,7 @@ export default function CreatePage() {
                   <svg className="w-4 h-4 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
                   </svg>
-                  <span>1-30 day markets</span>
+                  <span>1 day - 6 month markets</span>
                 </div>
                 <div className="flex items-center gap-2 text-white/50">
                   <svg className="w-4 h-4 text-purple-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -882,6 +882,9 @@ export default function CreatePage() {
                       <option value="7" className="bg-slate-800">1 Week</option>
                       <option value="14" className="bg-slate-800">2 Weeks</option>
                       <option value="30" className="bg-slate-800">1 Month</option>
+                      <option value="60" className="bg-slate-800">2 Months</option>
+                      <option value="90" className="bg-slate-800">3 Months</option>
+                      <option value="180" className="bg-slate-800">6 Months</option>
                     </select>
                     {errors.marketDuration && <p className="text-sm text-red-400">{errors.marketDuration}</p>}
                     <p className="text-xs text-white/60">
