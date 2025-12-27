@@ -314,10 +314,11 @@ export default function MarketDetailsPage() {
     setIsSwipeDragging(false);
 
     if (swipeDragOffset > SWIPE_BACK_THRESHOLD) {
-      // Trigger navigation with animation
+      // Trigger navigation with animation - use back() to return to previous page
+      // This preserves filter state (wins, expired, live, etc.)
       setIsNavigatingBack(true);
       setTimeout(() => {
-        router.push('/browse');
+        router.back();
       }, 200);
     } else {
       // Snap back
@@ -1075,9 +1076,9 @@ export default function MarketDetailsPage() {
       <div className="p-6 max-w-4xl mx-auto">
         <div className="text-center py-12">
           <p className="text-red-400 text-xl mb-4">{error || 'Market not found'}</p>
-          <Button onClick={() => router.push('/browse')} className="bg-gradient-to-r from-purple-500 to-pink-500 hidden sm:inline-flex">
+          <Button onClick={() => router.back()} className="bg-gradient-to-r from-purple-500 to-pink-500 hidden sm:inline-flex">
             <ArrowLeft className="w-4 h-4 mr-2" />
-            Back to Markets
+            Go Back
           </Button>
         </div>
       </div>
