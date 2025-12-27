@@ -41,42 +41,99 @@ export default function FloatingVoicePanel() {
   const [isDesktop, setIsDesktop] = useState(false);
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
 
-  // Swipe gesture handling
+  // Drag-to-dismiss gesture handling
   const touchStartY = useRef<number>(0);
-  const touchStartTime = useRef<number>(0);
+  const [dragOffset, setDragOffset] = useState(0);
+  const [isDragging, setIsDragging] = useState(false);
+  const [isClosing, setIsClosing] = useState(false);
   const sidebarRef = useRef<HTMLDivElement>(null);
 
+  // Threshold for dismissing (in pixels)
+  const DISMISS_THRESHOLD = 150;
+
+  // Market page sidebar drag handlers
   const handleTouchStart = useCallback((e: React.TouchEvent) => {
-    touchStartY.current = e.touches[0].clientY;
-    touchStartTime.current = Date.now();
-  }, []);
+    // Only start drag from the header area (top 60px)
+    const touch = e.touches[0];
+    const rect = e.currentTarget.getBoundingClientRect();
+    const touchYInElement = touch.clientY - rect.top;
 
-  const handleTouchEnd = useCallback((e: React.TouchEvent) => {
-    const touchEndY = e.changedTouches[0].clientY;
-    const deltaY = touchEndY - touchStartY.current;
-    const deltaTime = Date.now() - touchStartTime.current;
-
-    // Swipe down to minimize: must be quick swipe (< 300ms) and move at least 50px down
-    if (deltaY > 50 && deltaTime < 300) {
-      setIsMobileSidebarOpen(false);
+    if (touchYInElement <= 60) {
+      touchStartY.current = touch.clientY;
+      setIsDragging(true);
     }
   }, []);
 
-  // Touch handlers for expanded view (must be before any returns to follow Rules of Hooks)
+  const handleTouchMove = useCallback((e: React.TouchEvent) => {
+    if (!isDragging) return;
+
+    const currentY = e.touches[0].clientY;
+    const deltaY = currentY - touchStartY.current;
+
+    // Only allow dragging down (positive deltaY)
+    if (deltaY > 0) {
+      setDragOffset(deltaY);
+    }
+  }, [isDragging]);
+
+  const handleTouchEnd = useCallback(() => {
+    if (!isDragging) return;
+
+    setIsDragging(false);
+
+    if (dragOffset > DISMISS_THRESHOLD) {
+      // Dismiss with animation
+      setIsClosing(true);
+      setTimeout(() => {
+        setIsMobileSidebarOpen(false);
+        setDragOffset(0);
+        setIsClosing(false);
+      }, 200);
+    } else {
+      // Snap back
+      setDragOffset(0);
+    }
+  }, [isDragging, dragOffset]);
+
+  // Expanded view drag handlers
   const handleExpandedTouchStart = useCallback((e: React.TouchEvent) => {
-    touchStartY.current = e.touches[0].clientY;
-    touchStartTime.current = Date.now();
-  }, []);
+    const touch = e.touches[0];
+    const rect = e.currentTarget.getBoundingClientRect();
+    const touchYInElement = touch.clientY - rect.top;
 
-  const handleExpandedTouchEnd = useCallback((e: React.TouchEvent) => {
-    const touchEndY = e.changedTouches[0].clientY;
-    const deltaY = touchEndY - touchStartY.current;
-    const deltaTime = Date.now() - touchStartTime.current;
-
-    if (deltaY > 50 && deltaTime < 300) {
-      setIsExpanded(false);
+    if (touchYInElement <= 60) {
+      touchStartY.current = touch.clientY;
+      setIsDragging(true);
     }
   }, []);
+
+  const handleExpandedTouchMove = useCallback((e: React.TouchEvent) => {
+    if (!isDragging) return;
+
+    const currentY = e.touches[0].clientY;
+    const deltaY = currentY - touchStartY.current;
+
+    if (deltaY > 0) {
+      setDragOffset(deltaY);
+    }
+  }, [isDragging]);
+
+  const handleExpandedTouchEnd = useCallback(() => {
+    if (!isDragging) return;
+
+    setIsDragging(false);
+
+    if (dragOffset > DISMISS_THRESHOLD) {
+      setIsClosing(true);
+      setTimeout(() => {
+        setIsExpanded(false);
+        setDragOffset(0);
+        setIsClosing(false);
+      }, 200);
+    } else {
+      setDragOffset(0);
+    }
+  }, [isDragging, dragOffset]);
 
   // Check if we're on a market page
   const isOnMarketPage = pathname?.startsWith('/market/');
@@ -171,17 +228,28 @@ export default function FloatingVoicePanel() {
           <div className="lg:hidden fixed inset-0 z-50">
             <div
               className="absolute inset-0 bg-black/60 backdrop-blur-sm"
+              style={{ opacity: isClosing ? 0 : Math.max(0, 1 - dragOffset / 300) }}
               onClick={() => setIsMobileSidebarOpen(false)}
             />
             <div
               ref={sidebarRef}
               onTouchStart={handleTouchStart}
+              onTouchMove={handleTouchMove}
               onTouchEnd={handleTouchEnd}
               className="absolute right-0 top-0 bottom-0 w-full max-w-md bg-gray-900 border-l border-gray-700/50 shadow-2xl animate-in slide-in-from-right duration-300"
+              style={{
+                transform: `translateY(${isClosing ? '100%' : `${dragOffset}px`})`,
+                transition: isDragging ? 'none' : 'transform 0.2s ease-out',
+              }}
             >
-              {/* Swipe indicator */}
+              {/* Swipe indicator - shows drag progress */}
               <div className="flex justify-center pt-2 pb-1">
-                <div className="w-10 h-1 rounded-full bg-gray-600" />
+                <div
+                  className="w-10 h-1 rounded-full transition-colors"
+                  style={{
+                    backgroundColor: dragOffset > DISMISS_THRESHOLD ? '#22c55e' : '#4b5563',
+                  }}
+                />
               </div>
               <div className="flex items-center justify-between px-4 py-2 border-b border-gray-700/50">
                 <h2 className="text-base font-medium text-white truncate flex-1 mr-2">{marketData?.name || 'Community'}</h2>
@@ -284,16 +352,27 @@ export default function FloatingVoicePanel() {
       <div className="lg:hidden fixed inset-0 z-50">
         <div
           className="absolute inset-0 bg-black/60 backdrop-blur-sm"
+          style={{ opacity: isClosing ? 0 : Math.max(0, 1 - dragOffset / 300) }}
           onClick={() => setIsExpanded(false)}
         />
         <div
           onTouchStart={handleExpandedTouchStart}
+          onTouchMove={handleExpandedTouchMove}
           onTouchEnd={handleExpandedTouchEnd}
           className="absolute right-0 top-0 bottom-0 w-full max-w-md bg-gray-900/85 backdrop-blur-xl border-l border-white/10 shadow-2xl shadow-black/50 animate-in slide-in-from-right duration-300"
+          style={{
+            transform: `translateY(${isClosing ? '100%' : `${dragOffset}px`})`,
+            transition: isDragging ? 'none' : 'transform 0.2s ease-out',
+          }}
         >
-          {/* Swipe indicator */}
+          {/* Swipe indicator - shows drag progress */}
           <div className="flex justify-center pt-2 pb-1">
-            <div className="w-10 h-1 rounded-full bg-gray-600" />
+            <div
+              className="w-10 h-1 rounded-full transition-colors"
+              style={{
+                backgroundColor: dragOffset > DISMISS_THRESHOLD ? '#22c55e' : '#4b5563',
+              }}
+            />
           </div>
           <div className="flex items-center justify-between px-4 py-2 border-b border-gray-700/50">
             <div className="flex items-center gap-2 flex-1 min-w-0">
