@@ -21,8 +21,10 @@ export function useSocket(config?: SocketConfig) {
   const [isConnected, setIsConnected] = useState(false);
   const [connectionError, setConnectionError] = useState<string | null>(null);
   const socketRef = useRef<Socket | null>(null);
+  const isMountedRef = useRef(true);
 
   useEffect(() => {
+    isMountedRef.current = true;
     // Determine the correct socket URL based on environment
     let defaultUrl: string;
 
@@ -54,17 +56,20 @@ export function useSocket(config?: SocketConfig) {
 
     // Connection handlers
     socket.on('connect', () => {
+      if (!isMountedRef.current) return;
       logger.info('🔌 Socket.IO connected');
       setIsConnected(true);
       setConnectionError(null);
     });
 
     socket.on('disconnect', (reason) => {
+      if (!isMountedRef.current) return;
       logger.warn(`🔌 Socket.IO disconnected: ${reason}`);
       setIsConnected(false);
     });
 
     socket.on('connect_error', (error) => {
+      if (!isMountedRef.current) return;
       logger.error(`🔌 Socket.IO connection error: ${error.message}`);
       setConnectionError(error.message);
       setIsConnected(false);
@@ -72,6 +77,9 @@ export function useSocket(config?: SocketConfig) {
 
     // Cleanup on unmount
     return () => {
+      // Set mounted to false BEFORE disconnecting to prevent state updates
+      // during the synchronous disconnect event
+      isMountedRef.current = false;
       socket.disconnect();
     };
   }, [config?.url, config?.path]);
