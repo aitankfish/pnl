@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, useRef } from 'react';
-import { Mic, MicOff, PhoneOff, Loader2, Users, AlertCircle, Hand, MoreVertical, UserX, VolumeX, Check, X, Edit2, Share2, Link as LinkIcon, Star, Crown, Wifi, WifiOff } from 'lucide-react';
+import { Mic, MicOff, PhoneOff, Loader2, Users, AlertCircle, Hand, MoreVertical, UserX, VolumeX, Check, X, Edit2, Share2, Link as LinkIcon, Star, Crown, Wifi, WifiOff, Minimize2 } from 'lucide-react';
 import { useVoiceRoomContext, REACTION_EMOJIS, MAX_SPEAKERS } from '@/lib/context/VoiceRoomContext';
 import Link from 'next/link';
 
@@ -12,6 +12,7 @@ interface VoiceRoomProps {
   walletAddress?: string | null;
   founderWallet?: string | null;
   hasPosition?: boolean;
+  onMinimize?: () => void; // Callback to minimize/close the voice room panel (mobile)
 }
 
 // Floating reaction component
@@ -226,6 +227,7 @@ export default function VoiceRoom({
   walletAddress,
   founderWallet,
   hasPosition,
+  onMinimize,
 }: VoiceRoomProps) {
   const [isEditingTitle, setIsEditingTitle] = useState(false);
   const [titleInput, setTitleInput] = useState('');
@@ -559,6 +561,16 @@ export default function VoiceRoom({
                 </>
               )}
             </button>
+            {/* Minimize button - mobile only */}
+            {onMinimize && (
+              <button
+                onClick={onMinimize}
+                className="lg:hidden flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-white/5 hover:bg-white/10 text-xs text-gray-300 transition-all"
+                title="Minimize voice room"
+              >
+                <Minimize2 className="w-3.5 h-3.5" />
+              </button>
+            )}
           </div>
         </div>
         {/* Room title */}

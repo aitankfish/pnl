@@ -8,7 +8,7 @@ import { SWRProvider } from '@/components/providers/SWRProvider';
 import AppLayoutWrapper from '@/components/AppLayoutWrapper';
 import { AuthModalProvider } from '@/contexts/AuthModalContext';
 import { VoiceRoomProvider } from '@/lib/context/VoiceRoomContext';
-import MiniVoicePlayer from '@/components/voice/MiniVoicePlayer';
+import FloatingVoicePanel from '@/components/voice/FloatingVoicePanel';
 
 const inter = Inter({ subsets: ['latin'] });
 
@@ -53,7 +53,7 @@ export default function RootLayout({
               <SWRProvider>
                 <VoiceRoomProvider>
                 <ToastProvider>
-                <MiniVoicePlayer />
+                <FloatingVoicePanel />
                 <AppLayoutWrapper footer={
                 <footer className="py-6 border-t border-white/5">
                   <div className="container px-4 sm:px-6">

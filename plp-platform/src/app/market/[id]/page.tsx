@@ -44,10 +44,7 @@ const GrokRoast = dynamic(() => import('@/components/GrokRoast'), {
   ssr: false,
 });
 
-const CommunityHub = dynamic(() => import('@/components/chat/CommunityHub'), {
-  loading: () => <div className="h-[500px] sm:h-[600px] bg-white/5 animate-pulse rounded-lg" />,
-  ssr: false,
-});
+// CommunityHub is now rendered by FloatingVoicePanel in layout
 
 const VideoEmbed = dynamic(() => import('@/components/VideoEmbed'), {
   loading: () => <div className="h-64 bg-white/5 animate-pulse rounded-lg" />,
@@ -282,9 +279,6 @@ export default function MarketDetailsPage() {
   // Swipe gesture state for mobile navigation
   const [touchStart, setTouchStart] = useState<number | null>(null);
   const [touchEnd, setTouchEnd] = useState<number | null>(null);
-
-  // Community Hub sidebar state (mobile)
-  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
 
   // Minimum swipe distance (in px) to trigger navigation
   const minSwipeDistance = 50;
@@ -2703,77 +2697,10 @@ export default function MarketDetailsPage() {
           {/* Placeholder to maintain layout spacing */}
         </div>
 
-        {/* Fixed sidebar that stays in place */}
-        <div className="hidden lg:block fixed top-[6.5rem] right-4 w-[28%] min-w-[320px] max-w-[400px] z-30">
-          <CommunityHub
-            marketId={params.id as string}
-            marketAddress={market.marketAddress}
-            marketName={market.name}
-            walletAddress={primaryWallet?.address}
-            founderWallet={market.founderWallet}
-            hasPosition={positionData?.data?.hasPosition}
-            socialLinks={{
-              twitter: market.metadata?.socialLinks?.twitter,
-              discord: market.metadata?.socialLinks?.discord,
-              telegram: market.metadata?.socialLinks?.telegram,
-              linkedin: market.metadata?.socialLinks?.linkedin,
-            }}
-            className="h-[calc(100vh-7.5rem)]"
-          />
-        </div>
+        {/* CommunityHub is now rendered by FloatingVoicePanel in layout */}
 
       </div>
       {/* End Main Layout */}
-
-      {/* Mobile Chat Button */}
-      <button
-        onClick={() => setIsSidebarOpen(true)}
-        className="lg:hidden fixed bottom-6 right-6 z-40 p-4 bg-gradient-to-r from-cyan-500 to-blue-500 rounded-full shadow-lg shadow-cyan-500/25 hover:shadow-cyan-500/40 transition-all hover:scale-105"
-      >
-        <MessageCircle className="w-6 h-6 text-white" />
-      </button>
-
-      {/* Mobile Sidebar Overlay */}
-      {isSidebarOpen && (
-        <div className="lg:hidden fixed inset-0 z-50">
-          {/* Backdrop */}
-          <div
-            className="absolute inset-0 bg-black/60 backdrop-blur-sm"
-            onClick={() => setIsSidebarOpen(false)}
-          />
-          {/* Sidebar Panel */}
-          <div className="absolute right-0 top-0 bottom-0 w-full max-w-md bg-gray-900 border-l border-gray-700/50 shadow-2xl animate-in slide-in-from-right duration-300">
-            {/* Header */}
-            <div className="flex items-center justify-between px-4 py-3 border-b border-gray-700/50">
-              <h2 className="text-lg font-semibold text-white">Community Hub</h2>
-              <button
-                onClick={() => setIsSidebarOpen(false)}
-                className="p-2 rounded-lg hover:bg-gray-800 transition-colors"
-              >
-                <X className="w-5 h-5 text-gray-400" />
-              </button>
-            </div>
-            {/* Content */}
-            <div className="h-[calc(100%-60px)]">
-              <CommunityHub
-                marketId={params.id as string}
-                marketAddress={market.marketAddress}
-                marketName={market.name}
-                walletAddress={primaryWallet?.address}
-                founderWallet={market.founderWallet}
-                hasPosition={positionData?.data?.hasPosition}
-                socialLinks={{
-                  twitter: market.metadata?.socialLinks?.twitter,
-                  discord: market.metadata?.socialLinks?.discord,
-                  telegram: market.metadata?.socialLinks?.telegram,
-                  linkedin: market.metadata?.socialLinks?.linkedin,
-                }}
-                className="h-full rounded-none border-0"
-              />
-            </div>
-          </div>
-        </div>
-      )}
 
         {/* Error Dialog */}
         <ErrorDialog

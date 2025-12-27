@@ -43,6 +43,7 @@ interface CommunityHubProps {
   hasPosition?: boolean;
   socialLinks?: SocialLinks;
   className?: string;
+  onMinimize?: () => void; // Callback to minimize/close the panel (mobile)
 }
 
 type TabType = 'chat' | 'voice';
@@ -59,6 +60,7 @@ export default function CommunityHub({
   hasPosition,
   socialLinks,
   className,
+  onMinimize,
 }: CommunityHubProps) {
   const [activeTab, setActiveTab] = useState<TabType>('chat');
   const [voiceRoomActive, setVoiceRoomActive] = useState(false);
@@ -259,6 +261,7 @@ export default function CommunityHub({
             walletAddress={walletAddress}
             founderWallet={founderWallet}
             hasPosition={hasPosition}
+            onMinimize={onMinimize}
           />
         )}
       </div>

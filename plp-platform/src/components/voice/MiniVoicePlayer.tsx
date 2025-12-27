@@ -90,20 +90,21 @@ export default function MiniVoicePlayer() {
     return null;
   }
 
-  // Don't render mini player if we're on the market page for this room
-  // Use marketId (URL param) for comparison since that's what's in the URL
+  // Check if we're on the market page for this room
   const isOnRoomPage = pathname?.startsWith('/market/') &&
     marketId &&
     pathname.toLowerCase().includes(marketId.toLowerCase());
 
-  if (isOnRoomPage) {
-    return null;
-  }
+  // On mobile (md and below), ALWAYS show mini player even when on market page
+  // This allows users to minimize the voice room sidebar and still see the mini player
+  // On desktop (lg and above), hide when on market page since full voice room is visible
+  // We use CSS to handle this: show on mobile, hide on desktop when on market page
+  const hideOnDesktopWhenOnPage = isOnRoomPage;
 
   const selfProfile = walletAddress ? profiles[walletAddress] : null;
 
   return (
-    <div className="fixed bottom-4 left-4 right-4 md:left-auto md:right-4 md:w-80 z-50 animate-slide-up">
+    <div className={`fixed bottom-4 left-4 right-4 md:left-auto md:right-4 md:w-80 z-50 animate-slide-up ${hideOnDesktopWhenOnPage ? 'lg:hidden' : ''}`}>
       <div className="bg-gray-900/95 backdrop-blur-lg border border-white/10 rounded-2xl shadow-2xl overflow-hidden">
         {/* Reconnecting banner */}
         {isReconnecting && (
