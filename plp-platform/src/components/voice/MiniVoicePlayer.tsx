@@ -1,8 +1,8 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { usePathname } from 'next/navigation';
-import { Mic, MicOff, PhoneOff, Users, Maximize2, X } from 'lucide-react';
+import { Mic, MicOff, PhoneOff, Users, Maximize2 } from 'lucide-react';
 import { useVoiceRoomContextSafe, REACTION_EMOJIS } from '@/lib/context/VoiceRoomContext';
 import Link from 'next/link';
 
@@ -17,43 +17,32 @@ const isValidWalletAddress = (str: string): boolean => {
 };
 
 export default function MiniVoicePlayer() {
+  // ALL HOOKS MUST BE AT THE TOP - before any conditional returns
   const voiceRoom = useVoiceRoomContextSafe();
   const pathname = usePathname();
   const [profiles, setProfiles] = useState<Record<string, ProfileData>>({});
+  const isMountedRef = useRef(true);
 
-  // Don't render if no voice room context or not connected
-  if (!voiceRoom || !voiceRoom.isConnected) {
-    return null;
-  }
+  // Extract values safely (these may be undefined if voiceRoom is null)
+  const isConnected = voiceRoom?.isConnected ?? false;
+  const marketId = voiceRoom?.marketId ?? null;
+  const marketName = voiceRoom?.marketName ?? '';
+  const walletAddress = voiceRoom?.walletAddress ?? null;
+  const participants = voiceRoom?.participants ?? [];
+  const isMuted = voiceRoom?.isMuted ?? true;
+  const isSpeaking = voiceRoom?.isSpeaking ?? false;
+  const roomTitle = voiceRoom?.roomTitle ?? '';
+  const isReconnecting = voiceRoom?.isReconnecting ?? false;
+  const reconnectAttempts = voiceRoom?.reconnectAttempts ?? 0;
 
-  // Don't render mini player if we're on the market page for this room
-  // Use marketId (URL param) for comparison since that's what's in the URL
-  const isOnRoomPage = pathname?.startsWith('/market/') &&
-    voiceRoom.marketId &&
-    pathname.toLowerCase().includes(voiceRoom.marketId.toLowerCase());
-
-  if (isOnRoomPage) {
-    return null;
-  }
-
-  const {
-    marketId,
-    marketName,
-    walletAddress,
-    participants,
-    isMuted,
-    isSpeaking,
-    roomTitle,
-    toggleMute,
-    leave,
-    sendReaction,
-    isReconnecting,
-    reconnectAttempts,
-  } = voiceRoom;
-
-  // Fetch profiles for participants
+  // Fetch profiles for participants - HOOK MUST BE BEFORE CONDITIONAL RETURNS
   useEffect(() => {
+    isMountedRef.current = true;
+
     const fetchProfiles = async () => {
+      // Don't fetch if not connected or no wallet
+      if (!isConnected || !walletAddress) return;
+
       const walletsToFetch: string[] = [];
 
       // Add self wallet
@@ -77,9 +66,9 @@ export default function MiniVoicePlayer() {
           body: JSON.stringify({ wallets: walletsToFetch }),
         });
 
-        if (response.ok) {
+        if (response.ok && isMountedRef.current) {
           const data = await response.json();
-          if (data.success && data.data) {
+          if (data.success && data.data && isMountedRef.current) {
             setProfiles(prev => ({ ...prev, ...data.data }));
           }
         }
@@ -89,7 +78,27 @@ export default function MiniVoicePlayer() {
     };
 
     fetchProfiles();
-  }, [participants, walletAddress]);
+
+    return () => {
+      isMountedRef.current = false;
+    };
+  }, [isConnected, participants, walletAddress]);
+
+  // NOW we can do conditional returns - AFTER all hooks
+  // Don't render if no voice room context or not connected
+  if (!voiceRoom || !isConnected) {
+    return null;
+  }
+
+  // Don't render mini player if we're on the market page for this room
+  // Use marketId (URL param) for comparison since that's what's in the URL
+  const isOnRoomPage = pathname?.startsWith('/market/') &&
+    marketId &&
+    pathname.toLowerCase().includes(marketId.toLowerCase());
+
+  if (isOnRoomPage) {
+    return null;
+  }
 
   const selfProfile = walletAddress ? profiles[walletAddress] : null;
 
@@ -197,7 +206,7 @@ export default function MiniVoicePlayer() {
             {REACTION_EMOJIS.slice(0, 4).map((emoji) => (
               <button
                 key={emoji}
-                onClick={() => sendReaction(emoji)}
+                onClick={() => voiceRoom.sendReaction(emoji)}
                 className="p-1.5 rounded-lg hover:bg-white/10 active:scale-90 transition-all"
               >
                 <span className="text-sm">{emoji}</span>
@@ -208,7 +217,7 @@ export default function MiniVoicePlayer() {
           {/* Controls */}
           <div className="flex items-center gap-2">
             <button
-              onClick={toggleMute}
+              onClick={() => voiceRoom.toggleMute()}
               className={`flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl font-medium text-sm transition-all ${
                 isMuted
                   ? 'bg-white/10 hover:bg-white/20 text-white'
@@ -220,7 +229,7 @@ export default function MiniVoicePlayer() {
             </button>
 
             <button
-              onClick={leave}
+              onClick={() => voiceRoom.leave()}
               className="flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-red-500/20 hover:bg-red-500/30 text-red-400 font-medium text-sm transition-all"
             >
               <PhoneOff className="w-4 h-4" />
