@@ -15,8 +15,10 @@ const inter = Inter({ subsets: ['latin'] });
 // Force dynamic rendering to avoid SSG issues with Privy
 export const dynamic = 'force-dynamic';
 
+const BASE_URL = process.env.NEXT_PUBLIC_APP_URL || 'https://pnl.market';
+
 export const metadata: Metadata = {
-  title: 'PNL',
+  title: 'PNL - Predict and Launch',
   description: 'Idea Tokenization Platform powered by Prediction Markets. A new creative way of fundraising using crypto rails.',
   manifest: '/manifest.json',
   icons: {
@@ -28,6 +30,27 @@ export const metadata: Metadata = {
     capable: true,
     statusBarStyle: 'black-translucent',
     title: 'PNL',
+  },
+  openGraph: {
+    title: 'PNL - Predict and Launch',
+    description: 'Idea Tokenization Platform powered by Prediction Markets. Launch your ideas with community validation.',
+    url: BASE_URL,
+    siteName: 'PNL',
+    images: [
+      {
+        url: `${BASE_URL}/og-default.png`,
+        width: 1200,
+        height: 630,
+        alt: 'PNL - Predict and Launch',
+      },
+    ],
+    type: 'website',
+  },
+  twitter: {
+    card: 'summary_large_image',
+    title: 'PNL - Predict and Launch',
+    description: 'Idea Tokenization Platform powered by Prediction Markets. Launch your ideas with community validation.',
+    images: [`${BASE_URL}/og-default.png`],
   },
 };
 
