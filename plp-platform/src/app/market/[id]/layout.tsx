@@ -34,9 +34,10 @@ async function getMarketData(id: string): Promise<MarketData | null> {
 export async function generateMetadata({
   params,
 }: {
-  params: { id: string };
+  params: Promise<{ id: string }>;
 }): Promise<Metadata> {
-  const market = await getMarketData(params.id);
+  const { id } = await params;
+  const market = await getMarketData(id);
 
   if (!market) {
     return {
@@ -58,7 +59,7 @@ export async function generateMetadata({
     openGraph: {
       title,
       description,
-      url: `${BASE_URL}/market/${params.id}`,
+      url: `${BASE_URL}/market/${id}`,
       siteName: 'PNL - Predict and Launch',
       images: [
         {
