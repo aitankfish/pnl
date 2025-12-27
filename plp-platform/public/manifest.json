@@ -1,6 +1,6 @@
 {
-  "name": "P&L - Predict and Launch",
-  "short_name": "P&L",
+  "name": "PNL - Predict and Launch",
+  "short_name": "PNL",
   "description": "Community-driven token launch platform powered by prediction markets",
   "start_url": "/",
   "display": "standalone",
