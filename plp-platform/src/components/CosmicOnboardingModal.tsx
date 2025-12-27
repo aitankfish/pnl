@@ -172,7 +172,7 @@ export function CosmicOnboardingModal({ isOpen, onClose, onJoinUniverse, onConti
   // Auto-advance from greeting to welcome
   useEffect(() => {
     if (step === 'greeting') {
-      const timer = setTimeout(() => setStep('welcome'), 3000); // Faster greeting
+      const timer = setTimeout(() => setStep('welcome'), 4000); // After animation completes
       return () => clearTimeout(timer);
     }
   }, [step]);
@@ -364,7 +364,7 @@ export function CosmicOnboardingModal({ isOpen, onClose, onJoinUniverse, onConti
                       className="bg-gradient-to-r from-cyan-300 via-purple-300 to-pink-300 bg-clip-text text-transparent inline-block"
                       initial={{ y: 20, opacity: 0 }}
                       animate={{ y: 0, opacity: 1 }}
-                      transition={{ delay: 0.2, duration: 0.5, ease: [0.16, 1, 0.3, 1] }}
+                      transition={{ delay: 0.3, duration: 0.8, ease: [0.16, 1, 0.3, 1] }}
                     >
                       Hi,
                     </motion.span>
@@ -377,8 +377,8 @@ export function CosmicOnboardingModal({ isOpen, onClose, onJoinUniverse, onConti
                       initial={{ maxWidth: 0, opacity: 0 }}
                       animate={{ maxWidth: '100%', opacity: 1 }}
                       transition={{
-                        maxWidth: { duration: 1.5, delay: 0.5, ease: [0.16, 1, 0.3, 1] },
-                        opacity: { duration: 0.3, delay: 0.5, ease: 'easeOut' }
+                        maxWidth: { duration: 2.5, delay: 1.0, ease: [0.16, 1, 0.3, 1] },
+                        opacity: { duration: 0.4, delay: 1.0, ease: 'easeOut' }
                       }}
                     >
                       <span className="inline-block whitespace-nowrap">{displayedName}</span>
@@ -387,7 +387,7 @@ export function CosmicOnboardingModal({ isOpen, onClose, onJoinUniverse, onConti
                   <motion.div
                     initial={{ opacity: 0 }}
                     animate={{ opacity: 1 }}
-                    transition={{ delay: 2.2, duration: 0.4, ease: 'easeOut' }}
+                    transition={{ delay: 3.0, duration: 0.4, ease: 'easeOut' }}
                     className="mt-4"
                   >
                     <Sparkles className="w-10 h-10 sm:w-12 sm:h-12 mx-auto text-yellow-300 animate-pulse" />
@@ -731,7 +731,7 @@ export function CosmicOnboardingModal({ isOpen, onClose, onJoinUniverse, onConti
               <motion.p
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 0.6 }}
-                transition={{ delay: 0.8, duration: 0.3 }}
+                transition={{ delay: 2.0, duration: 0.3 }}
                 className="absolute bottom-8 text-gray-400 text-sm"
               >
                 Tap anywhere to skip
