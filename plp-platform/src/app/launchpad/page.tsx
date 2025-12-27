@@ -98,7 +98,7 @@ export default function LaunchpadPage() {
 
   useEffect(() => {
     // Update document title
-    document.title = 'P&L - Predict and Launch';
+    document.title = 'PNL';
   }, []);
 
   useEffect(() => {

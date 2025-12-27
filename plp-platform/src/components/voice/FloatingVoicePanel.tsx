@@ -1,8 +1,8 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { usePathname, useParams } from 'next/navigation';
-import { Mic, MicOff, PhoneOff, Users, Minimize2 } from 'lucide-react';
+import { Mic, MicOff, PhoneOff, Users, Minimize2, Wifi, WifiOff } from 'lucide-react';
 import { useVoiceRoomContextSafe } from '@/lib/context/VoiceRoomContext';
 import { useWallet } from '@/hooks/useWallet';
 import Link from 'next/link';
@@ -40,6 +40,27 @@ export default function FloatingVoicePanel() {
   const [isExpanded, setIsExpanded] = useState(false);
   const [isDesktop, setIsDesktop] = useState(false);
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
+
+  // Swipe gesture handling
+  const touchStartY = useRef<number>(0);
+  const touchStartTime = useRef<number>(0);
+  const sidebarRef = useRef<HTMLDivElement>(null);
+
+  const handleTouchStart = useCallback((e: React.TouchEvent) => {
+    touchStartY.current = e.touches[0].clientY;
+    touchStartTime.current = Date.now();
+  }, []);
+
+  const handleTouchEnd = useCallback((e: React.TouchEvent) => {
+    const touchEndY = e.changedTouches[0].clientY;
+    const deltaY = touchEndY - touchStartY.current;
+    const deltaTime = Date.now() - touchStartTime.current;
+
+    // Swipe down to minimize: must be quick swipe (< 300ms) and move at least 50px down
+    if (deltaY > 50 && deltaTime < 300) {
+      setIsMobileSidebarOpen(false);
+    }
+  }, []);
 
   // Check if we're on a market page
   const isOnMarketPage = pathname?.startsWith('/market/');
@@ -136,17 +157,29 @@ export default function FloatingVoicePanel() {
               className="absolute inset-0 bg-black/60 backdrop-blur-sm"
               onClick={() => setIsMobileSidebarOpen(false)}
             />
-            <div className="absolute right-0 top-0 bottom-0 w-full max-w-md bg-gray-900 border-l border-gray-700/50 shadow-2xl animate-in slide-in-from-right duration-300">
-              <div className="flex items-center justify-between px-4 py-3 border-b border-gray-700/50">
-                <h2 className="text-lg font-semibold text-white">{marketData?.name || 'Community Hub'}</h2>
-                <button
-                  onClick={() => setIsMobileSidebarOpen(false)}
-                  className="p-2 rounded-lg hover:bg-gray-800 transition-colors"
-                >
-                  <Minimize2 className="w-5 h-5 text-gray-400" />
-                </button>
+            <div
+              ref={sidebarRef}
+              onTouchStart={handleTouchStart}
+              onTouchEnd={handleTouchEnd}
+              className="absolute right-0 top-0 bottom-0 w-full max-w-md bg-gray-900 border-l border-gray-700/50 shadow-2xl animate-in slide-in-from-right duration-300"
+            >
+              {/* Swipe indicator */}
+              <div className="flex justify-center pt-2 pb-1">
+                <div className="w-10 h-1 rounded-full bg-gray-600" />
               </div>
-              <div className="h-[calc(100%-60px)]">
+              <div className="flex items-center justify-between px-4 py-2 border-b border-gray-700/50">
+                <h2 className="text-base font-medium text-white truncate flex-1 mr-2">{marketData?.name || 'Community'}</h2>
+                <div className="flex items-center gap-2">
+                  <Wifi className="w-4 h-4 text-green-400" />
+                  <button
+                    onClick={() => setIsMobileSidebarOpen(false)}
+                    className="p-1.5 rounded-lg hover:bg-gray-800 transition-colors"
+                  >
+                    <Minimize2 className="w-4 h-4 text-gray-400" />
+                  </button>
+                </div>
+              </div>
+              <div className="h-[calc(100%-52px)]">
                 <CommunityHub
                   marketId={currentMarketId}
                   marketAddress={marketData?.marketAddress || currentMarketId}
@@ -229,6 +262,22 @@ export default function FloatingVoicePanel() {
   }
 
   // Expanded view - floating panel for voice room from another market
+  // Create touch handlers for expanded view
+  const handleExpandedTouchStart = useCallback((e: React.TouchEvent) => {
+    touchStartY.current = e.touches[0].clientY;
+    touchStartTime.current = Date.now();
+  }, []);
+
+  const handleExpandedTouchEnd = useCallback((e: React.TouchEvent) => {
+    const touchEndY = e.changedTouches[0].clientY;
+    const deltaY = touchEndY - touchStartY.current;
+    const deltaTime = Date.now() - touchStartTime.current;
+
+    if (deltaY > 50 && deltaTime < 300) {
+      setIsExpanded(false);
+    }
+  }, []);
+
   return (
     <>
       {/* Mobile: Full screen slide-in panel */}
@@ -237,26 +286,40 @@ export default function FloatingVoicePanel() {
           className="absolute inset-0 bg-black/60 backdrop-blur-sm"
           onClick={() => setIsExpanded(false)}
         />
-        <div className="absolute right-0 top-0 bottom-0 w-full max-w-md bg-gray-900 border-l border-gray-700/50 shadow-2xl animate-in slide-in-from-right duration-300">
-          <div className="flex items-center justify-between px-4 py-3 border-b border-gray-700/50">
-            <div className="flex items-center gap-2">
-              <div className="w-2 h-2 rounded-full bg-green-400 animate-pulse" />
+        <div
+          onTouchStart={handleExpandedTouchStart}
+          onTouchEnd={handleExpandedTouchEnd}
+          className="absolute right-0 top-0 bottom-0 w-full max-w-md bg-gray-900/85 backdrop-blur-xl border-l border-white/10 shadow-2xl shadow-black/50 animate-in slide-in-from-right duration-300"
+        >
+          {/* Swipe indicator */}
+          <div className="flex justify-center pt-2 pb-1">
+            <div className="w-10 h-1 rounded-full bg-gray-600" />
+          </div>
+          <div className="flex items-center justify-between px-4 py-2 border-b border-gray-700/50">
+            <div className="flex items-center gap-2 flex-1 min-w-0">
+              <div className="w-2 h-2 rounded-full bg-green-400 animate-pulse flex-shrink-0" />
               <Link
                 href={`/market/${voiceMarketId}`}
-                className="text-lg font-semibold text-white hover:text-cyan-400 transition-colors"
+                className="text-base font-medium text-white hover:text-cyan-400 transition-colors truncate"
               >
                 {roomTitle || voiceMarketName || 'Voice Room'}
               </Link>
             </div>
-            <button
-              onClick={() => setIsExpanded(false)}
-              className="p-2 rounded-lg hover:bg-gray-800 transition-colors"
-              title="Minimize"
-            >
-              <Minimize2 className="w-5 h-5 text-gray-400" />
-            </button>
+            <div className="flex items-center gap-2 flex-shrink-0">
+              <div className="flex items-center gap-1 text-xs text-gray-400">
+                <Users className="w-3.5 h-3.5" />
+                <span>{totalParticipants}</span>
+              </div>
+              <button
+                onClick={() => setIsExpanded(false)}
+                className="p-1.5 rounded-lg hover:bg-gray-800 transition-colors"
+                title="Minimize"
+              >
+                <Minimize2 className="w-4 h-4 text-gray-400" />
+              </button>
+            </div>
           </div>
-          <div className="h-[calc(100%-60px)]">
+          <div className="h-[calc(100%-52px)]">
             <CommunityHub
               marketId={voiceMarketId || ''}
               marketAddress={voiceMarketAddress || ''}
@@ -264,7 +327,7 @@ export default function FloatingVoicePanel() {
               walletAddress={walletAddress}
               founderWallet={null}
               hasPosition={true}
-              className="h-full rounded-none border-0"
+              className="h-full rounded-none border-0 bg-transparent"
               onMinimize={() => setIsExpanded(false)}
             />
           </div>
@@ -272,8 +335,8 @@ export default function FloatingVoicePanel() {
       </div>
 
       {/* Desktop: Fixed right sidebar */}
-      <div className="hidden lg:block fixed top-[6.5rem] right-4 w-[28%] min-w-[320px] max-w-[400px] z-30">
-        <div className="flex items-center justify-between px-4 py-2 bg-gray-900/95 backdrop-blur-sm border border-white/10 border-b-0 rounded-t-xl">
+      <div className="hidden lg:block fixed top-[6.5rem] right-4 w-[28%] min-w-[320px] max-w-[400px] z-30 bg-gray-900/80 backdrop-blur-xl rounded-xl border border-white/10 shadow-2xl shadow-black/40 overflow-hidden">
+        <div className="flex items-center justify-between px-4 py-2 border-b border-white/10">
           <div className="flex items-center gap-2">
             <div className="w-2 h-2 rounded-full bg-green-400 animate-pulse" />
             <Link
@@ -298,7 +361,7 @@ export default function FloatingVoicePanel() {
           walletAddress={walletAddress}
           founderWallet={null}
           hasPosition={true}
-          className="h-[calc(100vh-7.5rem)] rounded-t-none"
+          className="h-[calc(100vh-9rem)] rounded-none border-0 bg-transparent"
           onMinimize={() => setIsExpanded(false)}
         />
       </div>

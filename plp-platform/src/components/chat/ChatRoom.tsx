@@ -7,7 +7,6 @@ import MessageList from './MessageList';
 import MessageInput from './MessageInput';
 import PinnedMessages from './PinnedMessages';
 import TypingIndicator from './TypingIndicator';
-import { Users, Wifi, WifiOff } from 'lucide-react';
 
 interface ChatRoomProps {
   marketAddress: string;
@@ -26,7 +25,6 @@ export default function ChatRoom({ marketAddress, walletAddress, founderWallet, 
     pinnedMessages,
     isLoading,
     hasMore,
-    userCount,
     typingUsers,
     error,
     isConnected,
@@ -67,24 +65,6 @@ export default function ChatRoom({ marketAddress, walletAddress, founderWallet, 
 
   return (
     <div className={`flex flex-col h-full bg-transparent ${className}`}>
-      {/* Header */}
-      <div className="flex items-center justify-between px-3 py-2 border-b border-cyan-500/10 bg-transparent">
-        <div className="flex items-center gap-2">
-          <span className="text-sm font-medium text-white">Chat</span>
-          <div className="flex items-center gap-1 text-xs text-gray-400">
-            <Users className="w-3 h-3" />
-            <span>{userCount}</span>
-          </div>
-        </div>
-        <div className="flex items-center gap-1">
-          {isConnected ? (
-            <Wifi className="w-3 h-3 text-green-400" />
-          ) : (
-            <WifiOff className="w-3 h-3 text-red-400" />
-          )}
-        </div>
-      </div>
-
       {/* Pinned Messages */}
       {pinnedMessages.length > 0 && (
         <PinnedMessages

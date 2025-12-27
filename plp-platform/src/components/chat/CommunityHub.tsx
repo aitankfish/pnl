@@ -185,13 +185,10 @@ export default function CommunityHub({
           return (
             <button
               key={tab.id}
-              onClick={() => !tab.disabled && setActiveTab(tab.id)}
-              disabled={tab.disabled}
+              onClick={() => setActiveTab(tab.id)}
               className={`flex-1 flex items-center justify-center gap-1.5 px-3 py-2.5 text-sm font-medium transition-all relative ${
                 activeTab === tab.id
                   ? 'text-cyan-400 bg-cyan-500/10'
-                  : tab.disabled
-                  ? 'text-gray-600 cursor-not-allowed'
                   : 'text-gray-400 hover:text-gray-300 hover:bg-gray-800/30'
               }`}
             >
@@ -219,9 +216,6 @@ export default function CommunityHub({
                 )}
               </div>
 
-              {tab.soon && (
-                <span className="text-[10px] text-gray-500 hidden sm:inline">(Soon)</span>
-              )}
               {activeTab === tab.id && (
                 <div className={`absolute bottom-0 left-0 right-0 h-0.5 ${showLiveIndicator ? 'bg-green-400' : 'bg-cyan-400'}`} />
               )}

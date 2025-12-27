@@ -16,7 +16,7 @@ const inter = Inter({ subsets: ['latin'] });
 export const dynamic = 'force-dynamic';
 
 export const metadata: Metadata = {
-  title: 'P&L - Predict and Launch',
+  title: 'PNL',
   description: 'Idea Tokenization Platform powered by Prediction Markets. A new creative way of fundraising using crypto rails.',
   manifest: '/manifest.json',
   icons: {
