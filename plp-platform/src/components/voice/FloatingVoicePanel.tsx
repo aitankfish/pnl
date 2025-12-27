@@ -7,12 +7,30 @@ import { useVoiceRoomContextSafe } from '@/lib/context/VoiceRoomContext';
 import { useWallet } from '@/hooks/useWallet';
 import Link from 'next/link';
 import dynamic from 'next/dynamic';
+import useSWR from 'swr';
 
 // Dynamically import CommunityHub to avoid circular dependencies
 const CommunityHub = dynamic(() => import('@/components/chat/CommunityHub'), {
   loading: () => <div className="h-full bg-gray-900 animate-pulse" />,
   ssr: false,
 });
+
+// Fetcher for SWR
+const fetcher = (url: string) => fetch(url).then(res => res.json());
+
+interface MarketData {
+  name?: string;
+  founderWallet?: string;
+  marketAddress?: string;
+  metadata?: {
+    socialLinks?: {
+      twitter?: string;
+      discord?: string;
+      telegram?: string;
+      linkedin?: string;
+    };
+  };
+}
 
 export default function FloatingVoicePanel() {
   const voiceRoom = useVoiceRoomContextSafe();
@@ -26,6 +44,14 @@ export default function FloatingVoicePanel() {
   // Check if we're on a market page
   const isOnMarketPage = pathname?.startsWith('/market/');
   const currentMarketId = params?.id as string | undefined;
+
+  // Fetch market data when on market page
+  const { data: marketResponse } = useSWR<{ success: boolean; data: MarketData }>(
+    isOnMarketPage && currentMarketId ? `/api/markets/${currentMarketId}` : null,
+    fetcher,
+    { revalidateOnFocus: false }
+  );
+  const marketData = marketResponse?.data;
 
   // Track desktop/mobile state
   useEffect(() => {
@@ -70,17 +96,25 @@ export default function FloatingVoicePanel() {
   // CASE 1: On Market Page - Show CommunityHub directly
   // ===========================================
   if (isOnMarketPage && currentMarketId) {
+    const socialLinks = marketData?.metadata?.socialLinks ? {
+      twitter: marketData.metadata.socialLinks.twitter,
+      discord: marketData.metadata.socialLinks.discord,
+      telegram: marketData.metadata.socialLinks.telegram,
+      linkedin: marketData.metadata.socialLinks.linkedin,
+    } : undefined;
+
     return (
       <>
         {/* Desktop: Fixed right sidebar */}
         <div className="hidden lg:block fixed top-[6.5rem] right-4 w-[28%] min-w-[320px] max-w-[400px] z-30">
           <CommunityHub
             marketId={currentMarketId}
-            marketAddress={currentMarketId}
-            marketName=""
+            marketAddress={marketData?.marketAddress || currentMarketId}
+            marketName={marketData?.name || ''}
             walletAddress={walletAddress}
-            founderWallet={null}
+            founderWallet={marketData?.founderWallet || null}
             hasPosition={true}
+            socialLinks={socialLinks}
             className="h-[calc(100vh-7.5rem)]"
           />
         </div>
@@ -104,7 +138,7 @@ export default function FloatingVoicePanel() {
             />
             <div className="absolute right-0 top-0 bottom-0 w-full max-w-md bg-gray-900 border-l border-gray-700/50 shadow-2xl animate-in slide-in-from-right duration-300">
               <div className="flex items-center justify-between px-4 py-3 border-b border-gray-700/50">
-                <h2 className="text-lg font-semibold text-white">Community Hub</h2>
+                <h2 className="text-lg font-semibold text-white">{marketData?.name || 'Community Hub'}</h2>
                 <button
                   onClick={() => setIsMobileSidebarOpen(false)}
                   className="p-2 rounded-lg hover:bg-gray-800 transition-colors"
@@ -115,11 +149,12 @@ export default function FloatingVoicePanel() {
               <div className="h-[calc(100%-60px)]">
                 <CommunityHub
                   marketId={currentMarketId}
-                  marketAddress={currentMarketId}
-                  marketName=""
+                  marketAddress={marketData?.marketAddress || currentMarketId}
+                  marketName={marketData?.name || ''}
                   walletAddress={walletAddress}
-                  founderWallet={null}
+                  founderWallet={marketData?.founderWallet || null}
                   hasPosition={true}
+                  socialLinks={socialLinks}
                   className="h-full rounded-none border-0"
                   onMinimize={() => setIsMobileSidebarOpen(false)}
                 />

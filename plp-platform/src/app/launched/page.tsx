@@ -114,9 +114,20 @@ export default function LaunchedPage() {
 
         {/* Loading State */}
         {isLoading && (
-          <div className="flex items-center justify-center py-20">
-            <Loader2 className="w-8 h-8 text-white animate-spin" />
-            <span className="ml-3 text-white/70">Loading launched projects...</span>
+          <div className="flex flex-col items-center justify-center py-20 gap-4">
+            <div className="relative w-12 h-12">
+              <div className="absolute inset-0 rounded-full border border-white/10" />
+              <div className="absolute inset-0 animate-spin" style={{ animationDuration: '1.5s' }}>
+                <div className="absolute top-0 left-1/2 -translate-x-1/2 -translate-y-1/2 w-2.5 h-2.5 rounded-full bg-cyan-400 shadow-[0_0_8px_rgba(34,211,238,0.8)]" />
+              </div>
+              <div className="absolute inset-0 animate-spin" style={{ animationDuration: '1.5s', animationDelay: '-0.5s' }}>
+                <div className="absolute top-0 left-1/2 -translate-x-1/2 -translate-y-1/2 w-2.5 h-2.5 rounded-full bg-purple-400 shadow-[0_0_8px_rgba(192,132,252,0.8)]" />
+              </div>
+              <div className="absolute inset-0 animate-spin" style={{ animationDuration: '1.5s', animationDelay: '-1s' }}>
+                <div className="absolute top-0 left-1/2 -translate-x-1/2 -translate-y-1/2 w-2.5 h-2.5 rounded-full bg-blue-400 shadow-[0_0_8px_rgba(96,165,250,0.8)]" />
+              </div>
+            </div>
+            <span className="text-white/70">Loading launched projects...</span>
           </div>
         )}
 
