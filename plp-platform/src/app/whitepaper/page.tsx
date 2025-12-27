@@ -448,28 +448,41 @@ export default function WhitepaperPage() {
               for believers to back it.
             </p>
 
-            {/* What's Next */}
-            <h3 className="text-xl font-semibold text-white mt-8 mb-4">What We&apos;re Building Next</h3>
+            {/* What's Live */}
+            <h3 className="text-xl font-semibold text-white mt-8 mb-4">What&apos;s Live Now</h3>
             <p className="text-gray-400 mb-4">
-              PNL is just getting started. Here&apos;s what&apos;s coming:
+              Community features already shipped and ready to use:
             </p>
 
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-              <div className="bg-black/30 rounded-lg p-3 border border-pink-400/20 text-center">
-                <p className="text-pink-400 font-semibold text-sm">Chat</p>
-                <p className="text-gray-500 text-xs">Real-time discussions</p>
+            <div className="grid grid-cols-2 md:grid-cols-3 gap-3 mb-6">
+              <div className="bg-black/30 rounded-lg p-3 border border-green-400/30 text-center">
+                <p className="text-green-400 font-semibold text-sm">Community Chat</p>
+                <p className="text-gray-500 text-xs">Real-time discussions per market</p>
+              </div>
+              <div className="bg-black/30 rounded-lg p-3 border border-green-400/30 text-center">
+                <p className="text-green-400 font-semibold text-sm">Voice Rooms</p>
+                <p className="text-gray-500 text-xs">Live audio spaces for each project</p>
+              </div>
+              <div className="bg-black/30 rounded-lg p-3 border border-green-400/30 text-center">
+                <p className="text-green-400 font-semibold text-sm">AI Analysis</p>
+                <p className="text-gray-500 text-xs">Smart project scoring & roasts</p>
+              </div>
+            </div>
+
+            {/* What's Next */}
+            <h3 className="text-xl font-semibold text-white mb-4">What&apos;s Coming Next</h3>
+            <p className="text-gray-400 mb-4">
+              More features on the roadmap:
+            </p>
+
+            <div className="grid grid-cols-2 gap-3">
+              <div className="bg-black/30 rounded-lg p-3 border border-amber-400/20 text-center">
+                <p className="text-amber-400 font-semibold text-sm">Reputation System</p>
+                <p className="text-gray-500 text-xs">Track record & credibility scores</p>
               </div>
               <div className="bg-black/30 rounded-lg p-3 border border-cyan-400/20 text-center">
-                <p className="text-cyan-400 font-semibold text-sm">AI Analysis</p>
-                <p className="text-gray-500 text-xs">Smart project scoring</p>
-              </div>
-              <div className="bg-black/30 rounded-lg p-3 border border-emerald-400/20 text-center">
-                <p className="text-emerald-400 font-semibold text-sm">Reputation</p>
-                <p className="text-gray-500 text-xs">Track record system</p>
-              </div>
-              <div className="bg-black/30 rounded-lg p-3 border border-amber-400/20 text-center">
-                <p className="text-amber-400 font-semibold text-sm">Teams</p>
-                <p className="text-gray-500 text-xs">Talent marketplace</p>
+                <p className="text-cyan-400 font-semibold text-sm">Teams & Talent</p>
+                <p className="text-gray-500 text-xs">Find collaborators for your project</p>
               </div>
             </div>
           </section>
@@ -728,9 +741,9 @@ export default function WhitepaperPage() {
 
             {/* Connect */}
             <h3 className="text-xl font-semibold text-white mb-4">Connect With Us</h3>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <a
-                href="https://x.com/prelaunchmarket"
+                href="https://x.com/pnldotmarket"
                 target="_blank"
                 rel="noopener noreferrer"
                 className="flex items-center gap-3 bg-black/30 hover:bg-black/50 transition-colors rounded-lg p-4 border border-gray-600/30 hover:border-blue-400/50"
@@ -742,7 +755,7 @@ export default function WhitepaperPage() {
                 </div>
                 <div>
                   <p className="text-white font-semibold">X (Twitter)</p>
-                  <p className="text-gray-400 text-sm">@prelaunchmarket</p>
+                  <p className="text-gray-400 text-sm">@pnldotmarket</p>
                 </div>
               </a>
 
@@ -760,23 +773,6 @@ export default function WhitepaperPage() {
                 <div>
                   <p className="text-white font-semibold">Discord</p>
                   <p className="text-gray-400 text-sm">Join the community</p>
-                </div>
-              </a>
-
-              <a
-                href="https://github.com/pnl-market"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="flex items-center gap-3 bg-black/30 hover:bg-black/50 transition-colors rounded-lg p-4 border border-gray-600/30 hover:border-gray-400/50"
-              >
-                <div className="p-2 bg-gray-500/20 rounded-full">
-                  <svg className="w-5 h-5 text-gray-300" fill="currentColor" viewBox="0 0 24 24">
-                    <path fillRule="evenodd" clipRule="evenodd" d="M12 2C6.477 2 2 6.484 2 12.017c0 4.425 2.865 8.18 6.839 9.504.5.092.682-.217.682-.483 0-.237-.008-.868-.013-1.703-2.782.605-3.369-1.343-3.369-1.343-.454-1.158-1.11-1.466-1.11-1.466-.908-.62.069-.608.069-.608 1.003.07 1.531 1.032 1.531 1.032.892 1.53 2.341 1.088 2.91.832.092-.647.35-1.088.636-1.338-2.22-.253-4.555-1.113-4.555-4.951 0-1.093.39-1.988 1.029-2.688-.103-.253-.446-1.272.098-2.65 0 0 .84-.27 2.75 1.026A9.564 9.564 0 0112 6.844c.85.004 1.705.115 2.504.337 1.909-1.296 2.747-1.027 2.747-1.027.546 1.379.202 2.398.1 2.651.64.7 1.028 1.595 1.028 2.688 0 3.848-2.339 4.695-4.566 4.943.359.309.678.92.678 1.855 0 1.338-.012 2.419-.012 2.747 0 .268.18.58.688.482A10.019 10.019 0 0022 12.017C22 6.484 17.522 2 12 2z" />
-                  </svg>
-                </div>
-                <div>
-                  <p className="text-white font-semibold">GitHub</p>
-                  <p className="text-gray-400 text-sm">Open source</p>
                 </div>
               </a>
             </div>

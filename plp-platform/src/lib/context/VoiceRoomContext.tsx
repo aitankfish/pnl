@@ -167,6 +167,7 @@ export function VoiceRoomProvider({ children }: VoiceRoomProviderProps) {
   const speakingIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const reconnectTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const shouldReconnectRef = useRef(false);
+  const reactionTimeoutsRef = useRef<Set<NodeJS.Timeout>>(new Set());
   const maxReconnectAttempts = 5;
 
   // Computed values
@@ -182,6 +183,10 @@ export function VoiceRoomProvider({ children }: VoiceRoomProviderProps) {
     if (intentional) {
       shouldReconnectRef.current = false;
     }
+
+    // Clear all reaction timeouts
+    reactionTimeoutsRef.current.forEach(timeout => clearTimeout(timeout));
+    reactionTimeoutsRef.current.clear();
 
     if (reconnectTimeoutRef.current) {
       clearTimeout(reconnectTimeoutRef.current);
@@ -413,9 +418,11 @@ export function VoiceRoomProvider({ children }: VoiceRoomProviderProps) {
       socket.on('reaction', ({ peerId, emoji }) => {
         const reactionId = `${peerId}-${Date.now()}-${Math.random()}`;
         setReactions(prev => [...prev, { id: reactionId, emoji, peerId }]);
-        setTimeout(() => {
+        const reactionTimeout = setTimeout(() => {
           setReactions(prev => prev.filter(r => r.id !== reactionId));
+          reactionTimeoutsRef.current.delete(reactionTimeout);
         }, 3000);
+        reactionTimeoutsRef.current.add(reactionTimeout);
       });
 
       socket.on('speakingChanged', ({ peerId, isSpeaking: speaking }) => {
@@ -674,9 +681,11 @@ export function VoiceRoomProvider({ children }: VoiceRoomProviderProps) {
     socketRef.current.emit('reaction', { emoji });
     const reactionId = `${walletAddress}-${Date.now()}-${Math.random()}`;
     setReactions(prev => [...prev, { id: reactionId, emoji, peerId: walletAddress }]);
-    setTimeout(() => {
+    const reactionTimeout = setTimeout(() => {
       setReactions(prev => prev.filter(r => r.id !== reactionId));
+      reactionTimeoutsRef.current.delete(reactionTimeout);
     }, 3000);
+    reactionTimeoutsRef.current.add(reactionTimeout);
   }, [walletAddress]);
 
   const kickUser = useCallback((peerId: string) => {

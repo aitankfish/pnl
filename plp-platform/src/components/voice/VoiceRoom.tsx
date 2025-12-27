@@ -274,6 +274,15 @@ export default function VoiceRoom({
 
   const canJoin = walletAddress && (hasPosition || walletAddress === founderWallet);
   const prevParticipantsRef = useRef<number>(0);
+  const timeoutsRef = useRef<Set<NodeJS.Timeout>>(new Set());
+
+  // Cleanup timeouts on unmount to prevent state updates after navigation
+  useEffect(() => {
+    return () => {
+      timeoutsRef.current.forEach(timeout => clearTimeout(timeout));
+      timeoutsRef.current.clear();
+    };
+  }, []);
 
   // Handle join with context
   const handleJoin = () => {
@@ -355,7 +364,11 @@ export default function VoiceRoom({
       oscillator.stop(audioCtx.currentTime + 0.3);
 
       // Clear toast after 3 seconds
-      setTimeout(() => setJoinToast(null), 3000);
+      const toastTimeout = setTimeout(() => {
+        setJoinToast(null);
+        timeoutsRef.current.delete(toastTimeout);
+      }, 3000);
+      timeoutsRef.current.add(toastTimeout);
     }
     prevParticipantsRef.current = participants.length;
   }, [participants.length, isConnected, profiles]);
@@ -365,7 +378,11 @@ export default function VoiceRoom({
     try {
       await navigator.clipboard.writeText(roomUrl);
       setShowCopied(true);
-      setTimeout(() => setShowCopied(false), 2000);
+      const copiedTimeout = setTimeout(() => {
+        setShowCopied(false);
+        timeoutsRef.current.delete(copiedTimeout);
+      }, 2000);
+      timeoutsRef.current.add(copiedTimeout);
     } catch (err) {
       console.error('Failed to copy:', err);
     }

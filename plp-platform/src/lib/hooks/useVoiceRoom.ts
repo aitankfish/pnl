@@ -55,6 +55,8 @@ export function useVoiceRoom({ marketAddress, walletAddress, founderWallet }: Us
   const speakingIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const reconnectTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const shouldReconnectRef = useRef(false);
+  const isMountedRef = useRef(true);
+  const reactionTimeoutsRef = useRef<Set<NodeJS.Timeout>>(new Set());
   const maxReconnectAttempts = 5;
 
   const isFounder = walletAddress === founderWallet;
@@ -67,7 +69,12 @@ export function useVoiceRoom({ marketAddress, walletAddress, founderWallet }: Us
     // If intentional leave, don't reconnect
     if (intentional) {
       shouldReconnectRef.current = false;
+      isMountedRef.current = false;
     }
+
+    // Clear all reaction timeouts
+    reactionTimeoutsRef.current.forEach(timeout => clearTimeout(timeout));
+    reactionTimeoutsRef.current.clear();
 
     // Clear reconnect timeout
     if (reconnectTimeoutRef.current) {

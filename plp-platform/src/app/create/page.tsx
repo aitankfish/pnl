@@ -568,6 +568,41 @@ export default function CreatePage() {
               </CardContent>
             </Card>
 
+            {/* Project Video (Optional) */}
+            <Card className="bg-gradient-to-br from-white/10 to-white/5 backdrop-blur-xl border-white/20 text-white hover:border-red-500/30 transition-colors">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-3">
+                  <div className="p-2 bg-red-500/20 rounded-lg">
+                    <svg className="w-5 h-5 text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z" />
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                  </div>
+                  Project Video
+                </CardTitle>
+                <CardDescription className="text-white/70 ml-12">
+                  Add a YouTube or X (Twitter) video to showcase your project (optional)
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-2">
+                  <Label htmlFor="videoUrl" className="text-white/80">Video URL</Label>
+                  <Input
+                    id="videoUrl"
+                    type="url"
+                    placeholder="https://youtube.com/watch?v=... or https://x.com/user/status/..."
+                    value={formData.videoUrl}
+                    onChange={(e) => handleInputChange('videoUrl', e.target.value)}
+                    className="bg-white/10 border-white/20 text-white placeholder:text-white/50 focus:ring-2 focus:ring-red-500/50 transition-all"
+                  />
+                  <p className="text-xs text-white/60">
+                    Supports YouTube videos and X (Twitter) posts
+                  </p>
+                  {errors.videoUrl && <p className="text-sm text-red-400">{errors.videoUrl}</p>}
+                </div>
+              </CardContent>
+            </Card>
+
             {/* Token Information - Collapsible */}
             <Card className="bg-gradient-to-br from-white/10 to-white/5 backdrop-blur-xl border-white/20 text-white overflow-visible hover:border-purple-500/30 transition-colors">
               <CardHeader className="cursor-pointer" onClick={() => setIsTokenSectionExpanded(!isTokenSectionExpanded)}>
@@ -971,41 +1006,6 @@ export default function CreatePage() {
                       className="bg-white/10 border-white/20 text-white placeholder:text-white/50 focus:ring-2 focus:ring-cyan-500/50 transition-all"
                     />
                   </div>
-                </div>
-              </CardContent>
-            </Card>
-
-            {/* Project Video (Optional) */}
-            <Card className="bg-gradient-to-br from-white/10 to-white/5 backdrop-blur-xl border-white/20 text-white hover:border-red-500/30 transition-colors">
-              <CardHeader>
-                <CardTitle className="flex items-center gap-3">
-                  <div className="p-2 bg-red-500/20 rounded-lg">
-                    <svg className="w-5 h-5 text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z" />
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                    </svg>
-                  </div>
-                  Project Video
-                </CardTitle>
-                <CardDescription className="text-white/70 ml-12">
-                  Add a YouTube or X (Twitter) video to showcase your project (optional)
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-2">
-                  <Label htmlFor="videoUrl" className="text-white/80">Video URL</Label>
-                  <Input
-                    id="videoUrl"
-                    type="url"
-                    placeholder="https://youtube.com/watch?v=... or https://x.com/user/status/..."
-                    value={formData.videoUrl}
-                    onChange={(e) => handleInputChange('videoUrl', e.target.value)}
-                    className="bg-white/10 border-white/20 text-white placeholder:text-white/50 focus:ring-2 focus:ring-red-500/50 transition-all"
-                  />
-                  <p className="text-xs text-white/60">
-                    Supports YouTube videos and X (Twitter) posts
-                  </p>
-                  {errors.videoUrl && <p className="text-sm text-red-400">{errors.videoUrl}</p>}
                 </div>
               </CardContent>
             </Card>
