@@ -46,6 +46,7 @@ export function useChat({ marketAddress, walletAddress, autoJoin = true, getAcce
   // Rate limiting state
   const messageTimestamps = useRef<number[]>([]);
   const typingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const isMountedRef = useRef(true);
 
   // Fetch initial messages
   const fetchMessages = useCallback(async (before?: string) => {
@@ -97,6 +98,7 @@ export function useChat({ marketAddress, walletAddress, autoJoin = true, getAcce
 
   // Socket event handlers
   useEffect(() => {
+    isMountedRef.current = true;
     if (!socket || !isConnected || !marketAddress) return;
 
     // Join chat room
@@ -107,6 +109,7 @@ export function useChat({ marketAddress, walletAddress, autoJoin = true, getAcce
 
     // Handle new messages
     const handleMessage = (data: { message: IChatMessage; marketAddress: string }) => {
+      if (!isMountedRef.current) return;
       if (data.marketAddress === marketAddress) {
         setState(prev => ({
           ...prev,
@@ -117,6 +120,7 @@ export function useChat({ marketAddress, walletAddress, autoJoin = true, getAcce
 
     // Handle user count updates
     const handleUserCount = (data: { count: number; marketAddress: string }) => {
+      if (!isMountedRef.current) return;
       if (data.marketAddress === marketAddress) {
         setState(prev => ({ ...prev, userCount: data.count }));
       }
@@ -124,6 +128,7 @@ export function useChat({ marketAddress, walletAddress, autoJoin = true, getAcce
 
     // Handle typing indicator
     const handleTyping = (data: { walletAddress: string; displayName?: string; marketAddress: string }) => {
+      if (!isMountedRef.current) return;
       if (data.marketAddress === marketAddress && data.walletAddress !== walletAddress) {
         setState(prev => {
           const newTyping = new Map(prev.typingUsers);
@@ -136,6 +141,7 @@ export function useChat({ marketAddress, walletAddress, autoJoin = true, getAcce
 
         // Clear typing indicator after 3 seconds
         setTimeout(() => {
+          if (!isMountedRef.current) return;
           setState(prev => {
             const newTyping = new Map(prev.typingUsers);
             const entry = newTyping.get(data.walletAddress);
@@ -150,6 +156,7 @@ export function useChat({ marketAddress, walletAddress, autoJoin = true, getAcce
 
     // Handle message deleted
     const handleDeleted = (data: { messageId: string }) => {
+      if (!isMountedRef.current) return;
       setState(prev => ({
         ...prev,
         messages: prev.messages.filter(m => m._id !== data.messageId),
@@ -159,6 +166,7 @@ export function useChat({ marketAddress, walletAddress, autoJoin = true, getAcce
 
     // Handle message pinned/unpinned
     const handlePinned = (data: { messageId: string; isPinned: boolean }) => {
+      if (!isMountedRef.current) return;
       setState(prev => {
         const message = prev.messages.find(m => m._id === data.messageId);
         if (!message) return prev;
@@ -183,6 +191,12 @@ export function useChat({ marketAddress, walletAddress, autoJoin = true, getAcce
       // or we can update the message in place if needed
     };
 
+    // Handle joined event
+    const handleJoined = (data: { userCount: number }) => {
+      if (!isMountedRef.current) return;
+      setState(prev => ({ ...prev, userCount: data.userCount }));
+    };
+
     // Register event listeners
     socket.on('chat:message', handleMessage);
     socket.on('chat:user_count', handleUserCount);
@@ -190,19 +204,18 @@ export function useChat({ marketAddress, walletAddress, autoJoin = true, getAcce
     socket.on('chat:deleted', handleDeleted);
     socket.on('chat:pinned', handlePinned);
     socket.on('chat:reaction', handleReaction);
-    socket.on('chat:joined', (data: { userCount: number }) => {
-      setState(prev => ({ ...prev, userCount: data.userCount }));
-    });
+    socket.on('chat:joined', handleJoined);
 
     // Cleanup
     return () => {
+      isMountedRef.current = false;
       socket.off('chat:message', handleMessage);
       socket.off('chat:user_count', handleUserCount);
       socket.off('chat:typing', handleTyping);
       socket.off('chat:deleted', handleDeleted);
       socket.off('chat:pinned', handlePinned);
       socket.off('chat:reaction', handleReaction);
-      socket.off('chat:joined');
+      socket.off('chat:joined', handleJoined);
 
       if (autoJoin) {
         socket.emit('chat:leave', { marketAddress });

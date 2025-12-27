@@ -98,8 +98,10 @@ export function useMarketSocket(marketAddress: string | null) {
   const { socket, isConnected } = useSocket();
   const [marketData, setMarketData] = useState<any>(null);
   const [lastUpdate, setLastUpdate] = useState<number>(0);
+  const isMountedRef = useRef(true);
 
   useEffect(() => {
+    isMountedRef.current = true;
     if (!socket || !isConnected || !marketAddress) return;
 
     // Subscribe to market
@@ -108,6 +110,7 @@ export function useMarketSocket(marketAddress: string | null) {
 
     // Listen for market updates
     const handleMarketUpdate = (data: any) => {
+      if (!isMountedRef.current) return;
       if (data.marketAddress === marketAddress) {
         logger.info(`📥 Market update received: ${marketAddress.slice(0, 8)}...`);
         setMarketData(data.data);
@@ -119,6 +122,7 @@ export function useMarketSocket(marketAddress: string | null) {
 
     // Cleanup
     return () => {
+      isMountedRef.current = false;
       socket.off('market:update', handleMarketUpdate);
       socket.emit('unsubscribe:market', marketAddress);
       logger.info(`📡 Unsubscribed from market: ${marketAddress}`);
@@ -138,8 +142,10 @@ export function useMarketSocket(marketAddress: string | null) {
 export function useAllMarketsSocket() {
   const { socket, isConnected } = useSocket();
   const [marketUpdates, setMarketUpdates] = useState<Map<string, any>>(new Map());
+  const isMountedRef = useRef(true);
 
   useEffect(() => {
+    isMountedRef.current = true;
     if (!socket || !isConnected) return;
 
     // Subscribe to all markets
@@ -148,6 +154,7 @@ export function useAllMarketsSocket() {
 
     // Listen for market updates
     const handleMarketUpdate = (data: any) => {
+      if (!isMountedRef.current) return;
       logger.info(`📥 Market update: ${data.marketAddress.slice(0, 8)}...`);
       setMarketUpdates((prev) => {
         const next = new Map(prev);
@@ -163,6 +170,7 @@ export function useAllMarketsSocket() {
 
     // Cleanup
     return () => {
+      isMountedRef.current = false;
       socket.off('market:update', handleMarketUpdate);
       logger.info('📡 Unsubscribed from all markets');
     };
@@ -181,8 +189,10 @@ export function useUserSocket(walletAddress: string | null) {
   const { socket, isConnected } = useSocket();
   const [positions, setPositions] = useState<Map<string, any>>(new Map());
   const [notifications, setNotifications] = useState<any[]>([]);
+  const isMountedRef = useRef(true);
 
   useEffect(() => {
+    isMountedRef.current = true;
     if (!socket || !isConnected || !walletAddress) return;
 
     // Subscribe to user updates
@@ -191,6 +201,7 @@ export function useUserSocket(walletAddress: string | null) {
 
     // Listen for position updates
     const handlePositionUpdate = (data: any) => {
+      if (!isMountedRef.current) return;
       logger.info(`📥 Position update: ${data.marketAddress.slice(0, 8)}...`);
       setPositions((prev) => {
         const next = new Map(prev);
@@ -201,6 +212,7 @@ export function useUserSocket(walletAddress: string | null) {
 
     // Listen for notifications
     const handleNotification = (data: any) => {
+      if (!isMountedRef.current) return;
       logger.info('🔔 Notification received');
       setNotifications((prev) => [data.notification, ...prev]);
     };
@@ -210,6 +222,7 @@ export function useUserSocket(walletAddress: string | null) {
 
     // Cleanup
     return () => {
+      isMountedRef.current = false;
       socket.off('position:update', handlePositionUpdate);
       socket.off('notification', handleNotification);
       logger.info(`📡 Unsubscribed from user: ${walletAddress}`);
