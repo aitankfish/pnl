@@ -168,6 +168,7 @@ export function VoiceRoomProvider({ children }: VoiceRoomProviderProps) {
   const reconnectTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const shouldReconnectRef = useRef(false);
   const reactionTimeoutsRef = useRef<Set<NodeJS.Timeout>>(new Set());
+  const isMountedRef = useRef(true);
   const maxReconnectAttempts = 5;
 
   // Computed values
@@ -226,28 +227,32 @@ export function VoiceRoomProvider({ children }: VoiceRoomProviderProps) {
     socketRef.current = null;
 
     deviceRef.current = null;
-    setIsConnected(false);
-    setIsSpeaking(false);
-    setParticipants([]);
-    setRoomTitle('');
-    setCoHosts([]);
-    setHasRaisedHand(false);
-    setTempHostId(null);
-    setSpeakerCount(0);
 
-    if (intentional) {
-      setMarketId(null);
-      setMarketAddress(null);
-      setMarketName(null);
-      setWalletAddress(null);
-      setFounderWallet(null);
-      setReconnectAttempts(0);
-      setIsReconnecting(false);
-      setIsMinimized(false);
-      setError(null);
-      setIsSpeaker(false);
-      setShowJoinChoice(false);
-      pendingJoinRef.current = null;
+    // Only update state if component is still mounted
+    if (isMountedRef.current) {
+      setIsConnected(false);
+      setIsSpeaking(false);
+      setParticipants([]);
+      setRoomTitle('');
+      setCoHosts([]);
+      setHasRaisedHand(false);
+      setTempHostId(null);
+      setSpeakerCount(0);
+
+      if (intentional) {
+        setMarketId(null);
+        setMarketAddress(null);
+        setMarketName(null);
+        setWalletAddress(null);
+        setFounderWallet(null);
+        setReconnectAttempts(0);
+        setIsReconnecting(false);
+        setIsMinimized(false);
+        setError(null);
+        setIsSpeaker(false);
+        setShowJoinChoice(false);
+        pendingJoinRef.current = null;
+      }
     }
   }, []);
 
@@ -490,6 +495,8 @@ export function VoiceRoomProvider({ children }: VoiceRoomProviderProps) {
 
       socket.on('disconnect', (reason) => {
         console.log('Socket disconnected:', reason);
+        // Skip state updates if component is unmounted (prevents React error #310)
+        if (!isMountedRef.current) return;
         setIsConnected(false);
 
         if (shouldReconnectRef.current && reason !== 'io client disconnect') {
@@ -758,7 +765,11 @@ export function VoiceRoomProvider({ children }: VoiceRoomProviderProps) {
 
   // Cleanup on unmount
   useEffect(() => {
+    isMountedRef.current = true;
     return () => {
+      // Set mounted to false BEFORE cleanup to prevent state updates
+      // during the synchronous disconnect event (prevents React error #310)
+      isMountedRef.current = false;
       cleanup();
     };
   }, [cleanup]);
