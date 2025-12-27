@@ -17,7 +17,7 @@ export const dynamic = 'force-dynamic';
 
 export const metadata: Metadata = {
   title: 'P&L - Predict and Launch',
-  description: 'Community-driven token launch platform powered by prediction markets',
+  description: 'Idea Tokenization Platform powered by Prediction Markets. A new creative way of fundraising using crypto rails.',
   manifest: '/manifest.json',
   icons: {
     icon: '/logo.png',
