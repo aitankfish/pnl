@@ -3,7 +3,7 @@
  * Handles creating notifications for various platform events
  */
 
-import { connectToDatabase, Notification, PredictionMarket, TradeHistory, PredictionParticipant } from '@/lib/mongodb';
+import { connectToDatabase, Notification, PredictionMarket, PredictionParticipant } from '@/lib/mongodb';
 import { getDatabase } from '@/lib/database/index';
 import { COLLECTIONS } from '@/lib/database/models';
 import logger from '@/lib/logger';
@@ -182,7 +182,7 @@ export async function notifyMarketResolution(marketId: string, resolution: strin
     const tokenSymbol = project?.tokenSymbol || 'TKN';
 
     // Get all users who participated in this market
-    const trades = await TradeHistory.find({ marketId }).distinct('userWallet');
+    const trades = await PredictionParticipant.find({ marketId }).distinct('participantWallet');
 
     // Determine notification based on resolution
     let title = '';
@@ -206,14 +206,14 @@ export async function notifyMarketResolution(marketId: string, resolution: strin
     }
 
     // Send notifications to all participants
-    const notificationPromises = trades.map(async (userWallet) => {
+    const notificationPromises = trades.map(async (participantWallet) => {
       // Check if user has claimable rewards
-      const userTrades = await TradeHistory.find({
+      const userParticipations = await PredictionParticipant.find({
         marketId,
-        userWallet,
+        participantWallet,
       });
 
-      const hasClaimableRewards = userTrades.some(trade => !trade.claimed);
+      const hasClaimableRewards = userParticipations.some(p => !p.claimed);
 
       // Customize message based on whether user has claimable rewards
       let userMessage = message;
@@ -237,7 +237,7 @@ export async function notifyMarketResolution(marketId: string, resolution: strin
 
       // Create single notification per user
       await createNotification({
-        userId: userWallet,
+        userId: participantWallet,
         type: userType,
         title,
         message: userMessage,
