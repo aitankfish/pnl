@@ -276,32 +276,55 @@ export default function MarketDetailsPage() {
   const [showToast, setShowToast] = useState(false);
   const [toastMessage, setToastMessage] = useState('');
 
-  // Swipe gesture state for mobile navigation
-  const [touchStart, setTouchStart] = useState<number | null>(null);
-  const [touchEnd, setTouchEnd] = useState<number | null>(null);
+  // Swipe gesture state for mobile navigation (drag-to-go-back)
+  const [swipeStartX, setSwipeStartX] = useState<number | null>(null);
+  const [swipeDragOffset, setSwipeDragOffset] = useState(0);
+  const [isSwipeDragging, setIsSwipeDragging] = useState(false);
+  const [isNavigatingBack, setIsNavigatingBack] = useState(false);
 
-  // Minimum swipe distance (in px) to trigger navigation
-  const minSwipeDistance = 50;
+  // Threshold for triggering back navigation (in px)
+  const SWIPE_BACK_THRESHOLD = 120;
 
   const onTouchStart = (e: React.TouchEvent) => {
-    setTouchEnd(null); // Reset end position
-    setTouchStart(e.targetTouches[0].clientX);
+    // Only start swipe from left edge (first 30px)
+    const touchX = e.targetTouches[0].clientX;
+    if (touchX <= 30) {
+      setSwipeStartX(touchX);
+      setIsSwipeDragging(true);
+    }
   };
 
   const onTouchMove = (e: React.TouchEvent) => {
-    setTouchEnd(e.targetTouches[0].clientX);
+    if (!isSwipeDragging || swipeStartX === null) return;
+
+    const currentX = e.targetTouches[0].clientX;
+    const deltaX = currentX - swipeStartX;
+
+    // Only allow right swipe (positive deltaX)
+    if (deltaX > 0) {
+      // Apply resistance as user drags further (diminishing returns)
+      const resistedOffset = Math.min(deltaX * 0.6, 250);
+      setSwipeDragOffset(resistedOffset);
+    }
   };
 
   const onTouchEnd = () => {
-    if (!touchStart || !touchEnd) return;
+    if (!isSwipeDragging) return;
 
-    const distance = touchEnd - touchStart;
-    const isRightSwipe = distance > minSwipeDistance;
+    setIsSwipeDragging(false);
 
-    // Navigate back to browse page on right swipe
-    if (isRightSwipe) {
-      router.push('/browse');
+    if (swipeDragOffset > SWIPE_BACK_THRESHOLD) {
+      // Trigger navigation with animation
+      setIsNavigatingBack(true);
+      setTimeout(() => {
+        router.push('/browse');
+      }, 200);
+    } else {
+      // Snap back
+      setSwipeDragOffset(0);
     }
+
+    setSwipeStartX(null);
   };
 
   // Define fetcher before using it
@@ -1083,12 +1106,37 @@ export default function MarketDetailsPage() {
   const marketStatus = getDetailedMarketStatus(market, onchainData);
 
   return (
-    <div
-      className="pt-0.5 px-3 pb-3 sm:p-4 max-w-[1600px] mx-auto"
-      onTouchStart={onTouchStart}
-      onTouchMove={onTouchMove}
-      onTouchEnd={onTouchEnd}
-    >
+    <>
+      {/* Swipe-back indicator */}
+      {(isSwipeDragging || swipeDragOffset > 0) && (
+        <div
+          className="lg:hidden fixed left-0 top-1/2 -translate-y-1/2 z-50 pointer-events-none"
+          style={{
+            opacity: Math.min(swipeDragOffset / SWIPE_BACK_THRESHOLD, 1),
+            transform: `translateX(${Math.min(swipeDragOffset * 0.3, 40)}px)`,
+          }}
+        >
+          <div
+            className="flex items-center justify-center w-12 h-12 rounded-full shadow-lg transition-colors"
+            style={{
+              backgroundColor: swipeDragOffset > SWIPE_BACK_THRESHOLD ? '#22c55e' : 'rgba(6, 182, 212, 0.9)',
+            }}
+          >
+            <ArrowLeft className="w-6 h-6 text-white" />
+          </div>
+        </div>
+      )}
+
+      <div
+        className="pt-0.5 px-3 pb-3 sm:p-4 max-w-[1600px] mx-auto"
+        onTouchStart={onTouchStart}
+        onTouchMove={onTouchMove}
+        onTouchEnd={onTouchEnd}
+        style={{
+          transform: `translateX(${isNavigatingBack ? '100%' : `${swipeDragOffset}px`})`,
+          transition: isSwipeDragging ? 'none' : 'transform 0.2s ease-out',
+        }}
+      >
       {/* Main Layout: Content + Sidebar */}
       <div className="flex flex-col lg:flex-row gap-4">
         {/* Left Content Area (70% on desktop) */}
@@ -2737,5 +2785,6 @@ export default function MarketDetailsPage() {
           tokenSymbol={market?.tokenSymbol}
         />
       </div>
+    </>
   );
 }
