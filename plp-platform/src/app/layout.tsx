@@ -1,5 +1,5 @@
 import type { Metadata } from 'next';
-import { Inter } from 'next/font/google';
+import { Inter, Caveat } from 'next/font/google';
 import './globals.css';
 import { WalletProvider } from '@/lib/wallet';
 import { ToastProvider } from '@/lib/hooks/useToast';
@@ -11,6 +11,7 @@ import { VoiceRoomProvider } from '@/lib/context/VoiceRoomContext';
 import FloatingVoicePanel from '@/components/voice/FloatingVoicePanel';
 
 const inter = Inter({ subsets: ['latin'] });
+const caveat = Caveat({ subsets: ['latin'], variable: '--font-caveat' });
 
 // Force dynamic rendering to avoid SSG issues with Privy
 export const dynamic = 'force-dynamic';

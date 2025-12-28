@@ -1350,12 +1350,24 @@ export default function MarketDetailsPage() {
           <div className={`grid gap-4 ${market.metadata?.videoUrl && market.metadata?.additionalNotes ? 'md:grid-cols-2' : ''}`}>
             {/* What This Project Offers - Left */}
             {market.metadata?.additionalNotes && (
-              <div className="p-4 sm:p-5 bg-gradient-to-br from-cyan-500/5 via-blue-500/5 to-purple-500/5 rounded-xl border border-cyan-500/20 shadow-[0_0_20px_rgba(6,182,212,0.08)] flex flex-col">
-                <h3 className="text-cyan-400 text-xs sm:text-sm mb-3 font-semibold flex items-center gap-2 uppercase tracking-wider">
-                  <span>✨</span> What This Project Offers
-                </h3>
-                <div className="border-l-2 border-cyan-500/50 pl-4 flex-1">
-                  <p className="text-white/85 text-sm sm:text-base leading-relaxed whitespace-pre-wrap italic">{market.metadata.additionalNotes}</p>
+              <div className="relative group">
+                {/* Ambient glow behind box */}
+                <div className="absolute -inset-4 bg-gradient-to-r from-cyan-500/10 via-purple-500/10 to-cyan-500/10 rounded-3xl blur-2xl opacity-50 group-hover:opacity-70 transition-opacity duration-500" />
+
+                {/* Fading edge mask container */}
+                <div
+                  className="relative p-4 sm:p-5 bg-gradient-to-br from-cyan-500/5 via-blue-500/5 to-purple-500/5 rounded-2xl flex flex-col h-full"
+                  style={{
+                    maskImage: 'radial-gradient(ellipse 95% 90% at center, black 70%, transparent 100%)',
+                    WebkitMaskImage: 'radial-gradient(ellipse 95% 90% at center, black 70%, transparent 100%)',
+                  }}
+                >
+                  <h3 className="text-cyan-400 text-xs sm:text-sm mb-3 font-semibold flex items-center gap-2 uppercase tracking-wider">
+                    <span>✨</span> What This Project Offers
+                  </h3>
+                  <div className="border-l-2 border-cyan-500/50 pl-4 flex-1">
+                    <p className="text-white/85 text-sm sm:text-base leading-relaxed whitespace-pre-wrap italic">{market.metadata.additionalNotes}</p>
+                  </div>
                 </div>
               </div>
             )}

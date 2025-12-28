@@ -174,46 +174,59 @@ export default function VideoEmbed({ url, className = '' }: VideoEmbedProps) {
   if (parsedVideo.type === 'youtube' && parsedVideo.embedUrl) {
     return (
       <div className={`flex justify-center ${className}`}>
-        <div className="relative overflow-hidden rounded-xl w-full max-w-2xl border border-cyan-500/30 shadow-[0_0_20px_rgba(6,182,212,0.15)] hover:shadow-[0_0_30px_rgba(6,182,212,0.25)] transition-shadow duration-300">
-          {/* Video container with 16:9 aspect ratio */}
-          <div className="relative w-full" style={{ paddingBottom: '56.25%' }}>
-            {isLoading && (
-              <div className="absolute inset-0 flex items-center justify-center bg-gray-900/80">
-                <div className="flex flex-col items-center gap-2">
-                  <div className="w-12 h-12 rounded-full bg-red-500/20 flex items-center justify-center animate-pulse">
-                    <Play className="w-6 h-6 text-red-500" />
+        {/* Outer container with fading edges effect */}
+        <div className="relative w-full max-w-2xl group">
+          {/* Ambient glow behind video */}
+          <div className="absolute -inset-4 bg-gradient-to-r from-cyan-500/10 via-purple-500/10 to-cyan-500/10 rounded-3xl blur-2xl opacity-50 group-hover:opacity-70 transition-opacity duration-500" />
+
+          {/* Fading edge mask container */}
+          <div
+            className="relative overflow-hidden rounded-2xl"
+            style={{
+              maskImage: 'radial-gradient(ellipse 90% 85% at center, black 60%, transparent 100%)',
+              WebkitMaskImage: 'radial-gradient(ellipse 90% 85% at center, black 60%, transparent 100%)',
+            }}
+          >
+            {/* Video container with 16:9 aspect ratio */}
+            <div className="relative w-full" style={{ paddingBottom: '56.25%' }}>
+              {isLoading && (
+                <div className="absolute inset-0 flex items-center justify-center bg-gray-900/80">
+                  <div className="flex flex-col items-center gap-2">
+                    <div className="w-12 h-12 rounded-full bg-red-500/20 flex items-center justify-center animate-pulse">
+                      <Play className="w-6 h-6 text-red-500" />
+                    </div>
+                    <span className="text-sm text-gray-400">Loading video...</span>
                   </div>
-                  <span className="text-sm text-gray-400">Loading video...</span>
                 </div>
-              </div>
-            )}
-            {hasError && (
-              <div className="absolute inset-0 flex items-center justify-center bg-gray-900/80">
-                <div className="flex flex-col items-center gap-2 text-center p-4">
-                  <Video className="w-8 h-8 text-gray-500" />
-                  <span className="text-sm text-gray-400">Video unavailable</span>
-                  <a
-                    href={url}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="text-xs text-cyan-400 hover:text-cyan-300 flex items-center gap-1"
-                  >
-                    Watch on YouTube <ExternalLink className="w-3 h-3" />
-                  </a>
+              )}
+              {hasError && (
+                <div className="absolute inset-0 flex items-center justify-center bg-gray-900/80">
+                  <div className="flex flex-col items-center gap-2 text-center p-4">
+                    <Video className="w-8 h-8 text-gray-500" />
+                    <span className="text-sm text-gray-400">Video unavailable</span>
+                    <a
+                      href={url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-xs text-cyan-400 hover:text-cyan-300 flex items-center gap-1"
+                    >
+                      Watch on YouTube <ExternalLink className="w-3 h-3" />
+                    </a>
+                  </div>
                 </div>
-              </div>
-            )}
-            <iframe
-              src={parsedVideo.embedUrl}
-              className="absolute inset-0 w-full h-full rounded-xl"
-              allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-              allowFullScreen
-              onLoad={() => setIsLoading(false)}
-              onError={() => {
-                setIsLoading(false);
-                setHasError(true);
-              }}
-            />
+              )}
+              <iframe
+                src={parsedVideo.embedUrl}
+                className="absolute inset-0 w-full h-full"
+                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                allowFullScreen
+                onLoad={() => setIsLoading(false)}
+                onError={() => {
+                  setIsLoading(false);
+                  setHasError(true);
+                }}
+              />
+            </div>
           </div>
         </div>
       </div>
