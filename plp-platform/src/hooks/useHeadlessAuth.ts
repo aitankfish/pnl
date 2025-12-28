@@ -2,7 +2,7 @@
 
 import { useReducer, useCallback, useEffect } from 'react';
 import { usePrivy, useLoginWithEmail, useLoginWithOAuth } from '@privy-io/react-auth';
-import { useStandardWallets } from '@privy-io/react-auth/solana';
+import { useStandardWallets, useCreateWallet } from '@privy-io/react-auth/solana';
 
 // Auth flow status types
 export type AuthStatus =
@@ -181,6 +181,35 @@ export function useHeadlessAuth() {
 
   // Get detected Solana wallets
   const { wallets: solanaWallets } = useStandardWallets();
+
+  // Create embedded Solana wallet (for headless login flows)
+  const { createWallet } = useCreateWallet();
+
+  // Auto-create Solana wallet after successful login if user doesn't have one
+  useEffect(() => {
+    const createSolanaWalletIfNeeded = async () => {
+      if (!authenticated || !user) return;
+
+      // Check if user already has a Solana wallet
+      const hasSolanaWallet = user.linkedAccounts?.some(
+        (account: any) =>
+          account.type === 'wallet' &&
+          account.chainType === 'solana'
+      );
+
+      if (!hasSolanaWallet) {
+        console.log('🔐 [Auth] Creating embedded Solana wallet for user...');
+        try {
+          const wallet = await createWallet();
+          console.log('✅ [Auth] Embedded Solana wallet created:', wallet.address);
+        } catch (error) {
+          console.error('❌ [Auth] Failed to create embedded wallet:', error);
+        }
+      }
+    };
+
+    createSolanaWalletIfNeeded();
+  }, [authenticated, user, createWallet]);
 
   // Sync email state with reducer
   useEffect(() => {
