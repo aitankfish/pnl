@@ -1,6 +1,6 @@
 'use client';
 
-import { useReducer, useCallback, useEffect } from 'react';
+import { useReducer, useCallback, useEffect, useRef } from 'react';
 import { usePrivy, useLoginWithEmail, useLoginWithOAuth } from '@privy-io/react-auth';
 import { useStandardWallets, useCreateWallet } from '@privy-io/react-auth/solana';
 
@@ -185,10 +185,19 @@ export function useHeadlessAuth() {
   // Create embedded Solana wallet (for headless login flows)
   const { createWallet } = useCreateWallet();
 
+  // Track if wallet creation is in progress to prevent duplicates
+  const walletCreationInProgress = useRef(false);
+
   // Auto-create Solana wallet after successful login if user doesn't have one
   useEffect(() => {
     const createSolanaWalletIfNeeded = async () => {
       if (!authenticated || !user) return;
+
+      // Prevent duplicate wallet creation
+      if (walletCreationInProgress.current) {
+        console.log('🔐 [Auth] Wallet creation already in progress, skipping...');
+        return;
+      }
 
       // Check if user already has a Solana wallet
       const hasSolanaWallet = user.linkedAccounts?.some(
@@ -198,12 +207,15 @@ export function useHeadlessAuth() {
       );
 
       if (!hasSolanaWallet) {
+        walletCreationInProgress.current = true;
         console.log('🔐 [Auth] Creating embedded Solana wallet for user...');
         try {
           const result = await createWallet();
           console.log('✅ [Auth] Embedded Solana wallet created:', result.wallet?.address || result);
         } catch (error) {
           console.error('❌ [Auth] Failed to create embedded wallet:', error);
+        } finally {
+          walletCreationInProgress.current = false;
         }
       }
     };
