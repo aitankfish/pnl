@@ -200,8 +200,8 @@ export function useHeadlessAuth() {
       if (!hasSolanaWallet) {
         console.log('🔐 [Auth] Creating embedded Solana wallet for user...');
         try {
-          const wallet = await createWallet();
-          console.log('✅ [Auth] Embedded Solana wallet created:', wallet.address);
+          const result = await createWallet();
+          console.log('✅ [Auth] Embedded Solana wallet created:', result.wallet?.address || result);
         } catch (error) {
           console.error('❌ [Auth] Failed to create embedded wallet:', error);
         }
