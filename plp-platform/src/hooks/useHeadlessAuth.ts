@@ -18,7 +18,7 @@ export type AuthStatus =
   | 'error';            // Error state
 
 export type AuthMethod = 'email' | 'oauth' | 'wallet' | null;
-export type OAuthProvider = 'google' | 'twitter' | 'discord';
+export type OAuthProvider = 'google' | 'twitter';
 export type WalletType = 'phantom' | 'backpack' | 'solflare';
 
 export interface AuthState {
