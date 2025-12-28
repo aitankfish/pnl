@@ -62,8 +62,8 @@ function WalletProviderInner({ children }: WalletProviderProps) {
 
     // Legal and privacy
     legal: {
-      termsAndConditionsUrl: 'https://yoursite.com/terms',
-      privacyPolicyUrl: 'https://yoursite.com/privacy',
+      termsAndConditionsUrl: 'https://pnl.market/terms',
+      privacyPolicyUrl: 'https://pnl.market/privacy',
     },
   };
 
