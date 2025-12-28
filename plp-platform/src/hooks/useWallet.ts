@@ -49,7 +49,31 @@ export function useWallet(): WalletHookReturn {
 
   // Find Solana wallet (external or embedded)
   const primaryWallet = useMemo(() => {
-    // Priority 1: Check for Privy embedded wallet from user object
+    // Priority 1: Check linkedAccounts for embedded Solana wallet (most reliable for social login)
+    if (user?.linkedAccounts) {
+      const embeddedWallet = user.linkedAccounts.find(
+        (account: any) =>
+          account.type === 'wallet' &&
+          account.chainType === 'solana' &&
+          account.address &&
+          isSolanaAddress(account.address)
+      );
+      if (embeddedWallet) {
+        return {
+          address: embeddedWallet.address,
+          chainType: 'solana',
+          isAuthenticated: authenticated,
+          isEmbedded: embeddedWallet.walletClientType === 'privy',
+          connector: {
+            name: embeddedWallet.walletClientType === 'privy' ? 'Embedded Wallet' : 'Linked Wallet',
+            shortName: embeddedWallet.walletClientType === 'privy' ? 'EMB' : 'LNK',
+          },
+          _privyWallet: embeddedWallet,
+        };
+      }
+    }
+
+    // Priority 2: Check for Privy embedded wallet from user.wallet (fallback)
     if (user?.wallet && user.wallet.chainType === 'solana' && isSolanaAddress(user.wallet.address)) {
       return {
         address: user.wallet.address,
@@ -64,7 +88,7 @@ export function useWallet(): WalletHookReturn {
       };
     }
 
-    // Priority 2: Check wallets from useWallets() for external wallets
+    // Priority 3: Check wallets from useWallets() for external wallets
     if (!wallets || wallets.length === 0) return null;
 
     // Filter out non-Solana wallets (MetaMask, Ethereum, etc.)
