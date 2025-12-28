@@ -36,7 +36,7 @@ function WalletProviderInner({ children }: WalletProviderProps) {
     },
 
     // Login methods configuration - email and socials first
-    loginMethods: ['email', 'google', 'twitter', 'discord', 'wallet'],
+    loginMethods: ['email', 'google', 'twitter', 'wallet'],
 
     // Embedded wallet configuration - Solana embedded wallets
     embeddedWallets: {

@@ -1,8 +1,8 @@
 'use client';
 
 import { useReducer, useCallback, useEffect } from 'react';
-import { usePrivy, useLoginWithEmail, useLoginWithOAuth, useConnectWallet } from '@privy-io/react-auth';
-// import { useStandardWallets } from '@privy-io/react-auth/solana';
+import { usePrivy, useLoginWithEmail, useLoginWithOAuth } from '@privy-io/react-auth';
+import { useStandardWallets } from '@privy-io/react-auth/solana';
 
 // Auth flow status types
 export type AuthStatus =
@@ -179,17 +179,8 @@ export function useHeadlessAuth() {
     },
   });
 
-  // Wallet connection hooks
-  const { connectWallet } = useConnectWallet({
-    onSuccess: () => {
-      dispatch({ type: 'WALLET_CONNECT_SUCCESS' });
-    },
-    onError: (error: unknown) => {
-      dispatch({ type: 'WALLET_CONNECT_ERROR', error: error instanceof Error ? error : new Error(String(error)) });
-    },
-  });
-  // const { wallets: solanaWallets } = useStandardWallets();
-  const solanaWallets: any[] = []; // Temporary placeholder
+  // Get detected Solana wallets
+  const { wallets: solanaWallets } = useStandardWallets();
 
   // Sync email state with reducer
   useEffect(() => {
@@ -248,17 +239,35 @@ export function useHeadlessAuth() {
     }
   }, [initOAuth]);
 
-  // Connect wallet - opens Privy's wallet connection modal
+  // Connect wallet - directly connects to the selected wallet
   const handleConnectWallet = useCallback(async (walletType: WalletType) => {
     dispatch({ type: 'SELECT_WALLET_TYPE', walletType });
     try {
-      // Privy handles wallet selection in its modal
-      // The walletType is dispatched to track which wallet the user clicked
-      connectWallet();
+      // Find the wallet in detected wallets by name
+      const walletNameMap: Record<WalletType, string> = {
+        phantom: 'Phantom',
+        backpack: 'Backpack',
+        solflare: 'Solflare',
+      };
+      const targetWalletName = walletNameMap[walletType];
+      const targetWallet = solanaWallets.find(
+        (w) => w.name.toLowerCase() === targetWalletName.toLowerCase()
+      );
+
+      if (targetWallet && targetWallet.features['standard:connect']) {
+        // Directly connect to the specific wallet using Solana standard wallet interface
+        await targetWallet.features['standard:connect'].connect();
+        dispatch({ type: 'WALLET_CONNECT_SUCCESS' });
+      } else {
+        // Wallet not installed - show error
+        const error = new Error(`${targetWalletName} wallet not detected. Please install it first.`);
+        (error as any).code = 'wallet_not_found';
+        dispatch({ type: 'WALLET_CONNECT_ERROR', error });
+      }
     } catch (error) {
       dispatch({ type: 'WALLET_CONNECT_ERROR', error: error as Error });
     }
-  }, [connectWallet]);
+  }, [solanaWallets]);
 
   // Go back one step
   const goBack = useCallback(() => {

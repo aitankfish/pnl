@@ -995,7 +995,7 @@ function SettingsModal({ isOpen, onClose, wallet, onLogout, primaryWallet, expor
 }
 
 export default function WalletPage() {
-  const { primaryWallet, logout, user: contextUser, loading, ready } = useWallet();
+  const { primaryWallet, logout, user: contextUser, loading, ready, authenticated } = useWallet();
   const { showAuthModal } = useAuthModal();
   const { exportWallet } = useExportWallet(); // Get exportWallet from Solana-specific hook
   const { solPrice, isLoading: isPriceLoading } = useSolPrice();
@@ -1424,6 +1424,18 @@ export default function WalletPage() {
         <div className="text-center space-y-4">
           <Loader2 className="w-10 h-10 sm:w-12 sm:h-12 mx-auto text-cyan-400 animate-spin" />
           <p className="text-gray-400 text-sm sm:text-base">Loading wallet...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // User is authenticated but embedded wallet is still being created (race condition fix)
+  if (authenticated && !primaryWallet) {
+    return (
+      <div className="min-h-screen flex items-center justify-center p-4 sm:p-6">
+        <div className="text-center space-y-4">
+          <Loader2 className="w-10 h-10 sm:w-12 sm:h-12 mx-auto text-cyan-400 animate-spin" />
+          <p className="text-gray-400 text-sm sm:text-base">Setting up your wallet...</p>
         </div>
       </div>
     );

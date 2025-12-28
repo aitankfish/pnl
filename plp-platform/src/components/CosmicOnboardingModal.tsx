@@ -7,7 +7,6 @@ import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { ipfsUtils } from '@/lib/ipfs';
 import { useHeadlessAuth, getErrorMessage } from '@/hooks/useHeadlessAuth';
-import type { OAuthProvider, WalletType } from '@/hooks/useHeadlessAuth';
 import {
   AuthMethodSelection,
   EmailInput,
@@ -102,6 +101,7 @@ export function CosmicOnboardingModal({ isOpen, onClose, onJoinUniverse, onConti
     handleConnectWallet,
     goBack: authGoBack,
     reset: resetAuth,
+    solanaWallets,
   } = useHeadlessAuth();
 
   // Generate random username
@@ -562,6 +562,7 @@ export function CosmicOnboardingModal({ isOpen, onClose, onJoinUniverse, onConti
                       isConnecting={authState.status === 'wallet-connecting'}
                       connectingWallet={authState.walletType}
                       error={authState.error ? getErrorMessage(authState.error) : null}
+                      detectedWallets={solanaWallets.map((w: any) => w.name)}
                     />
                   )}
                 </motion.div>

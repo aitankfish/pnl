@@ -9,6 +9,7 @@ interface Wallet {
   name: string;
   description: string;
   color: string;
+  downloadUrl: string;
 }
 
 const wallets: Wallet[] = [
@@ -17,18 +18,21 @@ const wallets: Wallet[] = [
     name: 'Phantom',
     description: 'Most popular Solana wallet',
     color: 'from-purple-500 to-purple-700',
+    downloadUrl: 'https://phantom.app',
   },
   {
     id: 'backpack',
     name: 'Backpack',
     description: 'Multi-chain wallet by Coral',
     color: 'from-red-500 to-orange-500',
+    downloadUrl: 'https://backpack.app',
   },
   {
     id: 'solflare',
     name: 'Solflare',
     description: 'Built for Solana',
     color: 'from-orange-400 to-yellow-500',
+    downloadUrl: 'https://solflare.com',
   },
 ];
 
@@ -100,6 +104,7 @@ interface WalletSelectionProps {
   isConnecting: boolean;
   connectingWallet?: WalletType;
   error?: string | null;
+  detectedWallets?: string[]; // Names of detected wallets
 }
 
 export function WalletSelection({
@@ -108,7 +113,14 @@ export function WalletSelection({
   isConnecting,
   connectingWallet,
   error,
+  detectedWallets = [],
 }: WalletSelectionProps) {
+  // Check if a wallet is installed
+  const isWalletInstalled = (walletName: string) => {
+    return detectedWallets.some(
+      (detected) => detected.toLowerCase() === walletName.toLowerCase()
+    );
+  };
   return (
     <motion.div
       initial={{ opacity: 0, x: 30 }}
@@ -168,6 +180,7 @@ export function WalletSelection({
       >
         {wallets.map((wallet) => {
           const isThisConnecting = isConnecting && connectingWallet === wallet.id;
+          const installed = isWalletInstalled(wallet.name);
 
           return (
             <motion.button
@@ -176,9 +189,16 @@ export function WalletSelection({
                 initial: { opacity: 0, y: 20 },
                 animate: { opacity: 1, y: 0 },
               }}
-              whileHover={{ scale: isConnecting ? 1 : 1.02 }}
-              whileTap={{ scale: isConnecting ? 1 : 0.98 }}
-              onClick={() => onSelectWallet(wallet.id)}
+              whileHover={{ scale: isConnecting || !installed ? 1 : 1.02 }}
+              whileTap={{ scale: isConnecting || !installed ? 1 : 0.98 }}
+              onClick={() => {
+                if (installed) {
+                  onSelectWallet(wallet.id);
+                } else {
+                  // Open download URL in new tab
+                  window.open(wallet.downloadUrl, '_blank');
+                }
+              }}
               disabled={isConnecting}
               className={`
                 w-full flex items-center gap-4 p-4 rounded-xl
@@ -187,12 +207,22 @@ export function WalletSelection({
                 transition-all duration-200
                 disabled:opacity-50 disabled:cursor-not-allowed
                 ${isThisConnecting ? 'border-cyan-400 bg-cyan-400/10' : ''}
+                ${!installed ? 'opacity-60' : ''}
               `}
             >
               <div className="flex-shrink-0">{walletIcons[wallet.id]}</div>
               <div className="flex-1 text-left">
-                <p className="text-white font-semibold">{wallet.name}</p>
-                <p className="text-gray-400 text-sm">{wallet.description}</p>
+                <p className="text-white font-semibold flex items-center gap-2">
+                  {wallet.name}
+                  {!installed && (
+                    <span className="text-xs px-2 py-0.5 bg-gray-600/50 rounded text-gray-300">
+                      Not installed
+                    </span>
+                  )}
+                </p>
+                <p className="text-gray-400 text-sm">
+                  {installed ? wallet.description : `Click to install ${wallet.name}`}
+                </p>
               </div>
               {isThisConnecting && (
                 <motion.div
@@ -200,6 +230,9 @@ export function WalletSelection({
                   transition={{ duration: 1, repeat: Infinity, ease: 'linear' }}
                   className="w-5 h-5 border-2 border-cyan-400/30 border-t-cyan-400 rounded-full"
                 />
+              )}
+              {!installed && !isThisConnecting && (
+                <ExternalLink className="w-4 h-4 text-gray-400" />
               )}
             </motion.button>
           );
