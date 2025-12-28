@@ -680,14 +680,13 @@ const ChatMessageSchema = new mongoose.Schema({
   createdAt: {
     type: Date,
     default: Date.now,
-    index: true,
   },
 });
 
 // Compound indexes for chat messages
 ChatMessageSchema.index({ marketAddress: 1, createdAt: -1 }); // Fetch messages by market
 ChatMessageSchema.index({ marketAddress: 1, isPinned: 1 }); // Fetch pinned messages
-ChatMessageSchema.index({ createdAt: 1 }, { expireAfterSeconds: 30 * 24 * 60 * 60 }); // TTL: 30 days
+ChatMessageSchema.index({ createdAt: 1 }, { expireAfterSeconds: 30 * 24 * 60 * 60 }); // TTL: 30 days (also indexes createdAt)
 
 // Message Reaction Schema
 const MessageReactionSchema = new mongoose.Schema({
