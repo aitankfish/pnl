@@ -36,6 +36,8 @@ export interface MarketCreatedData {
   stage: string;
   marketId: string;
   description?: string;
+  twitterHandle?: string; // Project's Twitter handle (without @)
+  projectImageUrl?: string; // URL to project image
 }
 
 export interface TokenLaunchedData {
@@ -56,6 +58,36 @@ export interface MarketFailedData {
 const BASE_URL = process.env.NEXT_PUBLIC_APP_URL || 'https://pnl.market';
 
 /**
+ * Extract Twitter handle from URL or return as-is if already a handle
+ */
+function extractTwitterHandle(input?: string): string | null {
+  if (!input) return null;
+
+  // If it's already just a handle (with or without @)
+  if (!input.includes('/')) {
+    return input.replace('@', '');
+  }
+
+  // Extract from URL like https://twitter.com/username or https://x.com/username
+  const match = input.match(/(?:twitter\.com|x\.com)\/(@?[\w]+)/i);
+  if (match) {
+    return match[1].replace('@', '');
+  }
+
+  return null;
+}
+
+/**
+ * Truncate description to fit in tweet
+ */
+function truncateDescription(desc?: string, maxLength: number = 80): string {
+  if (!desc) return '';
+  const cleaned = desc.replace(/\n/g, ' ').trim();
+  if (cleaned.length <= maxLength) return cleaned;
+  return cleaned.slice(0, maxLength - 3) + '...';
+}
+
+/**
  * Post tweet for new market creation
  */
 export async function tweetMarketCreated(data: MarketCreatedData): Promise<boolean> {
@@ -63,15 +95,23 @@ export async function tweetMarketCreated(data: MarketCreatedData): Promise<boole
   if (!client) return false;
 
   try {
-    const tweet = `New project just landed on PNL!
+    // Extract Twitter handle if provided
+    const handle = extractTwitterHandle(data.twitterHandle);
+    const handleMention = handle ? ` by @${handle}` : '';
 
-$${data.tokenSymbol} - ${data.projectName}
+    // Truncate description
+    const shortDesc = truncateDescription(data.description, 80);
+
+    // Build the tweet
+    const tweet = `🚀 Fresh drop on PNL!
+
+$${data.tokenSymbol} - ${data.projectName}${handleMention}
 ${data.category} | ${data.stage}
 
-Cast your vote now
+${shortDesc ? `"${shortDesc}"\n\n` : ''}Ape in or fade it?
 ${BASE_URL}/market/${data.marketId}
 
-#Solana #PredictionMarket #PNL`;
+#Solana #PNL`;
 
     const result = await client.v2.tweet(tweet);
     logger.info('[Twitter] Market created tweet posted', {

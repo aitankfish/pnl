@@ -94,6 +94,15 @@ export async function POST(request: NextRequest) {
       projectId: project._id
     });
 
+    // Extract Twitter handle from socialLinks
+    let twitterHandle: string | undefined;
+    if (project.socialLinks) {
+      const socialLinks = project.socialLinks instanceof Map
+        ? Object.fromEntries(project.socialLinks)
+        : project.socialLinks;
+      twitterHandle = socialLinks.twitter || socialLinks.x || socialLinks.Twitter || socialLinks.X;
+    }
+
     // Tweet about the new market (non-blocking)
     tweetMarketCreated({
       tokenSymbol: project.tokenSymbol || project.name.substring(0, 6).toUpperCase(),
@@ -102,6 +111,8 @@ export async function POST(request: NextRequest) {
       stage: project.projectStage || 'Early Stage',
       marketId: savedMarket._id.toString(),
       description: project.description,
+      twitterHandle,
+      projectImageUrl: project.projectImageUrl || undefined,
     }).catch((error) => {
       logger.warn('Failed to tweet market creation:', {
         error: error instanceof Error ? error.message : String(error),
