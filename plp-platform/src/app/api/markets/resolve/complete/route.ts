@@ -13,9 +13,24 @@ import { connectToDatabase, getDatabase } from '@/lib/database/index';
 import { parseMarketAccount } from '@/services/blockchain-sync/account-parser';
 import { COLLECTIONS } from '@/lib/database/models';
 import { ObjectId } from 'mongodb';
-import { connectToDatabase as connectMongoose, Notification, PredictionParticipant } from '@/lib/mongodb';
+import { connectToDatabase as connectMongoose, Notification, PredictionParticipant, Project } from '@/lib/mongodb';
+import { tweetTokenLaunched, tweetMarketFailed } from '@/services/twitter/twitter-service';
 
 const logger = createClientLogger();
+
+/**
+ * Extract the roast text from Grok analysis
+ * The analysis has sections like **THE ROAST:** followed by the actual roast
+ */
+function extractRoastFromAnalysis(analysis: string): string {
+  // Try to extract just "THE ROAST" section
+  const roastMatch = analysis.match(/\*\*THE ROAST:\*\*\s*([\s\S]*?)(?=\*\*RED FLAGS:|$)/i);
+  if (roastMatch && roastMatch[1]) {
+    return roastMatch[1].trim();
+  }
+  // Fallback: return first 200 chars
+  return analysis.slice(0, 200).trim();
+}
 
 export async function POST(request: NextRequest) {
   try {
@@ -296,6 +311,68 @@ export async function POST(request: NextRequest) {
         error: error instanceof Error ? error.message : String(error)
       });
       // Don't fail the request if notification creation fails
+    }
+
+    // Tweet about the resolution (non-blocking)
+    try {
+      // Get market and project data for tweet
+      const market = await db.collection(COLLECTIONS.PREDICTION_MARKETS).findOne(
+        { _id: new ObjectId(marketId) }
+      );
+      const project = await Project.findById(market?.projectId).lean();
+
+      if (market && project) {
+        const tokenSymbol = project.tokenSymbol || project.name.substring(0, 6).toUpperCase();
+        const contractAddress = tokenMint || market.pumpFunTokenAddress;
+
+        if (resolutionOutcome === 'YesWins' && contractAddress) {
+          // Tweet about token launch
+          tweetTokenLaunched({
+            tokenSymbol,
+            projectName: project.name,
+            contractAddress,
+            pumpFunUrl: `https://pump.fun/${contractAddress}`,
+            marketId,
+          }).catch((err) => {
+            logger.warn('Failed to tweet token launch:', {
+              error: err instanceof Error ? err.message : String(err),
+              marketId,
+            });
+          });
+          logger.info('Token launch tweet initiated', { marketId, tokenSymbol });
+        } else if (resolutionOutcome === 'NoWins') {
+          // For NO wins, get Grok roast and tweet
+          // Try to get existing roast from grokAnalyses or grokRoast
+          let roastText = 'The community has spoken - this one didn\'t make the cut.';
+
+          if (market.grokAnalyses?.length > 0) {
+            const roastAnalysis = market.grokAnalyses.find((a: any) => a.type === 'initial_roast');
+            if (roastAnalysis?.content) {
+              roastText = extractRoastFromAnalysis(roastAnalysis.content);
+            }
+          } else if (market.grokRoast?.content) {
+            roastText = extractRoastFromAnalysis(market.grokRoast.content);
+          }
+
+          tweetMarketFailed({
+            tokenSymbol,
+            projectName: project.name,
+            grokRoast: roastText,
+            marketId,
+          }).catch((err) => {
+            logger.warn('Failed to tweet market failed:', {
+              error: err instanceof Error ? err.message : String(err),
+              marketId,
+            });
+          });
+          logger.info('Market failed tweet initiated', { marketId, tokenSymbol });
+        }
+      }
+    } catch (tweetError) {
+      logger.warn('Failed to process resolution tweet (non-fatal)', {
+        error: tweetError instanceof Error ? tweetError.message : String(tweetError),
+        marketId,
+      });
     }
 
     return NextResponse.json({

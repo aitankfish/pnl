@@ -9,6 +9,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { connectToDatabase, Project, PredictionMarket } from '@/lib/mongodb';
 import { createClientLogger } from '@/lib/logger';
 import { getSyncManager } from '@/services/blockchain-sync/sync-manager';
+import { tweetMarketCreated } from '@/services/twitter/twitter-service';
 
 const logger = createClientLogger();
 
@@ -91,6 +92,21 @@ export async function POST(request: NextRequest) {
       marketId: savedMarket._id,
       marketAddress: savedMarket.marketAddress,
       projectId: project._id
+    });
+
+    // Tweet about the new market (non-blocking)
+    tweetMarketCreated({
+      tokenSymbol: project.tokenSymbol || project.name.substring(0, 6).toUpperCase(),
+      projectName: project.name,
+      category: project.category || 'Project',
+      stage: project.projectStage || 'Early Stage',
+      marketId: savedMarket._id.toString(),
+      description: project.description,
+    }).catch((error) => {
+      logger.warn('Failed to tweet market creation:', {
+        error: error instanceof Error ? error.message : String(error),
+        marketId: savedMarket._id,
+      });
     });
 
     return NextResponse.json({
