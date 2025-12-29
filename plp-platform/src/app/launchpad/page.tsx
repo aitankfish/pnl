@@ -95,6 +95,12 @@ export default function LaunchpadPage() {
   const [loading, setLoading] = useState(true);
   const [loadingLaunched, setLoadingLaunched] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [platformStats, setPlatformStats] = useState<{
+    totalVotes: number;
+    totalPoolVolume: number;
+    activeMarkets: number;
+    resolvedMarkets: number;
+  } | null>(null);
 
   useEffect(() => {
     // Update document title
@@ -114,6 +120,10 @@ export default function LaunchpadPage() {
 
       if (result.success) {
         setMarkets(result.data.markets);
+        // Use aggregated stats from API (calculated before data hiding)
+        if (result.data.platformStats) {
+          setPlatformStats(result.data.platformStats);
+        }
       } else {
         setError(result.error || 'Failed to load markets');
       }
@@ -141,20 +151,14 @@ export default function LaunchpadPage() {
     }
   };
 
-  // Calculate real statistics from markets
-  // Filter only active markets (Unresolved resolution)
+  // Use platform stats from API (aggregated before data hiding)
+  // Falls back to 0 if stats not yet loaded
+  const totalVotes = platformStats?.totalVotes ?? 0;
+  const totalVolume = platformStats?.totalPoolVolume ?? 0;
+  const activeProjects = platformStats?.activeMarkets ?? 0;
+
+  // Filter active markets for display list (separate from stats)
   const activeMarkets = markets.filter(m => m.resolution === 'Unresolved' || !m.resolution);
-
-  const totalVotes = markets.reduce((sum, m) => sum + m.yesVotes + m.noVotes, 0);
-
-  // Use actual poolBalance (total staked) instead of targetPool
-  const totalVolume = markets.reduce((sum, m) => {
-    // poolBalance is in lamports, convert to SOL (or use totalYesStake + totalNoStake)
-    const actualStaked = m.totalYesStake + m.totalNoStake;
-    return sum + actualStaked;
-  }, 0);
-
-  const activeProjects = activeMarkets.length;
 
   // Helper function to format launch date
   const formatLaunchDate = (dateString: string) => {

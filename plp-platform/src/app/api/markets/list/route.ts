@@ -111,6 +111,23 @@ export async function GET(request: NextRequest) {
 
     logger.debug('Aggregation completed', { marketCount: marketsWithData.length });
 
+    // Calculate platform stats BEFORE hiding individual market data
+    // These are aggregated totals that don't reveal individual market vote directions
+    const platformStats = {
+      totalVotes: marketsWithData.reduce((sum: number, m: any) => {
+        return sum + (m.calculatedYesVotes || 0) + (m.calculatedNoVotes || 0);
+      }, 0),
+      totalPoolVolume: marketsWithData.reduce((sum: number, m: any) => {
+        return sum + (m.calculatedYesStake || 0) + (m.calculatedNoStake || 0);
+      }, 0),
+      activeMarkets: marketsWithData.filter((m: any) =>
+        !m.resolution || m.resolution === 'Unresolved'
+      ).length,
+      resolvedMarkets: marketsWithData.filter((m: any) =>
+        m.resolution && m.resolution !== 'Unresolved'
+      ).length,
+    };
+
     // Transform aggregation results using shared utilities
     const marketsWithProjects = marketsWithData.map((market: any) => {
       const project = market.project;
@@ -229,6 +246,7 @@ export async function GET(request: NextRequest) {
           markets: marketsWithProjects,
           total: marketsWithProjects.length,
           syncHealth,
+          platformStats, // Aggregated stats (doesn't reveal individual vote directions)
         }
       },
       {
