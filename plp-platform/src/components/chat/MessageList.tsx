@@ -14,6 +14,12 @@ interface Message {
   isFounder: boolean;
   isPinned: boolean;
   createdAt: Date | string;
+  reactions?: Record<string, number>;
+  replyTo?: {
+    _id: string;
+    displayName: string;
+    message: string;
+  } | null;
 }
 
 interface MessageListProps {
@@ -109,7 +115,7 @@ export default function MessageList({
   return (
     <div
       ref={containerRef}
-      className="flex-1 overflow-y-auto px-3 py-2 space-y-2 custom-scrollbar"
+      className="flex-1 overflow-y-auto px-2 py-2 space-y-0 custom-scrollbar"
       onScroll={handleScroll}
     >
       {/* Load more indicator */}
@@ -129,20 +135,30 @@ export default function MessageList({
       )}
 
       {/* Messages */}
-      {messages.map((msg) => (
-        <MessageItem
-          key={msg._id}
-          message={msg}
-          timeAgo={formatTime(msg.createdAt)}
-          isOwn={msg.walletAddress === currentWallet}
-          canModerate={founderWallet === currentWallet}
-          canReply={!!currentWallet && (hasPosition || founderWallet === currentWallet)}
-          onReact={onReact}
-          onDelete={onDelete}
-          onPin={onPin}
-          onReply={onReply}
-        />
-      ))}
+      {messages.map((msg, index) => {
+        // Check if this message is from the same user as the previous one (within 5 minutes)
+        const prevMsg = index > 0 ? messages[index - 1] : null;
+        const isConsecutive = !!(prevMsg
+          && prevMsg.walletAddress === msg.walletAddress
+          && !msg.replyTo // Don't collapse if it's a reply
+          && (new Date(msg.createdAt).getTime() - new Date(prevMsg.createdAt).getTime()) < 5 * 60 * 1000);
+
+        return (
+          <MessageItem
+            key={msg._id}
+            message={msg}
+            timeAgo={formatTime(msg.createdAt)}
+            isOwn={msg.walletAddress === currentWallet}
+            canModerate={founderWallet === currentWallet}
+            canReply={!!currentWallet && (hasPosition || founderWallet === currentWallet)}
+            isConsecutive={isConsecutive}
+            onReact={onReact}
+            onDelete={onDelete}
+            onPin={onPin}
+            onReply={onReply}
+          />
+        );
+      })}
 
       {/* Scroll anchor */}
       <div ref={bottomRef} />

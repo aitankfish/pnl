@@ -219,6 +219,32 @@ export async function GET(
     // Reverse to get chronological order (oldest first)
     messages.reverse();
 
+    // Fetch reactions for all messages
+    const messageIds = messages.map(m => m._id);
+    const reactionsCollection = db.collection(COLLECTIONS.MESSAGE_REACTIONS);
+    const reactions = await reactionsCollection
+      .find({ messageId: { $in: messageIds } })
+      .toArray();
+
+    // Group reactions by message and emoji
+    const reactionsByMessage = new Map<string, Map<string, number>>();
+    for (const reaction of reactions) {
+      const msgId = reaction.messageId.toString();
+      if (!reactionsByMessage.has(msgId)) {
+        reactionsByMessage.set(msgId, new Map());
+      }
+      const emojiMap = reactionsByMessage.get(msgId)!;
+      emojiMap.set(reaction.emoji, (emojiMap.get(reaction.emoji) || 0) + 1);
+    }
+
+    // Add reactions to messages
+    const messagesWithReactions = messages.map(msg => ({
+      ...msg,
+      reactions: reactionsByMessage.has(msg._id!.toString())
+        ? Object.fromEntries(reactionsByMessage.get(msg._id!.toString())!)
+        : {},
+    }));
+
     // Fetch pinned messages separately
     const pinnedMessages = await chatCollection
       .find({
@@ -233,10 +259,10 @@ export async function GET(
     return NextResponse.json({
       success: true,
       data: {
-        messages,
+        messages: messagesWithReactions,
         pinnedMessages,
         hasMore,
-        cursor: messages.length > 0 ? messages[0]._id?.toString() : null,
+        cursor: messagesWithReactions.length > 0 ? messagesWithReactions[0]._id?.toString() : null,
       },
     });
   } catch (error: any) {

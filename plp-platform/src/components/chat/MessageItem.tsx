@@ -18,6 +18,7 @@ interface Message {
     displayName: string;
     message: string;
   } | null;
+  reactions?: Record<string, number>; // emoji -> count
 }
 
 interface MessageItemProps {
@@ -26,6 +27,7 @@ interface MessageItemProps {
   isOwn: boolean;
   canModerate: boolean;
   canReply: boolean;
+  isConsecutive?: boolean; // Same user as previous message
   onReact: (messageId: string, emoji: string) => Promise<boolean>;
   onDelete: (messageId: string) => Promise<boolean>;
   onPin: (messageId: string, pinned: boolean) => Promise<boolean>;
@@ -40,6 +42,7 @@ export default function MessageItem({
   isOwn,
   canModerate,
   canReply,
+  isConsecutive = false,
   onReact,
   onDelete,
   onPin,
@@ -48,11 +51,11 @@ export default function MessageItem({
   const [showMenu, setShowMenu] = useState(false);
   const [showReactions, setShowReactions] = useState(false);
 
-  // Position badge colors
+  // Position badge colors - more compact
   const getPositionBadge = () => {
     if (message.isFounder) {
       return (
-        <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[10px] font-medium bg-yellow-500/20 text-yellow-400 border border-yellow-500/30">
+        <span className="inline-flex items-center gap-0.5 px-1 py-0.5 rounded text-[10px] font-medium bg-yellow-500/20 text-yellow-400">
           <Star className="w-2.5 h-2.5" />
           Founder
         </span>
@@ -61,25 +64,21 @@ export default function MessageItem({
 
     if (message.position === 'YES') {
       return (
-        <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[10px] font-medium bg-green-500/20 text-green-400 border border-green-500/30">
-          🟢 YES ({message.positionSize.toFixed(2)})
+        <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium bg-green-500/20 text-green-400">
+          YES {message.positionSize.toFixed(2)}
         </span>
       );
     }
 
     if (message.position === 'NO') {
       return (
-        <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[10px] font-medium bg-red-500/20 text-red-400 border border-red-500/30">
-          🔴 NO ({message.positionSize.toFixed(2)})
+        <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium bg-red-500/20 text-red-400">
+          NO {message.positionSize.toFixed(2)}
         </span>
       );
     }
 
-    return (
-      <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[10px] font-medium bg-gray-500/20 text-gray-400 border border-gray-500/30">
-        ⚪ Spectator
-      </span>
-    );
+    return null; // Don't show badge for spectators
   };
 
   const handleReact = async (emoji: string) => {
@@ -97,46 +96,83 @@ export default function MessageItem({
     setShowMenu(false);
   };
 
+  // Get username color based on position
+  const getUsernameColor = () => {
+    if (message.isFounder) return 'text-yellow-400';
+    if (message.position === 'YES') return 'text-green-400';
+    if (message.position === 'NO') return 'text-red-400';
+    return 'text-gray-400';
+  };
+
   return (
     <div
-      className={`group relative p-2 rounded-lg transition-all max-w-[85%] w-fit ${
-        isOwn
-          ? 'bg-cyan-500/10 border border-cyan-500/20 ml-auto'
-          : 'bg-white/5 border border-white/10 hover:border-white/20 hover:bg-white/10'
+      className={`group relative px-2 py-0.5 hover:bg-white/5 rounded transition-colors ${
+        isConsecutive ? 'mt-0' : 'mt-2'
       }`}
     >
-      {/* Header */}
-      <div className="flex items-center justify-between gap-2 mb-1">
-        <div className="flex items-center gap-2 min-w-0">
-          <Link
-            href={`/profile/${message.walletAddress}`}
-            className="text-xs font-medium text-gray-300 truncate hover:text-cyan-400 transition-colors"
-          >
-            {message.displayName}
-          </Link>
-          {getPositionBadge()}
-        </div>
-        <div className="flex items-center gap-1 flex-shrink-0">
-          <span className="text-[10px] text-gray-500">{timeAgo}</span>
+      {/* Action buttons - appear on hover */}
+      <div className="absolute right-2 top-0 -translate-y-1/2 opacity-0 group-hover:opacity-100 transition-opacity z-10">
+        <div className="flex items-center gap-0.5 bg-zinc-900 border border-white/10 rounded-md shadow-lg">
+          {/* Reply button */}
+          {canReply && (
+            <button
+              onClick={() => onReply(message._id, message.displayName)}
+              className="p-1.5 text-gray-400 hover:text-cyan-400 hover:bg-white/10 rounded transition-colors"
+              title="Reply"
+            >
+              <Reply className="w-3.5 h-3.5" />
+            </button>
+          )}
 
-          {/* Menu button */}
+          {/* Reaction picker */}
+          <div className="relative">
+            <button
+              onClick={() => setShowReactions(!showReactions)}
+              className="p-1.5 text-gray-400 hover:text-gray-300 hover:bg-white/10 rounded transition-colors"
+              title="React"
+            >
+              <span className="text-xs">😀</span>
+            </button>
+
+            {showReactions && (
+              <>
+                <div
+                  className="fixed inset-0 z-10"
+                  onClick={() => setShowReactions(false)}
+                />
+                <div className="absolute right-0 bottom-full mb-1 z-20 flex gap-0.5 bg-zinc-900 border border-white/10 rounded-lg shadow-lg p-1">
+                  {REACTION_EMOJIS.map((emoji) => (
+                    <button
+                      key={emoji}
+                      onClick={() => handleReact(emoji)}
+                      className="p-1 rounded hover:bg-white/20 transition-colors text-sm"
+                    >
+                      {emoji}
+                    </button>
+                  ))}
+                </div>
+              </>
+            )}
+          </div>
+
+          {/* More options */}
           {(isOwn || canModerate) && (
             <div className="relative">
               <button
                 onClick={() => setShowMenu(!showMenu)}
-                className="p-1 rounded opacity-0 group-hover:opacity-100 hover:bg-white/10 transition-all"
+                className="p-1.5 text-gray-400 hover:text-gray-300 hover:bg-white/10 rounded transition-colors"
+                title="More"
               >
-                <MoreHorizontal className="w-3 h-3 text-gray-400" />
+                <MoreHorizontal className="w-3.5 h-3.5" />
               </button>
 
-              {/* Menu dropdown */}
               {showMenu && (
                 <>
                   <div
                     className="fixed inset-0 z-10"
                     onClick={() => setShowMenu(false)}
                   />
-                  <div className="absolute right-0 top-full mt-1 z-20 bg-black/80 backdrop-blur-md border border-white/20 rounded-lg shadow-lg py-1 min-w-[120px]">
+                  <div className="absolute right-0 top-full mt-1 z-20 bg-zinc-900 border border-white/10 rounded-lg shadow-lg py-1 min-w-[100px]">
                     {canModerate && (
                       <button
                         onClick={handlePin}
@@ -165,64 +201,56 @@ export default function MessageItem({
 
       {/* Reply preview - show if this message is a reply */}
       {message.replyTo && (
-        <div className="mb-1.5 pl-2 border-l-2 border-cyan-500/30 bg-white/5 rounded-r py-1 px-2">
-          <div className="flex items-center gap-1 text-[10px] text-gray-500">
-            <CornerDownRight className="w-2.5 h-2.5" />
-            <span>Replying to <span className="text-gray-400">{message.replyTo.displayName}</span></span>
-          </div>
-          <p className="text-xs text-gray-500 truncate">{message.replyTo.message}</p>
+        <div className="flex items-center gap-1.5 mb-0.5 text-[11px] text-gray-500">
+          <CornerDownRight className="w-3 h-3 text-gray-600" />
+          <span className="text-gray-500">replying to</span>
+          <span className="text-gray-400 font-medium">{message.replyTo.displayName}</span>
+          <span className="text-gray-600 truncate max-w-[150px]">— {message.replyTo.message}</span>
+        </div>
+      )}
+
+      {/* Header - only show for non-consecutive messages */}
+      {!isConsecutive && (
+        <div className="flex items-center gap-2 mb-0.5">
+          <Link
+            href={`/profile/${message.walletAddress}`}
+            className={`text-sm font-medium hover:underline ${getUsernameColor()}`}
+          >
+            {message.displayName}
+          </Link>
+          {getPositionBadge()}
+          <span className="text-[10px] text-gray-600">{timeAgo}</span>
         </div>
       )}
 
       {/* Message content */}
-      <p className="text-sm text-gray-200 break-words whitespace-pre-wrap">
+      <p className={`text-[13px] text-gray-200 break-words whitespace-pre-wrap leading-relaxed ${
+        isConsecutive ? 'pl-0' : ''
+      }`}>
+        {/* Show time on hover for consecutive messages */}
+        {isConsecutive && (
+          <span className="invisible group-hover:visible text-[10px] text-gray-600 mr-2 select-none">
+            {timeAgo}
+          </span>
+        )}
         {message.message}
       </p>
 
-      {/* Reactions and Reply */}
-      <div className="flex items-center gap-1 mt-1.5">
-        {/* Reply button */}
-        {canReply && (
-          <button
-            onClick={() => onReply(message._id, message.displayName)}
-            className="p-1 rounded text-gray-500 hover:text-cyan-400 hover:bg-white/10 transition-all opacity-0 group-hover:opacity-100 flex items-center gap-0.5"
-          >
-            <Reply className="w-3 h-3" />
-            <span className="text-[10px]">Reply</span>
-          </button>
-        )}
-
-        {/* Reaction picker toggle */}
-        <div className="relative">
-          <button
-            onClick={() => setShowReactions(!showReactions)}
-            className="p-1 rounded text-gray-500 hover:text-gray-400 hover:bg-white/10 transition-all opacity-0 group-hover:opacity-100"
-          >
-            <span className="text-xs">+</span>
-          </button>
-
-          {/* Reaction picker */}
-          {showReactions && (
-            <>
-              <div
-                className="fixed inset-0 z-10"
-                onClick={() => setShowReactions(false)}
-              />
-              <div className="absolute left-0 bottom-full mb-1 z-20 flex gap-1 bg-black/80 backdrop-blur-md border border-white/20 rounded-lg shadow-lg p-1">
-                {REACTION_EMOJIS.map((emoji) => (
-                  <button
-                    key={emoji}
-                    onClick={() => handleReact(emoji)}
-                    className="p-1 rounded hover:bg-white/20 transition-colors text-sm"
-                  >
-                    {emoji}
-                  </button>
-                ))}
-              </div>
-            </>
-          )}
+      {/* Reactions display */}
+      {message.reactions && Object.keys(message.reactions).length > 0 && (
+        <div className="flex flex-wrap gap-1 mt-1">
+          {Object.entries(message.reactions).map(([emoji, count]) => (
+            <button
+              key={emoji}
+              onClick={() => handleReact(emoji)}
+              className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full bg-white/10 hover:bg-white/20 transition-colors text-xs"
+            >
+              <span>{emoji}</span>
+              <span className="text-gray-400">{count}</span>
+            </button>
+          ))}
         </div>
-      </div>
+      )}
     </div>
   );
 }
