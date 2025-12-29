@@ -64,7 +64,7 @@ export default function MessageItem({
     if (message.position === 'YES') {
       return (
         <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium bg-green-500/20 text-green-400">
-          YES {message.positionSize.toFixed(2)}
+          YES
         </span>
       );
     }
@@ -72,7 +72,7 @@ export default function MessageItem({
     if (message.position === 'NO') {
       return (
         <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium bg-red-500/20 text-red-400">
-          NO {message.positionSize.toFixed(2)}
+          NO
         </span>
       );
     }
