@@ -17,16 +17,24 @@ interface MarketData {
 async function getMarketData(id: string): Promise<MarketData | null> {
   try {
     const apiUrl = process.env.NEXT_PUBLIC_API_URL || BASE_URL;
-    const response = await fetch(`${apiUrl}/api/markets/${id}`, {
+    const fetchUrl = `${apiUrl}/api/markets/${id}`;
+
+    const response = await fetch(fetchUrl, {
       next: { revalidate: 60 }, // Cache for 60 seconds
+      headers: {
+        'Accept': 'application/json',
+      },
     });
 
-    if (!response.ok) return null;
+    if (!response.ok) {
+      console.error(`[Metadata] Failed to fetch market ${id}: ${response.status} ${response.statusText}`);
+      return null;
+    }
 
     const result = await response.json();
     return result.success ? result.data : null;
   } catch (error) {
-    console.error('Failed to fetch market data for OG:', error);
+    console.error(`[Metadata] Error fetching market ${id}:`, error);
     return null;
   }
 }
@@ -50,8 +58,10 @@ export async function generateMetadata({
   const description = market.description?.slice(0, 160) ||
     `Vote on ${market.name} - ${market.category || 'Project'} on PNL. Join the community and help decide if this idea should launch!`;
 
-  // Use project image or default OG image
-  const ogImage = market.projectImageUrl || `${BASE_URL}/og-default.png`;
+  // Generate dynamic OG image with market name and description
+  const ogTitle = encodeURIComponent(`$${market.tokenSymbol} - ${market.name}`);
+  const ogDescription = encodeURIComponent(market.category ? `${market.category} Project on PNL` : 'Prediction Market on PNL');
+  const ogImage = `${BASE_URL}/api/og?title=${ogTitle}&description=${ogDescription}`;
 
   return {
     title,
