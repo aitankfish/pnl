@@ -39,7 +39,7 @@ export const metadata: Metadata = {
     siteName: 'PNL',
     images: [
       {
-        url: `${BASE_URL}/og-default.png`,
+        url: `${BASE_URL}/api/og`,
         width: 1200,
         height: 630,
         alt: 'PNL - Predict and Launch',
@@ -51,7 +51,7 @@ export const metadata: Metadata = {
     card: 'summary_large_image',
     title: 'PNL - Predict and Launch',
     description: 'Idea Tokenization Platform powered by Prediction Markets. Launch your ideas with community validation.',
-    images: [`${BASE_URL}/og-default.png`],
+    images: [`${BASE_URL}/api/og`],
   },
 };
 

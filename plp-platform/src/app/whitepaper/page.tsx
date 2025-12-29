@@ -9,10 +9,32 @@ import { Metadata } from 'next';
 import AMMSimulator from '@/components/whitepaper/AMMSimulator';
 import WhitepaperSidebar from '@/components/whitepaper/WhitepaperSidebar';
 
+const BASE_URL = process.env.NEXT_PUBLIC_APP_URL || 'https://pnl.market';
+
 export const metadata: Metadata = {
   title: 'Whitepaper | PNL Platform',
   description: 'PNL (Prediction & Launch) - Tokenizing ideas to fund builders and dreamers worldwide',
-  robots: 'noindex, nofollow', // Don't index this page
+  openGraph: {
+    title: 'PNL Whitepaper',
+    description: 'Idea Tokenization: Where Dreamers Meet Believers. Learn how PNL revolutionizes fundraising with prediction markets.',
+    url: `${BASE_URL}/whitepaper`,
+    siteName: 'PNL',
+    images: [
+      {
+        url: `${BASE_URL}/api/og?title=PNL%20Whitepaper&description=Idea%20Tokenization%3A%20Where%20Dreamers%20Meet%20Believers`,
+        width: 1200,
+        height: 630,
+        alt: 'PNL Whitepaper',
+      },
+    ],
+    type: 'article',
+  },
+  twitter: {
+    card: 'summary_large_image',
+    title: 'PNL Whitepaper',
+    description: 'Idea Tokenization: Where Dreamers Meet Believers. Learn how PNL revolutionizes fundraising with prediction markets.',
+    images: [`${BASE_URL}/api/og?title=PNL%20Whitepaper&description=Idea%20Tokenization%3A%20Where%20Dreamers%20Meet%20Believers`],
+  },
 };
 
 export default function WhitepaperPage() {
