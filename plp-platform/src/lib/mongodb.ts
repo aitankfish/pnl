@@ -822,6 +822,7 @@ export interface IChatMessage {
   editedAt: Date | null;
   deletedAt: Date | null;
   createdAt: Date;
+  reactions?: Record<string, number>; // emoji -> count (added by API)
 }
 
 export interface IMessageReaction {

@@ -186,9 +186,16 @@ export function useChat({ marketAddress, walletAddress, autoJoin = true, getAcce
     };
 
     // Handle reaction updates
-    const handleReaction = (data: { messageId: string; reactions: any }) => {
-      // Reactions are handled separately - messages will be refetched
-      // or we can update the message in place if needed
+    const handleReaction = (data: { messageId: string; reactions: Record<string, number> }) => {
+      if (!isMountedRef.current) return;
+      setState(prev => ({
+        ...prev,
+        messages: prev.messages.map(msg =>
+          msg._id === data.messageId
+            ? { ...msg, reactions: data.reactions }
+            : msg
+        ),
+      }));
     };
 
     // Handle joined event
@@ -346,6 +353,19 @@ export function useChat({ marketAddress, walletAddress, autoJoin = true, getAcce
       });
 
       const data = await response.json();
+
+      if (data.success && data.data?.reactions) {
+        // Update local state immediately
+        setState(prev => ({
+          ...prev,
+          messages: prev.messages.map(msg =>
+            msg._id === messageId
+              ? { ...msg, reactions: data.data.reactions }
+              : msg
+          ),
+        }));
+      }
+
       return data.success;
     } catch (error) {
       logger.error('Failed to add reaction:', { error });

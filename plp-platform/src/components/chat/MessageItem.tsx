@@ -49,7 +49,6 @@ export default function MessageItem({
   onReply,
 }: MessageItemProps) {
   const [showMenu, setShowMenu] = useState(false);
-  const [showReactions, setShowReactions] = useState(false);
 
   // Position badge colors - more compact
   const getPositionBadge = () => {
@@ -83,7 +82,6 @@ export default function MessageItem({
 
   const handleReact = async (emoji: string) => {
     await onReact(message._id, emoji);
-    setShowReactions(false);
   };
 
   const handleDelete = async () => {
@@ -111,8 +109,23 @@ export default function MessageItem({
       }`}
     >
       {/* Action buttons - appear on hover */}
-      <div className="absolute right-2 top-0 -translate-y-1/2 opacity-0 group-hover:opacity-100 transition-opacity z-10">
-        <div className="flex items-center gap-0.5 bg-zinc-900 border border-white/10 rounded-md shadow-lg">
+      <div className="absolute right-2 top-0 -translate-y-1/2 opacity-0 group-hover:opacity-100 transition-opacity z-[50]">
+        <div className="flex items-center gap-0.5 bg-zinc-900 border border-white/10 rounded-md shadow-lg px-1">
+          {/* Reaction emojis - directly in the bar */}
+          {REACTION_EMOJIS.map((emoji) => (
+            <button
+              key={emoji}
+              onClick={() => handleReact(emoji)}
+              className="p-1 text-sm hover:scale-125 hover:bg-white/10 rounded transition-all"
+              title={`React with ${emoji}`}
+            >
+              {emoji}
+            </button>
+          ))}
+
+          {/* Divider */}
+          <div className="w-px h-4 bg-white/10 mx-0.5" />
+
           {/* Reply button */}
           {canReply && (
             <button
@@ -123,37 +136,6 @@ export default function MessageItem({
               <Reply className="w-3.5 h-3.5" />
             </button>
           )}
-
-          {/* Reaction picker */}
-          <div className="relative">
-            <button
-              onClick={() => setShowReactions(!showReactions)}
-              className="p-1.5 text-gray-400 hover:text-gray-300 hover:bg-white/10 rounded transition-colors"
-              title="React"
-            >
-              <span className="text-xs">😀</span>
-            </button>
-
-            {showReactions && (
-              <>
-                <div
-                  className="fixed inset-0 z-10"
-                  onClick={() => setShowReactions(false)}
-                />
-                <div className="absolute right-0 bottom-full mb-1 z-20 flex gap-0.5 bg-zinc-900 border border-white/10 rounded-lg shadow-lg p-1">
-                  {REACTION_EMOJIS.map((emoji) => (
-                    <button
-                      key={emoji}
-                      onClick={() => handleReact(emoji)}
-                      className="p-1 rounded hover:bg-white/20 transition-colors text-sm"
-                    >
-                      {emoji}
-                    </button>
-                  ))}
-                </div>
-              </>
-            )}
-          </div>
 
           {/* More options */}
           {(isOwn || canModerate) && (
@@ -236,17 +218,17 @@ export default function MessageItem({
         {message.message}
       </p>
 
-      {/* Reactions display */}
+      {/* Reactions display - Discord style */}
       {message.reactions && Object.keys(message.reactions).length > 0 && (
-        <div className="flex flex-wrap gap-1 mt-1">
+        <div className="flex flex-wrap gap-1 mt-0.5 -mb-0.5">
           {Object.entries(message.reactions).map(([emoji, count]) => (
             <button
               key={emoji}
               onClick={() => handleReact(emoji)}
-              className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full bg-white/10 hover:bg-white/20 transition-colors text-xs"
+              className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded bg-white/10 hover:bg-cyan-500/20 border border-transparent hover:border-cyan-500/30 transition-all text-sm"
             >
               <span>{emoji}</span>
-              <span className="text-gray-400">{count}</span>
+              <span className="text-gray-300 text-xs font-medium">{count}</span>
             </button>
           ))}
         </div>
