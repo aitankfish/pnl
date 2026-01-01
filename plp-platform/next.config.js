@@ -31,8 +31,8 @@ const nextConfig = {
   // Standalone output for better deployment
   output: 'standalone',
 
-  // Enable SWC minification for smaller bundles
-  swcMinify: true,
+  // Disable SWC minification due to unicode handling issues
+  swcMinify: false,
 
   // Enable compression
   compress: true,
