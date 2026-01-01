@@ -1437,6 +1437,14 @@ export default function MarketDetailsPage() {
                     totalParticipants: market.totalParticipants || 0,
                     targetPool: parseFloat(market.targetPool) || 0,
                   }}
+                  marketAddress={market.marketAddress}
+                  vaultAddress={(() => {
+                    try {
+                      const [vaultPda] = getMarketVaultPDA(new PublicKey(market.marketAddress));
+                      return vaultPda.toBase58();
+                    } catch { return undefined; }
+                  })()}
+                  founderAddress={mergedOnchainData.data.founder}
                 />
               ) : (
               <>

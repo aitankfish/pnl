@@ -1,0 +1,636 @@
+'use client';
+
+import React, { useState, useMemo, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
+import {
+  ArrowUpDown,
+  ArrowUp,
+  ArrowDown,
+  ExternalLink,
+  Copy,
+  Check,
+  TrendingUp,
+  TrendingDown,
+  Users,
+  Loader2,
+  Search,
+  X,
+  Wallet,
+  BarChart3,
+} from 'lucide-react';
+import { Input } from '@/components/ui/input';
+
+// Types
+interface LaunchedToken {
+  id: string;
+  marketAddress: string;
+  name: string;
+  symbol: string;
+  description: string;
+  category: string;
+  launchDate: string;
+  tokenAddress: string;
+  projectImageUrl?: string;
+  totalVotes: number;
+  yesVotes: number;
+  noVotes: number;
+  yesPercentage: number;
+  launchPool: string;
+}
+
+interface TokenStats {
+  address: string;
+  price: number | null;
+  priceChange24h: number | null;
+  marketCap: number | null;
+  volume24h: number | null;
+  holders: number | null;
+  liquidity: number | null;
+}
+
+interface LaunchedTableProps {
+  tokens: LaunchedToken[];
+  isLoading?: boolean;
+}
+
+type SortKey = 'name' | 'price' | 'priceChange24h' | 'marketCap' | 'volume24h' | 'holders' | 'launchPool' | 'age';
+type SortDirection = 'asc' | 'desc';
+
+// Format helpers
+const formatPrice = (price: number | null): string => {
+  if (price === null) return '-';
+  if (price < 0.000001) return `$${price.toExponential(2)}`;
+  if (price < 0.01) return `$${price.toFixed(6)}`;
+  if (price < 1) return `$${price.toFixed(4)}`;
+  return `$${price.toFixed(2)}`;
+};
+
+const formatLargeNumber = (num: number | null): string => {
+  if (num === null) return '-';
+  if (num >= 1_000_000_000) return `$${(num / 1_000_000_000).toFixed(2)}B`;
+  if (num >= 1_000_000) return `$${(num / 1_000_000).toFixed(2)}M`;
+  if (num >= 1_000) return `$${(num / 1_000).toFixed(2)}K`;
+  return `$${num.toFixed(2)}`;
+};
+
+const formatNumber = (num: number | null): string => {
+  if (num === null) return '-';
+  if (num >= 1_000_000) return `${(num / 1_000_000).toFixed(1)}M`;
+  if (num >= 1_000) return `${(num / 1_000).toFixed(1)}K`;
+  return num.toLocaleString();
+};
+
+const formatAge = (launchDate: string): string => {
+  const now = new Date();
+  const launch = new Date(launchDate);
+  const diffMs = now.getTime() - launch.getTime();
+  const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+
+  if (diffDays === 0) return 'Today';
+  if (diffDays === 1) return '1d';
+  if (diffDays < 30) return `${diffDays}d`;
+  if (diffDays < 365) return `${Math.floor(diffDays / 30)}mo`;
+  return `${Math.floor(diffDays / 365)}y`;
+};
+
+const truncateAddress = (address: string): string => {
+  return `${address.slice(0, 4)}...${address.slice(-4)}`;
+};
+
+export function LaunchedTable({ tokens, isLoading = false }: LaunchedTableProps) {
+  const router = useRouter();
+  const [sortKey, setSortKey] = useState<SortKey>('marketCap');
+  const [sortDirection, setSortDirection] = useState<SortDirection>('desc');
+  const [searchQuery, setSearchQuery] = useState('');
+  const [copiedAddress, setCopiedAddress] = useState<string | null>(null);
+  const [tokenStats, setTokenStats] = useState<Map<string, TokenStats>>(new Map());
+  const [isLoadingStats, setIsLoadingStats] = useState(false);
+
+  // Fetch stats for all tokens
+  useEffect(() => {
+    if (tokens.length === 0) return;
+
+    const fetchStats = async () => {
+      setIsLoadingStats(true);
+      try {
+        const addresses = tokens.map((t) => t.tokenAddress).filter(Boolean);
+        const response = await fetch('/api/tokens/stats', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ addresses }),
+        });
+
+        if (response.ok) {
+          const data = await response.json();
+          if (data.success && data.data) {
+            const statsMap = new Map<string, TokenStats>();
+            data.data.forEach((stat: TokenStats) => {
+              statsMap.set(stat.address, stat);
+            });
+            setTokenStats(statsMap);
+          }
+        }
+      } catch (error) {
+        console.error('Error fetching token stats:', error);
+      } finally {
+        setIsLoadingStats(false);
+      }
+    };
+
+    fetchStats();
+
+    // Auto-refresh every 30 seconds
+    const interval = setInterval(fetchStats, 30000);
+    return () => clearInterval(interval);
+  }, [tokens]);
+
+  // Copy address to clipboard
+  const copyAddress = (address: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    navigator.clipboard.writeText(address);
+    setCopiedAddress(address);
+    setTimeout(() => setCopiedAddress(null), 2000);
+  };
+
+  // Handle sort
+  const handleSort = (key: SortKey) => {
+    if (sortKey === key) {
+      setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc');
+    } else {
+      setSortKey(key);
+      setSortDirection('desc');
+    }
+  };
+
+  // Filtered and sorted tokens
+  const sortedTokens = useMemo(() => {
+    let filtered = [...tokens];
+
+    // Apply search filter
+    if (searchQuery) {
+      const query = searchQuery.toLowerCase();
+      filtered = filtered.filter(
+        (t) =>
+          t.name.toLowerCase().includes(query) ||
+          t.symbol.toLowerCase().includes(query) ||
+          t.tokenAddress.toLowerCase().includes(query)
+      );
+    }
+
+    // Apply sort
+    filtered.sort((a, b) => {
+      let aValue: number;
+      let bValue: number;
+
+      const aStats = tokenStats.get(a.tokenAddress);
+      const bStats = tokenStats.get(b.tokenAddress);
+
+      switch (sortKey) {
+        case 'name':
+          return sortDirection === 'asc'
+            ? a.name.localeCompare(b.name)
+            : b.name.localeCompare(a.name);
+        case 'price':
+          aValue = aStats?.price ?? 0;
+          bValue = bStats?.price ?? 0;
+          break;
+        case 'priceChange24h':
+          aValue = aStats?.priceChange24h ?? 0;
+          bValue = bStats?.priceChange24h ?? 0;
+          break;
+        case 'marketCap':
+          aValue = aStats?.marketCap ?? 0;
+          bValue = bStats?.marketCap ?? 0;
+          break;
+        case 'volume24h':
+          aValue = aStats?.volume24h ?? 0;
+          bValue = bStats?.volume24h ?? 0;
+          break;
+        case 'holders':
+          aValue = aStats?.holders ?? 0;
+          bValue = bStats?.holders ?? 0;
+          break;
+        case 'launchPool':
+          aValue = parseFloat(a.launchPool) || 0;
+          bValue = parseFloat(b.launchPool) || 0;
+          break;
+        case 'age':
+          aValue = new Date(a.launchDate).getTime();
+          bValue = new Date(b.launchDate).getTime();
+          break;
+        default:
+          aValue = 0;
+          bValue = 0;
+      }
+
+      return sortDirection === 'asc' ? aValue - bValue : bValue - aValue;
+    });
+
+    return filtered;
+  }, [tokens, tokenStats, sortKey, sortDirection, searchQuery]);
+
+  // Sort header component
+  const SortHeader = ({ label, sortKeyName }: { label: string; sortKeyName: SortKey }) => (
+    <button
+      onClick={() => handleSort(sortKeyName)}
+      className="flex items-center gap-1 hover:text-white transition-colors group"
+    >
+      <span>{label}</span>
+      {sortKey === sortKeyName ? (
+        sortDirection === 'asc' ? (
+          <ArrowUp className="w-3 h-3 text-cyan-400" />
+        ) : (
+          <ArrowDown className="w-3 h-3 text-cyan-400" />
+        )
+      ) : (
+        <ArrowUpDown className="w-3 h-3 opacity-0 group-hover:opacity-50" />
+      )}
+    </button>
+  );
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center py-20">
+        <Loader2 className="w-8 h-8 animate-spin text-cyan-400" />
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-4">
+      {/* Search Bar */}
+      <div className="relative">
+        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+        <Input
+          type="text"
+          placeholder="Search by name, symbol, or address..."
+          value={searchQuery}
+          onChange={(e) => setSearchQuery(e.target.value)}
+          className="pl-10 pr-10 bg-white/5 border-white/10 text-white placeholder:text-gray-500 focus:border-cyan-500/50"
+        />
+        {searchQuery && (
+          <button
+            onClick={() => setSearchQuery('')}
+            className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-white"
+          >
+            <X className="w-4 h-4" />
+          </button>
+        )}
+      </div>
+
+      {/* Stats refresh indicator */}
+      {isLoadingStats && (
+        <div className="flex items-center gap-2 text-xs text-gray-400">
+          <Loader2 className="w-3 h-3 animate-spin" />
+          <span>Refreshing prices...</span>
+        </div>
+      )}
+
+      {/* Desktop Table */}
+      <div className="hidden lg:block overflow-x-auto">
+        <table className="w-full">
+          <thead>
+            <tr className="border-b border-white/10 text-xs text-gray-400 uppercase">
+              <th className="text-left py-3 px-2 w-8">#</th>
+              <th className="text-left py-3 px-2">
+                <SortHeader label="Token" sortKeyName="name" />
+              </th>
+              <th className="text-right py-3 px-2">
+                <SortHeader label="Price" sortKeyName="price" />
+              </th>
+              <th className="text-right py-3 px-2">
+                <SortHeader label="24h %" sortKeyName="priceChange24h" />
+              </th>
+              <th className="text-right py-3 px-2">
+                <SortHeader label="Market Cap" sortKeyName="marketCap" />
+              </th>
+              <th className="text-right py-3 px-2">
+                <SortHeader label="Volume 24h" sortKeyName="volume24h" />
+              </th>
+              <th className="text-right py-3 px-2">
+                <SortHeader label="Holders" sortKeyName="holders" />
+              </th>
+              <th className="text-right py-3 px-2">
+                <SortHeader label="Raised" sortKeyName="launchPool" />
+              </th>
+              <th className="text-right py-3 px-2">
+                <SortHeader label="Age" sortKeyName="age" />
+              </th>
+              <th className="text-center py-3 px-2">Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            {sortedTokens.map((token, index) => {
+              const stats = tokenStats.get(token.tokenAddress);
+              const priceChange = stats?.priceChange24h;
+              const isPositive = priceChange !== null && priceChange >= 0;
+
+              return (
+                <tr
+                  key={token.id}
+                  onClick={() => router.push(`/market/${token.id}`)}
+                  className="border-b border-white/5 hover:bg-white/5 cursor-pointer transition-colors group"
+                >
+                  <td className="py-3 px-2 text-gray-500 text-sm">{index + 1}</td>
+                  <td className="py-3 px-2">
+                    <div className="flex items-center gap-3">
+                      {token.projectImageUrl ? (
+                        <img
+                          src={token.projectImageUrl}
+                          alt={token.name}
+                          className="w-8 h-8 rounded-full object-cover"
+                        />
+                      ) : (
+                        <div className="w-8 h-8 rounded-full bg-gradient-to-r from-purple-500 to-cyan-500 flex items-center justify-center text-white text-xs font-bold">
+                          {token.symbol.slice(0, 2)}
+                        </div>
+                      )}
+                      <div>
+                        <div className="text-white font-medium group-hover:text-cyan-400 transition-colors">
+                          {token.name}
+                        </div>
+                        <div className="text-gray-400 text-xs">${token.symbol}</div>
+                      </div>
+                    </div>
+                  </td>
+                  <td className="py-3 px-2 text-right">
+                    <span className="text-white font-mono text-sm">
+                      {formatPrice(stats?.price ?? null)}
+                    </span>
+                  </td>
+                  <td className="py-3 px-2 text-right">
+                    {priceChange !== null && priceChange !== undefined ? (
+                      <div
+                        className={`flex items-center justify-end gap-1 text-sm font-medium ${
+                          isPositive ? 'text-green-400' : 'text-red-400'
+                        }`}
+                      >
+                        {isPositive ? (
+                          <TrendingUp className="w-3 h-3" />
+                        ) : (
+                          <TrendingDown className="w-3 h-3" />
+                        )}
+                        {isPositive ? '+' : ''}
+                        {priceChange.toFixed(2)}%
+                      </div>
+                    ) : (
+                      <span className="text-gray-500">-</span>
+                    )}
+                  </td>
+                  <td className="py-3 px-2 text-right text-white text-sm">
+                    {formatLargeNumber(stats?.marketCap ?? null)}
+                  </td>
+                  <td className="py-3 px-2 text-right text-gray-300 text-sm">
+                    {formatLargeNumber(stats?.volume24h ?? null)}
+                  </td>
+                  <td className="py-3 px-2 text-right">
+                    <div className="flex items-center justify-end gap-1 text-gray-300 text-sm">
+                      <Users className="w-3 h-3 text-gray-500" />
+                      {formatNumber(stats?.holders ?? null)}
+                    </div>
+                  </td>
+                  <td className="py-3 px-2 text-right text-cyan-400 text-sm font-medium">
+                    {token.launchPool} SOL
+                  </td>
+                  <td className="py-3 px-2 text-right text-gray-400 text-sm">
+                    {formatAge(token.launchDate)}
+                  </td>
+                  <td className="py-3 px-2">
+                    <div className="flex items-center justify-center gap-0.5" onClick={(e) => e.stopPropagation()}>
+                      {/* Copy Token Address */}
+                      <button
+                        onClick={(e) => copyAddress(token.tokenAddress, e)}
+                        className="p-1.5 hover:bg-white/10 rounded transition-colors"
+                        title="Copy token address"
+                      >
+                        {copiedAddress === token.tokenAddress ? (
+                          <Check className="w-3.5 h-3.5 text-green-400" />
+                        ) : (
+                          <Copy className="w-3.5 h-3.5 text-gray-400" />
+                        )}
+                      </button>
+                      {/* Helius Explorer - Token */}
+                      <a
+                        href={`https://orb.helius.dev/address/${token.tokenAddress}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="p-1.5 hover:bg-white/10 rounded transition-colors"
+                        title="Token on Helius Explorer"
+                      >
+                        <Wallet className="w-3.5 h-3.5 text-purple-400" />
+                      </a>
+                      {/* Helius Explorer - Market */}
+                      <a
+                        href={`https://orb.helius.dev/address/${token.marketAddress}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="p-1.5 hover:bg-white/10 rounded transition-colors"
+                        title="Market on Helius Explorer"
+                      >
+                        <BarChart3 className="w-3.5 h-3.5 text-cyan-400" />
+                      </a>
+                      {/* Birdeye */}
+                      <a
+                        href={`https://birdeye.so/token/${token.tokenAddress}?chain=solana`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="p-1.5 hover:bg-white/10 rounded transition-colors"
+                        title="View on Birdeye"
+                      >
+                        <img src="https://birdeye.so/favicon.ico" alt="Birdeye" className="w-3.5 h-3.5" />
+                      </a>
+                      {/* DexScreener */}
+                      <a
+                        href={`https://dexscreener.com/solana/${token.tokenAddress}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="p-1.5 hover:bg-white/10 rounded transition-colors"
+                        title="View on DexScreener"
+                      >
+                        <img src="https://dexscreener.com/favicon.ico" alt="DexScreener" className="w-3.5 h-3.5" />
+                      </a>
+                      {/* Pump.fun */}
+                      <a
+                        href={`https://pump.fun/coin/${token.tokenAddress}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="p-1.5 hover:bg-white/10 rounded transition-colors"
+                        title="View on Pump.fun"
+                      >
+                        <img src="https://pump.fun/favicon.ico" alt="Pump.fun" className="w-3.5 h-3.5" />
+                      </a>
+                    </div>
+                  </td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
+
+      {/* Mobile Cards */}
+      <div className="lg:hidden space-y-3">
+        {sortedTokens.map((token, index) => {
+          const stats = tokenStats.get(token.tokenAddress);
+          const priceChange = stats?.priceChange24h;
+          const isPositive = priceChange !== null && priceChange >= 0;
+
+          return (
+            <div
+              key={token.id}
+              onClick={() => router.push(`/market/${token.id}`)}
+              className="bg-white/5 rounded-xl p-4 border border-white/10 hover:bg-white/10 cursor-pointer transition-all"
+            >
+              {/* Header Row */}
+              <div className="flex items-center justify-between mb-3">
+                <div className="flex items-center gap-3">
+                  <span className="text-gray-500 text-xs w-5">{index + 1}</span>
+                  {token.projectImageUrl ? (
+                    <img
+                      src={token.projectImageUrl}
+                      alt={token.name}
+                      className="w-10 h-10 rounded-full object-cover"
+                    />
+                  ) : (
+                    <div className="w-10 h-10 rounded-full bg-gradient-to-r from-purple-500 to-cyan-500 flex items-center justify-center text-white text-sm font-bold">
+                      {token.symbol.slice(0, 2)}
+                    </div>
+                  )}
+                  <div>
+                    <div className="text-white font-semibold">{token.name}</div>
+                    <div className="text-gray-400 text-xs">${token.symbol}</div>
+                  </div>
+                </div>
+                <div className="text-right">
+                  <div className="text-white font-mono font-semibold">
+                    {formatPrice(stats?.price ?? null)}
+                  </div>
+                  {priceChange !== null && priceChange !== undefined && (
+                    <div
+                      className={`flex items-center justify-end gap-1 text-xs font-medium ${
+                        isPositive ? 'text-green-400' : 'text-red-400'
+                      }`}
+                    >
+                      {isPositive ? (
+                        <TrendingUp className="w-3 h-3" />
+                      ) : (
+                        <TrendingDown className="w-3 h-3" />
+                      )}
+                      {isPositive ? '+' : ''}
+                      {priceChange.toFixed(2)}%
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Stats Grid */}
+              <div className="grid grid-cols-4 gap-2 text-center">
+                <div className="bg-black/20 rounded-lg p-2">
+                  <div className="text-gray-500 text-[10px] uppercase">MCap</div>
+                  <div className="text-white text-xs font-medium">
+                    {formatLargeNumber(stats?.marketCap ?? null)}
+                  </div>
+                </div>
+                <div className="bg-black/20 rounded-lg p-2">
+                  <div className="text-gray-500 text-[10px] uppercase">Vol 24h</div>
+                  <div className="text-white text-xs font-medium">
+                    {formatLargeNumber(stats?.volume24h ?? null)}
+                  </div>
+                </div>
+                <div className="bg-black/20 rounded-lg p-2">
+                  <div className="text-gray-500 text-[10px] uppercase">Holders</div>
+                  <div className="text-white text-xs font-medium">
+                    {formatNumber(stats?.holders ?? null)}
+                  </div>
+                </div>
+                <div className="bg-black/20 rounded-lg p-2">
+                  <div className="text-gray-500 text-[10px] uppercase">Raised</div>
+                  <div className="text-cyan-400 text-xs font-medium">{token.launchPool}</div>
+                </div>
+              </div>
+
+              {/* Footer - Token Address */}
+              <div className="flex items-center justify-between mt-3 pt-3 border-t border-white/10">
+                <div className="flex items-center gap-2">
+                  <span className="text-gray-500 text-xs">CA:</span>
+                  <code className="text-gray-400 text-xs font-mono">
+                    {truncateAddress(token.tokenAddress)}
+                  </code>
+                  <button
+                    onClick={(e) => copyAddress(token.tokenAddress, e)}
+                    className="p-1 hover:bg-white/10 rounded"
+                  >
+                    {copiedAddress === token.tokenAddress ? (
+                      <Check className="w-3 h-3 text-green-400" />
+                    ) : (
+                      <Copy className="w-3 h-3 text-gray-400" />
+                    )}
+                  </button>
+                </div>
+                <div className="text-gray-500 text-xs">{formatAge(token.launchDate)}</div>
+              </div>
+
+              {/* External Links */}
+              <div className="flex items-center justify-center gap-2 mt-3 pt-3 border-t border-white/10" onClick={(e) => e.stopPropagation()}>
+                <a
+                  href={`https://orb.helius.dev/address/${token.tokenAddress}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex items-center gap-1 px-2 py-1 bg-purple-500/10 hover:bg-purple-500/20 border border-purple-500/30 rounded text-purple-300 text-xs transition-colors"
+                >
+                  <Wallet className="w-3 h-3" />
+                  Token
+                </a>
+                <a
+                  href={`https://orb.helius.dev/address/${token.marketAddress}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex items-center gap-1 px-2 py-1 bg-cyan-500/10 hover:bg-cyan-500/20 border border-cyan-500/30 rounded text-cyan-300 text-xs transition-colors"
+                >
+                  <BarChart3 className="w-3 h-3" />
+                  Market
+                </a>
+                <a
+                  href={`https://birdeye.so/token/${token.tokenAddress}?chain=solana`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex items-center gap-1 px-2 py-1 bg-white/5 hover:bg-white/10 border border-white/10 rounded text-gray-300 text-xs transition-colors"
+                >
+                  <img src="https://birdeye.so/favicon.ico" alt="" className="w-3 h-3" />
+                  Birdeye
+                </a>
+                <a
+                  href={`https://dexscreener.com/solana/${token.tokenAddress}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex items-center gap-1 px-2 py-1 bg-white/5 hover:bg-white/10 border border-white/10 rounded text-gray-300 text-xs transition-colors"
+                >
+                  <img src="https://dexscreener.com/favicon.ico" alt="" className="w-3 h-3" />
+                  DEX
+                </a>
+                <a
+                  href={`https://pump.fun/coin/${token.tokenAddress}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex items-center gap-1 px-2 py-1 bg-white/5 hover:bg-white/10 border border-white/10 rounded text-gray-300 text-xs transition-colors"
+                >
+                  <img src="https://pump.fun/favicon.ico" alt="" className="w-3 h-3" />
+                  Pump
+                </a>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+
+      {/* Empty State */}
+      {sortedTokens.length === 0 && !isLoading && (
+        <div className="text-center py-12">
+          <p className="text-gray-400">
+            {searchQuery ? 'No tokens found matching your search.' : 'No launched tokens yet.'}
+          </p>
+        </div>
+      )}
+    </div>
+  );
+}

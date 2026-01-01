@@ -8,7 +8,7 @@ import { useSignAndSendTransaction } from '@privy-io/react-auth/solana';
 import { getSolanaConnection, getSolanaBalance } from '@/lib/solana';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { ArrowDownUp, Loader2, ExternalLink, TrendingUp, Users, BarChart3, RefreshCw, Target, CheckCircle, XCircle } from 'lucide-react';
+import { ArrowDownUp, Loader2, ExternalLink, TrendingUp, Users, BarChart3, RefreshCw, Target, CheckCircle, XCircle, Copy, Check, Wallet, Link2 } from 'lucide-react';
 
 interface TokenTradingProps {
   tokenMint: string;
@@ -23,6 +23,10 @@ interface TokenTradingProps {
     totalParticipants: number; // Number of voters
     targetPool: number;        // Target SOL
   };
+  // Onchain info
+  marketAddress?: string;
+  vaultAddress?: string;
+  founderAddress?: string;
 }
 
 interface QuoteResponse {
@@ -47,7 +51,17 @@ interface TokenStats {
 // Native SOL mint address
 const SOL_MINT = 'So11111111111111111111111111111111111111112';
 
-export function TokenTrading({ tokenMint, tokenSymbol, tokenName, tokenImageUrl, marketStats }: TokenTradingProps) {
+export function TokenTrading({ tokenMint, tokenSymbol, tokenName, tokenImageUrl, marketStats, marketAddress, vaultAddress, founderAddress }: TokenTradingProps) {
+  const [copiedField, setCopiedField] = useState<string | null>(null);
+
+  const copyToClipboard = (text: string, field: string) => {
+    navigator.clipboard.writeText(text);
+    setCopiedField(field);
+    setTimeout(() => setCopiedField(null), 2000);
+  };
+
+  const truncateAddress = (address: string) => `${address.slice(0, 6)}...${address.slice(-4)}`;
+
   const { primaryWallet } = useWallet();
   const { network } = useNetwork();
   const { signAndSendTransaction } = useSignAndSendTransaction();
@@ -604,6 +618,139 @@ export function TokenTrading({ tokenMint, tokenSymbol, tokenName, tokenImageUrl,
           <ExternalLink className="w-3 h-3" />
         </a>
       </div>
+
+      {/* Onchain Info Section */}
+      {(marketAddress || tokenMint || vaultAddress || founderAddress) && (
+        <div className="bg-gradient-to-br from-purple-500/5 to-cyan-500/5 border border-white/10 rounded-xl p-4">
+          <div className="flex items-center gap-2 mb-3">
+            <Link2 className="w-4 h-4 text-purple-400" />
+            <span className="text-white font-semibold text-sm">Onchain Info</span>
+          </div>
+          <div className="space-y-2">
+            {/* Token Address */}
+            <div className="flex items-center justify-between p-2 bg-black/20 rounded-lg">
+              <div className="flex items-center gap-2">
+                <Wallet className="w-3.5 h-3.5 text-green-400" />
+                <span className="text-gray-400 text-xs">Token</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <code className="text-gray-300 text-xs font-mono">{truncateAddress(tokenMint)}</code>
+                <button
+                  onClick={() => copyToClipboard(tokenMint, 'token')}
+                  className="p-1 hover:bg-white/10 rounded transition-colors"
+                >
+                  {copiedField === 'token' ? (
+                    <Check className="w-3 h-3 text-green-400" />
+                  ) : (
+                    <Copy className="w-3 h-3 text-gray-400" />
+                  )}
+                </button>
+                <a
+                  href={`https://orb.helius.dev/address/${tokenMint}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="p-1 hover:bg-white/10 rounded transition-colors"
+                >
+                  <ExternalLink className="w-3 h-3 text-green-400" />
+                </a>
+              </div>
+            </div>
+
+            {/* Market Address */}
+            {marketAddress && (
+              <div className="flex items-center justify-between p-2 bg-black/20 rounded-lg">
+                <div className="flex items-center gap-2">
+                  <BarChart3 className="w-3.5 h-3.5 text-cyan-400" />
+                  <span className="text-gray-400 text-xs">Market</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <code className="text-gray-300 text-xs font-mono">{truncateAddress(marketAddress)}</code>
+                  <button
+                    onClick={() => copyToClipboard(marketAddress, 'market')}
+                    className="p-1 hover:bg-white/10 rounded transition-colors"
+                  >
+                    {copiedField === 'market' ? (
+                      <Check className="w-3 h-3 text-green-400" />
+                    ) : (
+                      <Copy className="w-3 h-3 text-gray-400" />
+                    )}
+                  </button>
+                  <a
+                    href={`https://orb.helius.dev/address/${marketAddress}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="p-1 hover:bg-white/10 rounded transition-colors"
+                  >
+                    <ExternalLink className="w-3 h-3 text-cyan-400" />
+                  </a>
+                </div>
+              </div>
+            )}
+
+            {/* Vault Address */}
+            {vaultAddress && (
+              <div className="flex items-center justify-between p-2 bg-black/20 rounded-lg">
+                <div className="flex items-center gap-2">
+                  <Wallet className="w-3.5 h-3.5 text-yellow-400" />
+                  <span className="text-gray-400 text-xs">Vault</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <code className="text-gray-300 text-xs font-mono">{truncateAddress(vaultAddress)}</code>
+                  <button
+                    onClick={() => copyToClipboard(vaultAddress, 'vault')}
+                    className="p-1 hover:bg-white/10 rounded transition-colors"
+                  >
+                    {copiedField === 'vault' ? (
+                      <Check className="w-3 h-3 text-green-400" />
+                    ) : (
+                      <Copy className="w-3 h-3 text-gray-400" />
+                    )}
+                  </button>
+                  <a
+                    href={`https://orb.helius.dev/address/${vaultAddress}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="p-1 hover:bg-white/10 rounded transition-colors"
+                  >
+                    <ExternalLink className="w-3 h-3 text-yellow-400" />
+                  </a>
+                </div>
+              </div>
+            )}
+
+            {/* Founder Address */}
+            {founderAddress && (
+              <div className="flex items-center justify-between p-2 bg-black/20 rounded-lg">
+                <div className="flex items-center gap-2">
+                  <Users className="w-3.5 h-3.5 text-purple-400" />
+                  <span className="text-gray-400 text-xs">Founder</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <code className="text-gray-300 text-xs font-mono">{truncateAddress(founderAddress)}</code>
+                  <button
+                    onClick={() => copyToClipboard(founderAddress, 'founder')}
+                    className="p-1 hover:bg-white/10 rounded transition-colors"
+                  >
+                    {copiedField === 'founder' ? (
+                      <Check className="w-3 h-3 text-green-400" />
+                    ) : (
+                      <Copy className="w-3 h-3 text-gray-400" />
+                    )}
+                  </button>
+                  <a
+                    href={`https://orb.helius.dev/address/${founderAddress}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="p-1 hover:bg-white/10 rounded transition-colors"
+                  >
+                    <ExternalLink className="w-3 h-3 text-purple-400" />
+                  </a>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
 }
