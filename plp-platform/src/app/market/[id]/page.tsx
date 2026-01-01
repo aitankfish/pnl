@@ -51,6 +51,11 @@ const VideoEmbed = dynamic(() => import('@/components/VideoEmbed'), {
   ssr: false,
 });
 
+const TokenTrading = dynamic(() => import('@/components/TokenTrading').then(mod => ({ default: mod.TokenTrading })), {
+  loading: () => <div className="h-96 bg-white/5 animate-pulse rounded-lg" />,
+  ssr: false,
+});
+
 interface MarketDetails {
   id: string;
   marketAddress: string;
@@ -1406,12 +1411,35 @@ export default function MarketDetailsPage() {
           <div className="space-y-4">
           <Card className="bg-white/5 backdrop-blur-xl border-white/10 text-white h-fit">
             <CardHeader className="pb-2 pt-4 px-4">
-              <CardTitle className="text-base sm:text-lg text-white">Trade on Market</CardTitle>
+              <CardTitle className="text-base sm:text-lg text-white">
+                {mergedOnchainData?.data?.resolution === 'YesWins' && mergedOnchainData?.data?.tokenMint
+                  ? `Trade $${market.tokenSymbol}`
+                  : 'Trade on Market'}
+              </CardTitle>
               <CardDescription className="text-gray-300 text-xs sm:text-sm">
-                Should we launch ${market.tokenSymbol} token?
+                {mergedOnchainData?.data?.resolution === 'YesWins' && mergedOnchainData?.data?.tokenMint
+                  ? `Buy or sell $${market.tokenSymbol} tokens`
+                  : `Should we launch $${market.tokenSymbol} token?`}
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-2.5 px-4 pb-4">
+              {/* Token Trading UI - Show when YesWins and token is minted */}
+              {mergedOnchainData?.data?.resolution === 'YesWins' && mergedOnchainData?.data?.tokenMint ? (
+                <TokenTrading
+                  tokenMint={mergedOnchainData.data.tokenMint}
+                  tokenSymbol={market.tokenSymbol}
+                  tokenName={market.name}
+                  tokenImageUrl={market.projectImageUrl || market.metadata?.image}
+                  marketStats={{
+                    totalRaised: Number(mergedOnchainData.data.poolBalance || 0) / 1e9,
+                    yesPercentage: yesPercentage || 0,
+                    noPercentage: 100 - (yesPercentage || 0),
+                    totalParticipants: market.totalParticipants || 0,
+                    targetPool: parseFloat(market.targetPool) || 0,
+                  }}
+                />
+              ) : (
+              <>
               {/* Pool Progress Bar - Always show for context */}
               {mergedOnchainData?.success && (
                 <div className="space-y-2">
@@ -1736,6 +1764,8 @@ export default function MarketDetailsPage() {
                   )}
                 </div>
               </div>
+              </>
+              )}
             </CardContent>
           </Card>
 
@@ -2201,25 +2231,12 @@ export default function MarketDetailsPage() {
                   )}
 
                   {mergedOnchainData.data.resolution === 'YesWins' && (
-                    <div className="text-center py-2 border-t border-white/5 space-y-4">
-                      <div>
-                        <h4 className="text-green-400 text-lg font-bold mb-1">🎉 YES WINS - Token Launch!</h4>
+                    <div className="py-2 border-t border-white/5 space-y-4">
+                      <div className="text-center">
+                        <h4 className="text-green-400 text-lg font-bold mb-1">🎉 YES WINS - Token Launched!</h4>
                         <p className="text-gray-300 text-xs mb-3">
-                          Token will be launched on Pump.fun!
+                          ${market.tokenSymbol} is now live! Trade in the panel above.
                         </p>
-                        {/* Trade on Pump.fun Button - Only show when token is minted */}
-                        {mergedOnchainData.data.tokenMint && (
-                          <a
-                            href={`https://pump.fun/coin/${mergedOnchainData.data.tokenMint}`}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="inline-flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-green-500/20 to-cyan-500/20 hover:from-green-500/30 hover:to-cyan-500/30 border border-green-400/30 hover:border-green-400/50 rounded-lg text-green-400 text-sm font-medium transition-all hover:scale-105"
-                          >
-                            <img src="https://pump.fun/favicon.ico" alt="Pump.fun" className="w-4 h-4" />
-                            Trade on Pump.fun
-                            <ExternalLink className="w-3 h-3" />
-                          </a>
-                        )}
                       </div>
 
                       {/* YES Voter Claim - Exclude founder (they have Team Token section) */}
