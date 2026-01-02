@@ -77,6 +77,22 @@ interface LaunchedTableProps {
 type SortKey = 'name' | 'price' | 'priceChange24h' | 'marketCap' | 'volume24h' | 'holders' | 'launchPool' | 'yesPercentage' | 'stage' | 'projectType' | 'age';
 type SortDirection = 'asc' | 'desc';
 
+// Sort options for dropdown
+const SORT_OPTIONS: { key: SortKey; label: string; direction: SortDirection }[] = [
+  { key: 'marketCap', label: 'Highest Market Cap', direction: 'desc' },
+  { key: 'marketCap', label: 'Lowest Market Cap', direction: 'asc' },
+  { key: 'priceChange24h', label: 'Top Gainers (24h)', direction: 'desc' },
+  { key: 'priceChange24h', label: 'Top Losers (24h)', direction: 'asc' },
+  { key: 'price', label: 'Highest Price', direction: 'desc' },
+  { key: 'price', label: 'Lowest Price', direction: 'asc' },
+  { key: 'holders', label: 'Most Holders', direction: 'desc' },
+  { key: 'volume24h', label: 'Highest Volume', direction: 'desc' },
+  { key: 'launchPool', label: 'Most Raised', direction: 'desc' },
+  { key: 'age', label: 'Newest First', direction: 'desc' },
+  { key: 'age', label: 'Oldest First', direction: 'asc' },
+  { key: 'name', label: 'Name (A-Z)', direction: 'asc' },
+];
+
 // Format helpers
 const formatPrice = (price: number | null): string => {
   if (price === null) return '-';
@@ -313,6 +329,20 @@ export function LaunchedTable({ tokens, isLoading = false }: LaunchedTableProps)
     return filtered;
   }, [tokens, tokenStats, sortKey, sortDirection, searchQuery]);
 
+  // Get current sort option label
+  const getCurrentSortLabel = () => {
+    const option = SORT_OPTIONS.find(
+      (o) => o.key === sortKey && o.direction === sortDirection
+    );
+    return option?.label || 'Sort by...';
+  };
+
+  // Handle sort option selection
+  const handleSortOption = (key: SortKey, direction: SortDirection) => {
+    setSortKey(key);
+    setSortDirection(direction);
+  };
+
   // Sort header component
   const SortHeader = ({ label, sortKeyName }: { label: string; sortKeyName: SortKey }) => (
     <button
@@ -362,22 +392,71 @@ export function LaunchedTable({ tokens, isLoading = false }: LaunchedTableProps)
         )}
       </div>
 
-      {/* Stats refresh indicator */}
-      <div className="flex items-center justify-between text-xs text-gray-400">
-        <div className="flex items-center gap-2">
-          {isLoadingStats ? (
-            <>
-              <Loader2 className="w-3 h-3 animate-spin text-cyan-400" />
-              <span>Refreshing prices...</span>
-            </>
-          ) : (
-            <>
-              <Clock className="w-3 h-3" />
-              <span>Updated {timeAgo}</span>
-            </>
-          )}
+      {/* Sort Controls */}
+      <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
+        {/* Quick Sort Buttons - Desktop */}
+        <div className="hidden sm:flex items-center gap-2 flex-wrap">
+          <span className="text-xs text-gray-500">Quick:</span>
+          {[
+            { key: 'priceChange24h' as SortKey, dir: 'desc' as SortDirection, label: '🚀 Gainers', color: 'text-green-400 border-green-500/30 bg-green-500/10' },
+            { key: 'priceChange24h' as SortKey, dir: 'asc' as SortDirection, label: '📉 Losers', color: 'text-red-400 border-red-500/30 bg-red-500/10' },
+            { key: 'marketCap' as SortKey, dir: 'desc' as SortDirection, label: '💎 MCap', color: 'text-purple-400 border-purple-500/30 bg-purple-500/10' },
+            { key: 'age' as SortKey, dir: 'desc' as SortDirection, label: '✨ New', color: 'text-cyan-400 border-cyan-500/30 bg-cyan-500/10' },
+          ].map((btn) => (
+            <button
+              key={`${btn.key}-${btn.dir}`}
+              onClick={() => handleSortOption(btn.key, btn.dir)}
+              className={`px-2.5 py-1 rounded-full text-xs font-medium border transition-all ${
+                sortKey === btn.key && sortDirection === btn.dir
+                  ? btn.color
+                  : 'text-gray-400 border-white/10 bg-white/5 hover:bg-white/10'
+              }`}
+            >
+              {btn.label}
+            </button>
+          ))}
         </div>
-        <span className="text-gray-500">Auto-refresh: 30s</span>
+
+        {/* Sort Dropdown - Works on both mobile and desktop */}
+        <div className="relative flex-1 sm:flex-none sm:w-48">
+          <select
+            value={`${sortKey}-${sortDirection}`}
+            onChange={(e) => {
+              const [key, dir] = e.target.value.split('-') as [SortKey, SortDirection];
+              handleSortOption(key, dir);
+            }}
+            className="w-full appearance-none bg-white/5 border border-white/10 rounded-lg px-3 py-2 pr-8 text-sm text-white focus:outline-none focus:border-cyan-500/50 cursor-pointer"
+          >
+            {SORT_OPTIONS.map((option, idx) => (
+              <option
+                key={`${option.key}-${option.direction}-${idx}`}
+                value={`${option.key}-${option.direction}`}
+                className="bg-gray-900"
+              >
+                {option.label}
+              </option>
+            ))}
+          </select>
+          <ArrowUpDown className="absolute right-2.5 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
+        </div>
+
+        {/* Stats refresh indicator */}
+        <div className="flex items-center justify-between sm:justify-end gap-3 text-xs text-gray-400">
+          <div className="flex items-center gap-2">
+            {isLoadingStats ? (
+              <>
+                <Loader2 className="w-3 h-3 animate-spin text-cyan-400" />
+                <span>Refreshing...</span>
+              </>
+            ) : (
+              <>
+                <Clock className="w-3 h-3" />
+                <span>{timeAgo}</span>
+              </>
+            )}
+          </div>
+          <span className="text-gray-500 hidden sm:inline">Auto: 30s</span>
+        </div>
       </div>
 
       {/* Desktop Table */}
