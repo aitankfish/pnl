@@ -6,7 +6,7 @@ import { useParams, useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { CheckCircle, XCircle, Loader2, ArrowLeft, ExternalLink, Users, Target, MapPin, Globe, Github, MessageCircle, Share2, Heart, FileText, Copy, Check, Sparkles, X } from 'lucide-react';
+import { CheckCircle, XCircle, Loader2, ArrowLeft, ExternalLink, Users, Target, MapPin, Globe, Github, MessageCircle, Share2, Heart, FileText, Copy, Check, Sparkles, X, BarChart3 } from 'lucide-react';
 import Link from 'next/link';
 import { FEES, SOLANA_NETWORK } from '@/config/solana';
 import { useVoting } from '@/lib/hooks/useVoting';
@@ -53,6 +53,11 @@ const VideoEmbed = dynamic(() => import('@/components/VideoEmbed'), {
 
 const TokenTrading = dynamic(() => import('@/components/TokenTrading').then(mod => ({ default: mod.TokenTrading })), {
   loading: () => <div className="h-96 bg-white/5 animate-pulse rounded-lg" />,
+  ssr: false,
+});
+
+const TokenStatsBar = dynamic(() => import('@/components/TokenStatsBar').then(mod => ({ default: mod.TokenStatsBar })), {
+  loading: () => <div className="h-16 bg-white/5 animate-pulse rounded-lg" />,
   ssr: false,
 });
 
@@ -1147,6 +1152,142 @@ export default function MarketDetailsPage() {
       <div className="flex flex-col lg:flex-row gap-4">
         {/* Left Content Area (70% on desktop) */}
         <div className="flex-1 lg:w-[70%] space-y-3 sm:space-y-4">
+          {/* Trading Terminal - Show FIRST when token IS launched */}
+          {mergedOnchainData?.data?.resolution === 'YesWins' && mergedOnchainData?.data?.tokenMint && (
+            <div className="flex flex-col lg:flex-row gap-4">
+              {/* Chart + Stats Section - 65% on desktop */}
+              <div className="w-full lg:w-[65%] space-y-3">
+                {/* Token Stats Bar */}
+                <TokenStatsBar tokenMint={mergedOnchainData.data.tokenMint} />
+
+                {/* Birdeye Chart */}
+                <Card className="bg-white/5 backdrop-blur-xl border-white/10">
+                  <CardContent className="p-0">
+                    <div className="w-full h-[300px] sm:h-[400px] lg:h-[450px] rounded-lg overflow-hidden">
+                      <iframe
+                        src={`https://birdeye.so/tv-widget/${mergedOnchainData.data.tokenMint}?chain=solana&viewMode=pair&chartInterval=15&chartType=CANDLE&chartTimezone=America%2FLos_Angeles&chartLeftToolbar=show&theme=dark`}
+                        className="w-full h-full border-0"
+                        title="Token Chart"
+                        allow="clipboard-write"
+                      />
+                    </div>
+                  </CardContent>
+                </Card>
+
+                {/* Onchain Info */}
+                <div className="bg-gradient-to-br from-purple-500/5 to-cyan-500/5 border border-white/10 rounded-xl p-3">
+                  <div className="flex items-center gap-2 mb-2">
+                    <FileText className="w-4 h-4 text-purple-400" />
+                    <span className="text-white font-semibold text-sm">Onchain Info</span>
+                  </div>
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                    {/* Token Address */}
+                    <div className="flex items-center justify-between p-2 bg-black/20 rounded-lg">
+                      <span className="text-gray-400 text-xs">Token</span>
+                      <a
+                        href={`https://orb.helius.dev/address/${mergedOnchainData.data.tokenMint}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="flex items-center gap-1 text-green-400 hover:text-green-300 text-xs font-mono"
+                      >
+                        {mergedOnchainData.data.tokenMint.slice(0, 4)}...{mergedOnchainData.data.tokenMint.slice(-4)}
+                        <ExternalLink className="w-3 h-3" />
+                      </a>
+                    </div>
+                    {/* Market Address */}
+                    <div className="flex items-center justify-between p-2 bg-black/20 rounded-lg">
+                      <span className="text-gray-400 text-xs">Market</span>
+                      <a
+                        href={`https://orb.helius.dev/address/${market.marketAddress}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="flex items-center gap-1 text-cyan-400 hover:text-cyan-300 text-xs font-mono"
+                      >
+                        {market.marketAddress.slice(0, 4)}...{market.marketAddress.slice(-4)}
+                        <ExternalLink className="w-3 h-3" />
+                      </a>
+                    </div>
+                    {/* Vault Address */}
+                    {(() => {
+                      try {
+                        const [vaultPda] = getMarketVaultPDA(new PublicKey(market.marketAddress));
+                        return (
+                          <div className="flex items-center justify-between p-2 bg-black/20 rounded-lg">
+                            <span className="text-gray-400 text-xs">Vault</span>
+                            <a
+                              href={`https://orb.helius.dev/address/${vaultPda.toBase58()}`}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="flex items-center gap-1 text-yellow-400 hover:text-yellow-300 text-xs font-mono"
+                            >
+                              {vaultPda.toBase58().slice(0, 4)}...{vaultPda.toBase58().slice(-4)}
+                              <ExternalLink className="w-3 h-3" />
+                            </a>
+                          </div>
+                        );
+                      } catch { return null; }
+                    })()}
+                    {/* Founder Address */}
+                    {mergedOnchainData.data.founder && (
+                      <div className="flex items-center justify-between p-2 bg-black/20 rounded-lg">
+                        <span className="text-gray-400 text-xs">Founder</span>
+                        <a
+                          href={`https://orb.helius.dev/address/${mergedOnchainData.data.founder}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="flex items-center gap-1 text-purple-400 hover:text-purple-300 text-xs font-mono"
+                        >
+                          {mergedOnchainData.data.founder.slice(0, 4)}...{mergedOnchainData.data.founder.slice(-4)}
+                          <ExternalLink className="w-3 h-3" />
+                        </a>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              {/* Swap Section - 35% on desktop */}
+              <div className="w-full lg:w-[35%] space-y-3">
+                <div className="flex items-center gap-2">
+                  <BarChart3 className="w-5 h-5 text-cyan-400" />
+                  <span className="text-white text-lg font-semibold">Trade ${market.tokenSymbol}</span>
+                </div>
+
+                {/* Prediction Results - Social Proof */}
+                <div className="bg-gradient-to-r from-green-500/10 to-cyan-500/10 border border-green-500/20 rounded-xl p-3">
+                  <div className="flex items-center gap-1.5 mb-2">
+                    <CheckCircle className="w-3.5 h-3.5 text-green-400" />
+                    <span className="text-green-400 font-medium text-xs">Community Backed</span>
+                  </div>
+                  <div className="grid grid-cols-4 gap-2 text-center">
+                    <div>
+                      <div className="text-white font-bold text-sm">{(Number(mergedOnchainData.data.poolBalance || 0) / 1e9).toFixed(1)}</div>
+                      <div className="text-gray-400 text-[10px]">SOL Raised</div>
+                    </div>
+                    <div>
+                      <div className="text-white font-bold text-sm">{market.totalParticipants || 0}</div>
+                      <div className="text-gray-400 text-[10px]">Voters</div>
+                    </div>
+                    <div>
+                      <div className="text-green-400 font-bold text-sm">{(yesPercentage || 0).toFixed(0)}%</div>
+                      <div className="text-gray-400 text-[10px]">YES</div>
+                    </div>
+                    <div>
+                      <div className="text-red-400 font-bold text-sm">{(100 - (yesPercentage || 0)).toFixed(0)}%</div>
+                      <div className="text-gray-400 text-[10px]">NO</div>
+                    </div>
+                  </div>
+                </div>
+
+                <TokenTrading
+                  tokenMint={mergedOnchainData.data.tokenMint}
+                  tokenSymbol={market.tokenSymbol}
+                  tokenImageUrl={market.projectImageUrl || market.metadata?.image}
+                />
+              </div>
+            </div>
+          )}
+
           {/* Combined Header & Voting Stats Section */}
         <Card className="bg-white/5 backdrop-blur-xl border-white/10">
           <CardHeader className="pb-3 sm:pb-4">
@@ -1346,20 +1487,18 @@ export default function MarketDetailsPage() {
                       </>
                     )}
               </div>
+
             </div>
           </CardHeader>
         </Card>
 
-        {/* What This Project Offers & Video - Side by Side */}
-        {(market.metadata?.videoUrl || market.metadata?.additionalNotes) && (
+        {/* Video + What This Project Offers Section - Only show here when token NOT launched */}
+        {!(mergedOnchainData?.data?.resolution === 'YesWins' && mergedOnchainData?.data?.tokenMint) && (market.metadata?.videoUrl || market.metadata?.additionalNotes) && (
           <div className={`grid gap-4 ${market.metadata?.videoUrl && market.metadata?.additionalNotes ? 'md:grid-cols-2' : ''}`}>
-            {/* What This Project Offers - Left */}
+            {/* What This Project Offers */}
             {market.metadata?.additionalNotes && (
               <div className="relative group">
-                {/* Ambient glow behind box */}
                 <div className="absolute -inset-4 bg-gradient-to-r from-cyan-500/10 via-purple-500/10 to-cyan-500/10 rounded-3xl blur-2xl opacity-50 group-hover:opacity-70 transition-opacity duration-500" />
-
-                {/* Fading edge mask container */}
                 <div
                   className="relative p-4 sm:p-5 bg-gradient-to-br from-cyan-500/5 via-blue-500/5 to-purple-500/5 rounded-2xl flex flex-col h-full"
                   style={{
@@ -1376,7 +1515,7 @@ export default function MarketDetailsPage() {
                 </div>
               </div>
             )}
-            {/* Video - Right */}
+            {/* Video */}
             {market.metadata?.videoUrl && (
               <VideoEmbed url={market.metadata.videoUrl} className="h-full" />
             )}
@@ -1407,46 +1546,19 @@ export default function MarketDetailsPage() {
             </CardContent>
           </Card>
 
-          {/* Trading Section - Right Side */}
+          {/* Trading Section - Right Side (Hidden when token is launched) */}
+          {!(mergedOnchainData?.data?.resolution === 'YesWins' && mergedOnchainData?.data?.tokenMint) && (
           <div className="space-y-4">
           <Card className="bg-white/5 backdrop-blur-xl border-white/10 text-white h-fit">
             <CardHeader className="pb-2 pt-4 px-4">
               <CardTitle className="text-base sm:text-lg text-white">
-                {mergedOnchainData?.data?.resolution === 'YesWins' && mergedOnchainData?.data?.tokenMint
-                  ? `Trade $${market.tokenSymbol}`
-                  : 'Trade on Market'}
+                Trade on Market
               </CardTitle>
               <CardDescription className="text-gray-300 text-xs sm:text-sm">
-                {mergedOnchainData?.data?.resolution === 'YesWins' && mergedOnchainData?.data?.tokenMint
-                  ? `Buy or sell $${market.tokenSymbol} tokens`
-                  : `Should we launch $${market.tokenSymbol} token?`}
+                Should we launch ${market.tokenSymbol} token?
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-2.5 px-4 pb-4">
-              {/* Token Trading UI - Show when YesWins and token is minted */}
-              {mergedOnchainData?.data?.resolution === 'YesWins' && mergedOnchainData?.data?.tokenMint ? (
-                <TokenTrading
-                  tokenMint={mergedOnchainData.data.tokenMint}
-                  tokenSymbol={market.tokenSymbol}
-                  tokenName={market.name}
-                  tokenImageUrl={market.projectImageUrl || market.metadata?.image}
-                  marketStats={{
-                    totalRaised: Number(mergedOnchainData.data.poolBalance || 0) / 1e9,
-                    yesPercentage: yesPercentage || 0,
-                    noPercentage: 100 - (yesPercentage || 0),
-                    totalParticipants: market.totalParticipants || 0,
-                    targetPool: parseFloat(market.targetPool) || 0,
-                  }}
-                  marketAddress={market.marketAddress}
-                  vaultAddress={(() => {
-                    try {
-                      const [vaultPda] = getMarketVaultPDA(new PublicKey(market.marketAddress));
-                      return vaultPda.toBase58();
-                    } catch { return undefined; }
-                  })()}
-                  founderAddress={mergedOnchainData.data.founder}
-                />
-              ) : (
               <>
               {/* Pool Progress Bar - Always show for context */}
               {mergedOnchainData?.success && (
@@ -1773,7 +1885,6 @@ export default function MarketDetailsPage() {
                 </div>
               </div>
               </>
-              )}
             </CardContent>
           </Card>
 
@@ -2728,6 +2839,37 @@ export default function MarketDetailsPage() {
           </CardContent>
         </Card>
         </div>
+        )}
+
+        {/* Video + What This Project Offers - Show in grid when token IS launched */}
+        {(mergedOnchainData?.data?.resolution === 'YesWins' && mergedOnchainData?.data?.tokenMint) && (market.metadata?.videoUrl || market.metadata?.additionalNotes) && (
+          <div className="space-y-4">
+            {/* Video - First */}
+            {market.metadata?.videoUrl && (
+              <VideoEmbed url={market.metadata.videoUrl} className="h-full" />
+            )}
+            {/* What This Project Offers - Second */}
+            {market.metadata?.additionalNotes && (
+              <div className="relative group">
+                <div className="absolute -inset-4 bg-gradient-to-r from-cyan-500/10 via-purple-500/10 to-cyan-500/10 rounded-3xl blur-2xl opacity-50 group-hover:opacity-70 transition-opacity duration-500" />
+                <div
+                  className="relative p-4 sm:p-5 bg-gradient-to-br from-cyan-500/5 via-blue-500/5 to-purple-500/5 rounded-2xl flex flex-col h-full"
+                  style={{
+                    maskImage: 'radial-gradient(ellipse 95% 90% at center, black 70%, transparent 100%)',
+                    WebkitMaskImage: 'radial-gradient(ellipse 95% 90% at center, black 70%, transparent 100%)',
+                  }}
+                >
+                  <h3 className="text-cyan-400 text-xs sm:text-sm mb-3 font-semibold flex items-center gap-2 uppercase tracking-wider">
+                    <span>✨</span> What This Project Offers
+                  </h3>
+                  <div className="border-l-2 border-cyan-500/50 pl-4 flex-1">
+                    <p className="text-white/85 text-sm sm:text-base leading-relaxed whitespace-pre-wrap italic">{market.metadata.additionalNotes}</p>
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
         </div>
 
         {/* Full Description - Only show if different from intro description */}

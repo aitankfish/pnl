@@ -8,25 +8,12 @@ import { useSignAndSendTransaction } from '@privy-io/react-auth/solana';
 import { getSolanaConnection, getSolanaBalance } from '@/lib/solana';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { ArrowDownUp, Loader2, ExternalLink, TrendingUp, Users, BarChart3, RefreshCw, Target, CheckCircle, XCircle, Copy, Check, Wallet, Link2 } from 'lucide-react';
+import { ArrowDownUp, Loader2, ExternalLink, RefreshCw } from 'lucide-react';
 
 interface TokenTradingProps {
   tokenMint: string;
   tokenSymbol: string;
-  tokenName: string;
   tokenImageUrl?: string;
-  // Market stats (from PLP market)
-  marketStats?: {
-    totalRaised: number;       // SOL raised
-    yesPercentage: number;     // Final YES %
-    noPercentage: number;      // Final NO %
-    totalParticipants: number; // Number of voters
-    targetPool: number;        // Target SOL
-  };
-  // Onchain info
-  marketAddress?: string;
-  vaultAddress?: string;
-  founderAddress?: string;
 }
 
 interface QuoteResponse {
@@ -40,28 +27,10 @@ interface QuoteResponse {
   priceImpactPct: string;
 }
 
-interface TokenStats {
-  priceUsd: number | null;
-  marketCap: number | null;
-  volume24h: number | null;
-  holders: number | null;
-  priceChange24h: number | null;
-}
-
 // Native SOL mint address
 const SOL_MINT = 'So11111111111111111111111111111111111111112';
 
-export function TokenTrading({ tokenMint, tokenSymbol, tokenName, tokenImageUrl, marketStats, marketAddress, vaultAddress, founderAddress }: TokenTradingProps) {
-  const [copiedField, setCopiedField] = useState<string | null>(null);
-
-  const copyToClipboard = (text: string, field: string) => {
-    navigator.clipboard.writeText(text);
-    setCopiedField(field);
-    setTimeout(() => setCopiedField(null), 2000);
-  };
-
-  const truncateAddress = (address: string) => `${address.slice(0, 6)}...${address.slice(-4)}`;
-
+export function TokenTrading({ tokenMint, tokenSymbol, tokenImageUrl }: TokenTradingProps) {
   const { primaryWallet } = useWallet();
   const { network } = useNetwork();
   const { signAndSendTransaction } = useSignAndSendTransaction();
@@ -77,16 +46,6 @@ export function TokenTrading({ tokenMint, tokenSymbol, tokenName, tokenImageUrl,
   const [solBalance, setSolBalance] = useState<number>(0);
   const [tokenBalance, setTokenBalance] = useState<number>(0);
 
-  // Token stats state
-  const [tokenStats, setTokenStats] = useState<TokenStats>({
-    priceUsd: null,
-    marketCap: null,
-    volume24h: null,
-    holders: null,
-    priceChange24h: null,
-  });
-  const [isLoadingStats, setIsLoadingStats] = useState(true);
-
   const jupiterApiKey = process.env.NEXT_PUBLIC_JUPITER_API_KEY;
   const isMainnet = network === 'mainnet-beta';
 
@@ -96,13 +55,6 @@ export function TokenTrading({ tokenMint, tokenSymbol, tokenName, tokenImageUrl,
       fetchBalances();
     }
   }, [primaryWallet, network]);
-
-  // Fetch token stats from Birdeye
-  useEffect(() => {
-    if (tokenMint && isMainnet) {
-      fetchTokenStats();
-    }
-  }, [tokenMint, isMainnet]);
 
   const fetchBalances = async () => {
     if (!primaryWallet) return;
@@ -132,36 +84,6 @@ export function TokenTrading({ tokenMint, tokenSymbol, tokenName, tokenImageUrl,
       }
     } catch (err) {
       console.error('Error fetching balances:', err);
-    }
-  };
-
-  const fetchTokenStats = async () => {
-    setIsLoadingStats(true);
-    try {
-      // Fetch from Birdeye API
-      const response = await fetch(`https://public-api.birdeye.so/defi/token_overview?address=${tokenMint}`, {
-        headers: {
-          'X-API-KEY': process.env.NEXT_PUBLIC_BIRDEYE_API_KEY || '',
-          'x-chain': 'solana',
-        },
-      });
-
-      if (response.ok) {
-        const data = await response.json();
-        if (data.success && data.data) {
-          setTokenStats({
-            priceUsd: data.data.price || null,
-            marketCap: data.data.mc || null,
-            volume24h: data.data.v24hUSD || null,
-            holders: data.data.holder || null,
-            priceChange24h: data.data.priceChange24hPercent || null,
-          });
-        }
-      }
-    } catch (err) {
-      console.error('Error fetching token stats:', err);
-    } finally {
-      setIsLoadingStats(false);
     }
   };
 
@@ -290,131 +212,8 @@ export function TokenTrading({ tokenMint, tokenSymbol, tokenName, tokenImageUrl,
     setError(null);
   };
 
-  // Format large numbers
-  const formatNumber = (num: number | null, decimals = 2) => {
-    if (num === null) return '-';
-    if (num >= 1_000_000_000) return `$${(num / 1_000_000_000).toFixed(decimals)}B`;
-    if (num >= 1_000_000) return `$${(num / 1_000_000).toFixed(decimals)}M`;
-    if (num >= 1_000) return `$${(num / 1_000).toFixed(decimals)}K`;
-    return `$${num.toFixed(decimals)}`;
-  };
-
-  const formatHolders = (num: number | null) => {
-    if (num === null) return '-';
-    if (num >= 1_000_000) return `${(num / 1_000_000).toFixed(1)}M`;
-    if (num >= 1_000) return `${(num / 1_000).toFixed(1)}K`;
-    return num.toLocaleString();
-  };
-
   return (
     <div className="space-y-4">
-      {/* Market Stats (from PLP prediction market) */}
-      {marketStats && (
-        <div className="bg-gradient-to-r from-green-500/10 to-cyan-500/10 border border-green-500/20 rounded-xl p-4">
-          <div className="flex items-center gap-2 mb-3">
-            <div className="p-1.5 bg-green-500/20 rounded-lg">
-              <CheckCircle className="w-4 h-4 text-green-400" />
-            </div>
-            <span className="text-green-400 font-semibold text-sm">Prediction Market Results</span>
-          </div>
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-            <div className="text-center">
-              <div className="text-gray-400 text-xs mb-1 flex items-center justify-center gap-1">
-                <Target className="w-3 h-3" /> Raised
-              </div>
-              <div className="text-white font-bold text-sm">
-                {marketStats.totalRaised.toFixed(2)} SOL
-              </div>
-              <div className="text-gray-500 text-[10px]">
-                of {marketStats.targetPool} SOL target
-              </div>
-            </div>
-            <div className="text-center">
-              <div className="text-gray-400 text-xs mb-1 flex items-center justify-center gap-1">
-                <Users className="w-3 h-3" /> Voters
-              </div>
-              <div className="text-white font-bold text-sm">
-                {marketStats.totalParticipants}
-              </div>
-              <div className="text-gray-500 text-[10px]">participants</div>
-            </div>
-            <div className="text-center">
-              <div className="text-gray-400 text-xs mb-1 flex items-center justify-center gap-1">
-                <CheckCircle className="w-3 h-3 text-green-400" /> YES
-              </div>
-              <div className="text-green-400 font-bold text-sm">
-                {marketStats.yesPercentage.toFixed(0)}%
-              </div>
-              <div className="text-gray-500 text-[10px]">voted yes</div>
-            </div>
-            <div className="text-center">
-              <div className="text-gray-400 text-xs mb-1 flex items-center justify-center gap-1">
-                <XCircle className="w-3 h-3 text-red-400" /> NO
-              </div>
-              <div className="text-red-400 font-bold text-sm">
-                {marketStats.noPercentage.toFixed(0)}%
-              </div>
-              <div className="text-gray-500 text-[10px]">voted no</div>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Token Stats Bar (from Birdeye) */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-        <div className="bg-white/5 rounded-lg p-3 text-center">
-          <div className="text-gray-400 text-xs mb-1">Price</div>
-          <div className="text-white font-semibold text-sm">
-            {isLoadingStats ? (
-              <Loader2 className="w-4 h-4 animate-spin mx-auto" />
-            ) : tokenStats.priceUsd ? (
-              `$${tokenStats.priceUsd < 0.01 ? tokenStats.priceUsd.toExponential(2) : tokenStats.priceUsd.toFixed(4)}`
-            ) : '-'}
-          </div>
-          {tokenStats.priceChange24h !== null && (
-            <div className={`text-xs ${tokenStats.priceChange24h >= 0 ? 'text-green-400' : 'text-red-400'}`}>
-              {tokenStats.priceChange24h >= 0 ? '+' : ''}{tokenStats.priceChange24h.toFixed(2)}%
-            </div>
-          )}
-        </div>
-        <div className="bg-white/5 rounded-lg p-3 text-center">
-          <div className="text-gray-400 text-xs mb-1 flex items-center justify-center gap-1">
-            <TrendingUp className="w-3 h-3" /> MC
-          </div>
-          <div className="text-white font-semibold text-sm">
-            {isLoadingStats ? <Loader2 className="w-4 h-4 animate-spin mx-auto" /> : formatNumber(tokenStats.marketCap)}
-          </div>
-        </div>
-        <div className="bg-white/5 rounded-lg p-3 text-center">
-          <div className="text-gray-400 text-xs mb-1 flex items-center justify-center gap-1">
-            <BarChart3 className="w-3 h-3" /> 24h Vol
-          </div>
-          <div className="text-white font-semibold text-sm">
-            {isLoadingStats ? <Loader2 className="w-4 h-4 animate-spin mx-auto" /> : formatNumber(tokenStats.volume24h)}
-          </div>
-        </div>
-        <div className="bg-white/5 rounded-lg p-3 text-center">
-          <div className="text-gray-400 text-xs mb-1 flex items-center justify-center gap-1">
-            <Users className="w-3 h-3" /> Holders
-          </div>
-          <div className="text-white font-semibold text-sm">
-            {isLoadingStats ? <Loader2 className="w-4 h-4 animate-spin mx-auto" /> : formatHolders(tokenStats.holders)}
-          </div>
-        </div>
-      </div>
-
-      {/* Birdeye Chart Embed */}
-      {isMainnet && (
-        <div className="bg-white/5 rounded-lg overflow-hidden">
-          <iframe
-            src={`https://birdeye.so/tv-widget/${tokenMint}?chain=solana&viewMode=pair&chartInterval=15&chartType=CANDLE&chartTimezone=America%2FLos_Angeles&chartLeftToolbar=show&theme=dark`}
-            className="w-full h-[300px] border-0"
-            title={`${tokenSymbol} Chart`}
-            allow="clipboard-write"
-          />
-        </div>
-      )}
-
       {/* Swap Widget */}
       <div className="bg-gradient-to-br from-white/5 to-white/10 rounded-xl p-4 border border-white/10">
         <div className="flex items-center justify-between mb-4">
@@ -618,139 +417,6 @@ export function TokenTrading({ tokenMint, tokenSymbol, tokenName, tokenImageUrl,
           <ExternalLink className="w-3 h-3" />
         </a>
       </div>
-
-      {/* Onchain Info Section */}
-      {(marketAddress || tokenMint || vaultAddress || founderAddress) && (
-        <div className="bg-gradient-to-br from-purple-500/5 to-cyan-500/5 border border-white/10 rounded-xl p-4">
-          <div className="flex items-center gap-2 mb-3">
-            <Link2 className="w-4 h-4 text-purple-400" />
-            <span className="text-white font-semibold text-sm">Onchain Info</span>
-          </div>
-          <div className="space-y-2">
-            {/* Token Address */}
-            <div className="flex items-center justify-between p-2 bg-black/20 rounded-lg">
-              <div className="flex items-center gap-2">
-                <Wallet className="w-3.5 h-3.5 text-green-400" />
-                <span className="text-gray-400 text-xs">Token</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <code className="text-gray-300 text-xs font-mono">{truncateAddress(tokenMint)}</code>
-                <button
-                  onClick={() => copyToClipboard(tokenMint, 'token')}
-                  className="p-1 hover:bg-white/10 rounded transition-colors"
-                >
-                  {copiedField === 'token' ? (
-                    <Check className="w-3 h-3 text-green-400" />
-                  ) : (
-                    <Copy className="w-3 h-3 text-gray-400" />
-                  )}
-                </button>
-                <a
-                  href={`https://orb.helius.dev/address/${tokenMint}`}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="p-1 hover:bg-white/10 rounded transition-colors"
-                >
-                  <ExternalLink className="w-3 h-3 text-green-400" />
-                </a>
-              </div>
-            </div>
-
-            {/* Market Address */}
-            {marketAddress && (
-              <div className="flex items-center justify-between p-2 bg-black/20 rounded-lg">
-                <div className="flex items-center gap-2">
-                  <BarChart3 className="w-3.5 h-3.5 text-cyan-400" />
-                  <span className="text-gray-400 text-xs">Market</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <code className="text-gray-300 text-xs font-mono">{truncateAddress(marketAddress)}</code>
-                  <button
-                    onClick={() => copyToClipboard(marketAddress, 'market')}
-                    className="p-1 hover:bg-white/10 rounded transition-colors"
-                  >
-                    {copiedField === 'market' ? (
-                      <Check className="w-3 h-3 text-green-400" />
-                    ) : (
-                      <Copy className="w-3 h-3 text-gray-400" />
-                    )}
-                  </button>
-                  <a
-                    href={`https://orb.helius.dev/address/${marketAddress}`}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="p-1 hover:bg-white/10 rounded transition-colors"
-                  >
-                    <ExternalLink className="w-3 h-3 text-cyan-400" />
-                  </a>
-                </div>
-              </div>
-            )}
-
-            {/* Vault Address */}
-            {vaultAddress && (
-              <div className="flex items-center justify-between p-2 bg-black/20 rounded-lg">
-                <div className="flex items-center gap-2">
-                  <Wallet className="w-3.5 h-3.5 text-yellow-400" />
-                  <span className="text-gray-400 text-xs">Vault</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <code className="text-gray-300 text-xs font-mono">{truncateAddress(vaultAddress)}</code>
-                  <button
-                    onClick={() => copyToClipboard(vaultAddress, 'vault')}
-                    className="p-1 hover:bg-white/10 rounded transition-colors"
-                  >
-                    {copiedField === 'vault' ? (
-                      <Check className="w-3 h-3 text-green-400" />
-                    ) : (
-                      <Copy className="w-3 h-3 text-gray-400" />
-                    )}
-                  </button>
-                  <a
-                    href={`https://orb.helius.dev/address/${vaultAddress}`}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="p-1 hover:bg-white/10 rounded transition-colors"
-                  >
-                    <ExternalLink className="w-3 h-3 text-yellow-400" />
-                  </a>
-                </div>
-              </div>
-            )}
-
-            {/* Founder Address */}
-            {founderAddress && (
-              <div className="flex items-center justify-between p-2 bg-black/20 rounded-lg">
-                <div className="flex items-center gap-2">
-                  <Users className="w-3.5 h-3.5 text-purple-400" />
-                  <span className="text-gray-400 text-xs">Founder</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <code className="text-gray-300 text-xs font-mono">{truncateAddress(founderAddress)}</code>
-                  <button
-                    onClick={() => copyToClipboard(founderAddress, 'founder')}
-                    className="p-1 hover:bg-white/10 rounded transition-colors"
-                  >
-                    {copiedField === 'founder' ? (
-                      <Check className="w-3 h-3 text-green-400" />
-                    ) : (
-                      <Copy className="w-3 h-3 text-gray-400" />
-                    )}
-                  </button>
-                  <a
-                    href={`https://orb.helius.dev/address/${founderAddress}`}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="p-1 hover:bg-white/10 rounded transition-colors"
-                  >
-                    <ExternalLink className="w-3 h-3 text-purple-400" />
-                  </a>
-                </div>
-              </div>
-            )}
-          </div>
-        </div>
-      )}
     </div>
   );
 }
