@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo, useEffect, useRef, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import {
   ArrowUpDown,
@@ -17,6 +17,7 @@ import {
   X,
   Wallet,
   BarChart3,
+  Clock,
 } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 
@@ -117,6 +118,16 @@ const truncateAddress = (address: string): string => {
   return `${address.slice(0, 4)}...${address.slice(-4)}`;
 };
 
+// Format time ago
+const formatTimeAgo = (timestamp: number): string => {
+  const seconds = Math.floor((Date.now() - timestamp) / 1000);
+  if (seconds < 5) return 'just now';
+  if (seconds < 60) return `${seconds}s ago`;
+  const minutes = Math.floor(seconds / 60);
+  if (minutes < 60) return `${minutes}m ago`;
+  return `${Math.floor(minutes / 60)}h ago`;
+};
+
 export function LaunchedTable({ tokens, isLoading = false }: LaunchedTableProps) {
   const router = useRouter();
   const [sortKey, setSortKey] = useState<SortKey>('marketCap');
@@ -125,6 +136,18 @@ export function LaunchedTable({ tokens, isLoading = false }: LaunchedTableProps)
   const [copiedAddress, setCopiedAddress] = useState<string | null>(null);
   const [tokenStats, setTokenStats] = useState<Map<string, TokenStats>>(new Map());
   const [isLoadingStats, setIsLoadingStats] = useState(false);
+  const [lastUpdated, setLastUpdated] = useState<number>(Date.now());
+  const [timeAgo, setTimeAgo] = useState<string>('just now');
+  const [priceFlash, setPriceFlash] = useState<Map<string, 'up' | 'down' | null>>(new Map());
+  const previousPrices = useRef<Map<string, number>>(new Map());
+
+  // Update time ago display every second
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setTimeAgo(formatTimeAgo(lastUpdated));
+    }, 1000);
+    return () => clearInterval(interval);
+  }, [lastUpdated]);
 
   // Fetch stats for all tokens
   useEffect(() => {
@@ -144,10 +167,37 @@ export function LaunchedTable({ tokens, isLoading = false }: LaunchedTableProps)
           const data = await response.json();
           if (data.success && data.data) {
             const statsMap = new Map<string, TokenStats>();
+            const newFlashes = new Map<string, 'up' | 'down' | null>();
+
             data.data.forEach((stat: TokenStats) => {
               statsMap.set(stat.address, stat);
+
+              // Check for price change flash
+              const prevPrice = previousPrices.current.get(stat.address);
+              if (prevPrice !== undefined && stat.price !== null) {
+                if (stat.price > prevPrice) {
+                  newFlashes.set(stat.address, 'up');
+                } else if (stat.price < prevPrice) {
+                  newFlashes.set(stat.address, 'down');
+                }
+              }
+
+              // Store current price for next comparison
+              if (stat.price !== null) {
+                previousPrices.current.set(stat.address, stat.price);
+              }
             });
+
             setTokenStats(statsMap);
+            setLastUpdated(Date.now());
+            setTimeAgo('just now');
+
+            // Set flash animations
+            if (newFlashes.size > 0) {
+              setPriceFlash(newFlashes);
+              // Clear flashes after animation
+              setTimeout(() => setPriceFlash(new Map()), 1000);
+            }
           }
         }
       } catch (error) {
@@ -313,12 +363,22 @@ export function LaunchedTable({ tokens, isLoading = false }: LaunchedTableProps)
       </div>
 
       {/* Stats refresh indicator */}
-      {isLoadingStats && (
-        <div className="flex items-center gap-2 text-xs text-gray-400">
-          <Loader2 className="w-3 h-3 animate-spin" />
-          <span>Refreshing prices...</span>
+      <div className="flex items-center justify-between text-xs text-gray-400">
+        <div className="flex items-center gap-2">
+          {isLoadingStats ? (
+            <>
+              <Loader2 className="w-3 h-3 animate-spin text-cyan-400" />
+              <span>Refreshing prices...</span>
+            </>
+          ) : (
+            <>
+              <Clock className="w-3 h-3" />
+              <span>Updated {timeAgo}</span>
+            </>
+          )}
         </div>
-      )}
+        <span className="text-gray-500">Auto-refresh: 30s</span>
+      </div>
 
       {/* Desktop Table */}
       <div className="hidden lg:block overflow-x-auto">
@@ -394,7 +454,13 @@ export function LaunchedTable({ tokens, isLoading = false }: LaunchedTableProps)
                     </div>
                   </td>
                   <td className="py-3 px-2 text-right">
-                    <span className="text-white font-mono text-sm">
+                    <span className={`font-mono text-sm transition-colors duration-300 ${
+                      priceFlash.get(token.tokenAddress) === 'up'
+                        ? 'text-green-400 bg-green-400/20 px-1 rounded'
+                        : priceFlash.get(token.tokenAddress) === 'down'
+                        ? 'text-red-400 bg-red-400/20 px-1 rounded'
+                        : 'text-white'
+                    }`}>
                       {formatPrice(stats?.price ?? null)}
                     </span>
                   </td>
@@ -564,7 +630,13 @@ export function LaunchedTable({ tokens, isLoading = false }: LaunchedTableProps)
                   </div>
                 </div>
                 <div className="text-right">
-                  <div className="text-white font-mono font-semibold">
+                  <div className={`font-mono font-semibold transition-colors duration-300 ${
+                    priceFlash.get(token.tokenAddress) === 'up'
+                      ? 'text-green-400'
+                      : priceFlash.get(token.tokenAddress) === 'down'
+                      ? 'text-red-400'
+                      : 'text-white'
+                  }`}>
                     {formatPrice(stats?.price ?? null)}
                   </div>
                   {priceChange !== null && priceChange !== undefined && (
