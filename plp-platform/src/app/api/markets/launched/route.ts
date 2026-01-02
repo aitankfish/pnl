@@ -15,24 +15,30 @@ export const dynamic = 'force-dynamic';
 
 const logger = createClientLogger();
 
-export async function GET(_request: NextRequest) {
+export async function GET(request: NextRequest) {
   try {
+    // Parse query parameters
+    const { searchParams } = new URL(request.url);
+    const page = Math.max(1, parseInt(searchParams.get('page') || '1'));
+    const limit = Math.min(100, Math.max(1, parseInt(searchParams.get('limit') || '25')));
+    const category = searchParams.get('category') || 'all';
+    const skip = (page - 1) * limit;
+
     // Connect to MongoDB
     await connectToDatabase();
 
+    // Build match stage with optional category filter
+    const matchStage: any = {
+      marketState: 1, // 1 = Resolved
+      resolution: 'YesWins', // YES won the prediction
+      pumpFunTokenAddress: { $exists: true, $nin: [null, ''] },
+    };
+
     // Use aggregation pipeline to fetch markets + projects + stake calculations in one query
-    const marketsWithData = await PredictionMarket.aggregate([
+    const pipeline: any[] = [
       // Match resolved YesWins markets with token address
-      {
-        $match: {
-          marketState: 1, // 1 = Resolved
-          resolution: 'YesWins', // YES won the prediction
-          pumpFunTokenAddress: { $exists: true, $nin: [null, ''] },
-        }
-      },
-      // Sort by resolution date (most recent first)
-      { $sort: { resolvedAt: -1 } },
-      // Join with projects collection
+      { $match: matchStage },
+      // Join with projects collection first (for category filtering)
       {
         $lookup: {
           from: 'projects',
@@ -42,6 +48,23 @@ export async function GET(_request: NextRequest) {
         }
       },
       { $unwind: { path: '$project', preserveNullAndEmptyArrays: true } },
+    ];
+
+    // Add category filter if specified
+    if (category && category !== 'all') {
+      pipeline.push({
+        $match: {
+          $or: [
+            { 'project.category': { $regex: new RegExp(`^${category}$`, 'i') } },
+            // Handle 'other' category - match anything not in known categories
+            ...(category === 'other' ? [{ 'project.category': { $exists: false } }, { 'project.category': null }] : [])
+          ]
+        }
+      });
+    }
+
+    // Continue with rest of pipeline
+    pipeline.push(
       // Join with participants to calculate stake totals and vote counts
       {
         $lookup: {
@@ -75,10 +98,30 @@ export async function GET(_request: NextRequest) {
         }
       },
       // Remove participants array from output (we only needed it for calculations)
-      { $project: { participants: 0 } }
-    ]);
+      { $project: { participants: 0 } },
+      // Sort by resolution date (most recent first)
+      { $sort: { resolvedAt: -1 } },
+      // Use $facet for pagination with total count
+      {
+        $facet: {
+          data: [
+            { $skip: skip },
+            { $limit: limit }
+          ],
+          totalCount: [
+            { $count: 'count' }
+          ]
+        }
+      }
+    );
+
+    const result = await PredictionMarket.aggregate(pipeline);
+    const marketsWithData = result[0]?.data || [];
+    const totalCount = result[0]?.totalCount[0]?.count || 0;
 
     logger.debug('Launched markets aggregation completed', { count: marketsWithData.length });
+
+    const totalPages = Math.ceil(totalCount / limit);
 
     if (marketsWithData.length === 0) {
       return NextResponse.json(
@@ -86,7 +129,13 @@ export async function GET(_request: NextRequest) {
           success: true,
           data: {
             launched: [],
-            total: 0,
+            total: totalCount,
+            pagination: {
+              page,
+              limit,
+              totalPages,
+              hasMore: false,
+            }
           }
         },
         {
@@ -175,14 +224,20 @@ export async function GET(_request: NextRequest) {
       };
     });
 
-    logger.info('Fetched launched tokens', { count: launchedTokens.length });
+    logger.info('Fetched launched tokens', { count: launchedTokens.length, page, totalCount });
 
     return NextResponse.json(
       {
         success: true,
         data: {
           launched: launchedTokens,
-          total: launchedTokens.length,
+          total: totalCount,
+          pagination: {
+            page,
+            limit,
+            totalPages,
+            hasMore: page < totalPages,
+          }
         }
       },
       {
