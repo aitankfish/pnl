@@ -1160,19 +1160,15 @@ export default function MarketDetailsPage() {
                 {/* Token Stats Bar */}
                 <TokenStatsBar tokenMint={mergedOnchainData.data.tokenMint} />
 
-                {/* Birdeye Chart */}
-                <Card className="bg-white/5 backdrop-blur-xl border-white/10">
-                  <CardContent className="p-0">
-                    <div className="w-full h-[300px] sm:h-[400px] lg:h-[450px] rounded-lg overflow-hidden">
-                      <iframe
-                        src={`https://birdeye.so/tv-widget/${mergedOnchainData.data.tokenMint}?chain=solana&viewMode=pair&chartInterval=15&chartType=CANDLE&chartTimezone=America%2FLos_Angeles&chartLeftToolbar=show&theme=dark`}
-                        className="w-full h-full border-0"
-                        title="Token Chart"
-                        allow="clipboard-write"
-                      />
-                    </div>
-                  </CardContent>
-                </Card>
+                {/* Birdeye Chart - Blended to background */}
+                <div className="w-full h-[300px] sm:h-[400px] lg:h-[450px] rounded-xl overflow-hidden">
+                  <iframe
+                    src={`https://birdeye.so/tv-widget/${mergedOnchainData.data.tokenMint}?chain=solana&viewMode=pair&chartInterval=15&chartType=CANDLE&chartTimezone=America%2FLos_Angeles&chartLeftToolbar=show&theme=dark&backgroundColor=transparent`}
+                    className="w-full h-full border-0"
+                    title="Token Chart"
+                    allow="clipboard-write"
+                  />
+                </div>
 
                 {/* Onchain Info */}
                 <div className="bg-gradient-to-br from-purple-500/5 to-cyan-500/5 border border-white/10 rounded-xl p-3">
@@ -1284,61 +1280,6 @@ export default function MarketDetailsPage() {
                   tokenSymbol={market.tokenSymbol}
                   tokenImageUrl={market.projectImageUrl || market.metadata?.image}
                 />
-
-                {/* Claim Section - Show for YES voters after token launch */}
-                {primaryWallet && positionData?.success && positionData.data.hasPosition && (
-                  <div className="bg-gradient-to-br from-purple-500/10 via-pink-500/10 to-cyan-500/10 border border-purple-400/30 rounded-xl p-4 space-y-3">
-                    <div className="text-center">
-                      <h4 className="text-purple-400 text-sm font-semibold mb-1">Your Position</h4>
-                      <div className="flex items-center justify-center gap-2">
-                        <span className={`font-bold ${positionData.data.side === 'yes' ? 'text-green-400' : 'text-red-400'}`}>
-                          {positionData.data.side.toUpperCase()}
-                        </span>
-                        <span className="text-gray-400">·</span>
-                        <span className="text-white font-mono">{(Number(positionData.data?.totalAmount) || 0).toFixed(3)} SOL</span>
-                      </div>
-                    </div>
-
-                    {!positionData.data.claimed ? (
-                      positionData.data.side === 'yes' ? (
-                        <Button
-                          onClick={handleClaim}
-                          disabled={isClaiming}
-                          className="w-full bg-gradient-to-r from-green-500 to-cyan-500 hover:from-green-600 hover:to-cyan-600 text-white font-bold"
-                        >
-                          {isClaiming ? (
-                            <>
-                              <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                              Claiming...
-                            </>
-                          ) : (
-                            <>
-                              🎁 Claim Token Airdrop
-                            </>
-                          )}
-                        </Button>
-                      ) : (
-                        <div className="bg-red-500/10 border border-red-500/30 rounded-lg p-3 text-center">
-                          <p className="text-red-400 text-sm">You voted NO - no tokens to claim</p>
-                        </div>
-                      )
-                    ) : (
-                      <div className="bg-green-500/10 border border-green-500/30 rounded-lg p-3 text-center">
-                        <p className="text-green-400 font-semibold flex items-center justify-center gap-2">
-                          <CheckCircle className="w-4 h-4" />
-                          Already Claimed
-                        </p>
-                      </div>
-                    )}
-                  </div>
-                )}
-
-                {/* Sign In Prompt - Show when not logged in */}
-                {!primaryWallet && (
-                  <div className="bg-gradient-to-br from-yellow-500/10 to-orange-500/10 border border-yellow-400/30 rounded-xl p-4 text-center">
-                    <p className="text-yellow-400 text-sm font-medium">Sign in to claim your tokens</p>
-                  </div>
-                )}
               </div>
             </div>
           )}
@@ -1601,9 +1542,10 @@ export default function MarketDetailsPage() {
             </CardContent>
           </Card>
 
-          {/* Trading Section - Right Side (Hidden when token is launched) */}
-          {!(mergedOnchainData?.data?.resolution === 'YesWins' && mergedOnchainData?.data?.tokenMint) && (
+          {/* Right Column - Trading (when not launched) + Market Status (always) + Video/Offers (when launched) */}
           <div className="space-y-4">
+          {/* Trading Section - Only show when token is NOT launched */}
+          {!(mergedOnchainData?.data?.resolution === 'YesWins' && mergedOnchainData?.data?.tokenMint) && (
           <Card className="bg-white/5 backdrop-blur-xl border-white/10 text-white h-fit">
             <CardHeader className="pb-2 pt-4 px-4">
               <CardTitle className="text-base sm:text-lg text-white">
@@ -1942,9 +1884,10 @@ export default function MarketDetailsPage() {
               </>
             </CardContent>
           </Card>
+        )}
 
-        {/* Market Status Card - Below Trading */}
-        <Card className="bg-gradient-to-br from-purple-500/10 via-pink-500/10 to-cyan-500/10 backdrop-blur-xl border-purple-400/30 h-fit">
+          {/* Market Status Card - ALWAYS show regardless of resolution */}
+          <Card className="bg-gradient-to-br from-purple-500/10 via-pink-500/10 to-cyan-500/10 backdrop-blur-xl border-purple-400/30 h-fit">
           <CardHeader className="pb-2 pt-3 px-4">
             <CardTitle className="text-white text-sm sm:text-base">Market Status</CardTitle>
           </CardHeader>
@@ -2893,39 +2836,35 @@ export default function MarketDetailsPage() {
             )}
           </CardContent>
         </Card>
-        </div>
-        )}
 
-        {/* Video + What This Project Offers - Show in grid when token IS launched */}
-        {(mergedOnchainData?.data?.resolution === 'YesWins' && mergedOnchainData?.data?.tokenMint) && (market.metadata?.videoUrl || market.metadata?.additionalNotes) && (
-          <div className="space-y-4">
-            {/* Video - First */}
-            {market.metadata?.videoUrl && (
-              <VideoEmbed url={market.metadata.videoUrl} className="h-full" />
-            )}
-            {/* What This Project Offers - Second */}
-            {market.metadata?.additionalNotes && (
-              <div className="relative group">
-                <div className="absolute -inset-4 bg-gradient-to-r from-cyan-500/10 via-purple-500/10 to-cyan-500/10 rounded-3xl blur-2xl opacity-50 group-hover:opacity-70 transition-opacity duration-500" />
-                <div
-                  className="relative p-4 sm:p-5 bg-gradient-to-br from-cyan-500/5 via-blue-500/5 to-purple-500/5 rounded-2xl flex flex-col h-full"
-                  style={{
-                    maskImage: 'radial-gradient(ellipse 95% 90% at center, black 70%, transparent 100%)',
-                    WebkitMaskImage: 'radial-gradient(ellipse 95% 90% at center, black 70%, transparent 100%)',
-                  }}
-                >
-                  <h3 className="text-cyan-400 text-xs sm:text-sm mb-3 font-semibold flex items-center gap-2 uppercase tracking-wider">
-                    <span>✨</span> What This Project Offers
-                  </h3>
-                  <div className="border-l-2 border-cyan-500/50 pl-4 flex-1">
-                    <p className="text-white/85 text-sm sm:text-base leading-relaxed whitespace-pre-wrap italic">{market.metadata.additionalNotes}</p>
+          {/* Video + What This Project Offers - Only show when token IS launched */}
+          {(mergedOnchainData?.data?.resolution === 'YesWins' && mergedOnchainData?.data?.tokenMint) && (
+            <>
+              {/* Video */}
+              {market.metadata?.videoUrl && (
+                <VideoEmbed url={market.metadata.videoUrl} />
+              )}
+
+              {/* What This Project Offers */}
+              {market.metadata?.additionalNotes && (
+                <div className="relative group">
+                  <div className="absolute -inset-4 bg-gradient-to-r from-cyan-500/10 via-purple-500/10 to-cyan-500/10 rounded-3xl blur-2xl opacity-50 group-hover:opacity-70 transition-opacity duration-500" />
+                  <div className="relative p-4 bg-gradient-to-br from-cyan-500/5 via-blue-500/5 to-purple-500/5 rounded-2xl">
+                    <h3 className="text-cyan-400 text-xs mb-2 font-semibold flex items-center gap-2 uppercase tracking-wider">
+                      <span>✨</span> What This Project Offers
+                    </h3>
+                    <div className="border-l-2 border-cyan-500/50 pl-3">
+                      <p className="text-white/85 text-sm leading-relaxed whitespace-pre-wrap italic">{market.metadata.additionalNotes}</p>
+                    </div>
                   </div>
                 </div>
-              </div>
-            )}
-          </div>
-        )}
+              )}
+            </>
+          )}
         </div>
+        {/* End Right Column */}
+        </div>
+        {/* End Grok Analysis grid */}
 
         {/* Full Description - Only show if different from intro description */}
         {market.metadata?.description && market.metadata.description !== market.description && (
