@@ -5,6 +5,27 @@ Keep users inside PLP for the entire lifecycle: **Predict → Launch → Trade �
 
 ---
 
+## ✅ Completed (Jan 2026)
+
+### Trading Foundation (Sprint 1) - DONE
+- [x] Market page transforms post-resolution to show Jupiter terminal
+- [x] `/launched` page with all successfully launched tokens
+- [x] Token stats display: Price, Market Cap, 24h %, Holders, Volume
+- [x] Redis price caching with cron job (Birdeye API)
+- [x] Sorting: Gainers, Losers, MCap, Newest, etc.
+- [x] Category filtering (DeFi, Gaming, AI, etc.)
+- [x] Search by name/symbol/address
+- [x] Pagination for large token lists
+- [x] Live price updates with flash animations
+- [x] Wallet page: Token holdings with USD value + 24h PnL
+
+### Infrastructure
+- [x] `/api/cron/update-prices` - Batch price updates every minute
+- [x] `/api/tokens/stats` - Token stats from Redis cache (fallback to Birdeye)
+- [x] Price flash animations (green/red) on updates
+
+---
+
 ## Feature 1: Multi-Launchpad Support
 
 ### Goal
@@ -131,19 +152,21 @@ Users trade launched tokens without leaving PLP.
 
 ### Recommended Order
 
-**Sprint 1: Trading Foundation**
-- [ ] Enhance Jupiter integration on launched token pages
-- [ ] Add basic price/chart display
-- [ ] Repurpose market page post-resolution
+**Sprint 1: Trading Foundation** ✅ COMPLETE
+- [x] Enhance Jupiter integration on launched token pages
+- [x] Add basic price/chart display
+- [x] Repurpose market page post-resolution
+- [x] Launched tokens page with sorting/filtering
+- [x] Wallet portfolio with token values
 
-*Why first: Immediate value, users already have launched tokens*
+*Completed Jan 2026*
 
-**Sprint 2: Multi-Launchpad Backend**
-- [ ] Update database schema
+**Sprint 2: Multi-Launchpad Backend** ← CURRENT
+- [ ] Update database schema (add launchpadType field)
 - [ ] Modify smart contract with launchpad routing
 - [ ] Add Raydium LaunchLab CPI
 
-*Why second: Needs more testing, contract changes*
+*In progress*
 
 **Sprint 3: Multi-Launchpad Frontend**
 - [ ] Launchpad selector in create form
@@ -151,9 +174,9 @@ Users trade launched tokens without leaving PLP.
 - [ ] Add remaining launchpads (BONK, Moonshot)
 
 **Sprint 4: Polish**
-- [ ] Portfolio dashboard
-- [ ] Enhanced charts
-- [ ] Notifications
+- [ ] Portfolio dashboard enhancements
+- [ ] Enhanced charts (TradingView)
+- [ ] Price alerts/notifications
 
 ---
 
