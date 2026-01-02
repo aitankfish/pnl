@@ -72,6 +72,7 @@ interface TokenStats {
 interface LaunchedTableProps {
   tokens: LaunchedToken[];
   isLoading?: boolean;
+  refreshKey?: number; // Increment to trigger stats refresh
 }
 
 type SortKey = 'name' | 'price' | 'priceChange24h' | 'marketCap' | 'volume24h' | 'holders' | 'launchPool' | 'yesPercentage' | 'stage' | 'projectType' | 'age';
@@ -144,7 +145,7 @@ const formatTimeAgo = (timestamp: number): string => {
   return `${Math.floor(minutes / 60)}h ago`;
 };
 
-export function LaunchedTable({ tokens, isLoading = false }: LaunchedTableProps) {
+export function LaunchedTable({ tokens, isLoading = false, refreshKey = 0 }: LaunchedTableProps) {
   const router = useRouter();
   const [sortKey, setSortKey] = useState<SortKey>('marketCap');
   const [sortDirection, setSortDirection] = useState<SortDirection>('desc');
@@ -228,7 +229,7 @@ export function LaunchedTable({ tokens, isLoading = false }: LaunchedTableProps)
     // Auto-refresh every 30 seconds
     const interval = setInterval(fetchStats, 30000);
     return () => clearInterval(interval);
-  }, [tokens]);
+  }, [tokens, refreshKey]);
 
   // Copy address to clipboard
   const copyAddress = (address: string, e: React.MouseEvent) => {

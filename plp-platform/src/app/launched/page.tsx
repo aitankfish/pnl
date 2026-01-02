@@ -74,6 +74,7 @@ export default function LaunchedPage() {
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
   const [page, setPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(25);
+  const [refreshKey, setRefreshKey] = useState(0);
 
   // Build API URL with pagination params
   const apiUrl = `/api/markets/launched?page=${page}&limit=${itemsPerPage}${selectedCategory !== 'all' ? `&category=${selectedCategory}` : ''}`;
@@ -148,7 +149,10 @@ export default function LaunchedPage() {
         </div>
         <div className="flex items-center gap-3">
           <Button
-            onClick={() => mutate()}
+            onClick={() => {
+              mutate();
+              setRefreshKey(k => k + 1);
+            }}
             variant="outline"
             size="sm"
             className="border-white/20 text-gray-300 hover:bg-white/10 hover:text-white"
@@ -251,7 +255,7 @@ export default function LaunchedPage() {
       {/* Token Table */}
       {!error && (launchedTokens.length > 0 || (isLoading && totalCount > 0)) && (
         <>
-          <LaunchedTable tokens={launchedTokens} isLoading={isLoading && launchedTokens.length === 0} />
+          <LaunchedTable tokens={launchedTokens} isLoading={isLoading && launchedTokens.length === 0} refreshKey={refreshKey} />
 
           {/* Pagination Controls */}
           {totalCount > 0 && (
