@@ -28,6 +28,8 @@ interface LaunchedToken {
   symbol: string;
   description: string;
   category: string;
+  stage?: string;
+  projectType?: string;
   launchDate: string;
   tokenAddress: string;
   projectImageUrl?: string;
@@ -37,6 +39,24 @@ interface LaunchedToken {
   yesPercentage: number;
   launchPool: string;
 }
+
+// Stage display config
+const STAGE_CONFIG: Record<string, { label: string; color: string }> = {
+  'idea': { label: 'Idea', color: 'text-purple-400' },
+  'prototype': { label: 'Prototype', color: 'text-blue-400' },
+  'mvp': { label: 'MVP', color: 'text-cyan-400' },
+  'beta': { label: 'Beta', color: 'text-yellow-400' },
+  'launched': { label: 'Live', color: 'text-green-400' },
+};
+
+// Type display config
+const TYPE_CONFIG: Record<string, { label: string; color: string }> = {
+  'protocol': { label: 'Protocol', color: 'text-indigo-400' },
+  'application': { label: 'App', color: 'text-pink-400' },
+  'platform': { label: 'Platform', color: 'text-orange-400' },
+  'service': { label: 'Service', color: 'text-teal-400' },
+  'tool': { label: 'Tool', color: 'text-amber-400' },
+};
 
 interface TokenStats {
   address: string;
@@ -53,7 +73,7 @@ interface LaunchedTableProps {
   isLoading?: boolean;
 }
 
-type SortKey = 'name' | 'price' | 'priceChange24h' | 'marketCap' | 'volume24h' | 'holders' | 'launchPool' | 'age';
+type SortKey = 'name' | 'price' | 'priceChange24h' | 'marketCap' | 'volume24h' | 'holders' | 'launchPool' | 'yesPercentage' | 'stage' | 'projectType' | 'age';
 type SortDirection = 'asc' | 'desc';
 
 // Format helpers
@@ -214,6 +234,20 @@ export function LaunchedTable({ tokens, isLoading = false }: LaunchedTableProps)
           aValue = parseFloat(a.launchPool) || 0;
           bValue = parseFloat(b.launchPool) || 0;
           break;
+        case 'yesPercentage':
+          aValue = a.yesPercentage || 0;
+          bValue = b.yesPercentage || 0;
+          break;
+        case 'stage':
+          const stageOrder = ['idea', 'prototype', 'mvp', 'beta', 'launched'];
+          aValue = stageOrder.indexOf(a.stage?.toLowerCase() || 'idea');
+          bValue = stageOrder.indexOf(b.stage?.toLowerCase() || 'idea');
+          break;
+        case 'projectType':
+          const typeOrder = ['protocol', 'platform', 'application', 'service', 'tool'];
+          aValue = typeOrder.indexOf(a.projectType?.toLowerCase() || 'application');
+          bValue = typeOrder.indexOf(b.projectType?.toLowerCase() || 'application');
+          break;
         case 'age':
           aValue = new Date(a.launchDate).getTime();
           bValue = new Date(b.launchDate).getTime();
@@ -305,13 +339,19 @@ export function LaunchedTable({ tokens, isLoading = false }: LaunchedTableProps)
                 <SortHeader label="Market Cap" sortKeyName="marketCap" />
               </th>
               <th className="text-right py-3 px-2">
-                <SortHeader label="Volume 24h" sortKeyName="volume24h" />
-              </th>
-              <th className="text-right py-3 px-2">
                 <SortHeader label="Holders" sortKeyName="holders" />
+              </th>
+              <th className="text-center py-3 px-2">
+                <SortHeader label="Stage" sortKeyName="stage" />
+              </th>
+              <th className="text-center py-3 px-2">
+                <SortHeader label="Type" sortKeyName="projectType" />
               </th>
               <th className="text-right py-3 px-2">
                 <SortHeader label="Raised" sortKeyName="launchPool" />
+              </th>
+              <th className="text-right py-3 px-2">
+                <SortHeader label="Yes %" sortKeyName="yesPercentage" />
               </th>
               <th className="text-right py-3 px-2">
                 <SortHeader label="Age" sortKeyName="age" />
@@ -322,14 +362,14 @@ export function LaunchedTable({ tokens, isLoading = false }: LaunchedTableProps)
           <tbody>
             {sortedTokens.map((token, index) => {
               const stats = tokenStats.get(token.tokenAddress);
-              const priceChange = stats?.priceChange24h;
+              const priceChange = stats?.priceChange24h ?? null;
               const isPositive = priceChange !== null && priceChange >= 0;
 
               return (
                 <tr
                   key={token.id}
                   onClick={() => router.push(`/market/${token.id}`)}
-                  className="border-b border-white/5 hover:bg-white/5 cursor-pointer transition-colors group"
+                  className="border-b border-white/10 hover:bg-white/5 cursor-pointer transition-colors group"
                 >
                   <td className="py-3 px-2 text-gray-500 text-sm">{index + 1}</td>
                   <td className="py-3 px-2">
@@ -380,17 +420,39 @@ export function LaunchedTable({ tokens, isLoading = false }: LaunchedTableProps)
                   <td className="py-3 px-2 text-right text-white text-sm">
                     {formatLargeNumber(stats?.marketCap ?? null)}
                   </td>
-                  <td className="py-3 px-2 text-right text-gray-300 text-sm">
-                    {formatLargeNumber(stats?.volume24h ?? null)}
-                  </td>
                   <td className="py-3 px-2 text-right">
                     <div className="flex items-center justify-end gap-1 text-gray-300 text-sm">
                       <Users className="w-3 h-3 text-gray-500" />
                       {formatNumber(stats?.holders ?? null)}
                     </div>
                   </td>
+                  <td className="py-3 px-2 text-center">
+                    {(() => {
+                      const stageKey = token.stage?.toLowerCase() || 'idea';
+                      const stageConfig = STAGE_CONFIG[stageKey] || STAGE_CONFIG['idea'];
+                      return (
+                        <span className={`text-xs font-medium ${stageConfig.color}`}>
+                          {stageConfig.label}
+                        </span>
+                      );
+                    })()}
+                  </td>
+                  <td className="py-3 px-2 text-center">
+                    {(() => {
+                      const typeKey = token.projectType?.toLowerCase() || 'application';
+                      const typeConfig = TYPE_CONFIG[typeKey] || TYPE_CONFIG['application'];
+                      return (
+                        <span className={`text-xs font-medium ${typeConfig.color}`}>
+                          {typeConfig.label}
+                        </span>
+                      );
+                    })()}
+                  </td>
                   <td className="py-3 px-2 text-right text-cyan-400 text-sm font-medium">
-                    {token.launchPool} SOL
+                    {parseFloat(token.launchPool).toFixed(2)} SOL
+                  </td>
+                  <td className="py-3 px-2 text-right text-green-400 text-sm font-medium">
+                    {token.yesPercentage}%
                   </td>
                   <td className="py-3 px-2 text-right text-gray-400 text-sm">
                     {formatAge(token.launchDate)}
@@ -472,7 +534,7 @@ export function LaunchedTable({ tokens, isLoading = false }: LaunchedTableProps)
       <div className="lg:hidden space-y-3">
         {sortedTokens.map((token, index) => {
           const stats = tokenStats.get(token.tokenAddress);
-          const priceChange = stats?.priceChange24h;
+          const priceChange = stats?.priceChange24h ?? null;
           const isPositive = priceChange !== null && priceChange >= 0;
 
           return (
@@ -524,17 +586,11 @@ export function LaunchedTable({ tokens, isLoading = false }: LaunchedTableProps)
               </div>
 
               {/* Stats Grid */}
-              <div className="grid grid-cols-4 gap-2 text-center">
+              <div className="grid grid-cols-3 gap-2 text-center mb-2">
                 <div className="bg-black/20 rounded-lg p-2">
                   <div className="text-gray-500 text-[10px] uppercase">MCap</div>
                   <div className="text-white text-xs font-medium">
                     {formatLargeNumber(stats?.marketCap ?? null)}
-                  </div>
-                </div>
-                <div className="bg-black/20 rounded-lg p-2">
-                  <div className="text-gray-500 text-[10px] uppercase">Vol 24h</div>
-                  <div className="text-white text-xs font-medium">
-                    {formatLargeNumber(stats?.volume24h ?? null)}
                   </div>
                 </div>
                 <div className="bg-black/20 rounded-lg p-2">
@@ -545,7 +601,37 @@ export function LaunchedTable({ tokens, isLoading = false }: LaunchedTableProps)
                 </div>
                 <div className="bg-black/20 rounded-lg p-2">
                   <div className="text-gray-500 text-[10px] uppercase">Raised</div>
-                  <div className="text-cyan-400 text-xs font-medium">{token.launchPool}</div>
+                  <div className="text-cyan-400 text-xs font-medium">{parseFloat(token.launchPool).toFixed(2)} SOL</div>
+                </div>
+              </div>
+              <div className="grid grid-cols-3 gap-2 text-center">
+                <div className="bg-black/20 rounded-lg p-2">
+                  <div className="text-gray-500 text-[10px] uppercase">Stage</div>
+                  {(() => {
+                    const stageKey = token.stage?.toLowerCase() || 'idea';
+                    const stageConfig = STAGE_CONFIG[stageKey] || STAGE_CONFIG['idea'];
+                    return (
+                      <div className={`text-xs font-medium ${stageConfig.color}`}>
+                        {stageConfig.label}
+                      </div>
+                    );
+                  })()}
+                </div>
+                <div className="bg-black/20 rounded-lg p-2">
+                  <div className="text-gray-500 text-[10px] uppercase">Type</div>
+                  {(() => {
+                    const typeKey = token.projectType?.toLowerCase() || 'application';
+                    const typeConfig = TYPE_CONFIG[typeKey] || TYPE_CONFIG['application'];
+                    return (
+                      <div className={`text-xs font-medium ${typeConfig.color}`}>
+                        {typeConfig.label}
+                      </div>
+                    );
+                  })()}
+                </div>
+                <div className="bg-black/20 rounded-lg p-2">
+                  <div className="text-gray-500 text-[10px] uppercase">Yes %</div>
+                  <div className="text-green-400 text-xs font-medium">{token.yesPercentage}%</div>
                 </div>
               </div>
 

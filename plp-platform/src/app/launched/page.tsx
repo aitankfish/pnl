@@ -1,8 +1,8 @@
 'use client';
 
-import React from 'react';
+import React, { useState, useMemo } from 'react';
 import { Button } from '@/components/ui/button';
-import { Rocket, Zap, TrendingUp, RefreshCw } from 'lucide-react';
+import { Rocket, Zap, RefreshCw } from 'lucide-react';
 import Link from 'next/link';
 import useSWR from 'swr';
 import { LaunchedTable } from '@/components/LaunchedTable';
@@ -18,6 +18,8 @@ interface LaunchedToken {
   symbol: string;
   description: string;
   category: string;
+  stage?: string;
+  projectType?: string;
   launchDate: string;
   tokenAddress: string;
   projectImageUrl?: string;
@@ -32,7 +34,36 @@ interface LaunchedToken {
   discord?: string | null;
 }
 
+// Category display names and colors
+const CATEGORY_CONFIG: Record<string, { label: string; color: string }> = {
+  'all': { label: 'All', color: 'from-gray-500/20 to-gray-500/10 border-gray-500/30 text-gray-300' },
+  // Web3 & Crypto
+  'defi': { label: 'DeFi', color: 'from-blue-500/20 to-cyan-500/10 border-blue-500/30 text-blue-300' },
+  'nft': { label: 'NFT', color: 'from-violet-500/20 to-purple-500/10 border-violet-500/30 text-violet-300' },
+  'gaming': { label: 'Gaming', color: 'from-purple-500/20 to-pink-500/10 border-purple-500/30 text-purple-300' },
+  'dao': { label: 'DAO', color: 'from-indigo-500/20 to-blue-500/10 border-indigo-500/30 text-indigo-300' },
+  'ai': { label: 'AI/ML', color: 'from-cyan-500/20 to-teal-500/10 border-cyan-500/30 text-cyan-300' },
+  'infrastructure': { label: 'Infra', color: 'from-orange-500/20 to-amber-500/10 border-orange-500/30 text-orange-300' },
+  'social': { label: 'Social', color: 'from-pink-500/20 to-rose-500/10 border-pink-500/30 text-pink-300' },
+  'meme': { label: 'Meme', color: 'from-yellow-500/20 to-amber-500/10 border-yellow-500/30 text-yellow-300' },
+  'creator': { label: 'Creator', color: 'from-fuchsia-500/20 to-pink-500/10 border-fuchsia-500/30 text-fuchsia-300' },
+  // Traditional
+  'healthcare': { label: 'Healthcare', color: 'from-red-500/20 to-rose-500/10 border-red-500/30 text-red-300' },
+  'science': { label: 'Science', color: 'from-emerald-500/20 to-green-500/10 border-emerald-500/30 text-emerald-300' },
+  'education': { label: 'Education', color: 'from-sky-500/20 to-blue-500/10 border-sky-500/30 text-sky-300' },
+  'finance': { label: 'Finance', color: 'from-green-500/20 to-emerald-500/10 border-green-500/30 text-green-300' },
+  'commerce': { label: 'Commerce', color: 'from-amber-500/20 to-yellow-500/10 border-amber-500/30 text-amber-300' },
+  'realestate': { label: 'Real Estate', color: 'from-stone-500/20 to-gray-500/10 border-stone-500/30 text-stone-300' },
+  'energy': { label: 'Energy', color: 'from-lime-500/20 to-green-500/10 border-lime-500/30 text-lime-300' },
+  'media': { label: 'Media', color: 'from-rose-500/20 to-pink-500/10 border-rose-500/30 text-rose-300' },
+  'manufacturing': { label: 'Manufacturing', color: 'from-slate-500/20 to-gray-500/10 border-slate-500/30 text-slate-300' },
+  'mobility': { label: 'Mobility', color: 'from-teal-500/20 to-cyan-500/10 border-teal-500/30 text-teal-300' },
+  'other': { label: 'Other', color: 'from-gray-500/20 to-slate-500/10 border-gray-500/30 text-gray-300' },
+};
+
 export default function LaunchedPage() {
+  const [selectedCategory, setSelectedCategory] = useState<string>('all');
+
   // Fetch launched tokens from API
   const { data, error, isLoading, mutate } = useSWR('/api/markets/launched', fetcher, {
     refreshInterval: 60000, // Refresh every 60 seconds
@@ -40,17 +71,42 @@ export default function LaunchedPage() {
 
   const launchedTokens: LaunchedToken[] = data?.data?.launched || [];
 
+  // Get unique categories from tokens (normalize to match CATEGORY_CONFIG keys)
+  const availableCategories = useMemo(() => {
+    const categoriesSet = new Set<string>();
+    launchedTokens.forEach(t => {
+      const cat = t.category?.toLowerCase() || 'other';
+      // If category exists in config, use it; otherwise group as 'other'
+      if (CATEGORY_CONFIG[cat]) {
+        categoriesSet.add(cat);
+      } else {
+        categoriesSet.add('other');
+      }
+    });
+    return ['all', ...Array.from(categoriesSet)];
+  }, [launchedTokens]);
+
+  // Filter tokens by selected category
+  const filteredTokens = useMemo(() => {
+    if (selectedCategory === 'all') return launchedTokens;
+    return launchedTokens.filter(t => {
+      const cat = t.category?.toLowerCase() || 'other';
+      // Match known categories directly, or group unknown into 'other'
+      if (selectedCategory === 'other') {
+        return !CATEGORY_CONFIG[cat] || cat === 'other';
+      }
+      return cat === selectedCategory;
+    });
+  }, [launchedTokens, selectedCategory]);
+
   return (
     <div className="pt-3 sm:pt-4 px-3 sm:px-6 pb-6 sm:pb-8 space-y-6">
       {/* Header */}
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
         <div>
-          <h1 className="text-xl sm:text-2xl font-bold text-white mb-1">
-            PNL Token Screener
+          <h1 className="text-xl sm:text-2xl font-bold text-white">
+            Launched Tokens {launchedTokens.length > 0 && <span className="text-gray-400 font-normal">({launchedTokens.length})</span>}
           </h1>
-          <p className="text-gray-400 text-sm">
-            Community-validated tokens launched through prediction markets
-          </p>
         </div>
         <div className="flex items-center gap-3">
           <Button
@@ -75,33 +131,35 @@ export default function LaunchedPage() {
         </div>
       </div>
 
-      {/* Stats Bar */}
+      {/* Category Filters */}
       {launchedTokens.length > 0 && (
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-          <div className="bg-gradient-to-br from-green-500/10 to-cyan-500/10 border border-green-500/20 rounded-xl p-4">
-            <div className="text-gray-400 text-xs uppercase mb-1">Total Tokens</div>
-            <div className="text-2xl font-bold text-white">{launchedTokens.length}</div>
-          </div>
-          <div className="bg-gradient-to-br from-purple-500/10 to-pink-500/10 border border-purple-500/20 rounded-xl p-4">
-            <div className="text-gray-400 text-xs uppercase mb-1">Total Raised</div>
-            <div className="text-2xl font-bold text-white">
-              {launchedTokens.reduce((sum, t) => sum + (parseFloat(t.launchPool) || 0), 0).toFixed(1)} SOL
-            </div>
-          </div>
-          <div className="bg-gradient-to-br from-cyan-500/10 to-blue-500/10 border border-cyan-500/20 rounded-xl p-4">
-            <div className="text-gray-400 text-xs uppercase mb-1">Total Votes</div>
-            <div className="text-2xl font-bold text-white">
-              {launchedTokens.reduce((sum, t) => sum + (t.totalVotes || 0), 0).toLocaleString()}
-            </div>
-          </div>
-          <div className="bg-gradient-to-br from-yellow-500/10 to-orange-500/10 border border-yellow-500/20 rounded-xl p-4">
-            <div className="text-gray-400 text-xs uppercase mb-1">Avg YES Rate</div>
-            <div className="text-2xl font-bold text-green-400">
-              {launchedTokens.length > 0
-                ? (launchedTokens.reduce((sum, t) => sum + (t.yesPercentage || 0), 0) / launchedTokens.length).toFixed(0)
-                : 0}%
-            </div>
-          </div>
+        <div className="flex flex-wrap gap-2">
+          {availableCategories.map((category) => {
+            const config = CATEGORY_CONFIG[category] || CATEGORY_CONFIG['other'];
+            const count = category === 'all'
+              ? launchedTokens.length
+              : category === 'other'
+                ? launchedTokens.filter(t => {
+                    const cat = t.category?.toLowerCase() || 'other';
+                    return !CATEGORY_CONFIG[cat] || cat === 'other';
+                  }).length
+                : launchedTokens.filter(t => (t.category?.toLowerCase() || 'other') === category).length;
+            const isSelected = selectedCategory === category;
+
+            return (
+              <button
+                key={category}
+                onClick={() => setSelectedCategory(category)}
+                className={`px-3 py-1.5 rounded-full text-xs font-medium transition-all border ${
+                  isSelected
+                    ? `bg-gradient-to-r ${config.color} border-opacity-100`
+                    : 'bg-white/5 border-white/10 text-gray-400 hover:bg-white/10 hover:text-white'
+                }`}
+              >
+                {config.label} ({count})
+              </button>
+            );
+          })}
         </div>
       )}
 
@@ -161,41 +219,7 @@ export default function LaunchedPage() {
 
       {/* Token Table */}
       {!isLoading && !error && launchedTokens.length > 0 && (
-        <LaunchedTable tokens={launchedTokens} />
-      )}
-
-      {/* Call to Action */}
-      {launchedTokens.length > 0 && (
-        <div className="bg-gradient-to-r from-purple-500/10 via-pink-500/10 to-cyan-500/10 border border-purple-500/20 rounded-2xl p-6 sm:p-8 text-center">
-          <h2 className="text-xl sm:text-2xl font-bold text-white mb-2">Launch Your Own Token</h2>
-          <p className="text-gray-300 text-sm sm:text-base mb-6 max-w-xl mx-auto">
-            Create a prediction market and let the community validate your project before launch.
-            If YES wins, your token gets launched automatically.
-          </p>
-          <div className="flex flex-col sm:flex-row gap-3 justify-center">
-            <Button
-              asChild
-              size="lg"
-              className="bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600"
-            >
-              <Link href="/create">
-                <Zap className="w-5 h-5 mr-2" />
-                Start Your Launch
-              </Link>
-            </Button>
-            <Button
-              asChild
-              size="lg"
-              variant="outline"
-              className="border-white/20 text-white hover:bg-white/10 hover:border-white/30"
-            >
-              <Link href="/browse">
-                <TrendingUp className="w-5 h-5 mr-2" />
-                Browse Active Markets
-              </Link>
-            </Button>
-          </div>
-        </div>
+        <LaunchedTable tokens={filteredTokens} />
       )}
     </div>
   );

@@ -1,9 +1,20 @@
 /**
- * Batch fetch token stats from Birdeye API
- * Returns price, market cap, volume, holders for multiple tokens
+ * Token Stats API
+ *
+ * Reads pre-cached token prices from Redis.
+ * Prices are updated by the cron job (/api/cron/update-prices)
+ *
+ * This ensures:
+ * - Instant response (no external API calls)
+ * - All users get same data
+ * - Scalable to thousands of tokens
+ *
+ * Fallback: If a token isn't in cache (new token before cron runs),
+ * it will fetch from Birdeye directly.
  */
 
 import { NextRequest, NextResponse } from 'next/server';
+import { getRedisClient, prefixKey } from '@/lib/redis/client';
 
 interface TokenStats {
   address: string;
@@ -13,33 +24,88 @@ interface TokenStats {
   volume24h: number | null;
   holders: number | null;
   liquidity: number | null;
+  updatedAt: number;
 }
 
-// Simple in-memory cache (in production, use Redis)
-const cache = new Map<string, { data: TokenStats; timestamp: number }>();
-const CACHE_TTL = 30 * 1000; // 30 seconds
+const REDIS_KEY_PREFIX = 'token-stats:';
 
-async function fetchTokenStats(address: string): Promise<TokenStats> {
-  // Check cache first
-  const cached = cache.get(address);
-  if (cached && Date.now() - cached.timestamp < CACHE_TTL) {
-    return cached.data;
+/**
+ * Get cached stats from Redis
+ */
+async function getCachedStats(address: string): Promise<TokenStats | null> {
+  try {
+    const redis = getRedisClient();
+    const key = prefixKey(`${REDIS_KEY_PREFIX}${address}`);
+    const cached = await redis.get(key);
+
+    if (!cached) return null;
+    return JSON.parse(cached);
+  } catch (error) {
+    console.error(`Redis get error for ${address}:`, error);
+    return null;
+  }
+}
+
+/**
+ * Batch get multiple stats from Redis using pipeline
+ */
+async function getBatchCachedStats(addresses: string[]): Promise<Map<string, TokenStats | null>> {
+  const results = new Map<string, TokenStats | null>();
+
+  try {
+    const redis = getRedisClient();
+    const pipeline = redis.pipeline();
+
+    for (const address of addresses) {
+      const key = prefixKey(`${REDIS_KEY_PREFIX}${address}`);
+      pipeline.get(key);
+    }
+
+    const pipelineResults = await pipeline.exec();
+
+    if (pipelineResults) {
+      for (let i = 0; i < addresses.length; i++) {
+        const result = pipelineResults[i];
+        if (result && result[1]) {
+          try {
+            results.set(addresses[i], JSON.parse(result[1] as string));
+          } catch {
+            results.set(addresses[i], null);
+          }
+        } else {
+          results.set(addresses[i], null);
+        }
+      }
+    }
+  } catch (error) {
+    console.error('Redis batch get error:', error);
+    // Return empty results on error
+    for (const address of addresses) {
+      results.set(address, null);
+    }
   }
 
+  return results;
+}
+
+/**
+ * Fallback: Fetch from Birdeye for tokens not in cache
+ */
+async function fetchFromBirdeyeFallback(address: string): Promise<TokenStats> {
   const birdeyeApiKey = process.env.NEXT_PUBLIC_BIRDEYE_API_KEY;
 
-  if (!birdeyeApiKey) {
-    console.warn('BIRDEYE_API_KEY not configured');
-    return {
-      address,
-      price: null,
-      priceChange24h: null,
-      marketCap: null,
-      volume24h: null,
-      holders: null,
-      liquidity: null,
-    };
-  }
+  const emptyStats: TokenStats = {
+    address,
+    price: null,
+    priceChange24h: null,
+    marketCap: null,
+    volume24h: null,
+    holders: null,
+    liquidity: null,
+    updatedAt: Date.now(),
+  };
+
+  if (!birdeyeApiKey) return emptyStats;
 
   try {
     const response = await fetch(
@@ -52,15 +118,10 @@ async function fetchTokenStats(address: string): Promise<TokenStats> {
       }
     );
 
-    if (!response.ok) {
-      throw new Error(`Birdeye API error: ${response.status}`);
-    }
+    if (!response.ok) throw new Error(`Birdeye API error: ${response.status}`);
 
     const data = await response.json();
-
-    if (!data.success || !data.data) {
-      throw new Error('Invalid Birdeye response');
-    }
+    if (!data.success || !data.data) throw new Error('Invalid response');
 
     const stats: TokenStats = {
       address,
@@ -70,23 +131,21 @@ async function fetchTokenStats(address: string): Promise<TokenStats> {
       volume24h: data.data.v24hUSD || null,
       holders: data.data.holder || null,
       liquidity: data.data.liquidity || null,
+      updatedAt: Date.now(),
     };
 
-    // Cache the result
-    cache.set(address, { data: stats, timestamp: Date.now() });
+    // Cache it for next time
+    try {
+      const redis = getRedisClient();
+      const key = prefixKey(`${REDIS_KEY_PREFIX}${address}`);
+      await redis.setex(key, 120, JSON.stringify(stats));
+    } catch {
+      // Ignore cache errors
+    }
 
     return stats;
-  } catch (error) {
-    console.error(`Error fetching stats for ${address}:`, error);
-    return {
-      address,
-      price: null,
-      priceChange24h: null,
-      marketCap: null,
-      volume24h: null,
-      holders: null,
-      liquidity: null,
-    };
+  } catch {
+    return emptyStats;
   }
 }
 
@@ -101,29 +160,64 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Limit to 50 tokens per request to avoid rate limits
-    const limitedAddresses = addresses.slice(0, 50);
+    // Limit to 100 tokens per request
+    const limitedAddresses = addresses.slice(0, 100);
 
-    // Fetch stats for all tokens in parallel with rate limiting
-    const stats: TokenStats[] = [];
-    const batchSize = 5; // Fetch 5 at a time to avoid rate limits
+    // Batch get all from Redis (single round trip)
+    const cachedStats = await getBatchCachedStats(limitedAddresses);
 
-    for (let i = 0; i < limitedAddresses.length; i += batchSize) {
-      const batch = limitedAddresses.slice(i, i + batchSize);
-      const batchResults = await Promise.all(
-        batch.map((address: string) => fetchTokenStats(address))
-      );
-      stats.push(...batchResults);
+    // Find tokens not in cache
+    const missingAddresses: string[] = [];
+    const results: TokenStats[] = [];
 
-      // Small delay between batches to avoid rate limiting
-      if (i + batchSize < limitedAddresses.length) {
-        await new Promise((resolve) => setTimeout(resolve, 100));
+    for (const address of limitedAddresses) {
+      const cached = cachedStats.get(address);
+      if (cached) {
+        results.push(cached);
+      } else {
+        missingAddresses.push(address);
+      }
+    }
+
+    // Fallback: Fetch missing tokens from Birdeye (should be rare)
+    if (missingAddresses.length > 0) {
+      console.log(`Fetching ${missingAddresses.length} tokens from Birdeye (not in cache)`);
+
+      // Limit fallback fetches to prevent abuse
+      const fallbackLimit = Math.min(missingAddresses.length, 10);
+
+      for (let i = 0; i < fallbackLimit; i++) {
+        const stats = await fetchFromBirdeyeFallback(missingAddresses[i]);
+        results.push(stats);
+        // Rate limit
+        if (i < fallbackLimit - 1) {
+          await new Promise(resolve => setTimeout(resolve, 100));
+        }
+      }
+
+      // For remaining missing tokens, return empty stats
+      for (let i = fallbackLimit; i < missingAddresses.length; i++) {
+        results.push({
+          address: missingAddresses[i],
+          price: null,
+          priceChange24h: null,
+          marketCap: null,
+          volume24h: null,
+          holders: null,
+          liquidity: null,
+          updatedAt: Date.now(),
+        });
       }
     }
 
     return NextResponse.json({
       success: true,
-      data: stats,
+      data: results,
+      meta: {
+        cached: limitedAddresses.length - missingAddresses.length,
+        fetched: Math.min(missingAddresses.length, 10),
+        missing: Math.max(0, missingAddresses.length - 10),
+      },
     });
   } catch (error) {
     console.error('Failed to fetch token stats:', error);
@@ -139,7 +233,7 @@ export async function POST(request: NextRequest) {
   }
 }
 
-// Also support GET with query params for single token
+// GET endpoint for single token
 export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url);
   const address = searchParams.get('address');
@@ -151,7 +245,13 @@ export async function GET(request: NextRequest) {
     );
   }
 
-  const stats = await fetchTokenStats(address);
+  // Try cache first
+  let stats = await getCachedStats(address);
+
+  // Fallback to Birdeye if not cached
+  if (!stats) {
+    stats = await fetchFromBirdeyeFallback(address);
+  }
 
   return NextResponse.json({
     success: true,

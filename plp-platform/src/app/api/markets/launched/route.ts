@@ -151,6 +151,8 @@ export async function GET(_request: NextRequest) {
         symbol: project?.tokenSymbol || 'TKN',
         description: truncatedDescription,
         category: formatCategory(project?.category || 'Other'),
+        stage: project?.projectStage?.toLowerCase() || 'idea',
+        projectType: project?.projectType?.toLowerCase() || 'application',
         launchDate: market.resolvedAt ? new Date(market.resolvedAt).toISOString().split('T')[0] : 'Unknown',
         tokenAddress: market.pumpFunTokenAddress,
         projectImageUrl: convertToGatewayUrl(project?.projectImageUrl),
