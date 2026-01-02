@@ -2,12 +2,11 @@
  * Cron Job: Update All Token Prices
  *
  * Runs every minute to fetch prices for ALL launched tokens using Birdeye's
- * multi-token API. This ensures:
+ * token_overview API. This ensures:
  * - All users get instant cached prices (no cold cache)
- * - Minimal Birdeye API calls (batched, not per-token)
- * - Scalable to thousands of tokens
+ * - Scalable with rate-limited individual requests
  *
- * Trigger: Vercel Cron or Upstash QStash
+ * Trigger: Render Cron or Upstash QStash
  */
 
 import { NextRequest, NextResponse } from 'next/server';
@@ -17,22 +16,9 @@ import { createClientLogger } from '@/lib/logger';
 
 const logger = createClientLogger();
 
-// Birdeye multi-price endpoint supports up to 100 tokens
-const BATCH_SIZE = 50;
 const REDIS_KEY_PREFIX = 'token-stats:';
 const CACHE_TTL_SECONDS = 120; // 2 minutes (cron runs every 1 min, so always fresh)
-
-interface BirdeyeMultiPriceResponse {
-  success: boolean;
-  data: {
-    [address: string]: {
-      value: number;
-      updateUnixTime: number;
-      updateHumanTime: string;
-      priceChange24h: number;
-    };
-  };
-}
+const RATE_LIMIT_DELAY_MS = 100; // 100ms between API calls (10 requests/sec)
 
 interface TokenStats {
   address: string;
@@ -46,84 +32,9 @@ interface TokenStats {
 }
 
 /**
- * Fetch prices for multiple tokens in one API call
+ * Fetch stats for a single token from Birdeye
  */
-async function fetchMultiTokenPrices(addresses: string[]): Promise<Map<string, TokenStats>> {
-  const birdeyeApiKey = process.env.NEXT_PUBLIC_BIRDEYE_API_KEY;
-  const results = new Map<string, TokenStats>();
-
-  if (!birdeyeApiKey) {
-    logger.warn('BIRDEYE_API_KEY not configured');
-    return results;
-  }
-
-  try {
-    // Birdeye multi_price endpoint
-    const addressList = addresses.join(',');
-    const response = await fetch(
-      `https://public-api.birdeye.so/defi/multi_price?list_address=${addressList}`,
-      {
-        headers: {
-          'X-API-KEY': birdeyeApiKey,
-          'x-chain': 'solana',
-        },
-      }
-    );
-
-    if (!response.ok) {
-      throw new Error(`Birdeye API error: ${response.status}`);
-    }
-
-    const data: BirdeyeMultiPriceResponse = await response.json();
-
-    if (!data.success || !data.data) {
-      throw new Error('Invalid Birdeye response');
-    }
-
-    // Process each token's price data
-    const now = Date.now();
-    for (const address of addresses) {
-      const priceData = data.data[address];
-
-      results.set(address, {
-        address,
-        price: priceData?.value || null,
-        priceChange24h: priceData?.priceChange24h || null,
-        // Multi-price doesn't include these, will be null
-        marketCap: null,
-        volume24h: null,
-        holders: null,
-        liquidity: null,
-        updatedAt: now,
-      });
-    }
-  } catch (error) {
-    logger.error('Error fetching multi-token prices:', { error, count: addresses.length });
-
-    // Return empty stats for all tokens on error
-    const now = Date.now();
-    for (const address of addresses) {
-      results.set(address, {
-        address,
-        price: null,
-        priceChange24h: null,
-        marketCap: null,
-        volume24h: null,
-        holders: null,
-        liquidity: null,
-        updatedAt: now,
-      });
-    }
-  }
-
-  return results;
-}
-
-/**
- * Fetch detailed stats for tokens (includes market cap, holders, etc.)
- * Uses individual calls but only for visible/important tokens
- */
-async function fetchDetailedStats(address: string): Promise<TokenStats> {
+async function fetchSingleTokenStats(address: string): Promise<TokenStats> {
   const birdeyeApiKey = process.env.NEXT_PUBLIC_BIRDEYE_API_KEY;
 
   const emptyStats: TokenStats = {
@@ -150,10 +61,15 @@ async function fetchDetailedStats(address: string): Promise<TokenStats> {
       }
     );
 
-    if (!response.ok) throw new Error(`Birdeye API error: ${response.status}`);
+    if (!response.ok) {
+      throw new Error(`Birdeye API error: ${response.status}`);
+    }
 
     const data = await response.json();
-    if (!data.success || !data.data) throw new Error('Invalid response');
+
+    if (!data.success || !data.data) {
+      throw new Error('Invalid Birdeye response');
+    }
 
     return {
       address,
@@ -165,10 +81,12 @@ async function fetchDetailedStats(address: string): Promise<TokenStats> {
       liquidity: data.data.liquidity || null,
       updatedAt: Date.now(),
     };
-  } catch {
+  } catch (error) {
+    logger.error(`Error fetching stats for ${address}:`, { error });
     return emptyStats;
   }
 }
+
 
 /**
  * Store multiple token stats in Redis using pipeline
@@ -224,36 +142,23 @@ export async function GET(request: NextRequest) {
 
     logger.info(`Updating prices for ${tokenAddresses.length} tokens`);
 
-    // Batch fetch prices using multi-token API
+    // Fetch stats for each token with rate limiting
     const allStats = new Map<string, TokenStats>();
-    let birdeyeApiCalls = 0;
+    let successCount = 0;
 
-    for (let i = 0; i < tokenAddresses.length; i += BATCH_SIZE) {
-      const batch = tokenAddresses.slice(i, i + BATCH_SIZE);
-      const batchStats = await fetchMultiTokenPrices(batch);
-      birdeyeApiCalls++;
+    for (let i = 0; i < tokenAddresses.length; i++) {
+      const address = tokenAddresses[i];
+      const stats = await fetchSingleTokenStats(address);
+      allStats.set(address, stats);
 
-      // Merge into all stats
-      for (const [address, stats] of batchStats) {
-        allStats.set(address, stats);
+      if (stats.price !== null) {
+        successCount++;
       }
 
-      // Small delay between batches to avoid rate limits
-      if (i + BATCH_SIZE < tokenAddresses.length) {
-        await new Promise(resolve => setTimeout(resolve, 100));
+      // Rate limit between API calls
+      if (i < tokenAddresses.length - 1) {
+        await new Promise(resolve => setTimeout(resolve, RATE_LIMIT_DELAY_MS));
       }
-    }
-
-    // For top tokens (first 10), fetch detailed stats
-    const topTokens = tokenAddresses.slice(0, 10);
-    for (const address of topTokens) {
-      const detailed = await fetchDetailedStats(address);
-      if (detailed.marketCap !== null) {
-        allStats.set(address, detailed);
-        birdeyeApiCalls++;
-      }
-      // Rate limit
-      await new Promise(resolve => setTimeout(resolve, 50));
     }
 
     // Store all stats in Redis
@@ -263,7 +168,7 @@ export async function GET(request: NextRequest) {
 
     logger.info('Price update completed', {
       tokens: tokenAddresses.length,
-      birdeyeApiCalls,
+      successCount,
       duration,
     });
 
@@ -271,7 +176,7 @@ export async function GET(request: NextRequest) {
       success: true,
       stats: {
         tokens: tokenAddresses.length,
-        birdeyeApiCalls,
+        successCount,
         duration,
       },
     });
