@@ -1057,6 +1057,14 @@ export default function WalletPage() {
   const [showAllProjects, setShowAllProjects] = useState(false);
   const [showAllWatchlist, setShowAllWatchlist] = useState(false);
 
+  // Token stats (prices, market cap, etc.)
+  const [tokenStats, setTokenStats] = useState<Map<string, {
+    price: number | null;
+    priceChange24h: number | null;
+    marketCap: number | null;
+  }>>(new Map());
+  const [isLoadingTokenStats, setIsLoadingTokenStats] = useState(false);
+
   // Portfolio section tab state
   const [portfolioTab, setPortfolioTab] = useState<'predictions' | 'projects' | 'watchlist'>('predictions');
 
@@ -1143,6 +1151,47 @@ export default function WalletPage() {
       setUsername(emailString ? emailString.split('@')[0] : '');
     }
   }, [profileData, contextUser]);
+
+  // Fetch token stats (prices) for wallet tokens
+  useEffect(() => {
+    if (allTokens.length === 0) return;
+
+    const fetchTokenStats = async () => {
+      setIsLoadingTokenStats(true);
+      try {
+        const addresses = allTokens.map((t) => t.mint).filter(Boolean);
+        const response = await fetch('/api/tokens/stats', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ addresses }),
+        });
+
+        if (response.ok) {
+          const data = await response.json();
+          if (data.success && data.data) {
+            const statsMap = new Map<string, { price: number | null; priceChange24h: number | null; marketCap: number | null }>();
+            data.data.forEach((stat: any) => {
+              statsMap.set(stat.address, {
+                price: stat.price,
+                priceChange24h: stat.priceChange24h,
+                marketCap: stat.marketCap,
+              });
+            });
+            setTokenStats(statsMap);
+          }
+        }
+      } catch (error) {
+        console.error('Error fetching token stats:', error);
+      } finally {
+        setIsLoadingTokenStats(false);
+      }
+    };
+
+    fetchTokenStats();
+    // Refresh every 60 seconds
+    const interval = setInterval(fetchTokenStats, 60000);
+    return () => clearInterval(interval);
+  }, [allTokens]);
 
   const handleUsernameChange = async (newUsername: string) => {
     if (!newUsername.trim() || !primaryWallet) return;
@@ -1722,7 +1771,14 @@ export default function WalletPage() {
           <>
             {allTokens
               .filter(token => token.mint !== usdcMint.toBase58()) // Exclude USDC (already shown above)
-              .map((token) => (
+              .map((token) => {
+                const stats = tokenStats.get(token.mint);
+                const price = stats?.price ?? null;
+                const priceChange = stats?.priceChange24h ?? null;
+                const usdValue = price !== null ? price * token.uiAmount : null;
+                const isPositive = priceChange !== null && priceChange >= 0;
+
+                return (
                 <div key={token.mint} className="bg-white/5 border border-white/10 rounded-lg hover:bg-white/10 transition-colors cursor-pointer">
                   <div className="flex items-center justify-between p-3">
                     <div className="flex items-center space-x-2.5 flex-1 min-w-0">
@@ -1752,7 +1808,36 @@ export default function WalletPage() {
                         </p>
                       </div>
                     </div>
-                    <div className="text-right flex-shrink-0 ml-2 flex flex-col gap-1">
+                    {/* Price & Value Column */}
+                    <div className="text-right flex-shrink-0 mx-3">
+                      {price !== null ? (
+                        <>
+                          <p className="text-white font-medium text-sm">
+                            {usdValue !== null ? (
+                              usdValue >= 1000 ? `$${(usdValue / 1000).toFixed(2)}K` :
+                              usdValue >= 1 ? `$${usdValue.toFixed(2)}` :
+                              `$${usdValue.toFixed(4)}`
+                            ) : '-'}
+                          </p>
+                          <div className="flex items-center justify-end gap-1">
+                            <span className="text-[10px] text-gray-500">
+                              @{price < 0.000001 ? price.toExponential(1) : price < 0.01 ? `$${price.toFixed(6)}` : `$${price.toFixed(4)}`}
+                            </span>
+                            {priceChange !== null && (
+                              <span className={`text-[10px] font-medium ${isPositive ? 'text-green-400' : 'text-red-400'}`}>
+                                {isPositive ? '+' : ''}{priceChange.toFixed(1)}%
+                              </span>
+                            )}
+                          </div>
+                        </>
+                      ) : (
+                        <p className="text-gray-500 text-xs">
+                          {isLoadingTokenStats ? '...' : '-'}
+                        </p>
+                      )}
+                    </div>
+                    {/* Actions Column */}
+                    <div className="text-right flex-shrink-0 flex flex-col gap-1">
                       <a
                         href={`https://pump.fun/${token.mint}`}
                         target="_blank"
@@ -1775,7 +1860,8 @@ export default function WalletPage() {
                     </div>
                   </div>
                 </div>
-              ))}
+              );
+              })}
           </>
         )}
 
