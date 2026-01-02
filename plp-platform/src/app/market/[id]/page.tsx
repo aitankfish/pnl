@@ -1284,6 +1284,61 @@ export default function MarketDetailsPage() {
                   tokenSymbol={market.tokenSymbol}
                   tokenImageUrl={market.projectImageUrl || market.metadata?.image}
                 />
+
+                {/* Claim Section - Show for YES voters after token launch */}
+                {primaryWallet && positionData?.success && positionData.data.hasPosition && (
+                  <div className="bg-gradient-to-br from-purple-500/10 via-pink-500/10 to-cyan-500/10 border border-purple-400/30 rounded-xl p-4 space-y-3">
+                    <div className="text-center">
+                      <h4 className="text-purple-400 text-sm font-semibold mb-1">Your Position</h4>
+                      <div className="flex items-center justify-center gap-2">
+                        <span className={`font-bold ${positionData.data.side === 'yes' ? 'text-green-400' : 'text-red-400'}`}>
+                          {positionData.data.side.toUpperCase()}
+                        </span>
+                        <span className="text-gray-400">·</span>
+                        <span className="text-white font-mono">{(Number(positionData.data?.totalAmount) || 0).toFixed(3)} SOL</span>
+                      </div>
+                    </div>
+
+                    {!positionData.data.claimed ? (
+                      positionData.data.side === 'yes' ? (
+                        <Button
+                          onClick={handleClaim}
+                          disabled={isClaiming}
+                          className="w-full bg-gradient-to-r from-green-500 to-cyan-500 hover:from-green-600 hover:to-cyan-600 text-white font-bold"
+                        >
+                          {isClaiming ? (
+                            <>
+                              <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                              Claiming...
+                            </>
+                          ) : (
+                            <>
+                              🎁 Claim Token Airdrop
+                            </>
+                          )}
+                        </Button>
+                      ) : (
+                        <div className="bg-red-500/10 border border-red-500/30 rounded-lg p-3 text-center">
+                          <p className="text-red-400 text-sm">You voted NO - no tokens to claim</p>
+                        </div>
+                      )
+                    ) : (
+                      <div className="bg-green-500/10 border border-green-500/30 rounded-lg p-3 text-center">
+                        <p className="text-green-400 font-semibold flex items-center justify-center gap-2">
+                          <CheckCircle className="w-4 h-4" />
+                          Already Claimed
+                        </p>
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {/* Sign In Prompt - Show when not logged in */}
+                {!primaryWallet && (
+                  <div className="bg-gradient-to-br from-yellow-500/10 to-orange-500/10 border border-yellow-400/30 rounded-xl p-4 text-center">
+                    <p className="text-yellow-400 text-sm font-medium">Sign in to claim your tokens</p>
+                  </div>
+                )}
               </div>
             </div>
           )}
