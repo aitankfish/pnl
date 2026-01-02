@@ -30,6 +30,223 @@ Create a custom **PNL Launchpad** using Raydium LaunchLab infrastructure, while 
 
 ---
 
+## PNL Tokenomics Model
+
+### The Core Difference: Mint vs Buy
+
+**Pump.fun Model (Current):**
+```
+Pool raised: 10 SOL
+         ↓
+Buy tokens on Pump.fun bonding curve
+         ↓
+Get ~200-250M tokens (curve price determines amount)
+         ↓
+Distribute 65/33/2 of PURCHASED tokens
+         ↓
+Voters get ~13-16% of total 1B supply
+```
+
+**PNL Model (New):**
+```
+Pool raised: 10 SOL
+         ↓
+MINT tokens (we control supply)
+         ↓
+Allocate 50% to liquidity pool + raised SOL
+Allocate 50% directly to voters/founder/platform
+         ↓
+Voters get 32.5% of total supply (2.5x more!)
+```
+
+### Token Supply Allocation
+
+| Allocation | Percentage | Purpose |
+|------------|------------|---------|
+| Liquidity Pool | 50% | Paired with raised SOL for trading |
+| Distribution Pool | 50% | Split among voters/founder/platform |
+
+**Distribution Pool Breakdown (same ratios as current):**
+
+| Recipient | % of Distribution | % of Total Supply |
+|-----------|-------------------|-------------------|
+| YES Voters | 65% | 32.5% |
+| Founder | 33% | 16.5% |
+| Platform | 2% | 1.0% |
+
+### Dynamic Supply Formula
+
+Instead of fixed 1B tokens, supply scales with pool size:
+
+```
+Total Supply = Pool Raised (SOL) × 10,000,000
+```
+
+| Pool Raised | Total Supply | Liquidity Tokens | Voter Allocation |
+|-------------|--------------|------------------|------------------|
+| 5 SOL | 50M | 25M | 16.25M (32.5%) |
+| 10 SOL | 100M | 50M | 32.5M (32.5%) |
+| 15 SOL | 150M | 75M | 48.75M (32.5%) |
+| 25 SOL | 250M | 125M | 81.25M (32.5%) |
+| 50 SOL | 500M | 250M | 162.5M (32.5%) |
+
+### Virtual Liquidity for Proper Market Cap
+
+**Problem:** Without virtual liquidity, initial market cap is too low.
+
+```
+10 SOL pool + 50M tokens in liquidity
+Price = 10 / 50,000,000 = 0.0000002 SOL
+Market Cap = 100M × 0.0000002 = 20 SOL (~$3,000)
+```
+
+This feels "dead" compared to Pump.fun's ~$15k starting MC.
+
+**Solution:** Add virtual SOL reserves (4x multiplier) for pricing only.
+
+```
+Real liquidity: 10 SOL
+Virtual boost: 40 SOL (for price calculation only)
+Effective reserves: 50 SOL
+
+Price = 50 / 50,000,000 = 0.000001 SOL
+Market Cap = 100M × 0.000001 = 100 SOL (~$15,000)
+```
+
+### Market Cap Comparison
+
+| Pool Size | PNL (with 4x virtual) | Pump.fun (at same SOL) |
+|-----------|----------------------|------------------------|
+| 5 SOL | ~25 SOL ($3.7k) | ~$5k MC |
+| 10 SOL | ~50 SOL ($7.5k) | ~$15k MC |
+| 15 SOL | ~75 SOL ($11k) | ~$25k MC |
+| 25 SOL | ~125 SOL ($19k) | ~$40k MC |
+| 50 SOL | ~250 SOL ($37k) | ~$60k MC |
+
+### Voter Advantage: PNL vs Pump.fun
+
+| Metric | Pump.fun | PNL | Improvement |
+|--------|----------|-----|-------------|
+| Voter % of supply | ~13-16% | 32.5% | **2-2.5x more tokens** |
+| Entry price | Curve price (higher) | Creation price (lowest) | **Better entry** |
+| Bot competition | High (snipers) | None (pre-allocated) | **Fair distribution** |
+| Creator LP | 0% | 50% | **Creator aligned** |
+
+### Tokenomics Constants
+
+```typescript
+// src/lib/constants/tokenomics.ts
+
+export const PNL_TOKENOMICS = {
+  // Supply calculation
+  SUPPLY_MULTIPLIER: 10_000_000,  // Supply = Pool SOL × this
+
+  // Allocation split
+  LIQUIDITY_SHARE: 0.50,          // 50% to AMM pool
+  DISTRIBUTION_SHARE: 0.50,       // 50% to distribute
+
+  // Distribution breakdown (of the 50%)
+  VOTER_SHARE: 0.65,              // 65% → 32.5% of total
+  FOUNDER_SHARE: 0.33,            // 33% → 16.5% of total
+  PLATFORM_SHARE: 0.02,           // 2%  → 1.0% of total
+
+  // Virtual liquidity for MC
+  VIRTUAL_SOL_MULTIPLIER: 4,      // 4x virtual boost
+
+  // Token decimals
+  DECIMALS: 6,
+};
+
+// Calculate allocations
+export function calculateTokenomics(poolSol: number) {
+  const totalSupply = poolSol * PNL_TOKENOMICS.SUPPLY_MULTIPLIER;
+  const liquidityTokens = totalSupply * PNL_TOKENOMICS.LIQUIDITY_SHARE;
+  const distributionTokens = totalSupply * PNL_TOKENOMICS.DISTRIBUTION_SHARE;
+
+  return {
+    totalSupply,
+    liquidity: {
+      tokens: liquidityTokens,
+      sol: poolSol,
+    },
+    distribution: {
+      voters: distributionTokens * PNL_TOKENOMICS.VOTER_SHARE,
+      founder: distributionTokens * PNL_TOKENOMICS.FOUNDER_SHARE,
+      platform: distributionTokens * PNL_TOKENOMICS.PLATFORM_SHARE,
+    },
+    pricing: {
+      virtualSol: poolSol * PNL_TOKENOMICS.VIRTUAL_SOL_MULTIPLIER,
+      effectiveSol: poolSol * (1 + PNL_TOKENOMICS.VIRTUAL_SOL_MULTIPLIER),
+      pricePerToken: (poolSol * (1 + PNL_TOKENOMICS.VIRTUAL_SOL_MULTIPLIER)) / liquidityTokens,
+      marketCap: totalSupply * ((poolSol * (1 + PNL_TOKENOMICS.VIRTUAL_SOL_MULTIPLIER)) / liquidityTokens),
+    },
+  };
+}
+```
+
+### Example: 10 SOL Pool
+
+```
+Pool Raised: 10 SOL
+
+Token Creation:
+├── Total Supply: 100,000,000 tokens
+├── Liquidity Pool: 50,000,000 tokens + 10 SOL
+└── Distribution: 50,000,000 tokens
+    ├── YES Voters: 32,500,000 (32.5% of supply)
+    ├── Founder: 16,500,000 (16.5% of supply)
+    └── Platform: 1,000,000 (1.0% of supply)
+
+Pricing (with 4x virtual boost):
+├── Virtual SOL: 40 SOL
+├── Effective reserves: 50 SOL
+├── Price: 0.000001 SOL per token
+└── Market Cap: 100 SOL (~$15,000)
+
+Voter Example:
+├── Voted: 1 SOL (10% of pool)
+├── Receives: 3,250,000 tokens (10% of voter pool)
+├── Position value at launch: ~$1,500
+└── If 10x: Position worth ~$15,000
+```
+
+### Smart Contract Implementation
+
+```rust
+// plp_program/programs/errors/src/instructions/resolve_market_pnl.rs
+
+/// PNL Tokenomics constants
+pub const SUPPLY_MULTIPLIER: u64 = 10_000_000;
+pub const LIQUIDITY_BPS: u64 = 5000;      // 50%
+pub const VOTER_BPS: u64 = 3250;          // 32.5% of total (65% of 50%)
+pub const FOUNDER_BPS: u64 = 1650;        // 16.5% of total (33% of 50%)
+pub const PLATFORM_BPS: u64 = 100;        // 1.0% of total (2% of 50%)
+pub const VIRTUAL_MULTIPLIER: u64 = 4;    // 4x virtual boost
+pub const BPS_DIVISOR: u64 = 10000;
+
+pub fn calculate_pnl_tokenomics(pool_lamports: u64) -> PnlTokenomics {
+    let pool_sol = pool_lamports / LAMPORTS_PER_SOL;
+    let total_supply = pool_sol * SUPPLY_MULTIPLIER;
+
+    let liquidity_tokens = (total_supply * LIQUIDITY_BPS) / BPS_DIVISOR;
+    let voter_tokens = (total_supply * VOTER_BPS) / BPS_DIVISOR;
+    let founder_tokens = (total_supply * FOUNDER_BPS) / BPS_DIVISOR;
+    let platform_tokens = (total_supply * PLATFORM_BPS) / BPS_DIVISOR;
+
+    PnlTokenomics {
+        total_supply,
+        liquidity_tokens,
+        liquidity_sol: pool_lamports,
+        voter_tokens,
+        founder_tokens,
+        platform_tokens,
+        virtual_sol: pool_lamports * VIRTUAL_MULTIPLIER,
+    }
+}
+```
+
+---
+
 ## Implementation Phases
 
 ### Phase 1: Platform Registration (1-2 days)
