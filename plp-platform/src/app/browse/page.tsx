@@ -5,7 +5,7 @@ import useSWR from 'swr';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Loader2, Filter, Users, TrendingUp } from 'lucide-react';
+import { Loader2, Filter, Users, TrendingUp, ChevronLeft, ChevronRight } from 'lucide-react';
 import Link from 'next/link';
 import { useVoting } from '@/lib/hooks/useVoting';
 import { useAllMarketsSocket } from '@/lib/hooks/useSocket';
@@ -147,10 +147,14 @@ function getVoteDisabledReason(market: Market, voteType: 'yes' | 'no'): string {
     : (states.noVoteDisabledReason || 'Disabled');
 }
 
+const ITEMS_PER_PAGE_OPTIONS = [25, 50, 100];
+
 export default function BrowsePage() {
   const [votingState, setVotingState] = useState<{ marketId: string; voteType: 'yes' | 'no' } | null>(null);
   const [selectedCategory, setSelectedCategory] = useState<string>('All');
   const [selectedStatus, setSelectedStatus] = useState<string>('active'); // 'active', 'resolved', 'all'
+  const [page, setPage] = useState(1);
+  const [itemsPerPage, setItemsPerPage] = useState(25);
   const { vote } = useVoting();
 
   // Socket.IO for real-time updates
@@ -164,7 +168,7 @@ export default function BrowsePage() {
 
   // Use SWR for data fetching with caching and auto-refresh
   const { data: marketsResponse, error: fetchError, mutate: refetchMarkets } = useSWR(
-    `/api/markets/list?status=${selectedStatus}`,
+    `/api/markets/list?status=${selectedStatus}&page=${page}&limit=${itemsPerPage}`,
     fetcher,
     {
       refreshInterval: pollInterval,
@@ -174,10 +178,28 @@ export default function BrowsePage() {
     }
   );
 
-  // Extract markets and sync health from SWR response
+  // Extract markets, sync health, and pagination from SWR response
   const loading = !marketsResponse && !fetchError;
   const error = fetchError ? 'Failed to load markets' : (marketsResponse?.success === false ? marketsResponse.error : null);
   const syncHealth = marketsResponse?.data?.syncHealth || null;
+  const totalCount = marketsResponse?.data?.totalCount || 0;
+  const pagination = marketsResponse?.data?.pagination || { page: 1, limit: 25, totalPages: 1, hasMore: false };
+
+  // Handle category/status change - reset to page 1
+  const handleStatusChange = (status: string) => {
+    setSelectedStatus(status);
+    setPage(1);
+  };
+
+  // Handle items per page change - reset to page 1
+  const handleItemsPerPageChange = (newLimit: number) => {
+    setItemsPerPage(newLimit);
+    setPage(1);
+  };
+
+  // Pagination display helpers
+  const startItem = totalCount > 0 ? (page - 1) * itemsPerPage + 1 : 0;
+  const endItem = Math.min(page * itemsPerPage, totalCount);
 
   // Merge socket updates with SWR data using useMemo
   const markets = useMemo(() => {
@@ -354,6 +376,11 @@ export default function BrowsePage() {
           <h1 className="text-lg sm:text-2xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-purple-400 via-pink-400 to-cyan-400 tracking-tight">
             Vote on projects. Earn rewards. Shape Web3.
           </h1>
+          {totalCount > 0 && (
+            <p className="text-sm text-gray-400 mt-1">
+              {totalCount} market{totalCount !== 1 ? 's' : ''} available
+            </p>
+          )}
         </div>
 
         {/* Filter Bar - Controls all markets */}
@@ -370,7 +397,7 @@ export default function BrowsePage() {
               ].map((tab) => (
                 <button
                   key={tab.value}
-                  onClick={() => setSelectedStatus(tab.value)}
+                  onClick={() => handleStatusChange(tab.value)}
                   className={`px-3 sm:px-4 py-1.5 sm:py-2 text-xs sm:text-sm font-medium rounded-lg transition-all ${
                     selectedStatus === tab.value
                       ? 'bg-gradient-to-r from-purple-500 to-cyan-500 text-white shadow-lg shadow-purple-500/25'
@@ -387,7 +414,7 @@ export default function BrowsePage() {
               <Filter className="w-4 h-4 text-gray-400" />
               <select
                 value={selectedCategory}
-                onChange={(e) => setSelectedCategory(e.target.value)}
+                onChange={(e) => { setSelectedCategory(e.target.value); setPage(1); }}
                 className="h-9 w-[100px] sm:w-[140px] bg-slate-800 border border-white/20 text-white text-sm rounded-lg px-2 sm:px-3 py-1.5 focus:ring-2 focus:ring-purple-500/50 focus:border-purple-500/50 transition-all appearance-none cursor-pointer"
                 style={{
                   backgroundImage: `url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%239ca3af' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='M6 8l4 4 4-4'/%3e%3c/svg%3e")`,
@@ -642,23 +669,108 @@ export default function BrowsePage() {
               })}
           </div>
           )}
-        </div>
 
-        {/* Call to Action */}
-        <div className="text-center space-y-3 sm:space-y-4 py-8 sm:py-12">
-          <h2 className="text-xl sm:text-3xl font-bold text-white">Don&apos;t See Your Project?</h2>
-          <p className="text-white/70 text-sm sm:text-base px-4">
-            Launch your own prediction market and let the community decide if your project should get a token.
-          </p>
-          <div className="flex justify-center">
-            <Link
-              href="/create"
-              prefetch={true}
-              className="inline-flex items-center justify-center px-6 sm:px-8 py-2.5 sm:py-3 text-base sm:text-lg font-semibold text-white bg-gradient-to-r from-purple-500 to-pink-500 rounded-md hover:from-purple-600 hover:to-pink-600 transition-all duration-200 hover:scale-105 cursor-pointer"
-            >
-              Launch Your Project
-            </Link>
-          </div>
+          {/* Pagination Controls - only show when there are more items than smallest page size */}
+          {totalCount > ITEMS_PER_PAGE_OPTIONS[0] && (
+            <div className="flex flex-col sm:flex-row items-center justify-between gap-4 pt-6 border-t border-white/10">
+              {/* Items per page */}
+              <div className="flex items-center gap-2 text-sm text-gray-400">
+                <span>Show</span>
+                <div className="flex items-center gap-1">
+                  {ITEMS_PER_PAGE_OPTIONS.map(option => (
+                    <button
+                      key={option}
+                      onClick={() => handleItemsPerPageChange(option)}
+                      className={`px-2.5 py-1 rounded text-sm font-medium transition-colors ${
+                        itemsPerPage === option
+                          ? 'bg-cyan-500 text-white'
+                          : 'bg-white/5 text-gray-400 hover:bg-white/10 hover:text-white'
+                      }`}
+                    >
+                      {option}
+                    </button>
+                  ))}
+                </div>
+                <span>per page</span>
+              </div>
+
+              {/* Page info */}
+              <div className="text-sm text-gray-400">
+                Showing {startItem}-{endItem} of {totalCount}
+              </div>
+
+              {/* Page navigation */}
+              <div className="flex items-center gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setPage(1)}
+                  disabled={page === 1}
+                  className="border-white/10 text-gray-400 hover:bg-white/10 hover:text-white disabled:opacity-30"
+                >
+                  First
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setPage(p => Math.max(1, p - 1))}
+                  disabled={page === 1}
+                  className="border-white/10 text-gray-400 hover:bg-white/10 hover:text-white disabled:opacity-30"
+                >
+                  <ChevronLeft className="w-4 h-4" />
+                </Button>
+
+                {/* Page numbers */}
+                <div className="flex items-center gap-1">
+                  {Array.from({ length: Math.min(5, pagination.totalPages) }, (_, i) => {
+                    let pageNum: number;
+                    if (pagination.totalPages <= 5) {
+                      pageNum = i + 1;
+                    } else if (page <= 3) {
+                      pageNum = i + 1;
+                    } else if (page >= pagination.totalPages - 2) {
+                      pageNum = pagination.totalPages - 4 + i;
+                    } else {
+                      pageNum = page - 2 + i;
+                    }
+
+                    return (
+                      <button
+                        key={pageNum}
+                        onClick={() => setPage(pageNum)}
+                        className={`w-8 h-8 rounded text-sm font-medium transition-colors ${
+                          page === pageNum
+                            ? 'bg-cyan-500 text-white'
+                            : 'bg-white/5 text-gray-400 hover:bg-white/10 hover:text-white'
+                        }`}
+                      >
+                        {pageNum}
+                      </button>
+                    );
+                  })}
+                </div>
+
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setPage(p => Math.min(pagination.totalPages, p + 1))}
+                  disabled={!pagination.hasMore}
+                  className="border-white/10 text-gray-400 hover:bg-white/10 hover:text-white disabled:opacity-30"
+                >
+                  <ChevronRight className="w-4 h-4" />
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setPage(pagination.totalPages)}
+                  disabled={page === pagination.totalPages}
+                  className="border-white/10 text-gray-400 hover:bg-white/10 hover:text-white disabled:opacity-30"
+                >
+                  Last
+                </Button>
+              </div>
+            </div>
+          )}
         </div>
 
         {/* Error Dialog */}

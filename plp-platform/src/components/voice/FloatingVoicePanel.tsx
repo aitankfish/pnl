@@ -53,12 +53,12 @@ export default function FloatingVoicePanel() {
 
   // Market page sidebar drag handlers
   const handleTouchStart = useCallback((e: React.TouchEvent) => {
-    // Only start drag from the header area (top 60px)
+    // Allow drag from the top 120px (header + drag zone) for easier swipe-to-dismiss
     const touch = e.touches[0];
     const rect = e.currentTarget.getBoundingClientRect();
     const touchYInElement = touch.clientY - rect.top;
 
-    if (touchYInElement <= 60) {
+    if (touchYInElement <= 120) {
       touchStartY.current = touch.clientY;
       setIsDragging(true);
     }
@@ -101,7 +101,8 @@ export default function FloatingVoicePanel() {
     const rect = e.currentTarget.getBoundingClientRect();
     const touchYInElement = touch.clientY - rect.top;
 
-    if (touchYInElement <= 60) {
+    // Allow drag from the top 120px for easier swipe-to-dismiss
+    if (touchYInElement <= 120) {
       touchStartY.current = touch.clientY;
       setIsDragging(true);
     }
@@ -236,34 +237,46 @@ export default function FloatingVoicePanel() {
               onTouchStart={handleTouchStart}
               onTouchMove={handleTouchMove}
               onTouchEnd={handleTouchEnd}
-              className="absolute right-0 top-0 bottom-0 w-full max-w-md bg-gray-900 border-l border-gray-700/50 shadow-2xl animate-in slide-in-from-right duration-300"
+              className="absolute right-0 top-16 bottom-0 w-full max-w-md bg-gray-900 border-l border-gray-700/50 shadow-2xl animate-in slide-in-from-right duration-300 flex flex-col rounded-t-2xl"
               style={{
                 transform: `translateY(${isClosing ? '100%' : `${dragOffset}px`})`,
                 transition: isDragging ? 'none' : 'transform 0.2s ease-out',
               }}
             >
-              {/* Swipe indicator - shows drag progress */}
-              <div className="flex justify-center pt-2 pb-1">
-                <div
-                  className="w-10 h-1 rounded-full transition-colors"
-                  style={{
-                    backgroundColor: dragOffset > DISMISS_THRESHOLD ? '#22c55e' : '#4b5563',
-                  }}
-                />
-              </div>
-              <div className="flex items-center justify-between px-4 py-2 border-b border-gray-700/50">
-                <h2 className="text-base font-medium text-white truncate flex-1 mr-2">{marketData?.name || 'Community'}</h2>
-                <div className="flex items-center gap-2">
-                  <Wifi className="w-4 h-4 text-green-400" />
-                  <button
-                    onClick={() => setIsMobileSidebarOpen(false)}
-                    className="p-1.5 rounded-lg hover:bg-gray-800 transition-colors"
-                  >
-                    <Minimize2 className="w-4 h-4 text-gray-400" />
-                  </button>
+              {/* Drag zone - entire top section is touchable for swipe-to-dismiss */}
+              <div className="touch-none select-none">
+                {/* Swipe indicator - more prominent handle */}
+                <div className="flex justify-center pt-3 pb-2">
+                  <div
+                    className="w-12 h-1.5 rounded-full transition-all duration-200"
+                    style={{
+                      backgroundColor: dragOffset > DISMISS_THRESHOLD ? '#22c55e' : isDragging ? '#9ca3af' : '#4b5563',
+                      transform: isDragging ? 'scaleX(1.2)' : 'scaleX(1)',
+                    }}
+                  />
+                </div>
+                {/* Subtle hint text when dragging */}
+                {isDragging && (
+                  <div className="text-center pb-1">
+                    <span className={`text-xs transition-colors ${dragOffset > DISMISS_THRESHOLD ? 'text-green-400' : 'text-gray-500'}`}>
+                      {dragOffset > DISMISS_THRESHOLD ? 'Release to close' : 'Swipe down to close'}
+                    </span>
+                  </div>
+                )}
+                <div className="flex items-center justify-between px-4 py-2 border-b border-gray-700/50">
+                  <h2 className="text-base font-medium text-white truncate flex-1 mr-2">{marketData?.name || 'Community'}</h2>
+                  <div className="flex items-center gap-2">
+                    <Wifi className="w-4 h-4 text-green-400" />
+                    <button
+                      onClick={() => setIsMobileSidebarOpen(false)}
+                      className="p-1.5 rounded-lg hover:bg-gray-800 transition-colors"
+                    >
+                      <Minimize2 className="w-4 h-4 text-gray-400" />
+                    </button>
+                  </div>
                 </div>
               </div>
-              <div className="h-[calc(100%-52px)]">
+              <div className="flex-1 overflow-hidden">
                 <CommunityHub
                   marketId={currentMarketId}
                   marketAddress={marketData?.marketAddress || currentMarketId}
@@ -359,46 +372,58 @@ export default function FloatingVoicePanel() {
           onTouchStart={handleExpandedTouchStart}
           onTouchMove={handleExpandedTouchMove}
           onTouchEnd={handleExpandedTouchEnd}
-          className="absolute right-0 top-0 bottom-0 w-full max-w-md bg-gray-900/85 backdrop-blur-xl border-l border-white/10 shadow-2xl shadow-black/50 animate-in slide-in-from-right duration-300"
+          className="absolute right-0 top-16 bottom-0 w-full max-w-md bg-gray-900/85 backdrop-blur-xl border-l border-white/10 shadow-2xl shadow-black/50 animate-in slide-in-from-right duration-300 flex flex-col rounded-t-2xl"
           style={{
             transform: `translateY(${isClosing ? '100%' : `${dragOffset}px`})`,
             transition: isDragging ? 'none' : 'transform 0.2s ease-out',
           }}
         >
-          {/* Swipe indicator - shows drag progress */}
-          <div className="flex justify-center pt-2 pb-1">
-            <div
-              className="w-10 h-1 rounded-full transition-colors"
-              style={{
-                backgroundColor: dragOffset > DISMISS_THRESHOLD ? '#22c55e' : '#4b5563',
-              }}
-            />
-          </div>
-          <div className="flex items-center justify-between px-4 py-2 border-b border-gray-700/50">
-            <div className="flex items-center gap-2 flex-1 min-w-0">
-              <div className="w-2 h-2 rounded-full bg-green-400 animate-pulse flex-shrink-0" />
-              <Link
-                href={`/market/${voiceMarketId}`}
-                className="text-base font-medium text-white hover:text-cyan-400 transition-colors truncate"
-              >
-                {roomTitle || voiceMarketName || 'Voice Room'}
-              </Link>
+          {/* Drag zone - entire top section is touchable for swipe-to-dismiss */}
+          <div className="touch-none select-none">
+            {/* Swipe indicator - more prominent handle */}
+            <div className="flex justify-center pt-3 pb-2">
+              <div
+                className="w-12 h-1.5 rounded-full transition-all duration-200"
+                style={{
+                  backgroundColor: dragOffset > DISMISS_THRESHOLD ? '#22c55e' : isDragging ? '#9ca3af' : '#4b5563',
+                  transform: isDragging ? 'scaleX(1.2)' : 'scaleX(1)',
+                }}
+              />
             </div>
-            <div className="flex items-center gap-2 flex-shrink-0">
-              <div className="flex items-center gap-1 text-xs text-gray-400">
-                <Users className="w-3.5 h-3.5" />
-                <span>{totalParticipants}</span>
+            {/* Subtle hint text when dragging */}
+            {isDragging && (
+              <div className="text-center pb-1">
+                <span className={`text-xs transition-colors ${dragOffset > DISMISS_THRESHOLD ? 'text-green-400' : 'text-gray-500'}`}>
+                  {dragOffset > DISMISS_THRESHOLD ? 'Release to close' : 'Swipe down to close'}
+                </span>
               </div>
-              <button
-                onClick={() => setIsExpanded(false)}
-                className="p-1.5 rounded-lg hover:bg-gray-800 transition-colors"
-                title="Minimize"
-              >
-                <Minimize2 className="w-4 h-4 text-gray-400" />
-              </button>
+            )}
+            <div className="flex items-center justify-between px-4 py-2 border-b border-gray-700/50">
+              <div className="flex items-center gap-2 flex-1 min-w-0">
+                <div className="w-2 h-2 rounded-full bg-green-400 animate-pulse flex-shrink-0" />
+                <Link
+                  href={`/market/${voiceMarketId}`}
+                  className="text-base font-medium text-white hover:text-cyan-400 transition-colors truncate"
+                >
+                  {roomTitle || voiceMarketName || 'Voice Room'}
+                </Link>
+              </div>
+              <div className="flex items-center gap-2 flex-shrink-0">
+                <div className="flex items-center gap-1 text-xs text-gray-400">
+                  <Users className="w-3.5 h-3.5" />
+                  <span>{totalParticipants}</span>
+                </div>
+                <button
+                  onClick={() => setIsExpanded(false)}
+                  className="p-1.5 rounded-lg hover:bg-gray-800 transition-colors"
+                  title="Minimize"
+                >
+                  <Minimize2 className="w-4 h-4 text-gray-400" />
+                </button>
+              </div>
             </div>
           </div>
-          <div className="h-[calc(100%-52px)]">
+          <div className="flex-1 overflow-hidden">
             <CommunityHub
               marketId={voiceMarketId || ''}
               marketAddress={voiceMarketAddress || ''}

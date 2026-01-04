@@ -22,10 +22,15 @@ const logger = createClientLogger();
 
 export async function GET(request: NextRequest) {
   try {
-    // Get status filter from query params
+    // Get query params
     const { searchParams } = new URL(request.url);
     const status = searchParams.get('status') || 'active';
     // Options: 'active', 'yesWins', 'noWins', 'expired', 'refund', 'all'
+
+    // Pagination params
+    const page = Math.max(1, parseInt(searchParams.get('page') || '1', 10));
+    const limit = Math.min(100, Math.max(1, parseInt(searchParams.get('limit') || '25', 10)));
+    const skip = (page - 1) * limit;
 
     // Connect to MongoDB
     await connectToDatabase();
@@ -55,14 +60,18 @@ export async function GET(request: NextRequest) {
     }
     // 'all' = no filter (show everything)
 
+    // Get total count for pagination (before skip/limit)
+    const totalCount = await PredictionMarket.countDocuments(matchQuery);
+
     // Use aggregation pipeline to fetch markets with project data and stake calculations in one query
     const marketsWithData = await PredictionMarket.aggregate([
       // Match markets based on status filter
       { $match: matchQuery },
       // Sort by creation date
       { $sort: { createdAt: -1 } },
-      // Limit results
-      { $limit: 20 },
+      // Pagination
+      { $skip: skip },
+      { $limit: limit },
       // Join with projects collection
       {
         $lookup: {
@@ -233,8 +242,20 @@ export async function GET(request: NextRequest) {
         : `${staleCount} market(s) may have stale data`,
     };
 
+    // Pagination info
+    const totalPages = Math.ceil(totalCount / limit);
+    const pagination = {
+      page,
+      limit,
+      totalPages,
+      totalCount,
+      hasMore: page < totalPages,
+    };
+
     logger.info('Fetched markets', {
       count: marketsWithProjects.length,
+      page,
+      totalCount,
       staleCount,
       syncHealthy,
     });
@@ -245,6 +266,8 @@ export async function GET(request: NextRequest) {
         data: {
           markets: marketsWithProjects,
           total: marketsWithProjects.length,
+          totalCount,
+          pagination,
           syncHealth,
           platformStats, // Aggregated stats (doesn't reveal individual vote directions)
         }
