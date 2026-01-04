@@ -18,6 +18,7 @@ import {
 } from 'lucide-react';
 import UserInfo from './UserInfo';
 import GlobalSearch from './GlobalSearch';
+import NotificationDropdown from './NotificationDropdown';
 
 interface SidebarItem {
   id: string;
@@ -66,6 +67,7 @@ function Sidebar({ currentPage }: SidebarProps) {
   const [isPending, startTransition] = useTransition();
   const [walletBalance, setWalletBalance] = useState<number | null>(null);
   const [shouldGlowWallet, setShouldGlowWallet] = useState(false);
+  const [isNotificationDropdownOpen, setIsNotificationDropdownOpen] = useState(false);
   const router = useRouter();
   const { ready, authenticated, primaryWallet } = useWallet();
   const { showAuthModal } = useAuthModal();
@@ -194,6 +196,61 @@ function Sidebar({ currentPage }: SidebarProps) {
               const isActive = currentPage === item.id;
               const showNotificationBadge = item.id === 'notifications' && unreadCount > 0;
               const showNewBadge = item.badge === 'New';
+              const isNotification = item.id === 'notifications';
+
+              // Special handling for notifications - dropdown on desktop, link on mobile
+              if (isNotification) {
+                return (
+                  <React.Fragment key={item.id}>
+                    {/* Mobile: Link to notifications page */}
+                    <Link
+                      href="/notifications"
+                      prefetch={true}
+                      className={`
+                        lg:hidden flex items-center justify-center w-9 h-9 sm:w-12 sm:h-12 rounded-xl transition-all duration-200 group relative flex-shrink-0
+                        ${isActive
+                          ? 'bg-white/20 text-white shadow-lg shadow-purple-500/20'
+                          : 'text-white/70 hover:text-white hover:bg-white/10'
+                        }
+                      `}
+                      title={item.label}
+                    >
+                      <Icon className="w-4 h-4 sm:w-5 sm:h-5" />
+                      {showNotificationBadge && (
+                        <div className="absolute -top-1 -right-1 min-w-5 h-5 px-1 bg-red-500 rounded-full flex items-center justify-center">
+                          <span className="text-xs text-white font-bold">{unreadCount > 9 ? '9+' : unreadCount}</span>
+                        </div>
+                      )}
+                    </Link>
+
+                    {/* Desktop: Dropdown */}
+                    <div className="hidden lg:block relative">
+                      <button
+                        onClick={() => setIsNotificationDropdownOpen(!isNotificationDropdownOpen)}
+                        className={`
+                          flex items-center justify-center w-12 h-12 rounded-xl transition-all duration-200 group relative flex-shrink-0
+                          ${isActive || isNotificationDropdownOpen
+                            ? 'bg-white/20 text-white shadow-lg shadow-purple-500/20'
+                            : 'text-white/70 hover:text-white hover:bg-white/10'
+                          }
+                        `}
+                        title={item.label}
+                      >
+                        <Icon className="w-5 h-5" />
+                        {showNotificationBadge && (
+                          <div className="absolute -top-1 -right-1 min-w-5 h-5 px-1 bg-red-500 rounded-full flex items-center justify-center">
+                            <span className="text-xs text-white font-bold">{unreadCount > 9 ? '9+' : unreadCount}</span>
+                          </div>
+                        )}
+                      </button>
+                      <NotificationDropdown
+                        isOpen={isNotificationDropdownOpen}
+                        onClose={() => setIsNotificationDropdownOpen(false)}
+                      />
+                    </div>
+                  </React.Fragment>
+                );
+              }
 
               return (
                 <React.Fragment key={item.id}>
@@ -210,11 +267,6 @@ function Sidebar({ currentPage }: SidebarProps) {
                     title={item.label}
                   >
                     <Icon className="w-4 h-4 sm:w-5 sm:h-5" />
-                    {showNotificationBadge && (
-                      <div className="absolute -top-1 -right-1 min-w-5 h-5 px-1 bg-red-500 rounded-full flex items-center justify-center">
-                        <span className="text-xs text-white font-bold">{unreadCount > 9 ? '9+' : unreadCount}</span>
-                      </div>
-                    )}
                     {showNewBadge && (
                       <div className="absolute -top-1 -right-1 w-4 h-4 bg-purple-500 rounded-full flex items-center justify-center">
                         <span className="text-xs text-white font-bold">!</span>
