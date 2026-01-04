@@ -1398,7 +1398,7 @@ export default function MarketDetailsPage() {
           )}
 
           {/* Combined Header & Voting Stats Section */}
-        <Card className="bg-white/5 backdrop-blur-xl border-white/10">
+        <Card className="bg-white/5 backdrop-blur-xl border-white/10 overflow-hidden">
           <CardHeader className="pb-3 sm:pb-4">
             <div className="flex flex-col gap-3">
               {/* Top Section: Image, Title, Badges, Actions */}
@@ -1422,7 +1422,7 @@ export default function MarketDetailsPage() {
                     <CardTitle className="text-lg sm:text-2xl text-white line-clamp-2 capitalize">{market.name}</CardTitle>
 
                     {/* Creator, Age, Share and Favorite */}
-                    <div className="flex items-center gap-2 ml-auto sm:ml-0">
+                    <div className="flex items-center gap-1 sm:gap-2 flex-wrap ml-auto sm:ml-0">
                       {/* Project Owner */}
                       {market.founderWallet && (
                         <Link
