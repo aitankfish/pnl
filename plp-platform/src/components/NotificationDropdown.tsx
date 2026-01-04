@@ -103,8 +103,9 @@ export default function NotificationDropdown({ isOpen, onClose }: NotificationDr
   return (
     <div
       ref={dropdownRef}
-      className="absolute top-full left-1/2 -translate-x-1/2 mt-2 w-80 sm:w-96 bg-black border border-white/10 rounded-xl shadow-2xl shadow-black/80 overflow-hidden z-50"
+      className="absolute top-full left-1/2 -translate-x-1/2 pt-2 w-80 sm:w-96 z-50"
     >
+      <div className="bg-black/95 backdrop-blur-xl border border-white/5 rounded-xl shadow-2xl shadow-black/90 overflow-hidden">
       {/* Header */}
       <div className="flex items-center justify-between p-4 border-b border-white/10 bg-white/5">
         <div className="flex items-center gap-2">
@@ -240,6 +241,7 @@ export default function NotificationDropdown({ isOpen, onClose }: NotificationDr
           </Link>
         </div>
       )}
+      </div>
     </div>
   );
 }
