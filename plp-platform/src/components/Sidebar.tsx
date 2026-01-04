@@ -223,10 +223,13 @@ function Sidebar({ currentPage }: SidebarProps) {
                       )}
                     </Link>
 
-                    {/* Desktop: Dropdown */}
-                    <div className="hidden lg:block relative">
+                    {/* Desktop: Dropdown on hover */}
+                    <div
+                      className="hidden lg:block relative"
+                      onMouseEnter={() => setIsNotificationDropdownOpen(true)}
+                      onMouseLeave={() => setIsNotificationDropdownOpen(false)}
+                    >
                       <button
-                        onClick={() => setIsNotificationDropdownOpen(!isNotificationDropdownOpen)}
                         className={`
                           flex items-center justify-center w-12 h-12 rounded-xl transition-all duration-200 group relative flex-shrink-0
                           ${isActive || isNotificationDropdownOpen

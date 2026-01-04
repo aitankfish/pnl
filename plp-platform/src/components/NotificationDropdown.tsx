@@ -12,8 +12,7 @@ import {
   Users,
   Clock,
   Check,
-  Trash2,
-  ExternalLink
+  Trash2
 } from 'lucide-react';
 
 interface NotificationDropdownProps {
@@ -64,14 +63,14 @@ export default function NotificationDropdown({ isOpen, onClose }: NotificationDr
 
   const getNotificationIcon = (type: string) => {
     switch (type) {
-      case 'claim_ready': return <DollarSign className="w-4 h-4" />;
-      case 'token_launched': return <Rocket className="w-4 h-4" />;
-      case 'market_resolved': return <CheckCircle className="w-4 h-4" />;
-      case 'project_update': return <TrendingUp className="w-4 h-4" />;
-      case 'vote_result': return <CheckCircle className="w-4 h-4" />;
-      case 'weekly_digest': return <Bell className="w-4 h-4" />;
-      case 'community_milestone': return <Users className="w-4 h-4" />;
-      default: return <Bell className="w-4 h-4" />;
+      case 'claim_ready': return <DollarSign className="w-5 h-5" />;
+      case 'token_launched': return <Rocket className="w-5 h-5" />;
+      case 'market_resolved': return <CheckCircle className="w-5 h-5" />;
+      case 'project_update': return <TrendingUp className="w-5 h-5" />;
+      case 'vote_result': return <CheckCircle className="w-5 h-5" />;
+      case 'weekly_digest': return <Bell className="w-5 h-5" />;
+      case 'community_milestone': return <Users className="w-5 h-5" />;
+      default: return <Bell className="w-5 h-5" />;
     }
   };
 
@@ -104,24 +103,25 @@ export default function NotificationDropdown({ isOpen, onClose }: NotificationDr
   return (
     <div
       ref={dropdownRef}
-      className="absolute top-full right-0 mt-2 w-80 sm:w-96 bg-gray-900/95 backdrop-blur-xl border border-white/10 rounded-xl shadow-2xl shadow-black/50 overflow-hidden z-50"
+      className="absolute top-full left-1/2 -translate-x-1/2 mt-2 w-80 sm:w-96 bg-black border border-white/10 rounded-xl shadow-2xl shadow-black/80 overflow-hidden z-50"
     >
       {/* Header */}
-      <div className="flex items-center justify-between p-4 border-b border-white/10">
+      <div className="flex items-center justify-between p-4 border-b border-white/10 bg-white/5">
         <div className="flex items-center gap-2">
           <h3 className="text-white font-semibold">Notifications</h3>
           {unreadCount > 0 && (
-            <span className="px-2 py-0.5 bg-red-500/20 text-red-300 text-xs rounded-full">
-              {unreadCount} new
+            <span className="px-2 py-0.5 bg-red-500/20 text-red-300 border border-red-400/30 text-xs rounded-full">
+              {unreadCount} Unread
             </span>
           )}
         </div>
         {unreadCount > 0 && (
           <button
             onClick={markAllAsRead}
-            className="text-xs text-cyan-400 hover:text-cyan-300 transition-colors"
+            className="text-xs text-white/70 hover:text-white border border-white/20 px-2 py-1 rounded hover:bg-white/10 transition-colors"
           >
-            Mark all read
+            <Check className="w-3 h-3 inline mr-1" />
+            Mark All Read
           </button>
         )}
       </div>
@@ -139,16 +139,20 @@ export default function NotificationDropdown({ isOpen, onClose }: NotificationDr
             <p className="text-white/50 text-sm">No notifications yet</p>
           </div>
         ) : (
-          recentNotifications.map((notification) => (
-            <div
-              key={notification.id}
-              className={`p-3 border-b border-white/5 hover:bg-white/5 transition-colors ${
-                !notification.isRead ? 'bg-white/5' : ''
-              }`}
-            >
+          recentNotifications.map((notification) => {
+            const handleNotificationClick = () => {
+              if (!notification.isRead) {
+                markAsRead(notification.id);
+              }
+              if (notification.actionUrl) {
+                onClose();
+              }
+            };
+
+            const notificationContent = (
               <div className="flex gap-3">
                 {/* Icon */}
-                <div className={`w-8 h-8 bg-gradient-to-r ${getNotificationColor(notification.type, notification.priority)} rounded-lg flex items-center justify-center flex-shrink-0`}>
+                <div className={`w-10 h-10 bg-gradient-to-r ${getNotificationColor(notification.type, notification.priority)} rounded-xl flex items-center justify-center flex-shrink-0`}>
                   {getNotificationIcon(notification.type)}
                 </div>
 
@@ -156,71 +160,86 @@ export default function NotificationDropdown({ isOpen, onClose }: NotificationDr
                 <div className="flex-1 min-w-0">
                   <div className="flex items-start justify-between gap-2">
                     <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-1.5">
-                        <p className={`text-sm truncate ${!notification.isRead ? 'text-white font-medium' : 'text-white/80'}`}>
+                      <div className="flex items-center gap-1.5 mb-1">
+                        <p className={`text-sm ${!notification.isRead ? 'text-white font-bold' : 'text-white font-medium'}`}>
                           {notification.title}
                         </p>
                         {!notification.isRead && (
-                          <div className="w-1.5 h-1.5 bg-blue-500 rounded-full flex-shrink-0"></div>
+                          <div className="w-2 h-2 bg-blue-500 rounded-full flex-shrink-0"></div>
                         )}
                       </div>
-                      <p className="text-xs text-white/50 line-clamp-2 mt-0.5">
+                      <p className="text-xs text-white/70 line-clamp-2">
                         {notification.message}
                       </p>
-                      <div className="flex items-center gap-2 mt-1.5">
-                        <span className="text-xs text-white/40 flex items-center">
+                      <div className="flex items-center gap-3 mt-2">
+                        <span className="text-xs text-white/50 flex items-center">
                           <Clock className="w-3 h-3 mr-1" />
                           {notification.timestamp}
                         </span>
-                        {notification.actionUrl && (
-                          <Link
-                            href={notification.actionUrl}
-                            onClick={onClose}
-                            className="text-xs text-cyan-400 hover:text-cyan-300 flex items-center"
-                          >
-                            View <ExternalLink className="w-3 h-3 ml-0.5" />
-                          </Link>
-                        )}
                       </div>
                     </div>
 
                     {/* Actions */}
-                    <div className="flex items-center gap-1 flex-shrink-0">
+                    <div className="flex items-center gap-1 flex-shrink-0" onClick={(e) => e.preventDefault()}>
                       {!notification.isRead && (
                         <button
-                          onClick={() => markAsRead(notification.id)}
-                          className="p-1 text-white/40 hover:text-white hover:bg-white/10 rounded transition-colors"
+                          onClick={(e) => { e.preventDefault(); e.stopPropagation(); markAsRead(notification.id); }}
+                          className="p-1.5 text-white/50 hover:text-white hover:bg-white/10 rounded transition-colors"
                           title="Mark as read"
                         >
-                          <Check className="w-3.5 h-3.5" />
+                          <Check className="w-4 h-4" />
                         </button>
                       )}
                       <button
-                        onClick={() => deleteNotification(notification.id)}
-                        className="p-1 text-white/40 hover:text-red-400 hover:bg-red-500/10 rounded transition-colors"
+                        onClick={(e) => { e.preventDefault(); e.stopPropagation(); deleteNotification(notification.id); }}
+                        className="p-1.5 text-white/50 hover:text-red-400 hover:bg-red-500/10 rounded transition-colors"
                         title="Delete"
                       >
-                        <Trash2 className="w-3.5 h-3.5" />
+                        <Trash2 className="w-4 h-4" />
                       </button>
                     </div>
                   </div>
                 </div>
               </div>
-            </div>
-          ))
+            );
+
+            return notification.actionUrl ? (
+              <Link
+                key={notification.id}
+                href={notification.actionUrl}
+                onClick={handleNotificationClick}
+                className={`block p-4 border-b border-white/5 hover:bg-white/10 transition-all duration-300 cursor-pointer ${
+                  !notification.isRead ? 'bg-white/10 border-l-2 border-l-blue-500' : 'bg-white/5'
+                }`}
+              >
+                {notificationContent}
+              </Link>
+            ) : (
+              <div
+                key={notification.id}
+                className={`p-4 border-b border-white/5 hover:bg-white/10 transition-all duration-300 ${
+                  !notification.isRead ? 'bg-white/10 border-l-2 border-l-blue-500' : 'bg-white/5'
+                }`}
+              >
+                {notificationContent}
+              </div>
+            );
+          })
         )}
       </div>
 
-      {/* Footer */}
-      <div className="p-3 border-t border-white/10">
-        <Link
-          href="/notifications"
-          onClick={onClose}
-          className="block w-full text-center py-2 text-sm text-cyan-400 hover:text-cyan-300 hover:bg-white/5 rounded-lg transition-colors"
-        >
-          See all notifications
-        </Link>
-      </div>
+      {/* Footer - only show if there are more notifications than displayed */}
+      {notifications.length > 6 && (
+        <div className="p-3 border-t border-white/10 bg-white/5">
+          <Link
+            href="/notifications"
+            onClick={onClose}
+            className="block w-full text-center py-2.5 text-sm font-medium bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 text-white rounded-lg transition-colors"
+          >
+            See all {notifications.length} notifications
+          </Link>
+        </div>
+      )}
     </div>
   );
 }
