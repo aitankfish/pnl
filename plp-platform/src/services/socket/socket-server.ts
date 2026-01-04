@@ -335,6 +335,20 @@ export class SocketServer {
     });
   }
 
+  /**
+   * Broadcast new market created to all-markets subscribers
+   */
+  broadcastNewMarket(marketData: any): void {
+    if (!this.io) return;
+
+    logger.info(`🆕 Broadcasting new market: ${marketData.marketAddress?.slice(0, 8)}...`);
+
+    this.io.to('all-markets').emit('market:created', {
+      market: marketData,
+      timestamp: Date.now(),
+    });
+  }
+
   // ========================================
   // Chat Broadcast Methods
   // ========================================
@@ -473,6 +487,11 @@ export function broadcastPositionUpdate(
 export function broadcastNotification(walletAddress: string, notification: any): void {
   const server = getSocketServer();
   server.broadcastNotification(walletAddress, notification);
+}
+
+export function broadcastNewMarket(marketData: any): void {
+  const server = getSocketServer();
+  server.broadcastNewMarket(marketData);
 }
 
 // Chat broadcast helpers

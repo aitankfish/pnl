@@ -1,11 +1,11 @@
 'use client';
 
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import useSWR from 'swr';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Loader2, Filter } from 'lucide-react';
+import { Loader2, Filter, Users, TrendingUp } from 'lucide-react';
 import Link from 'next/link';
 import { useVoting } from '@/lib/hooks/useVoting';
 import { useAllMarketsSocket } from '@/lib/hooks/useSocket';
@@ -154,7 +154,10 @@ export default function BrowsePage() {
   const { vote } = useVoting();
 
   // Socket.IO for real-time updates
-  const { marketUpdates, isConnected } = useAllMarketsSocket();
+  const { marketUpdates, newMarkets, clearNewMarkets, isConnected } = useAllMarketsSocket();
+
+  // Track which markets are newly added (for animation)
+  const [animatingMarketIds, setAnimatingMarketIds] = useState<Set<string>>(new Set());
 
   // Reduce polling when Socket.IO is connected
   const pollInterval = isConnected ? 60000 : 15000; // 60s when connected, 15s when not
@@ -179,9 +182,9 @@ export default function BrowsePage() {
   // Merge socket updates with SWR data using useMemo
   const markets = useMemo(() => {
     const baseMarkets: Market[] = marketsResponse?.data?.markets || [];
-    if (marketUpdates.size === 0) return baseMarkets;
 
-    return baseMarkets.map((market) => {
+    // First merge any socket updates
+    let mergedMarkets = baseMarkets.map((market) => {
       const update = marketUpdates.get(market.marketAddress);
       if (update) {
         // For RESOLVED markets: preserve final pool values (don't overwrite with 0)
@@ -196,7 +199,46 @@ export default function BrowsePage() {
       }
       return market;
     });
-  }, [marketsResponse?.data?.markets, marketUpdates]);
+
+    // Then add new markets from socket (that aren't already in the list)
+    if (newMarkets.length > 0 && selectedStatus === 'active') {
+      const existingIds = new Set(mergedMarkets.map(m => m.id));
+      const existingAddresses = new Set(mergedMarkets.map(m => m.marketAddress));
+
+      const newMarketsToAdd = newMarkets.filter(m =>
+        !existingIds.has(m.id) && !existingAddresses.has(m.marketAddress)
+      );
+
+      if (newMarketsToAdd.length > 0) {
+        // Add new markets at the beginning
+        mergedMarkets = [...newMarketsToAdd, ...mergedMarkets];
+      }
+    }
+
+    return mergedMarkets;
+  }, [marketsResponse?.data?.markets, marketUpdates, newMarkets, selectedStatus]);
+
+  // Handle animation for new markets
+  useEffect(() => {
+    if (newMarkets.length > 0) {
+      // Add new market IDs to animating set
+      const newIds = new Set(newMarkets.map(m => m.id));
+      setAnimatingMarketIds(prev => new Set([...prev, ...newIds]));
+
+      // Remove animation class after animation completes (2s)
+      const timeout = setTimeout(() => {
+        setAnimatingMarketIds(prev => {
+          const next = new Set(prev);
+          newIds.forEach(id => next.delete(id));
+          return next;
+        });
+        // Clear the new markets after animation
+        clearNewMarkets();
+      }, 2000);
+
+      return () => clearTimeout(timeout);
+    }
+  }, [newMarkets, clearNewMarkets]);
 
   // Error dialog state
   const [errorDialog, setErrorDialog] = useState<{
@@ -274,15 +316,14 @@ export default function BrowsePage() {
     return [...marketsToUse].sort(sortByVotes).slice(0, 2);
   }, [markets]);
 
-  // Filter out hot projects (only for active view) and apply category filter - memoized
-  const regularMarkets = useMemo(() => {
-    let filtered = markets;
+  // Get hot project IDs for highlighting in the grid
+  const hotProjectIds = useMemo(() => {
+    return new Set(hotProjects.map(p => p.id));
+  }, [hotProjects]);
 
-    // Only filter out hot projects when viewing active markets (they're shown separately)
-    if (selectedStatus === 'active') {
-      const hotProjectIds = hotProjects.map(p => p.id);
-      filtered = filtered.filter(m => !hotProjectIds.includes(m.id));
-    }
+  // All markets with category filter applied (hot projects now included in grid)
+  const filteredMarkets = useMemo(() => {
+    let filtered = markets;
 
     // Apply category filter
     if (selectedCategory !== 'All') {
@@ -294,8 +335,17 @@ export default function BrowsePage() {
       });
     }
 
+    // Sort hot projects to the top when viewing active markets
+    if (selectedStatus === 'active') {
+      filtered = [...filtered].sort((a, b) => {
+        const aIsHot = hotProjectIds.has(a.id) ? 1 : 0;
+        const bIsHot = hotProjectIds.has(b.id) ? 1 : 0;
+        return bIsHot - aIsHot; // Hot projects first
+      });
+    }
+
     return filtered;
-  }, [markets, hotProjects, selectedCategory, selectedStatus]);
+  }, [markets, hotProjectIds, selectedCategory, selectedStatus]);
 
   return (
     <div className="pt-2 sm:pt-3 px-3 sm:px-6 pb-6 space-y-6 sm:space-y-8">
@@ -357,237 +407,40 @@ export default function BrowsePage() {
           </div>
         </div>
 
-        {/* Hot Projects Section - only show for active markets */}
-        {!loading && hotProjects.length > 0 && selectedStatus === 'active' && (
-          <div className="grid gap-4 sm:gap-6 grid-cols-1 lg:grid-cols-2">
-              {hotProjects.map((hotProject, index) => {
-                // First card: Orange/Red theme, Second card: Purple/Blue theme
-                const isFirstCard = index === 0;
-                const cardColors = isFirstCard ? {
-                  gradient: 'from-orange-500/10 via-red-500/10 to-pink-500/10',
-                  border: 'border-orange-500/50',
-                  borderHover: 'hover:border-orange-400',
-                  shadow: 'shadow-orange-500/20',
-                  cornerBorder: 'border-orange-400',
-                  imageBg: 'bg-orange-500',
-                  imageRing: 'ring-orange-400',
-                  imageRingHover: 'group-hover:ring-orange-300',
-                  titleHover: 'group-hover:text-orange-300',
-                  fallbackGradient: 'from-orange-500/20 to-pink-500/20'
-                } : {
-                  gradient: 'from-purple-500/10 via-blue-500/10 to-cyan-500/10',
-                  border: 'border-purple-500/50',
-                  borderHover: 'hover:border-purple-400',
-                  shadow: 'shadow-purple-500/20',
-                  cornerBorder: 'border-purple-400',
-                  imageBg: 'bg-purple-500',
-                  imageRing: 'ring-purple-400',
-                  imageRingHover: 'group-hover:ring-purple-300',
-                  titleHover: 'group-hover:text-purple-300',
-                  fallbackGradient: 'from-purple-500/20 to-cyan-500/20'
-                };
-
-                return (
-                <Link href={`/market/${hotProject.id}`} key={hotProject.id} prefetch={true} className="block">
-              <Card className={`relative bg-gradient-to-br ${cardColors.gradient} backdrop-blur-xl border-2 ${cardColors.border} text-white ${cardColors.borderHover} transition-all duration-500 hover:scale-[1.02] group cursor-pointer overflow-hidden shadow-2xl ${cardColors.shadow}`}>
-                {/* Animated gradient overlay */}
-                <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/5 to-transparent transform translate-x-[-200%] group-hover:translate-x-[200%] transition-transform duration-1000"></div>
-
-                {/* Pulsing corners */}
-                <div className={`absolute top-0 left-0 w-4 h-4 border-t-2 border-l-2 ${cardColors.cornerBorder} animate-pulse`}></div>
-                <div className={`absolute top-0 right-0 w-4 h-4 border-t-2 border-r-2 ${cardColors.cornerBorder} animate-pulse`}></div>
-                <div className={`absolute bottom-0 left-0 w-4 h-4 border-b-2 border-l-2 ${cardColors.cornerBorder} animate-pulse`}></div>
-                <div className={`absolute bottom-0 right-0 w-4 h-4 border-b-2 border-r-2 ${cardColors.cornerBorder} animate-pulse`}></div>
-
-                <CardHeader className="pb-3 sm:pb-6">
-                  <div className="flex items-start justify-between mb-2 sm:mb-3">
-                    <div className="flex items-start space-x-2 sm:space-x-3 flex-1">
-                      {/* Project Image */}
-                      {hotProject.projectImageUrl ? (
-                        <div className="flex-shrink-0 relative">
-                          <div className={`absolute inset-0 ${cardColors.imageBg} rounded-lg blur-md opacity-50 animate-pulse`}></div>
-                          <img
-                            src={hotProject.projectImageUrl}
-                            alt={hotProject.name}
-                            className={`relative w-12 h-12 sm:w-16 sm:h-16 rounded-lg object-cover ring-2 ${cardColors.imageRing} ${cardColors.imageRingHover} transition-all transform group-hover:scale-110`}
-                            onError={(e) => {
-                              const target = e.target as HTMLImageElement;
-                              target.style.display = 'none';
-                              const fallback = target.nextElementSibling as HTMLElement;
-                              if (fallback) fallback.style.display = 'flex';
-                            }}
-                          />
-                          <div className={`hidden w-12 h-12 sm:w-16 sm:h-16 rounded-lg bg-gradient-to-br ${cardColors.fallbackGradient} items-center justify-center ring-2 ${cardColors.imageRing} ${cardColors.imageRingHover} transition-all flex-shrink-0`}>
-                            <span className="text-xl sm:text-2xl font-bold text-white/70">{hotProject.name.charAt(0)}</span>
-                          </div>
-                        </div>
-                      ) : (
-                        <div className={`w-12 h-12 sm:w-16 sm:h-16 rounded-lg bg-gradient-to-br ${cardColors.fallbackGradient} flex items-center justify-center ring-2 ${cardColors.imageRing} ${cardColors.imageRingHover} transition-all flex-shrink-0`}>
-                          <span className="text-xl sm:text-2xl font-bold text-white/70">{hotProject.name.charAt(0)}</span>
-                        </div>
-                      )}
-
-                      {/* Project Info */}
-                      <div className="flex-1 min-w-0">
-                        <div className="flex flex-col sm:flex-row sm:items-center sm:space-x-3 mb-1.5 sm:mb-2 gap-1 sm:gap-0">
-                          <CardTitle className={`text-base sm:text-2xl text-white ${cardColors.titleHover} transition-colors line-clamp-2`}>{hotProject.name}</CardTitle>
-                          <Badge className={`${getMarketStatus(hotProject).badgeClass} flex-shrink-0 text-xs sm:text-sm w-fit`}>{getMarketStatus(hotProject).status}</Badge>
-                        </div>
-                        <CardDescription className="text-gray-300 group-hover:text-white transition-colors line-clamp-3 text-xs sm:text-sm">{hotProject.description}</CardDescription>
-                      </div>
-                    </div>
-                  </div>
-                </CardHeader>
-                <CardContent className="space-y-3 sm:space-y-4">
-                  <div className="flex flex-col sm:grid sm:grid-cols-2 gap-2 sm:gap-4">
-                    <div className="flex items-center justify-between text-xs sm:text-sm">
-                      <span className="text-gray-400">Category:</span>
-                      <Badge className="bg-purple-500/20 text-purple-300 border-purple-400/30 text-xs">{formatLabel(hotProject.category)}</Badge>
-                    </div>
-                    <div className="flex items-center justify-between text-xs sm:text-sm">
-                      <span className="text-gray-400">Stage:</span>
-                      <span className="text-white text-xs sm:text-sm">{formatLabel(hotProject.stage)}</span>
-                    </div>
-                    <div className="flex items-center justify-between text-xs sm:text-sm">
-                      <span className="text-gray-400">Token:</span>
-                      <span className="font-mono font-bold text-white text-xs sm:text-sm">${hotProject.tokenSymbol}</span>
-                    </div>
-                    <div className="flex items-center justify-between text-xs sm:text-sm">
-                      <span className="text-gray-400">Pool:</span>
-                      <span className="font-bold text-white text-xs sm:text-sm">{hotProject.targetPool}</span>
-                    </div>
-                  </div>
-
-                  {/* Pool Funding Progress */}
-                  <div className="space-y-1.5 sm:space-y-2">
-                    <div className="flex justify-between items-center text-xs sm:text-sm">
-                      <span className="text-gray-400">Pool Progress</span>
-                      <span className="text-cyan-400 font-medium">
-                        {((hotProject.poolBalance || 0) / 1e9).toFixed(2)} / {hotProject.targetPool}
-                      </span>
-                    </div>
-                    <div className="w-full bg-gray-800/80 rounded-full h-1.5 sm:h-2 overflow-hidden relative">
-                      {/* Glow effect */}
-                      <div
-                        className="absolute inset-0 rounded-full blur-sm opacity-50"
-                        style={{
-                          width: `${Math.min(hotProject.poolProgressPercentage || 0, 100)}%`,
-                          background: 'linear-gradient(90deg, #06b6d4, #a855f7)'
-                        }}
-                      />
-                      {/* Main progress bar */}
-                      <div
-                        className="relative h-full rounded-full transition-all duration-500 overflow-hidden"
-                        style={{
-                          width: `${Math.min(hotProject.poolProgressPercentage || 0, 100)}%`,
-                          background: 'linear-gradient(90deg, #06b6d4, #8b5cf6, #a855f7)'
-                        }}
-                      >
-                        {/* Shimmer effect */}
-                        <div
-                          className="absolute inset-0"
-                          style={{
-                            background: 'linear-gradient(90deg, transparent, rgba(255,255,255,0.3), transparent)',
-                            animation: 'shimmer 2s infinite'
-                          }}
-                        />
-                        {/* Pulse dot at end */}
-                        {(hotProject.poolProgressPercentage || 0) > 5 && (
-                          <div className="absolute right-0.5 top-1/2 -translate-y-1/2 w-1 h-1 bg-white rounded-full animate-ping opacity-75" />
-                        )}
-                      </div>
-                    </div>
-                    <div className="flex justify-between items-center">
-                      <span className="text-xs text-gray-500">
-                        {hotProject.totalParticipants ?? 0} participants
-                      </span>
-                      <span className="text-sm font-bold text-purple-400">
-                        {hotProject.poolProgressPercentage || 0}% funded
-                      </span>
-                    </div>
-                  </div>
-
-                  <div className="flex items-center justify-between text-xs sm:text-sm pt-1.5 sm:pt-2 border-t border-white/10">
-                    <span className="text-gray-400">Time Left:</span>
-                    <CountdownTimer expiryTime={hotProject.expiryTime} />
-                  </div>
-
-                  <div className="flex gap-1.5 sm:gap-2 pt-1.5 sm:pt-2">
-                    <Button
-                      onClick={(e) => {
-                        e.preventDefault();
-                        e.stopPropagation();
-                        handleQuickVote(hotProject, 'yes');
-                      }}
-                      disabled={votingState !== null || isYesVoteDisabled(hotProject)}
-                      className="flex-1 bg-gradient-to-r from-green-500 to-cyan-500 hover:from-green-600 hover:to-cyan-600 disabled:opacity-50 disabled:cursor-not-allowed"
-                      size="sm"
-                    >
-                      {isYesVoteDisabled(hotProject) ? (
-                        getVoteDisabledReason(hotProject, 'yes')
-                      ) : votingState?.marketId === hotProject.id && votingState?.voteType === 'yes' ? (
-                        <Loader2 className="w-4 h-4 animate-spin" />
-                      ) : (
-                        'Vote YES'
-                      )}
-                    </Button>
-                    <Button
-                      onClick={(e) => {
-                        e.preventDefault();
-                        e.stopPropagation();
-                        handleQuickVote(hotProject, 'no');
-                      }}
-                      disabled={votingState !== null || isNoVoteDisabled(hotProject)}
-                      variant="outline"
-                      className="flex-1 border-white/20 text-white hover:bg-white/10 hover:border-white/30 disabled:opacity-50 disabled:cursor-not-allowed"
-                      size="sm"
-                    >
-                      {isNoVoteDisabled(hotProject) ? (
-                        getVoteDisabledReason(hotProject, 'no')
-                      ) : votingState?.marketId === hotProject.id && votingState?.voteType === 'no' ? (
-                        <Loader2 className="w-4 h-4 animate-spin" />
-                      ) : (
-                        'Vote NO'
-                      )}
-                    </Button>
-                  </div>
-                </CardContent>
-              </Card>
-                </Link>
-                );
-              })}
-          </div>
-        )}
-
         {/* Projects List */}
         <div className="space-y-4 sm:space-y-6">
           {/* Loading State with Skeletons */}
           {loading && (
-            <div className="grid gap-4 sm:gap-6 grid-cols-1 sm:grid-cols-2 xl:grid-cols-3">
-              {[...Array(6)].map((_, i) => (
+            <div className="grid gap-3 sm:gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+              {[...Array(8)].map((_, i) => (
                 <Card key={i} className="bg-white/5 backdrop-blur-xl border-white/10">
-                  <CardHeader>
-                    <div className="flex items-start space-x-3 mb-3">
-                      <Skeleton className="w-12 h-12 rounded-lg" />
-                      <div className="flex-1 space-y-2">
-                        <Skeleton className="h-6 w-3/4" />
-                        <Skeleton className="h-4 w-full" />
+                  <div className="p-3">
+                    <div className="flex items-start gap-2.5 mb-2">
+                      <Skeleton className="w-9 h-9 rounded-lg flex-shrink-0" />
+                      <div className="flex-1 space-y-1.5">
+                        <Skeleton className="h-4 w-3/4" />
+                        <Skeleton className="h-3 w-full" />
                       </div>
                     </div>
-                  </CardHeader>
-                  <CardContent className="space-y-4">
-                    <Skeleton className="h-4 w-full" />
-                    <Skeleton className="h-4 w-full" />
-                    <Skeleton className="h-4 w-2/3" />
-                    <div className="space-y-2">
-                      <Skeleton className="h-2 w-full rounded-full" />
-                      <Skeleton className="h-6 w-24 mx-auto" />
+                    <div className="flex gap-1.5 mb-3">
+                      <Skeleton className="h-4 w-12 rounded" />
+                      <Skeleton className="h-4 w-10 rounded" />
+                      <Skeleton className="h-4 w-14 rounded ml-auto" />
                     </div>
-                    <div className="flex gap-2 pt-2">
-                      <Skeleton className="h-9 flex-1" />
-                      <Skeleton className="h-9 flex-1" />
+                    <Skeleton className="h-2 w-full rounded-full mb-1.5" />
+                    <div className="flex justify-between mb-3">
+                      <Skeleton className="h-3 w-16" />
+                      <Skeleton className="h-3 w-8" />
                     </div>
-                  </CardContent>
+                    <div className="flex justify-between items-center mb-2">
+                      <Skeleton className="h-3 w-12" />
+                      <Skeleton className="h-3 w-16" />
+                    </div>
+                    <div className="flex gap-1.5">
+                      <Skeleton className="h-7 flex-1" />
+                      <Skeleton className="h-7 flex-1" />
+                    </div>
+                  </div>
                 </Card>
               ))}
             </div>
@@ -604,21 +457,14 @@ export default function BrowsePage() {
           )}
 
           {/* Empty State */}
-          {!loading && !error && markets.length === 0 && (
+          {!loading && !error && filteredMarkets.length === 0 && (
             <div className="text-center py-12">
-              <p className="text-white/70 text-lg mb-4">No active markets yet.</p>
-              <p className="text-white/50 mb-6">Be the first to launch a prediction market!</p>
-              <Button asChild className="bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600">
-                <Link href="/create" prefetch={true}>Launch Your Project</Link>
-              </Button>
-            </div>
-          )}
-
-          {/* Show empty state for regular markets if only hot project exists */}
-          {!loading && !error && markets.length > 0 && regularMarkets.length === 0 && (
-            <div className="text-center py-12">
-              <p className="text-white/70 text-lg mb-4">All markets are featured above!</p>
-              <p className="text-white/50 mb-6">Check back soon for more exciting projects.</p>
+              <p className="text-white/70 text-lg mb-4">
+                {markets.length === 0 ? 'No active markets yet.' : 'No markets match your filter.'}
+              </p>
+              <p className="text-white/50 mb-6">
+                {markets.length === 0 ? 'Be the first to launch a prediction market!' : 'Try a different category or check back later.'}
+              </p>
               <Button asChild className="bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600">
                 <Link href="/create" prefetch={true}>Launch Your Project</Link>
               </Button>
@@ -626,167 +472,170 @@ export default function BrowsePage() {
           )}
 
           {/* Markets Grid */}
-          {!loading && !error && regularMarkets.length > 0 && (
-            <div className="grid gap-4 sm:gap-6 grid-cols-1 sm:grid-cols-2 xl:grid-cols-3">
-              {regularMarkets.map((project) => {
+          {!loading && !error && filteredMarkets.length > 0 && (
+            <div className="grid gap-3 sm:gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+              {filteredMarkets.map((project) => {
                 const marketStatus = getMarketStatus(project);
+                const isActionable = !isYesVoteDisabled(project) || !isNoVoteDisabled(project);
+                const poolPercent = project.poolProgressPercentage || 0;
+                const isHot = selectedStatus === 'active' && hotProjectIds.has(project.id);
+                const isNewMarket = animatingMarketIds.has(project.id);
 
                 return (
               <Link href={`/market/${project.id}`} key={project.id} prefetch={true} className="block">
-              <Card className="bg-white/5 backdrop-blur-xl border-white/10 text-white hover:bg-white/10 transition-all duration-300 hover:scale-[1.02] group cursor-pointer h-full flex flex-col">
-                <CardHeader className="pb-3 sm:pb-6">
-                  <div className="flex items-start justify-between mb-2 sm:mb-3">
-                    <div className="flex items-start space-x-2 sm:space-x-3 flex-1">
-                      {/* Project Image */}
-                      {project.projectImageUrl ? (
-                        <div className="flex-shrink-0">
-                          <img
-                            src={project.projectImageUrl}
-                            alt={project.name}
-                            className="w-10 h-10 sm:w-12 sm:h-12 rounded-lg object-cover ring-2 ring-white/10 group-hover:ring-cyan-300/50 transition-all"
-                            onError={(e) => {
-                              // Fallback if image fails to load
-                              const target = e.target as HTMLImageElement;
-                              target.style.display = 'none';
-                              const fallback = target.nextElementSibling as HTMLElement;
-                              if (fallback) fallback.style.display = 'flex';
-                            }}
-                          />
-                          <div className="hidden w-10 h-10 sm:w-12 sm:h-12 rounded-lg bg-gradient-to-br from-purple-500/20 to-pink-500/20 items-center justify-center ring-2 ring-white/10 group-hover:ring-cyan-300/50 transition-all flex-shrink-0">
-                            <span className="text-base sm:text-lg font-bold text-white/70">{project.name.charAt(0)}</span>
-                          </div>
-                        </div>
-                      ) : (
-                        <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-lg bg-gradient-to-br from-purple-500/20 to-pink-500/20 flex items-center justify-center ring-2 ring-white/10 group-hover:ring-cyan-300/50 transition-all flex-shrink-0">
-                          <span className="text-base sm:text-lg font-bold text-white/70">{project.name.charAt(0)}</span>
-                        </div>
-                      )}
-
-                      {/* Project Info */}
-                      <div className="flex-1 min-w-0">
-                        <CardTitle className="text-base sm:text-xl text-white group-hover:text-cyan-300 transition-colors line-clamp-2">{project.name}</CardTitle>
-                        <CardDescription className="mt-0.5 sm:mt-1 text-gray-300 group-hover:text-white transition-colors line-clamp-3 text-xs sm:text-sm">{project.description}</CardDescription>
-                      </div>
-                    </div>
-
-                    {/* Status Badge */}
-                    <Badge className={`${marketStatus.badgeClass} ml-1.5 sm:ml-2 flex-shrink-0 text-xs`}>{marketStatus.status}</Badge>
-                  </div>
-                </CardHeader>
-                <CardContent className="space-y-3 sm:space-y-4">
-                  <div className="flex flex-col sm:grid sm:grid-cols-2 gap-2 sm:gap-3">
-                    <div className="flex items-center justify-between text-xs sm:text-sm">
-                      <span className="text-gray-400">Category:</span>
-                      <Badge className="bg-purple-500/20 text-purple-300 border-purple-400/30 text-xs">{formatLabel(project.category)}</Badge>
-                    </div>
-                    <div className="flex items-center justify-between text-xs sm:text-sm">
-                      <span className="text-gray-400">Stage:</span>
-                      <span className="text-white text-xs sm:text-sm">{formatLabel(project.stage)}</span>
-                    </div>
-                    <div className="flex items-center justify-between text-xs sm:text-sm">
-                      <span className="text-gray-400">Token:</span>
-                      <span className="font-mono font-bold text-white text-xs sm:text-sm">${project.tokenSymbol}</span>
-                    </div>
-                    <div className="flex items-center justify-between text-xs sm:text-sm">
-                      <span className="text-gray-400">Pool:</span>
-                      <span className="font-bold text-white text-xs sm:text-sm">{project.targetPool}</span>
-                    </div>
-                  </div>
-
-                  {/* Pool Funding Progress */}
-                  <div className="space-y-1.5 sm:space-y-2">
-                    <div className="flex justify-between items-center text-xs sm:text-sm">
-                      <span className="text-gray-400">Pool Progress</span>
-                      <span className="text-cyan-400 font-medium">
-                        {((project.poolBalance || 0) / 1e9).toFixed(2)} / {project.targetPool}
-                      </span>
-                    </div>
-                    <div className="w-full bg-gray-800/80 rounded-full h-1.5 sm:h-2 overflow-hidden relative">
-                      {/* Glow effect */}
-                      <div
-                        className="absolute inset-0 rounded-full blur-sm opacity-50"
-                        style={{
-                          width: `${Math.min(project.poolProgressPercentage || 0, 100)}%`,
-                          background: 'linear-gradient(90deg, #06b6d4, #a855f7)'
+              <Card className={`backdrop-blur-xl text-white transition-all duration-200 group cursor-pointer h-full flex flex-col ${
+                isNewMarket
+                  ? 'animate-new-market ring-2 ring-green-400/60 bg-gradient-to-br from-green-500/15 via-transparent to-cyan-500/15 border-green-500/40'
+                  : isHot
+                    ? 'bg-gradient-to-br from-orange-500/10 via-transparent to-pink-500/10 border-orange-500/30 hover:border-orange-400/50'
+                    : 'bg-white/5 border-white/10 hover:bg-white/8 hover:border-white/20'
+              }`}>
+                {/* Compact Header */}
+                <div className="p-3 pb-2">
+                  <div className="flex items-start gap-2.5">
+                    {/* Project Image - Smaller */}
+                    {project.projectImageUrl ? (
+                      <img
+                        src={project.projectImageUrl}
+                        alt={project.name}
+                        className="w-9 h-9 rounded-lg object-cover ring-1 ring-white/10 group-hover:ring-cyan-400/40 transition-all flex-shrink-0"
+                        onError={(e) => {
+                          const target = e.target as HTMLImageElement;
+                          target.style.display = 'none';
+                          const fallback = target.nextElementSibling as HTMLElement;
+                          if (fallback) fallback.style.display = 'flex';
                         }}
                       />
-                      {/* Main progress bar */}
-                      <div
-                        className="relative h-full rounded-full transition-all duration-500 overflow-hidden"
-                        style={{
-                          width: `${Math.min(project.poolProgressPercentage || 0, 100)}%`,
-                          background: 'linear-gradient(90deg, #06b6d4, #8b5cf6, #a855f7)'
-                        }}
-                      >
-                        {/* Shimmer effect */}
-                        <div
-                          className="absolute inset-0"
-                          style={{
-                            background: 'linear-gradient(90deg, transparent, rgba(255,255,255,0.3), transparent)',
-                            animation: 'shimmer 2s infinite'
-                          }}
-                        />
-                        {/* Pulse dot at end */}
-                        {(project.poolProgressPercentage || 0) > 5 && (
-                          <div className="absolute right-0.5 top-1/2 -translate-y-1/2 w-1 h-1 bg-white rounded-full animate-ping opacity-75" />
-                        )}
+                    ) : null}
+                    <div className={`${project.projectImageUrl ? 'hidden' : 'flex'} w-9 h-9 rounded-lg bg-gradient-to-br from-purple-500/30 to-pink-500/30 items-center justify-center ring-1 ring-white/10 flex-shrink-0`}>
+                      <span className="text-sm font-bold text-white/70">{project.name.charAt(0)}</span>
+                    </div>
+
+                    {/* Title & Token */}
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-1.5 mb-0.5">
+                        <h3 className="font-semibold text-sm text-white group-hover:text-cyan-300 transition-colors truncate capitalize">{project.name}</h3>
+                        <span className="text-xs font-mono text-cyan-400 flex-shrink-0">${project.tokenSymbol}</span>
                       </div>
-                    </div>
-                    <div className="flex justify-between items-center">
-                      <span className="text-xs text-gray-500">
-                        {project.totalParticipants ?? 0} participants
-                      </span>
-                      <span className="text-sm font-bold text-purple-400">
-                        {project.poolProgressPercentage || 0}% funded
-                      </span>
+                      <p className="text-xs text-gray-400 line-clamp-1">{project.description}</p>
                     </div>
                   </div>
 
-                  <div className="flex items-center justify-between text-xs sm:text-sm">
-                    <span className="text-gray-400">Time Left:</span>
-                    <CountdownTimer expiryTime={project.expiryTime} />
+                  {/* Tags Row - Category, Stage, Status */}
+                  <div className="flex items-center gap-1.5 mt-2 flex-wrap">
+                    {isNewMarket && (
+                      <Badge className="bg-green-500/20 text-green-400 border-green-400/30 text-[10px] px-1.5 py-0 flex items-center gap-0.5 animate-pulse">
+                        <span className="w-1.5 h-1.5 bg-green-400 rounded-full"></span>
+                        NEW
+                      </Badge>
+                    )}
+                    {isHot && !isNewMarket && (
+                      <Badge className="bg-orange-500/20 text-orange-400 border-orange-400/30 text-[10px] px-1.5 py-0 flex items-center gap-0.5">
+                        <TrendingUp className="w-2.5 h-2.5" />
+                        Hot
+                      </Badge>
+                    )}
+                    <Badge className="bg-purple-500/20 text-purple-300 border-purple-400/30 text-[10px] px-1.5 py-0">{formatLabel(project.category)}</Badge>
+                    <Badge className="bg-white/10 text-gray-300 border-white/10 text-[10px] px-1.5 py-0">{formatLabel(project.stage)}</Badge>
+                    <Badge className={`${marketStatus.badgeClass} text-[10px] px-1.5 py-0 ml-auto`}>{marketStatus.status}</Badge>
                   </div>
+                </div>
 
-                  <div className="flex gap-1.5 sm:gap-2 pt-1.5 sm:pt-2">
-                    <Button
-                      onClick={(e) => {
-                        e.preventDefault();
-                        e.stopPropagation();
-                        handleQuickVote(project, 'yes');
+                {/* Progress Section */}
+                <div className="px-3 pb-2">
+                  {/* Progress Bar - More prominent */}
+                  <div className="w-full bg-gray-800/80 rounded-full h-2 overflow-hidden relative mb-1.5">
+                    <div
+                      className="absolute inset-0 rounded-full blur-sm opacity-40"
+                      style={{
+                        width: `${Math.min(poolPercent, 100)}%`,
+                        background: 'linear-gradient(90deg, #06b6d4, #a855f7)'
                       }}
-                      disabled={votingState !== null || isYesVoteDisabled(project)}
-                      className="flex-1 bg-gradient-to-r from-green-500 to-cyan-500 hover:from-green-600 hover:to-cyan-600 disabled:opacity-50 disabled:cursor-not-allowed text-xs sm:text-sm px-2 sm:px-4"
-                      size="sm"
+                    />
+                    <div
+                      className="relative h-full rounded-full transition-all duration-500 overflow-hidden"
+                      style={{
+                        width: `${Math.min(poolPercent, 100)}%`,
+                        background: 'linear-gradient(90deg, #06b6d4, #8b5cf6, #a855f7)'
+                      }}
                     >
-                      {isYesVoteDisabled(project) ? (
-                        <span className="truncate">{getVoteDisabledReason(project, 'yes')}</span>
-                      ) : votingState?.marketId === project.id && votingState?.voteType === 'yes' ? (
-                        <Loader2 className="w-4 h-4 animate-spin" />
-                      ) : (
-                        <><span className="hidden sm:inline">Vote </span><span>YES</span></>
-                      )}
-                    </Button>
+                      <div
+                        className="absolute inset-0"
+                        style={{
+                          background: 'linear-gradient(90deg, transparent, rgba(255,255,255,0.3), transparent)',
+                          animation: 'shimmer 2s infinite'
+                        }}
+                      />
+                    </div>
+                  </div>
+
+                  {/* Stats Row - Compact */}
+                  <div className="flex items-center justify-between text-[11px]">
+                    <span className="text-gray-400">
+                      <span className="text-cyan-400 font-medium">{((project.poolBalance || 0) / 1e9).toFixed(2)}</span>
+                      <span className="text-gray-500"> / {project.targetPool}</span>
+                    </span>
+                    <span className="font-semibold text-purple-400">{poolPercent}%</span>
+                  </div>
+                </div>
+
+                {/* Footer - Time & Participants */}
+                <div className="px-3 pb-2 mt-auto">
+                  <div className="flex items-center justify-between text-[11px] text-gray-400 mb-2">
+                    <div className="flex items-center gap-1">
+                      <Users className="w-3 h-3" />
+                      <span>{project.totalParticipants ?? 0}</span>
+                    </div>
+                    <CountdownTimer expiryTime={project.expiryTime} className="text-[11px]" />
+                  </div>
+
+                  {/* Action Button - Smart based on state */}
+                  {isActionable ? (
+                    <div className="flex gap-1.5">
+                      <Button
+                        onClick={(e) => {
+                          e.preventDefault();
+                          e.stopPropagation();
+                          handleQuickVote(project, 'yes');
+                        }}
+                        disabled={votingState !== null || isYesVoteDisabled(project)}
+                        className="flex-1 bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700 disabled:opacity-40 text-[11px] h-7 px-2"
+                        size="sm"
+                      >
+                        {votingState?.marketId === project.id && votingState?.voteType === 'yes' ? (
+                          <Loader2 className="w-3 h-3 animate-spin" />
+                        ) : (
+                          'YES'
+                        )}
+                      </Button>
+                      <Button
+                        onClick={(e) => {
+                          e.preventDefault();
+                          e.stopPropagation();
+                          handleQuickVote(project, 'no');
+                        }}
+                        disabled={votingState !== null || isNoVoteDisabled(project)}
+                        variant="outline"
+                        className="flex-1 border-white/20 text-white hover:bg-white/10 disabled:opacity-40 text-[11px] h-7 px-2"
+                        size="sm"
+                      >
+                        {votingState?.marketId === project.id && votingState?.voteType === 'no' ? (
+                          <Loader2 className="w-3 h-3 animate-spin" />
+                        ) : (
+                          'NO'
+                        )}
+                      </Button>
+                    </div>
+                  ) : (
                     <Button
-                      onClick={(e) => {
-                        e.preventDefault();
-                        e.stopPropagation();
-                        handleQuickVote(project, 'no');
-                      }}
-                      disabled={votingState !== null || isNoVoteDisabled(project)}
                       variant="outline"
-                      className="flex-1 border-white/20 text-white hover:bg-white/10 hover:border-white/30 disabled:opacity-50 disabled:cursor-not-allowed text-xs sm:text-sm px-2 sm:px-4"
+                      className="w-full border-white/10 text-gray-300 hover:bg-white/5 hover:text-white text-[11px] h-7"
                       size="sm"
                     >
-                      {isNoVoteDisabled(project) ? (
-                        <span className="truncate">{getVoteDisabledReason(project, 'no')}</span>
-                      ) : votingState?.marketId === project.id && votingState?.voteType === 'no' ? (
-                        <Loader2 className="w-4 h-4 animate-spin" />
-                      ) : (
-                        <><span className="hidden sm:inline">Vote </span><span>NO</span></>
-                      )}
+                      View Details
                     </Button>
-                  </div>
-                </CardContent>
+                  )}
+                </div>
               </Card>
               </Link>
                 );

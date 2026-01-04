@@ -142,6 +142,7 @@ export function useMarketSocket(marketAddress: string | null) {
 export function useAllMarketsSocket() {
   const { socket, isConnected } = useSocket();
   const [marketUpdates, setMarketUpdates] = useState<Map<string, any>>(new Map());
+  const [newMarkets, setNewMarkets] = useState<any[]>([]);
   const isMountedRef = useRef(true);
 
   useEffect(() => {
@@ -166,18 +167,40 @@ export function useAllMarketsSocket() {
       });
     };
 
+    // Listen for new market creation
+    const handleMarketCreated = (data: any) => {
+      if (!isMountedRef.current) return;
+      logger.info(`🆕 New market created: ${data.market?.name || data.market?.marketAddress?.slice(0, 8)}...`);
+      setNewMarkets((prev) => {
+        // Avoid duplicates
+        if (prev.some(m => m.id === data.market.id || m.marketAddress === data.market.marketAddress)) {
+          return prev;
+        }
+        return [{ ...data.market, isNew: true, timestamp: data.timestamp }, ...prev];
+      });
+    };
+
     socket.on('market:update', handleMarketUpdate);
+    socket.on('market:created', handleMarketCreated);
 
     // Cleanup
     return () => {
       isMountedRef.current = false;
       socket.off('market:update', handleMarketUpdate);
+      socket.off('market:created', handleMarketCreated);
       logger.info('📡 Unsubscribed from all markets');
     };
   }, [socket, isConnected]);
 
+  // Function to clear new markets (after they've been added to the list)
+  const clearNewMarkets = () => {
+    setNewMarkets([]);
+  };
+
   return {
     marketUpdates,
+    newMarkets,
+    clearNewMarkets,
     isConnected,
   };
 }

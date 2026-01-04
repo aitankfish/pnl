@@ -10,6 +10,7 @@ import { connectToDatabase, Project, PredictionMarket } from '@/lib/mongodb';
 import { createClientLogger } from '@/lib/logger';
 import { getSyncManager } from '@/services/blockchain-sync/sync-manager';
 import { tweetMarketCreated } from '@/services/twitter/twitter-service';
+import { broadcastNewMarket } from '@/services/socket/socket-server';
 
 const logger = createClientLogger();
 
@@ -93,6 +94,35 @@ export async function POST(request: NextRequest) {
       marketAddress: savedMarket.marketAddress,
       projectId: project._id
     });
+
+    // Broadcast new market to all connected clients (real-time update)
+    try {
+      broadcastNewMarket({
+        id: savedMarket._id.toString(),
+        marketAddress: savedMarket.marketAddress,
+        name: project.name,
+        description: project.description,
+        category: project.category || 'Other',
+        stage: project.projectStage || 'Idea',
+        tokenSymbol: project.tokenSymbol || project.name.substring(0, 6).toUpperCase(),
+        targetPool: `${(savedMarket.targetPool / 1_000_000_000).toFixed(0)} SOL`,
+        expiryTime: savedMarket.expiryTime.toISOString(),
+        status: 'active',
+        projectImageUrl: project.projectImageUrl,
+        poolBalance: 0,
+        poolProgressPercentage: 0,
+        totalParticipants: 0,
+        resolution: 'Unresolved',
+        phase: 'Initial',
+        displayStatus: '✅ Active',
+        badgeClass: 'bg-green-500/20 text-green-400 border-green-400/30',
+      });
+    } catch (broadcastError) {
+      // Don't fail if broadcast fails
+      logger.warn('Failed to broadcast new market:', {
+        error: broadcastError instanceof Error ? broadcastError.message : String(broadcastError)
+      });
+    }
 
     // Extract Twitter handle from socialLinks
     let twitterHandle: string | undefined;

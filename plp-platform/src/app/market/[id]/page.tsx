@@ -597,6 +597,24 @@ export default function MarketDetailsPage() {
     });
   }, [market, mergedOnchainData]);
 
+  // Check if token is launched - use BOTH market data (immediate) and merged data (socket)
+  // This prevents UI flicker when navigating to launched token pages
+  const isTokenLaunched = useMemo(() => {
+    const marketResolution = (market as any)?.resolution;
+    const marketTokenMint = (market as any)?.tokenMint || (market as any)?.pumpFunTokenAddress;
+    const mergedResolution = mergedOnchainData?.data?.resolution;
+    const mergedTokenMint = mergedOnchainData?.data?.tokenMint;
+
+    // Check either source - if market data shows launched, use it immediately
+    return (marketResolution === 'YesWins' && marketTokenMint) ||
+           (mergedResolution === 'YesWins' && mergedTokenMint);
+  }, [market, mergedOnchainData]);
+
+  // Get the token mint address (prefer merged data for real-time, fallback to market)
+  const tokenMintAddress = mergedOnchainData?.data?.tokenMint ||
+                           (market as any)?.tokenMint ||
+                           (market as any)?.pumpFunTokenAddress;
+
   // Helper to refresh market data (replaces old refetchOnchainData)
   // Since we now use MongoDB + socket, just re-fetch the market details
   const refetchOnchainData = () => {
@@ -1248,7 +1266,7 @@ export default function MarketDetailsPage() {
         {/* Left Content Area (70% on desktop) */}
         <div className="flex-1 lg:w-[70%] space-y-3 sm:space-y-4">
           {/* Trading Terminal - Show FIRST when token IS launched */}
-          {mergedOnchainData?.data?.resolution === 'YesWins' && mergedOnchainData?.data?.tokenMint && (
+          {isTokenLaunched && tokenMintAddress && (
             <div className="flex flex-col lg:flex-row gap-4">
               {/* Chart + Stats Section - 65% on desktop */}
               <div className="w-full lg:w-[65%] space-y-3">
@@ -1401,7 +1419,7 @@ export default function MarketDetailsPage() {
                 {/* Project Info */}
                 <div className="flex-1 min-w-0">
                   <div className="flex flex-wrap items-start gap-1 sm:gap-2 mb-2">
-                    <CardTitle className="text-lg sm:text-2xl text-white line-clamp-2">{market.name}</CardTitle>
+                    <CardTitle className="text-lg sm:text-2xl text-white line-clamp-2 capitalize">{market.name}</CardTitle>
 
                     {/* Creator, Age, Share and Favorite */}
                     <div className="flex items-center gap-2 ml-auto sm:ml-0">
@@ -1635,7 +1653,7 @@ export default function MarketDetailsPage() {
         </Card>
 
         {/* Video + What This Project Offers Section - Only show here when token NOT launched */}
-        {!(mergedOnchainData?.data?.resolution === 'YesWins' && mergedOnchainData?.data?.tokenMint) && (market.metadata?.videoUrl || market.metadata?.additionalNotes) && (
+        {!isTokenLaunched && (market.metadata?.videoUrl || market.metadata?.additionalNotes) && (
           <div className={`grid gap-4 ${market.metadata?.videoUrl && market.metadata?.additionalNotes ? 'md:grid-cols-2' : ''}`}>
             {/* What This Project Offers */}
             {market.metadata?.additionalNotes && (
@@ -1691,7 +1709,7 @@ export default function MarketDetailsPage() {
           {/* Right Column - Trading (when not launched) + Market Status (always) + Video/Offers (when launched) */}
           <div className="space-y-4">
           {/* Trading Section - Only show when token is NOT launched */}
-          {!(mergedOnchainData?.data?.resolution === 'YesWins' && mergedOnchainData?.data?.tokenMint) && (
+          {!isTokenLaunched && (
           <Card className="bg-white/5 backdrop-blur-xl border-white/10 text-white h-fit">
             <CardHeader className="pb-2 pt-4 px-4">
               <CardTitle className="text-base sm:text-lg text-white">
@@ -2984,7 +3002,7 @@ export default function MarketDetailsPage() {
         </Card>
 
           {/* Video + What This Project Offers - Only show when token IS launched */}
-          {(mergedOnchainData?.data?.resolution === 'YesWins' && mergedOnchainData?.data?.tokenMint) && (
+          {isTokenLaunched && tokenMintAddress && (
             <>
               {/* Video */}
               {market.metadata?.videoUrl && (
