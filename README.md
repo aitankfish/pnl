@@ -182,7 +182,11 @@ When a market resolves with YES winning, tokens purchased on pump.fun are distri
 
 The PLP Prediction Market program is built with Anchor Framework and deployed on Solana.
 
-**Program ID:** `C5mVE2BwSehWJNkNvhpsoepyKwZkvSLZx29bi4MzVj86`
+**Program IDs:**
+| Network | Program ID |
+|---------|------------|
+| **Mainnet** | `C5mVE2BwSehWJNkNvhpsoepyKwZkvSLZx29bi4MzVj86` |
+| **Devnet** | `Fd2kY3Bu3JzP2wXRKGMYQYr782HXthJby71xH9Xp6L3X` |
 
 ### Instructions
 
