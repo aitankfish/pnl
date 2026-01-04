@@ -5,7 +5,7 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { connectToDatabase, getDatabase } from '@/lib/database/index';
-import { COLLECTIONS, UserProfile } from '@/lib/database/models';
+import { COLLECTIONS, UserProfile, PredictionMarket } from '@/lib/database/models';
 
 export async function POST(
   request: NextRequest,
@@ -26,6 +26,7 @@ export async function POST(
     await connectToDatabase();
     const db = getDatabase();
     const profilesCollection = db.collection<UserProfile>(COLLECTIONS.USER_PROFILES);
+    const marketsCollection = db.collection<PredictionMarket>(COLLECTIONS.PREDICTION_MARKETS);
 
     // Get user profile
     let profile = await profilesCollection.findOne({ walletAddress: wallet });
@@ -51,6 +52,12 @@ export async function POST(
       };
 
       await profilesCollection.insertOne(newProfile);
+
+      // Increment favoriteCount on the market
+      await marketsCollection.updateOne(
+        { _id: marketId },
+        { $inc: { favoriteCount: 1 } }
+      );
 
       return NextResponse.json({
         success: true,
@@ -78,6 +85,12 @@ export async function POST(
           updatedAt: new Date(),
         },
       }
+    );
+
+    // Update favoriteCount on the market (increment if adding, decrement if removing)
+    await marketsCollection.updateOne(
+      { _id: marketId },
+      { $inc: { favoriteCount: isFavorite ? -1 : 1 } }
     );
 
     return NextResponse.json({

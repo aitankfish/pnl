@@ -32,8 +32,12 @@ export async function register() {
     });
 
     // Start blockchain sync system (if enabled)
+    // Can be enabled in dev mode with ENABLE_BLOCKCHAIN_SYNC=true (for devnet testing)
     const autoStartSync = process.env.AUTO_START_SYNC !== 'false';
-    if (autoStartSync && process.env.NODE_ENV === 'production') {
+    const enableInDev = process.env.ENABLE_BLOCKCHAIN_SYNC === 'true';
+    const isProduction = process.env.NODE_ENV === 'production';
+
+    if (autoStartSync && (isProduction || enableInDev)) {
       console.log('🔗 Starting blockchain sync system...');
 
       setTimeout(async () => {
@@ -49,7 +53,7 @@ export async function register() {
     } else if (!autoStartSync) {
       console.log('⚠️  Blockchain sync disabled (AUTO_START_SYNC=false)');
     } else {
-      console.log('ℹ️  Blockchain sync disabled in development mode');
+      console.log('ℹ️  Blockchain sync disabled in development mode (set ENABLE_BLOCKCHAIN_SYNC=true to enable)');
     }
   }
 }

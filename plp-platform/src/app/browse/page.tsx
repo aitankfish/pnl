@@ -14,6 +14,7 @@ import CountdownTimer from '@/components/CountdownTimer';
 import ErrorDialog from '@/components/ErrorDialog';
 import { parseError } from '@/lib/utils/errorParser';
 import { Skeleton } from '@/components/ui/skeleton';
+import { getVoteButtonStates, getMarketDisplayStatus } from '@/lib/api-utils';
 
 // SWR fetcher
 const fetcher = (url: string) => fetch(url).then(res => res.json());
@@ -44,6 +45,8 @@ interface Market {
   phase?: string;
   poolProgressPercentage?: number;
   poolBalance?: number;
+  tokenMint?: string | null;
+  pumpFunTokenAddress?: string | null;
   // Display status (calculated in API, single source of truth)
   displayStatus?: string;
   badgeClass?: string;
@@ -88,27 +91,60 @@ function formatLabel(value: string): string {
     .join(' ');
 }
 
-// Get market status from API (single source of truth calculated in backend)
+// Calculate market status using real-time data (recalculates when socket updates arrive)
 function getMarketStatus(market: Market): { status: string; badgeClass: string } {
+  // Convert phase to number if it's a string
+  const phase = typeof market.phase === 'string'
+    ? (market.phase === 'Funding' ? 1 : 0)
+    : (market.phase ?? 0);
+
+  const computed = getMarketDisplayStatus({
+    resolution: market.resolution,
+    phase,
+    poolProgressPercentage: market.poolProgressPercentage,
+    expiryTime: market.expiryTime,
+    tokenMint: market.tokenMint,
+    pumpFunTokenAddress: market.pumpFunTokenAddress,
+  });
+
   return {
-    status: market.displayStatus || '✅ Active',
-    badgeClass: market.badgeClass || 'bg-green-500/20 text-green-300 border-green-400/30'
+    status: computed.displayStatus,
+    badgeClass: computed.badgeClass
   };
 }
 
-// Read vote button states from API (single source of truth)
+// Calculate vote button states using real-time data (recalculates when socket updates arrive)
+function getComputedVoteButtonStates(market: Market) {
+  // Convert phase to number if it's a string
+  const phase = typeof market.phase === 'string'
+    ? (market.phase === 'Funding' ? 1 : 0)
+    : (market.phase ?? 0);
+
+  return getVoteButtonStates({
+    resolution: market.resolution,
+    phase,
+    poolProgressPercentage: market.poolProgressPercentage,
+    expiryTime: market.expiryTime,
+    tokenMint: market.tokenMint,
+    pumpFunTokenAddress: market.pumpFunTokenAddress,
+  });
+}
+
 function isYesVoteDisabled(market: Market): boolean {
-  return market.isYesVoteEnabled === false;
+  const states = getComputedVoteButtonStates(market);
+  return !states.isYesVoteEnabled;
 }
 
 function isNoVoteDisabled(market: Market): boolean {
-  return market.isNoVoteEnabled === false;
+  const states = getComputedVoteButtonStates(market);
+  return !states.isNoVoteEnabled;
 }
 
 function getVoteDisabledReason(market: Market, voteType: 'yes' | 'no'): string {
+  const states = getComputedVoteButtonStates(market);
   return voteType === 'yes'
-    ? (market.yesVoteDisabledReason || 'Disabled')
-    : (market.noVoteDisabledReason || 'Disabled');
+    ? (states.yesVoteDisabledReason || 'Disabled')
+    : (states.noVoteDisabledReason || 'Disabled');
 }
 
 export default function BrowsePage() {
@@ -148,6 +184,14 @@ export default function BrowsePage() {
     return baseMarkets.map((market) => {
       const update = marketUpdates.get(market.marketAddress);
       if (update) {
+        // For RESOLVED markets: preserve final pool values (don't overwrite with 0)
+        // The API returns finalPoolBalance/finalPoolProgressPercentage for resolved markets
+        const isResolved = market.resolution && market.resolution !== 'Unresolved';
+        if (isResolved) {
+          // Don't let socket updates overwrite pool data for resolved markets
+          const { poolBalance, poolProgressPercentage, ...safeUpdate } = update as any;
+          return { ...market, ...safeUpdate };
+        }
         return { ...market, ...update };
       }
       return market;
@@ -422,11 +466,36 @@ export default function BrowsePage() {
                         {((hotProject.poolBalance || 0) / 1e9).toFixed(2)} / {hotProject.targetPool}
                       </span>
                     </div>
-                    <div className="w-full bg-gray-700 rounded-full h-1.5 sm:h-2">
+                    <div className="w-full bg-gray-800/80 rounded-full h-1.5 sm:h-2 overflow-hidden relative">
+                      {/* Glow effect */}
                       <div
-                        className="bg-gradient-to-r from-cyan-500 to-purple-500 h-1.5 sm:h-2 rounded-full transition-all duration-500"
-                        style={{ width: `${Math.min(hotProject.poolProgressPercentage || 0, 100)}%` }}
-                      ></div>
+                        className="absolute inset-0 rounded-full blur-sm opacity-50"
+                        style={{
+                          width: `${Math.min(hotProject.poolProgressPercentage || 0, 100)}%`,
+                          background: 'linear-gradient(90deg, #06b6d4, #a855f7)'
+                        }}
+                      />
+                      {/* Main progress bar */}
+                      <div
+                        className="relative h-full rounded-full transition-all duration-500 overflow-hidden"
+                        style={{
+                          width: `${Math.min(hotProject.poolProgressPercentage || 0, 100)}%`,
+                          background: 'linear-gradient(90deg, #06b6d4, #8b5cf6, #a855f7)'
+                        }}
+                      >
+                        {/* Shimmer effect */}
+                        <div
+                          className="absolute inset-0"
+                          style={{
+                            background: 'linear-gradient(90deg, transparent, rgba(255,255,255,0.3), transparent)',
+                            animation: 'shimmer 2s infinite'
+                          }}
+                        />
+                        {/* Pulse dot at end */}
+                        {(hotProject.poolProgressPercentage || 0) > 5 && (
+                          <div className="absolute right-0.5 top-1/2 -translate-y-1/2 w-1 h-1 bg-white rounded-full animate-ping opacity-75" />
+                        )}
+                      </div>
                     </div>
                     <div className="flex justify-between items-center">
                       <span className="text-xs text-gray-500">
@@ -632,11 +701,36 @@ export default function BrowsePage() {
                         {((project.poolBalance || 0) / 1e9).toFixed(2)} / {project.targetPool}
                       </span>
                     </div>
-                    <div className="w-full bg-gray-700 rounded-full h-1.5 sm:h-2">
+                    <div className="w-full bg-gray-800/80 rounded-full h-1.5 sm:h-2 overflow-hidden relative">
+                      {/* Glow effect */}
                       <div
-                        className="bg-gradient-to-r from-cyan-500 to-purple-500 h-1.5 sm:h-2 rounded-full transition-all duration-500"
-                        style={{ width: `${Math.min(project.poolProgressPercentage || 0, 100)}%` }}
-                      ></div>
+                        className="absolute inset-0 rounded-full blur-sm opacity-50"
+                        style={{
+                          width: `${Math.min(project.poolProgressPercentage || 0, 100)}%`,
+                          background: 'linear-gradient(90deg, #06b6d4, #a855f7)'
+                        }}
+                      />
+                      {/* Main progress bar */}
+                      <div
+                        className="relative h-full rounded-full transition-all duration-500 overflow-hidden"
+                        style={{
+                          width: `${Math.min(project.poolProgressPercentage || 0, 100)}%`,
+                          background: 'linear-gradient(90deg, #06b6d4, #8b5cf6, #a855f7)'
+                        }}
+                      >
+                        {/* Shimmer effect */}
+                        <div
+                          className="absolute inset-0"
+                          style={{
+                            background: 'linear-gradient(90deg, transparent, rgba(255,255,255,0.3), transparent)',
+                            animation: 'shimmer 2s infinite'
+                          }}
+                        />
+                        {/* Pulse dot at end */}
+                        {(project.poolProgressPercentage || 0) > 5 && (
+                          <div className="absolute right-0.5 top-1/2 -translate-y-1/2 w-1 h-1 bg-white rounded-full animate-ping opacity-75" />
+                        )}
+                      </div>
                     </div>
                     <div className="flex justify-between items-center">
                       <span className="text-xs text-gray-500">

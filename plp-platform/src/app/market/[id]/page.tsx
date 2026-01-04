@@ -27,6 +27,7 @@ import ErrorDialog from '@/components/ErrorDialog';
 import SuccessDialog from '@/components/SuccessDialog';
 import { useMarketSocket } from '@/lib/hooks/useSocket';
 import { TokenLaunchAnimation } from '@/components/TokenLaunchAnimation';
+import { getVoteButtonStates, getMarketDisplayStatus } from '@/lib/api-utils';
 
 // Lazy load heavy components to reduce initial bundle size
 const LiveActivityFeed = dynamic(() => import('@/components/LiveActivityFeed'), {
@@ -119,6 +120,8 @@ interface MarketDetails {
   lastSyncedAt?: string | null;
   isStale?: boolean;
   syncStatus?: string;
+  // Social/engagement metrics
+  favoriteCount?: number;
 }
 
 // Format category and stage for proper display
@@ -370,7 +373,13 @@ export default function MarketDetailsPage() {
 
       const result = await response.json();
       if (result.success) {
-        setIsFavorite(result.data.isFavorite);
+        const wasAdded = result.data.isFavorite;
+        setIsFavorite(wasAdded);
+        // Update local favorite count immediately for instant feedback
+        setMarket(prev => prev ? {
+          ...prev,
+          favoriteCount: Math.max(0, (prev.favoriteCount || 0) + (wasAdded ? 1 : -1))
+        } : prev);
         refetchProfile();
       }
     } catch (error) {
@@ -423,7 +432,6 @@ export default function MarketDetailsPage() {
   // Reduce polling when Socket.IO is connected (real-time updates handle it)
   // When socket is connected, we only do initial fetch (no polling) - socket handles updates
   const activityPollInterval = socketConnected ? 0 : 20000; // No poll when connected, 20s when not
-  const onchainPollInterval = socketConnected ? 0 : 20000; // No poll when connected, socket has poolBalance
 
   // Fetch combined activity data (history + holders) in a single request
   const { data: activityData, mutate: refetchActivity } = useSWR(
@@ -475,39 +483,127 @@ export default function MarketDetailsPage() {
     }
   );
 
-  // Fetch on-chain market data (resolution status, pool progress)
-  const { data: onchainData, mutate: refetchOnchainData } = useSWR(
-    market?.marketAddress ? `/api/markets/${market.marketAddress}/onchain?network=${network}` : null,
+  // Determine if we need vesting data (only for founders when token is launched)
+  const needsVestingData = useMemo(() => {
+    if (!market || !primaryWallet?.address) return false;
+    const isFounder = market.founderWallet === primaryWallet.address;
+    const hasToken = !!(market as any).tokenMint || !!(market as any).pumpFunTokenAddress;
+    const isResolved = (market as any).resolution === 'YesWins';
+    return isFounder && hasToken && isResolved;
+  }, [market, primaryWallet?.address]);
+
+  // Fetch vesting data only when needed (founders only, after token launch)
+  // This is the ONLY blockchain RPC call - everything else comes from MongoDB + socket
+  const { data: vestingData } = useSWR(
+    needsVestingData && market?.marketAddress
+      ? `/api/markets/${market.marketAddress}/vesting?network=${network}`
+      : null,
     fetcher,
     {
-      refreshInterval: onchainPollInterval,
       revalidateOnFocus: true,
-      dedupingInterval: 10000,
+      dedupingInterval: 30000, // Vesting data changes rarely
     }
   );
 
-  // Merge SWR onchain data with real-time socket data (socket takes priority when connected)
-  // This eliminates RPC polling when socket is connected - saves credits
+  // Construct merged data from MongoDB (market state) + socket data
+  // NO direct blockchain RPC calls needed - data synced via WebSocket to MongoDB
   const mergedOnchainData = useMemo(() => {
-    if (!onchainData?.success) return onchainData;
+    if (!market) return { success: false, data: null };
 
-    // If socket is connected and has data, merge it in (socket is more recent)
+    // Check if market is resolved - for resolved markets, we preserve final pool values
+    // (API returns finalPoolBalance/finalPoolProgressPercentage as poolBalance/poolProgressPercentage)
+    const isResolved = (market as any).resolution && (market as any).resolution !== 'Unresolved';
+
+    // Get base data from MongoDB (already synced from blockchain)
+    // For resolved markets, API returns final values captured at resolution time
+    const baseData = {
+      // Core market fields from MongoDB
+      founder: market.founderWallet,
+      poolBalance: (market as any).poolBalance || '0',
+      poolProgressPercentage: (market as any).poolProgressPercentage || 0,
+      resolution: (market as any).resolution || 'Unresolved',
+      phase: (market as any).phase || 'Prediction',
+      totalYesShares: (market as any).totalYesShares || '0',
+      totalNoShares: (market as any).totalNoShares || '0',
+      tokenMint: (market as any).tokenMint || (market as any).pumpFunTokenAddress || null,
+      pumpFunTokenAddress: (market as any).pumpFunTokenAddress || null,
+      targetPool: market.targetPool,
+      // Excess SOL fields (for founder vesting display)
+      hasExcessSol: Number((market as any).founderExcessSolAllocated || 0) > 0,
+      excessSolInSol: Number((market as any).founderExcessSolAllocated || 0) / 1_000_000_000,
+      // Vesting data (only fetched for founders)
+      teamVestingInitialized: vestingData?.data?.teamVestingInitialized || false,
+      teamVestingData: vestingData?.data?.teamVestingData || null,
+      founderVestingInitialized: vestingData?.data?.founderVestingInitialized || false,
+      founderVestingData: vestingData?.data?.founderVestingData || null,
+    };
+
+    // Merge with real-time socket data (socket takes priority when connected)
     if (socketConnected && socketMarketData) {
       return {
-        ...onchainData,
+        success: true,
         data: {
-          ...onchainData.data,
-          // Use socket data for pool info when available (real-time from blockchain sync)
-          poolBalance: socketMarketData.poolBalance ?? onchainData.data.poolBalance,
-          poolProgressPercentage: socketMarketData.poolProgressPercentage ?? onchainData.data.poolProgressPercentage,
-          resolution: socketMarketData.resolution ?? onchainData.data.resolution,
-          phase: socketMarketData.phase ?? onchainData.data.phase,
+          ...baseData,
+          // Socket provides real-time updates from blockchain sync
+          // For RESOLVED markets: Keep final pool values (don't overwrite with 0)
+          // For ACTIVE markets: Use socket updates for live pool data
+          poolBalance: isResolved ? baseData.poolBalance : (socketMarketData.poolBalance ?? baseData.poolBalance),
+          poolProgressPercentage: isResolved ? baseData.poolProgressPercentage : (socketMarketData.poolProgressPercentage ?? baseData.poolProgressPercentage),
+          resolution: socketMarketData.resolution ?? baseData.resolution,
+          phase: socketMarketData.phase ?? baseData.phase,
+          pumpFunTokenAddress: socketMarketData.pumpFunTokenAddress ?? baseData.pumpFunTokenAddress,
+          tokenMint: socketMarketData.tokenMint ?? baseData.tokenMint,
         },
       };
     }
 
-    return onchainData;
-  }, [onchainData, socketMarketData, socketConnected]);
+    return { success: true, data: baseData };
+  }, [market, socketMarketData, socketConnected, vestingData]);
+
+  // Compute vote button states based on real-time data (recalculates when socket updates arrive)
+  const voteButtonStates = useMemo(() => {
+    if (!market || !mergedOnchainData?.success || !mergedOnchainData.data) {
+      return { isYesVoteEnabled: false, isNoVoteEnabled: false, yesVoteDisabledReason: '', noVoteDisabledReason: '' };
+    }
+
+    // Use real-time data from mergedOnchainData (includes socket updates)
+    return getVoteButtonStates({
+      resolution: mergedOnchainData.data.resolution,
+      phase: typeof mergedOnchainData.data.phase === 'string'
+        ? (mergedOnchainData.data.phase === 'Funding' ? 1 : 0)
+        : (mergedOnchainData.data.phase ?? 0),
+      poolProgressPercentage: mergedOnchainData.data.poolProgressPercentage,
+      expiryTime: market.expiryTime,
+      tokenMint: mergedOnchainData.data.tokenMint,
+      pumpFunTokenAddress: mergedOnchainData.data.pumpFunTokenAddress,
+    });
+  }, [market, mergedOnchainData]);
+
+  // Compute display status based on real-time data
+  const displayStatus = useMemo(() => {
+    if (!market || !mergedOnchainData?.success || !mergedOnchainData.data) {
+      return { displayStatus: '✅ Active', badgeClass: 'bg-green-500/20 text-green-300 border-green-400/30', isExpired: false, hasTokenLaunched: false };
+    }
+
+    return getMarketDisplayStatus({
+      resolution: mergedOnchainData.data.resolution,
+      phase: typeof mergedOnchainData.data.phase === 'string'
+        ? (mergedOnchainData.data.phase === 'Funding' ? 1 : 0)
+        : (mergedOnchainData.data.phase ?? 0),
+      poolProgressPercentage: mergedOnchainData.data.poolProgressPercentage,
+      expiryTime: market.expiryTime,
+      tokenMint: mergedOnchainData.data.tokenMint,
+      pumpFunTokenAddress: mergedOnchainData.data.pumpFunTokenAddress,
+    });
+  }, [market, mergedOnchainData]);
+
+  // Helper to refresh market data (replaces old refetchOnchainData)
+  // Since we now use MongoDB + socket, just re-fetch the market details
+  const refetchOnchainData = () => {
+    if (params?.id) {
+      fetchMarketDetails(params.id as string);
+    }
+  };
 
   useEffect(() => {
     if (params.id) {
@@ -611,20 +707,19 @@ export default function MarketDetailsPage() {
     return now >= expiry;
   };
 
-  // Read vote button states from API (single source of truth)
+  // Vote button states now come from computed values (recalculated on socket updates)
   const isYesVoteDisabled = (): boolean => {
-    return market?.isYesVoteEnabled === false;
+    return !voteButtonStates.isYesVoteEnabled;
   };
 
   const isNoVoteDisabled = (): boolean => {
-    return market?.isNoVoteEnabled === false;
+    return !voteButtonStates.isNoVoteEnabled;
   };
 
   const getVoteDisabledReason = (voteType: 'yes' | 'no'): string => {
-    if (!market) return '';
     return voteType === 'yes'
-      ? (market.yesVoteDisabledReason || 'Disabled')
-      : (market.noVoteDisabledReason || 'Disabled');
+      ? (voteButtonStates.yesVoteDisabledReason || 'Disabled')
+      : (voteButtonStates.noVoteDisabledReason || 'Disabled');
   };
 
   // Helper to check if the currently selected side is disabled
@@ -1113,8 +1208,8 @@ export default function MarketDetailsPage() {
             ? Math.round((market.totalYesStake / (market.totalYesStake + market.totalNoStake)) * 100)
             : 50));
 
-  // Calculate dynamic market status
-  const marketStatus = getDetailedMarketStatus(market, onchainData);
+  // Use computed display status (recalculated on socket updates via shared utility)
+  const marketStatus = { status: displayStatus.displayStatus, badgeClass: displayStatus.badgeClass };
 
   return (
     <>
@@ -1336,22 +1431,29 @@ export default function MarketDetailsPage() {
                       >
                         <Share2 className="w-4 h-4 sm:w-5 sm:h-5 text-gray-400 group-hover:text-white transition-colors" />
                       </button>
-                      {primaryWallet?.address && (
-                        <button
-                          onClick={toggleFavorite}
-                          disabled={isTogglingFavorite}
-                          className="p-1.5 sm:p-2 hover:bg-white/10 rounded-lg transition-colors group disabled:opacity-50 disabled:cursor-not-allowed"
-                          title={isFavorite ? "Remove from watchlist" : "Add to watchlist"}
-                        >
-                          <Heart
-                            className={`w-4 h-4 sm:w-5 sm:h-5 transition-all ${
-                              isFavorite
-                                ? 'text-red-500 fill-red-500'
-                                : 'text-gray-400 group-hover:text-red-400'
-                            }`}
-                          />
-                        </button>
-                      )}
+                      <button
+                        onClick={primaryWallet?.address ? toggleFavorite : undefined}
+                        disabled={isTogglingFavorite || !primaryWallet?.address}
+                        className={`flex items-center gap-1 px-2 py-1.5 sm:px-2.5 sm:py-2 rounded-lg transition-colors group ${
+                          primaryWallet?.address
+                            ? 'hover:bg-white/10 cursor-pointer'
+                            : 'cursor-default'
+                        } disabled:opacity-50`}
+                        title={!primaryWallet?.address ? "Connect wallet to add to watchlist" : (isFavorite ? "Remove from watchlist" : "Add to watchlist")}
+                      >
+                        <Heart
+                          className={`w-4 h-4 sm:w-5 sm:h-5 transition-all ${
+                            isFavorite
+                              ? 'text-red-500 fill-red-500'
+                              : 'text-gray-400 group-hover:text-red-400'
+                          }`}
+                        />
+                        {(market.favoriteCount || 0) > 0 && (
+                          <span className={`text-xs font-medium ${isFavorite ? 'text-red-400' : 'text-gray-400'}`}>
+                            {market.favoriteCount}
+                          </span>
+                        )}
+                      </button>
                       {/* Copyable Contract Address - Only show when token is minted */}
                       {mergedOnchainData?.success && mergedOnchainData.data.tokenMint && (
                         <button
@@ -1398,6 +1500,50 @@ export default function MarketDetailsPage() {
                       </Badge>
                     )}
                   </div>
+
+                  {/* Pool Progress Bar - Animated */}
+                  {mergedOnchainData?.success && (
+                    <div className="flex items-center gap-2 mt-1">
+                      <div className="flex-1 h-2 bg-gray-800/80 rounded-full overflow-hidden relative">
+                        {/* Glow effect behind the bar */}
+                        <div
+                          className="absolute inset-0 rounded-full blur-sm opacity-50"
+                          style={{
+                            width: `${Math.min(mergedOnchainData.data?.poolProgressPercentage || 0, 100)}%`,
+                            background: 'linear-gradient(90deg, #06b6d4, #a855f7)',
+                          }}
+                        />
+                        {/* Main progress bar */}
+                        <div
+                          className="relative h-full rounded-full transition-all duration-500 overflow-hidden"
+                          style={{
+                            width: `${Math.min(mergedOnchainData.data?.poolProgressPercentage || 0, 100)}%`,
+                            background: 'linear-gradient(90deg, #06b6d4, #8b5cf6, #a855f7)',
+                          }}
+                        >
+                          {/* Shimmer effect */}
+                          <div
+                            className="absolute inset-0"
+                            style={{
+                              background: 'linear-gradient(90deg, transparent, rgba(255,255,255,0.3), transparent)',
+                              animation: 'shimmer 2s infinite',
+                            }}
+                          />
+                          {/* Pulse dots */}
+                          <div className="absolute right-1 top-1/2 -translate-y-1/2 w-1 h-1 bg-white rounded-full animate-ping opacity-75" />
+                        </div>
+                      </div>
+                      <span className="text-xs text-purple-400 font-semibold whitespace-nowrap tabular-nums">
+                        {mergedOnchainData.data?.poolProgressPercentage || 0}%
+                      </span>
+                      <style jsx>{`
+                        @keyframes shimmer {
+                          0% { transform: translateX(-100%); }
+                          100% { transform: translateX(100%); }
+                        }
+                      `}</style>
+                    </div>
+                  )}
                 </div>
               </div>
 

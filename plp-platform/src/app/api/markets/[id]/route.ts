@@ -417,6 +417,9 @@ export async function GET(
       isNoVoteEnabled,
       yesVoteDisabledReason,
       noVoteDisabledReason,
+
+      // Social/engagement metrics
+      favoriteCount: market.favoriteCount || 0,
     };
 
     logger.info('Fetched market details', { marketId: id });

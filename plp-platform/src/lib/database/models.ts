@@ -61,6 +61,7 @@ export interface PredictionMarket {
   finalPoolProgressPercentage?: number; // Pool progress at resolution time
   finalYesPercentage?: number; // YES percentage at resolution time
   finalNoPercentage?: number; // NO percentage at resolution time
+  favoriteCount?: number; // Number of users who have favorited/loved this market
   createdAt: Date;
 }
 
