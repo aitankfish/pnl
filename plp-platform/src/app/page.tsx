@@ -137,6 +137,7 @@ export default function HomePage() {
   const [isSettingUpProfile, setIsSettingUpProfile] = useState(false);
   const hasSetupProfileRef = useRef(false);
 
+
   // Auto-setup profile after authentication
   useEffect(() => {
     const setupProfile = async () => {
@@ -258,8 +259,22 @@ export default function HomePage() {
   return (
     <>
       <div className="space-y-12 md:space-y-20 pt-3 sm:pt-4 px-3 sm:px-6 pb-8 md:pb-12 relative overflow-hidden">
-        {/* Cosmic gradient background */}
-        <div className="fixed inset-0 -z-10 bg-gradient-to-b from-purple-900/20 via-black to-black"></div>
+        {/* Earth video background */}
+        <div className="fixed inset-0 -z-20">
+          <video
+            autoPlay
+            loop
+            muted
+            playsInline
+            preload="auto"
+            className="absolute inset-0 w-full h-full object-cover"
+          >
+            <source src="/earth-bg-2.mp4?v=2" type="video/mp4" />
+          </video>
+          {/* Dark overlay to ensure text readability */}
+          <div className="absolute inset-0 bg-black/40"></div>
+        </div>
+
 
         {/* Dense twinkling starfield with varied colors and sizes */}
         <div className="fixed inset-0 pointer-events-none z-0">
