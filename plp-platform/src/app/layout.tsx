@@ -109,7 +109,7 @@ export default function RootLayout({
                           </svg>
                         </a>
                         <a
-                          href="https://discord.gg/Ygknrrtn4"
+                          href="https://discord.gg/38pkg4vm"
                           target="_blank"
                           rel="noopener noreferrer"
                           className="text-gray-400 hover:text-indigo-400 transition-colors"

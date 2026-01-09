@@ -635,7 +635,7 @@ export default function MerchPage() {
                   If you have any issues with your order, reach out to us on Discord with your wallet address or transaction signature.
                 </p>
                 <a
-                  href="https://discord.gg/NGb97x4N"
+                  href="https://discord.gg/38pkg4vm"
                   target="_blank"
                   rel="noopener noreferrer"
                   className="inline-flex items-center gap-2 px-4 py-2 bg-[#5865F2]/20 text-[#5865F2] rounded-lg border border-[#5865F2]/30 hover:bg-[#5865F2]/30 transition-colors text-sm font-medium"

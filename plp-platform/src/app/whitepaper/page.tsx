@@ -782,7 +782,7 @@ export default function WhitepaperPage() {
               </a>
 
               <a
-                href="https://discord.gg/Ygknrrtn4"
+                href="https://discord.gg/38pkg4vm"
                 target="_blank"
                 rel="noopener noreferrer"
                 className="flex items-center gap-3 bg-black/30 hover:bg-black/50 transition-colors rounded-lg p-4 border border-gray-600/30 hover:border-indigo-400/50"

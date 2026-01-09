@@ -605,7 +605,7 @@ export default function HomePage() {
               </svg>
             </a>
             <a
-              href="https://discord.gg/Ygknrrtn4"
+              href="https://discord.gg/38pkg4vm"
               target="_blank"
               rel="noopener noreferrer"
               className="text-gray-400 hover:text-indigo-400 transition-all duration-300 hover:scale-110 hover:drop-shadow-[0_0_8px_rgba(129,140,248,0.6)]"
