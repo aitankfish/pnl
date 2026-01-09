@@ -1522,7 +1522,7 @@ export default function WalletPage() {
       : '...';
 
   return (
-    <div className="min-h-screen pt-3 sm:pt-4 px-4 sm:px-6 pb-4 sm:pb-6">
+    <div className="min-h-screen pt-3 sm:pt-4 px-4 sm:px-6 pb-4 sm:pb-6 animate-fade-in">
       {/* Profile & Balance Section */}
       <div className="max-w-5xl mx-auto mb-6 sm:mb-8">
         {/* Balance Display */}

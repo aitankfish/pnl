@@ -139,12 +139,37 @@ export function CosmicOnboardingModal({ isOpen, onClose, onJoinUniverse, onConti
     }
   };
 
-  // Handle auth success - transition to profile setup
+  // Handle auth success - check for existing profile or show profile setup
   useEffect(() => {
-    if (authState.status === 'success' && !hasRedirectedRef.current) {
+    const handleAuthSuccess = async () => {
+      if (authState.status !== 'success' || hasRedirectedRef.current) return;
+
+      // Check if user already has a profile
+      const walletAddress = user?.wallet?.address;
+      if (walletAddress) {
+        try {
+          const response = await fetch(`/api/profile/${walletAddress}`);
+          const result = await response.json();
+
+          if (result.success && result.data?.username) {
+            // User already has a profile - skip setup and redirect
+            console.log('✅ Existing profile found, redirecting to /wallet...');
+            hasRedirectedRef.current = true;
+            onClose();
+            router.push('/wallet');
+            return;
+          }
+        } catch (error) {
+          console.error('Error checking profile:', error);
+        }
+      }
+
+      // No existing profile - show profile setup
       setStep('profile');
-    }
-  }, [authState.status]);
+    };
+
+    handleAuthSuccess();
+  }, [authState.status, user?.wallet?.address, onClose, router]);
 
   // Generate random cosmic name when modal opens
   useEffect(() => {
@@ -285,9 +310,9 @@ export function CosmicOnboardingModal({ isOpen, onClose, onJoinUniverse, onConti
 
       if (result.success) {
         console.log('✅ Profile saved successfully! Redirecting to /wallet...');
-        // Just redirect - keep modal/loading visible until new page loads
+        // Close the modal first, then redirect
+        onClose();
         router.push('/wallet');
-        // Don't call onClose() - let the page navigation handle cleanup
       } else {
         console.error('❌ Profile save failed:', result);
       }

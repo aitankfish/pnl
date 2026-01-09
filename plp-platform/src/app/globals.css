@@ -284,3 +284,17 @@ body .dynamic__button:not(.dynamic__button--secondary):hover {
 .animate-new-market {
   animation: new-market-appear 0.5s ease-out, new-market-glow 1.5s ease-in-out infinite;
 }
+
+/* Fade in animation for page transitions */
+@keyframes fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+.animate-fade-in {
+  animation: fade-in 0.4s ease-out;
+}
