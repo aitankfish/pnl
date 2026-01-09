@@ -112,7 +112,7 @@ export function AuthMethodSelection({
         className={`text-center mb-8 ${showCloseButton ? 'mt-4' : ''}`}
       >
         <h2 className="text-2xl sm:text-3xl font-bold text-white mb-2">
-          Connect to P&L
+          Connect to PNL
         </h2>
         <p className="text-gray-400 text-sm sm:text-base">
           Sign in to access your wallet and start trading
@@ -159,7 +159,10 @@ export function AuthMethodSelection({
         transition={{ delay: 0.5 }}
         className="text-center text-gray-500 text-xs mt-6"
       >
-        By continuing, you agree to our Terms of Service
+        By continuing, you agree to our{' '}
+        <a href="/terms" target="_blank" className="text-gray-400 hover:text-white underline">Terms of Service</a>
+        {' '}and{' '}
+        <a href="/privacy" target="_blank" className="text-gray-400 hover:text-white underline">Privacy Policy</a>
       </motion.p>
     </motion.div>
   );

@@ -142,7 +142,8 @@ export function CosmicOnboardingModal({ isOpen, onClose, onJoinUniverse, onConti
   // Handle auth success - check for existing profile or show profile setup
   useEffect(() => {
     const handleAuthSuccess = async () => {
-      if (authState.status !== 'success' || hasRedirectedRef.current) return;
+      // Only handle auth success when modal is open - prevents redirect when navigating to other pages
+      if (!isOpen || authState.status !== 'success' || hasRedirectedRef.current) return;
 
       // Check if user already has a profile
       const walletAddress = user?.wallet?.address;
@@ -169,7 +170,7 @@ export function CosmicOnboardingModal({ isOpen, onClose, onJoinUniverse, onConti
     };
 
     handleAuthSuccess();
-  }, [authState.status, user?.wallet?.address, onClose, router]);
+  }, [isOpen, authState.status, user?.wallet?.address, onClose, router]);
 
   // Generate random cosmic name when modal opens
   useEffect(() => {

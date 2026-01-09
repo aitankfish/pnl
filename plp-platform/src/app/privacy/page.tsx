@@ -23,7 +23,7 @@ export default function PrivacyPolicy() {
           <section>
             <h2 className="text-xl font-semibold text-white mb-3">1. Introduction</h2>
             <p>
-              P&L (Predict & Launch) respects your privacy and is committed to protecting your personal
+              PNL (Predict & Launch), a service provided by WOLP LLC, respects your privacy and is committed to protecting your personal
               data. This privacy policy explains how we collect, use, and safeguard your information
               when you use our platform.
             </p>
@@ -126,7 +126,7 @@ export default function PrivacyPolicy() {
           <section>
             <h2 className="text-xl font-semibold text-white mb-3">11. Children's Privacy</h2>
             <p>
-              P&L is not intended for users under 18 years of age. We do not knowingly collect
+              PNL is not intended for users under 18 years of age. We do not knowingly collect
               personal information from children.
             </p>
           </section>
@@ -150,7 +150,8 @@ export default function PrivacyPolicy() {
 
         {/* Footer */}
         <div className="mt-12 pt-8 border-t border-white/10 text-center text-gray-500 text-sm">
-          <p>P&L - Predict & Launch</p>
+          <p>PNL - Predict & Launch</p>
+          <p className="mt-1">A service provided by WOLP LLC</p>
         </div>
       </div>
     </div>

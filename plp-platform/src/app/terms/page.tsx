@@ -23,7 +23,7 @@ export default function TermsOfService() {
           <section>
             <h2 className="text-xl font-semibold text-white mb-3">1. Acceptance of Terms</h2>
             <p>
-              By accessing or using P&L (Predict & Launch), you agree to be bound by these Terms of Service.
+              By accessing or using PNL (Predict & Launch), a service provided by WOLP LLC, you agree to be bound by these Terms of Service.
               If you do not agree to these terms, please do not use our platform.
             </p>
           </section>
@@ -31,7 +31,7 @@ export default function TermsOfService() {
           <section>
             <h2 className="text-xl font-semibold text-white mb-3">2. Description of Service</h2>
             <p>
-              P&L is a prediction market platform built on Solana that enables community-driven project
+              PNL is a prediction market platform built on Solana that enables community-driven project
               validation and fundraising. Users can participate in prediction markets by staking SOL to
               vote on project viability.
             </p>
@@ -40,7 +40,7 @@ export default function TermsOfService() {
           <section>
             <h2 className="text-xl font-semibold text-white mb-3">3. Eligibility</h2>
             <p>
-              You must be at least 18 years old to use P&L. By using our platform, you represent and
+              You must be at least 18 years old to use PNL. By using our platform, you represent and
               warrant that you meet this age requirement and have the legal capacity to enter into
               these terms.
             </p>
@@ -59,7 +59,7 @@ export default function TermsOfService() {
           <section>
             <h2 className="text-xl font-semibold text-white mb-3">5. Risks</h2>
             <p className="mb-3">
-              By using P&L, you acknowledge and accept the following risks:
+              By using PNL, you acknowledge and accept the following risks:
             </p>
             <ul className="list-disc list-inside space-y-2">
               <li>Cryptocurrency values are volatile and you may lose your entire investment</li>
@@ -72,7 +72,7 @@ export default function TermsOfService() {
           <section>
             <h2 className="text-xl font-semibold text-white mb-3">6. Fees</h2>
             <p>
-              P&L charges the following fees: a market creation fee of 0.015 SOL, a 1.5% fee on trades,
+              PNL charges the following fees: a market creation fee of 0.015 SOL, a 1.5% fee on trades,
               and a 5% completion fee when markets resolve. These fees are subject to change with notice.
             </p>
           </section>
@@ -80,7 +80,7 @@ export default function TermsOfService() {
           <section>
             <h2 className="text-xl font-semibold text-white mb-3">7. Intellectual Property</h2>
             <p>
-              All content, features, and functionality of P&L are owned by us and are protected by
+              All content, features, and functionality of PNL are owned by us and are protected by
               international copyright, trademark, and other intellectual property laws.
             </p>
           </section>
@@ -88,7 +88,7 @@ export default function TermsOfService() {
           <section>
             <h2 className="text-xl font-semibold text-white mb-3">8. Disclaimer of Warranties</h2>
             <p>
-              P&L is provided "as is" without warranties of any kind. We do not guarantee that the
+              PNL is provided "as is" without warranties of any kind. We do not guarantee that the
               platform will be error-free, secure, or continuously available.
             </p>
           </section>
@@ -96,7 +96,7 @@ export default function TermsOfService() {
           <section>
             <h2 className="text-xl font-semibold text-white mb-3">9. Limitation of Liability</h2>
             <p>
-              To the maximum extent permitted by law, P&L and its team shall not be liable for any
+              To the maximum extent permitted by law, WOLP LLC and its team shall not be liable for any
               indirect, incidental, special, consequential, or punitive damages, including loss of
               profits, data, or other intangible losses.
             </p>
@@ -121,7 +121,8 @@ export default function TermsOfService() {
 
         {/* Footer */}
         <div className="mt-12 pt-8 border-t border-white/10 text-center text-gray-500 text-sm">
-          <p>P&L - Predict & Launch</p>
+          <p>PNL - Predict & Launch</p>
+          <p className="mt-1">A service provided by WOLP LLC</p>
         </div>
       </div>
     </div>
