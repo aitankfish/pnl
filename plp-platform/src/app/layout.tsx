@@ -7,6 +7,7 @@ import { NetworkProvider } from '@/contexts/NetworkContext';
 import { SWRProvider } from '@/components/providers/SWRProvider';
 import AppLayoutWrapper from '@/components/AppLayoutWrapper';
 import { AuthModalProvider } from '@/contexts/AuthModalContext';
+import { DirectWalletProvider } from '@/contexts/DirectWalletContext';
 import { VoiceRoomProvider } from '@/lib/context/VoiceRoomContext';
 import FloatingVoicePanel from '@/components/voice/FloatingVoicePanel';
 

@@ -7,6 +7,7 @@ import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { ipfsUtils } from '@/lib/ipfs';
 import { useHeadlessAuth, getErrorMessage } from '@/hooks/useHeadlessAuth';
+import { useDirectWallet } from '@/contexts/DirectWalletContext';
 import {
   AuthMethodSelection,
   EmailInput,

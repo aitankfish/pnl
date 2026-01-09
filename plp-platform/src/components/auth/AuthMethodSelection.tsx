@@ -1,7 +1,7 @@
 'use client';
 
 import { motion } from 'framer-motion';
-import { Mail, Wallet, ArrowLeft, X } from 'lucide-react';
+import { Mail, ArrowLeft, X } from 'lucide-react';
 import type { OAuthProvider } from '@/hooks/useHeadlessAuth';
 
 // Custom icons for OAuth providers
@@ -50,19 +50,12 @@ const authMethods: AuthMethod[] = [
     gradient: 'from-sky-400 to-blue-500',
     iconBg: 'bg-gradient-to-r from-gray-800 to-gray-900',
   },
-  {
-    id: 'wallet',
-    label: 'Wallet',
-    icon: <Wallet className="w-5 h-5 text-white" />,
-    gradient: 'from-purple-600 to-pink-500',
-    iconBg: 'bg-gradient-to-r from-purple-600 to-pink-500',
-  },
 ];
 
 interface AuthMethodSelectionProps {
   onSelectEmail: () => void;
   onSelectOAuth: (provider: OAuthProvider) => void;
-  onSelectWallet: () => void;
+  onSelectWallet?: () => void; // Optional - kept for backwards compatibility
   onBack: () => void;
   showCloseButton?: boolean; // Show X instead of Back arrow when true
 }
@@ -70,15 +63,12 @@ interface AuthMethodSelectionProps {
 export function AuthMethodSelection({
   onSelectEmail,
   onSelectOAuth,
-  onSelectWallet,
   onBack,
   showCloseButton = false,
 }: AuthMethodSelectionProps) {
   const handleSelect = (method: AuthMethod) => {
     if (method.id === 'email') {
       onSelectEmail();
-    } else if (method.id === 'wallet') {
-      onSelectWallet();
     } else {
       onSelectOAuth(method.id as OAuthProvider);
     }

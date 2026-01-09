@@ -2,6 +2,7 @@
 
 import { motion } from 'framer-motion';
 import { ArrowLeft, ExternalLink } from 'lucide-react';
+import { useState, useEffect } from 'react';
 import type { WalletType } from '@/hooks/useHeadlessAuth';
 
 interface Wallet {
@@ -35,6 +36,39 @@ const wallets: Wallet[] = [
     downloadUrl: 'https://solflare.com',
   },
 ];
+
+// Direct browser detection for wallets
+function useDetectedWallets() {
+  const [detected, setDetected] = useState<Record<WalletType, boolean>>({
+    phantom: false,
+    backpack: false,
+    solflare: false,
+  });
+
+  useEffect(() => {
+    // Check after a small delay to let extensions inject
+    const checkWallets = () => {
+      const win = window as any;
+      setDetected({
+        phantom: !!(win.phantom?.solana || win.solana?.isPhantom),
+        backpack: !!(win.backpack || win.xnft),
+        solflare: !!(win.solflare?.isSolflare || win.solana?.isSolflare),
+      });
+    };
+
+    // Check immediately and after delays (wallets inject at different times)
+    checkWallets();
+    const timer1 = setTimeout(checkWallets, 100);
+    const timer2 = setTimeout(checkWallets, 500);
+
+    return () => {
+      clearTimeout(timer1);
+      clearTimeout(timer2);
+    };
+  }, []);
+
+  return detected;
+}
 
 // Simple wallet icons as SVG
 const PhantomIcon = () => (

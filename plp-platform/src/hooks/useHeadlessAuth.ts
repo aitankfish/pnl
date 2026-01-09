@@ -280,35 +280,47 @@ export function useHeadlessAuth() {
     }
   }, [initOAuth]);
 
-  // Connect wallet - directly connects to the selected wallet
+  // Connect wallet - directly connects to the selected wallet using browser APIs
   const handleConnectWallet = useCallback(async (walletType: WalletType) => {
     dispatch({ type: 'SELECT_WALLET_TYPE', walletType });
     try {
-      // Find the wallet in detected wallets by name
-      const walletNameMap: Record<WalletType, string> = {
-        phantom: 'Phantom',
-        backpack: 'Backpack',
-        solflare: 'Solflare',
-      };
-      const targetWalletName = walletNameMap[walletType];
-      const targetWallet = solanaWallets.find(
-        (w) => w.name.toLowerCase() === targetWalletName.toLowerCase()
-      );
+      const win = window as any;
+      let provider: any = null;
 
-      if (targetWallet && targetWallet.features['standard:connect']) {
-        // Directly connect to the specific wallet using Solana standard wallet interface
-        await targetWallet.features['standard:connect'].connect();
+      // Get the wallet provider directly from window
+      if (walletType === 'phantom') {
+        provider = win.phantom?.solana || win.solana;
+        if (!provider?.isPhantom) provider = null;
+      } else if (walletType === 'backpack') {
+        provider = win.backpack;
+      } else if (walletType === 'solflare') {
+        provider = win.solflare;
+        if (!provider?.isSolflare) {
+          // Solflare might also be on window.solana
+          if (win.solana?.isSolflare) provider = win.solana;
+        }
+      }
+
+      if (provider) {
+        // Connect using the wallet's native connect method
+        const response = await provider.connect();
+        console.log('✅ Wallet connected:', response.publicKey?.toString());
         dispatch({ type: 'WALLET_CONNECT_SUCCESS' });
       } else {
         // Wallet not installed - show error
-        const error = new Error(`${targetWalletName} wallet not detected. Please install it first.`);
+        const walletNames: Record<WalletType, string> = {
+          phantom: 'Phantom',
+          backpack: 'Backpack',
+          solflare: 'Solflare',
+        };
+        const error = new Error(`${walletNames[walletType]} wallet not detected. Please install it first.`);
         (error as any).code = 'wallet_not_found';
         dispatch({ type: 'WALLET_CONNECT_ERROR', error });
       }
     } catch (error) {
       dispatch({ type: 'WALLET_CONNECT_ERROR', error: error as Error });
     }
-  }, [solanaWallets]);
+  }, []);
 
   // Go back one step
   const goBack = useCallback(() => {
