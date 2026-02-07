@@ -99,3 +99,6 @@ test-ledger/
 id.json
 !**/target/idl/*.json
 !**/target/types/*.json
+
+# Remotion video folder
+plp-platform/video/
