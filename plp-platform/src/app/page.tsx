@@ -437,28 +437,13 @@ export default function HomePage() {
             </div>
           </h1>
 
-          <motion.div
-            initial={{ opacity: 0, scale: 0.9 }}
-            animate={{ opacity: 1, scale: 1 }}
-            transition={{ duration: 0.6, delay: 5.3 }}
-            className="flex justify-center"
-          >
-            <div className="relative group">
-              <div className="absolute -inset-0.5 bg-gradient-to-r from-purple-600 to-cyan-500 rounded-full blur opacity-40 group-hover:opacity-75 transition duration-500"></div>
-              <span className="relative inline-flex items-center gap-2 px-5 py-2.5 rounded-full bg-purple-900/40 backdrop-blur-sm border border-purple-400/30 text-purple-200 text-sm font-semibold">
-                <Zap className="w-4 h-4 text-cyan-400" />
-                launch your idea
-              </span>
-            </div>
-          </motion.div>
-
           <motion.p
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.7, delay: 5.8 }}
             className="text-lg md:text-xl text-gray-300 max-w-3xl mx-auto leading-relaxed"
           >
-            The first platform where <span className="text-cyan-400 font-semibold">community validates ideas</span> through prediction markets, giving you early access to tomorrow's breakthrough projects.
+            World's first idea tokenization platform where <span className="text-cyan-400 font-semibold">global community validates ideas</span> through prediction markets.
           </motion.p>
 
           <motion.div
@@ -467,98 +452,14 @@ export default function HomePage() {
             transition={{ duration: 0.8, delay: 6.4, ease: [0.22, 1, 0.36, 1] }}
             className="flex justify-center pt-6"
           >
-            <div className="relative group">
-              {/* Outer cosmic glow - multiple layers */}
-              <div className="absolute -inset-1 bg-gradient-to-r from-violet-600 via-purple-500 to-fuchsia-600 rounded-2xl blur-lg opacity-30 group-hover:opacity-50 transition duration-700"></div>
-              <div className="absolute -inset-0.5 bg-gradient-to-r from-cyan-400 via-blue-500 to-purple-600 rounded-2xl blur-md opacity-20 group-hover:opacity-40 transition duration-500"></div>
-
-              {/* Button with transparent background */}
-              <Button
-                onClick={handleLaunchClick}
-                size="lg"
-                className="relative overflow-hidden bg-transparent text-white font-bold text-xl px-14 py-8 rounded-2xl shadow-2xl transition-all hover:scale-105 border-2 border-purple-400/40 backdrop-blur-sm group-hover:border-cyan-400/60 group-hover:backdrop-blur-md"
-              >
-                <div className="flex items-center gap-4 relative z-10">
-                  {/* Twinkling stars inside the button */}
-                  <div className="absolute inset-0 overflow-hidden rounded-2xl pointer-events-none">
-                    {[...Array(25)].map((_, i) => {
-                      const size = Math.random() > 0.7 ? '2px' : '1.5px';
-                      const colors = ['#ffffff', '#93c5fd', '#c4b5fd', '#7dd3fc', '#a78bfa'];
-                      const color = colors[Math.floor(Math.random() * colors.length)];
-                      const duration = 1 + Math.random() * 3;
-                      const delay = Math.random() * 4;
-
-                      return (
-                        <motion.div
-                          key={i}
-                          className="absolute rounded-full"
-                          style={{
-                            width: size,
-                            height: size,
-                            background: color,
-                            boxShadow: `0 0 ${size === '2px' ? '4px' : '3px'} ${color}`,
-                            left: `${5 + Math.random() * 90}%`,
-                            top: `${10 + Math.random() * 80}%`,
-                          }}
-                          animate={{
-                            opacity: [0.2, 1, 0.2],
-                            scale: [0.8, 1.2, 0.8],
-                          }}
-                          transition={{
-                            duration: duration,
-                            repeat: Infinity,
-                            delay: delay,
-                            ease: 'easeInOut',
-                          }}
-                        />
-                      );
-                    })}
-                  </div>
-
-                  {/* Cosmic particles floating around rocket */}
-                  <div className="absolute -left-8 top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 transition-opacity duration-500">
-                    {[...Array(3)].map((_, i) => (
-                      <motion.div
-                        key={i}
-                        className="absolute w-1 h-1 bg-cyan-400 rounded-full"
-                        animate={{
-                          x: [-10, 0],
-                          y: [0, -8 * (i + 1), 0],
-                          opacity: [0, 1, 0],
-                          scale: [0, 1.5, 0],
-                        }}
-                        transition={{
-                          duration: 1.5,
-                          repeat: Infinity,
-                          delay: i * 0.3,
-                          ease: "easeOut",
-                        }}
-                      />
-                    ))}
-                  </div>
-
-                  <motion.div
-                    animate={{ rotate: [0, 10, -10, 0] }}
-                    transition={{ duration: 0.5, repeat: Infinity, repeatDelay: 3 }}
-                    className="relative"
-                  >
-                    <Rocket className="w-7 h-7 drop-shadow-[0_0_8px_rgba(6,182,212,0.8)]" />
-                  </motion.div>
-
-                  <span className="tracking-wide bg-gradient-to-r from-white via-cyan-100 to-purple-100 bg-clip-text text-transparent drop-shadow-[0_0_10px_rgba(255,255,255,0.5)]">
-                    Launch
-                  </span>
-
-                  <motion.div
-                    animate={{ x: [0, 5, 0] }}
-                    transition={{ duration: 1.5, repeat: Infinity, ease: "easeInOut" }}
-                    className="relative"
-                  >
-                    <ArrowRight className="w-7 h-7 drop-shadow-[0_0_8px_rgba(168,85,247,0.8)]" />
-                  </motion.div>
-                </div>
-              </Button>
-            </div>
+            <button
+              onClick={handleLaunchClick}
+              className="group relative px-8 py-4 rounded-xl cursor-pointer bg-white/5 backdrop-blur-sm border border-white/10 hover:border-white/20 hover:bg-white/10 transition-all duration-300"
+            >
+              <span className="text-xl md:text-2xl font-semibold tracking-wide bg-gradient-to-r from-cyan-300 via-purple-300 to-pink-300 bg-clip-text text-transparent transition-all duration-300 group-hover:from-cyan-200 group-hover:via-purple-200 group-hover:to-pink-200 drop-shadow-[0_0_15px_rgba(168,85,247,0.3)] group-hover:drop-shadow-[0_0_25px_rgba(168,85,247,0.6)]">
+                launch your idea
+              </span>
+            </button>
           </motion.div>
 
           {/* Token CA & Links */}
@@ -646,26 +547,6 @@ export default function HomePage() {
         </motion.div>
 
         {/* Presentation CTA */}
-        <motion.div
-          initial="hidden"
-          whileInView="visible"
-          viewport={{ once: true, amount: 0.5 }}
-          variants={fadeInUp}
-          className="flex justify-center py-8"
-        >
-          <Link
-            href="/presentation"
-            className="group flex items-center gap-3 px-6 py-3 bg-gradient-to-r from-purple-500/20 to-cyan-500/20 hover:from-purple-500/30 hover:to-cyan-500/30 border border-purple-400/30 hover:border-cyan-400/50 rounded-xl backdrop-blur-sm transition-all duration-300"
-          >
-            <svg className="w-5 h-5 text-purple-400 group-hover:text-cyan-400 transition-colors" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M7 4v16M17 4v16M3 8h4m10 0h4M3 12h18M3 16h4m10 0h4M4 20h16a1 1 0 001-1V5a1 1 0 00-1-1H4a1 1 0 00-1 1v14a1 1 0 001 1z" />
-            </svg>
-            <span className="text-sm font-medium text-gray-300 group-hover:text-white transition-colors">
-              view full presentation
-            </span>
-            <ArrowRight className="w-4 h-4 text-gray-400 group-hover:text-cyan-400 group-hover:translate-x-1 transition-all" />
-          </Link>
-        </motion.div>
 
         {/* Story Introduction */}
         <motion.div
@@ -1232,7 +1113,7 @@ export default function HomePage() {
         >
           <div className="text-center space-y-3">
             <h2 className="text-3xl md:text-4xl font-bold text-white">
-              Why P&L?
+              Why PNL?
             </h2>
             <p className="text-gray-400 text-base md:text-lg max-w-2xl mx-auto">
               A fairer way to validate ideas and access early-stage opportunities
@@ -1309,6 +1190,29 @@ export default function HomePage() {
                 </div>
               </CardContent>
             </Card>
+          </div>
+
+          {/* Learn More Links */}
+          <div className="flex flex-wrap items-center justify-center gap-6 pt-6">
+            <span className="text-gray-400 text-sm">Learn more:</span>
+            <Link
+              href="/whitepaper"
+              className="group flex items-center gap-2 text-sm text-gray-300 hover:text-cyan-400 transition-colors"
+            >
+              <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
+                <path fillRule="evenodd" clipRule="evenodd" d="M5 4a2 2 0 012-2h6l6 6v12a2 2 0 01-2 2H7a2 2 0 01-2-2V4zm7 0H7v16h10V9h-4a1 1 0 01-1-1V4zm3.586 4L13 5.414V8h2.586z" />
+              </svg>
+              Whitepaper
+            </Link>
+            <Link
+              href="/presentation"
+              className="group flex items-center gap-2 text-sm text-gray-300 hover:text-purple-400 transition-colors"
+            >
+              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M7 4v16M17 4v16M3 8h4m10 0h4M3 12h18M3 16h4m10 0h4M4 20h16a1 1 0 001-1V5a1 1 0 00-1-1H4a1 1 0 00-1 1v14a1 1 0 001 1z" />
+              </svg>
+              Presentation
+            </Link>
           </div>
         </motion.div>
 

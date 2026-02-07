@@ -61,7 +61,11 @@ export default function TokenAddress() {
         rel="noopener noreferrer"
         className="flex items-center gap-1.5 px-2 py-1 text-xs text-gray-400 hover:text-[#9efe6c] hover:bg-[#9efe6c]/10 rounded transition-all"
       >
-        <span className="w-4 h-4 rounded-full bg-[#9efe6c] flex items-center justify-center text-[8px] font-bold text-black">P</span>
+        <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none">
+          <rect x="4" y="2" width="16" height="20" rx="8" fill="#9efe6c" stroke="#1a5c1a" strokeWidth="1.5"/>
+          <path d="M4 12h16" stroke="#1a5c1a" strokeWidth="1"/>
+          <rect x="4" y="2" width="16" height="10" rx="8" ry="8" fill="white" fillOpacity="0.9"/>
+        </svg>
         <span className="hidden sm:inline">Pump</span>
       </a>
     </div>
