@@ -93,6 +93,17 @@ const nextConfig = {
     return config;
   },
 
+  // Redirects
+  async redirects() {
+    return [
+      {
+        source: '/presentation',
+        destination: '/presentation/index.html',
+        permanent: false,
+      },
+    ];
+  },
+
   // Headers for better caching
   async headers() {
     return [

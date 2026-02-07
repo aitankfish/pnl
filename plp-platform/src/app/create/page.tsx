@@ -832,11 +832,13 @@ export default function CreatePage() {
                       <option value="5000000000" className="bg-slate-800">5 SOL (Small Project)</option>
                       <option value="10000000000" className="bg-slate-800">10 SOL (Medium Project)</option>
                       <option value="15000000000" className="bg-slate-800">15 SOL (Large Project)</option>
-                      <option value="custom" className="bg-slate-800">Custom Amount</option>
+                      {process.env.NODE_ENV === 'development' && (
+                        <option value="custom" className="bg-slate-800">Custom Amount (Dev Only)</option>
+                      )}
                     </select>
 
-                    {/* Custom amount input */}
-                    {isCustomPoolAmount && (
+                    {/* Custom amount input - only in development */}
+                    {process.env.NODE_ENV === 'development' && isCustomPoolAmount && (
                       <div className="mt-2">
                         <input
                           type="number"

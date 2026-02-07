@@ -10,6 +10,7 @@ import { useEffect, useRef, useState } from 'react';
 import { useWallet } from '@/hooks/useWallet';
 import { useRouter } from 'next/navigation';
 import CosmicOnboardingModal from '@/components/CosmicOnboardingModal';
+import TokenAddress from '@/components/TokenAddress';
 
 // Animation variants with smoother easing
 const fadeInUp = {
@@ -259,23 +260,6 @@ export default function HomePage() {
   return (
     <>
       <div className="space-y-12 md:space-y-20 pt-3 sm:pt-4 px-3 sm:px-6 pb-8 md:pb-12 relative overflow-hidden">
-        {/* Earth video background */}
-        <div className="fixed inset-0 -z-20">
-          <video
-            autoPlay
-            loop
-            muted
-            playsInline
-            preload="auto"
-            className="absolute inset-0 w-full h-full object-cover"
-          >
-            <source src="/earth-bg-2.mp4?v=2" type="video/mp4" />
-          </video>
-          {/* Dark overlay to ensure text readability */}
-          <div className="absolute inset-0 bg-black/40"></div>
-        </div>
-
-
         {/* Dense twinkling starfield with varied colors and sizes */}
         <div className="fixed inset-0 pointer-events-none z-0">
           {[...Array(500)].map((_, i) => {
@@ -463,7 +447,7 @@ export default function HomePage() {
               <div className="absolute -inset-0.5 bg-gradient-to-r from-purple-600 to-cyan-500 rounded-full blur opacity-40 group-hover:opacity-75 transition duration-500"></div>
               <span className="relative inline-flex items-center gap-2 px-5 py-2.5 rounded-full bg-purple-900/40 backdrop-blur-sm border border-purple-400/30 text-purple-200 text-sm font-semibold">
                 <Zap className="w-4 h-4 text-cyan-400" />
-                Let the Market Decide
+                launch your idea
               </span>
             </div>
           </motion.div>
@@ -577,6 +561,16 @@ export default function HomePage() {
             </div>
           </motion.div>
 
+          {/* Token CA & Links */}
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.6, delay: 6.8 }}
+            className="flex justify-center pt-4"
+          >
+            <TokenAddress />
+          </motion.div>
+
           {/* Social Links */}
           <motion.div
             initial={{ opacity: 0, y: 10 }}
@@ -649,6 +643,28 @@ export default function HomePage() {
               <ChevronDown className="w-5 h-5 text-gray-400 mt-1" />
             </motion.div>
           </motion.div>
+        </motion.div>
+
+        {/* Presentation CTA */}
+        <motion.div
+          initial="hidden"
+          whileInView="visible"
+          viewport={{ once: true, amount: 0.5 }}
+          variants={fadeInUp}
+          className="flex justify-center py-8"
+        >
+          <Link
+            href="/presentation"
+            className="group flex items-center gap-3 px-6 py-3 bg-gradient-to-r from-purple-500/20 to-cyan-500/20 hover:from-purple-500/30 hover:to-cyan-500/30 border border-purple-400/30 hover:border-cyan-400/50 rounded-xl backdrop-blur-sm transition-all duration-300"
+          >
+            <svg className="w-5 h-5 text-purple-400 group-hover:text-cyan-400 transition-colors" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M7 4v16M17 4v16M3 8h4m10 0h4M3 12h18M3 16h4m10 0h4M4 20h16a1 1 0 001-1V5a1 1 0 00-1-1H4a1 1 0 00-1 1v14a1 1 0 001 1z" />
+            </svg>
+            <span className="text-sm font-medium text-gray-300 group-hover:text-white transition-colors">
+              view full presentation
+            </span>
+            <ArrowRight className="w-4 h-4 text-gray-400 group-hover:text-cyan-400 group-hover:translate-x-1 transition-all" />
+          </Link>
         </motion.div>
 
         {/* Story Introduction */}
