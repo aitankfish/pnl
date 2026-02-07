@@ -1755,6 +1755,163 @@ t<!DOCTYPE html>
     .benefit-list li strong {
       color: white;
     }
+
+    /* ============================================
+       RESPONSIVE STYLES - Mobile optimized
+       ============================================ */
+
+    @media (max-width: 768px) {
+      .slide {
+        padding: 20px 20px 80px 20px;
+      }
+
+      .title {
+        font-size: clamp(1.5rem, 6vw, 2.5rem);
+      }
+
+      .title-large {
+        font-size: clamp(1.2rem, 5vw, 2rem);
+      }
+
+      .subtitle {
+        font-size: clamp(0.9rem, 3.5vw, 1.3rem);
+      }
+
+      .description {
+        font-size: clamp(0.85rem, 3vw, 1.2rem);
+      }
+
+      .emoji-large {
+        font-size: clamp(2.5rem, 10vw, 5rem);
+      }
+
+      .stats-row {
+        flex-wrap: wrap;
+        gap: 10px;
+        justify-content: center;
+      }
+
+      .stat-box {
+        padding: 12px 16px;
+        min-width: 100px;
+        flex: 1 1 40%;
+      }
+
+      .stat-number {
+        font-size: clamp(1.2rem, 4vw, 1.8rem);
+      }
+
+      .stat-label {
+        font-size: clamp(0.65rem, 2.5vw, 0.9rem);
+      }
+
+      .steps-container {
+        flex-wrap: wrap;
+        gap: 8px;
+      }
+
+      .step {
+        padding: 10px 12px;
+        flex: 1 1 45%;
+        min-width: 140px;
+      }
+
+      .step-number {
+        width: 24px;
+        height: 24px;
+        font-size: 0.75rem;
+      }
+
+      .step-content h3 {
+        font-size: clamp(0.75rem, 2.8vw, 1rem);
+      }
+
+      .step-content p {
+        font-size: clamp(0.65rem, 2.2vw, 0.85rem);
+      }
+
+      .comparison-table {
+        flex-wrap: wrap;
+        gap: 10px;
+      }
+
+      .compare-card {
+        padding: 12px;
+        flex: 1 1 100%;
+      }
+
+      .compare-card h3 {
+        font-size: clamp(0.9rem, 3.5vw, 1.3rem);
+      }
+
+      .compare-card p, .compare-card li {
+        font-size: clamp(0.7rem, 2.5vw, 0.95rem);
+      }
+
+      .benefit-list li {
+        font-size: clamp(0.8rem, 3vw, 1.1rem);
+        margin-bottom: 8px;
+      }
+
+      .dist-item {
+        padding: 8px;
+      }
+
+      .dist-label {
+        font-size: clamp(0.7rem, 2.5vw, 0.95rem);
+      }
+
+      .dist-value {
+        font-size: clamp(0.85rem, 3vw, 1.2rem);
+      }
+
+      .nav-controls {
+        bottom: 10px;
+        padding: 8px 16px;
+        gap: 12px;
+      }
+
+      .nav-arrow {
+        font-size: 1rem;
+        padding: 8px 14px;
+      }
+
+      .slide-counter {
+        font-size: 0.75rem;
+      }
+
+      .brand {
+        font-size: clamp(1rem, 4vw, 1.5rem) !important;
+      }
+
+      /* Hide presenter mode button on mobile */
+      .presenter-btn {
+        display: none;
+      }
+
+      /* Reduce effects for performance */
+      .nebula { opacity: 0.3; }
+      .shooting-star { display: none; }
+      .pulsar { display: none; }
+    }
+
+    @media (max-width: 480px) {
+      .slide {
+        padding: 15px 15px 75px 15px;
+      }
+
+      .stat-box {
+        flex: 1 1 100%;
+      }
+
+      .step {
+        flex: 1 1 100%;
+      }
+
+      .steps-container::after {
+        display: none;
+      }
+    }
   </style>
 </head>
 <body>
