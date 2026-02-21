@@ -665,6 +665,273 @@
     background-clip: text;
     filter: drop-shadow(0 0 50px rgba(34,211,238,0.3));
   }
+
+  /* ===== MOBILE RESPONSIVE ===== */
+  @media (max-width: 768px) {
+    .scene-container {
+      padding: 12px;
+      padding-bottom: 40px;
+    }
+    .scene {
+      padding: 12px;
+      padding-bottom: 40px;
+    }
+    .text-scream {
+      font-size: 2rem;
+    }
+    .text-shout {
+      font-size: 1.5rem;
+    }
+    .text-speak {
+      font-size: 1rem;
+    }
+    .text-whisper {
+      font-size: 0.85rem;
+    }
+    .logo-text {
+      font-size: 3.5rem;
+    }
+    .split-layout {
+      flex-direction: column;
+      gap: 16px;
+      align-items: flex-start;
+    }
+    .split-left {
+      align-items: flex-start;
+      width: 100%;
+    }
+    .split-right {
+      display: none;
+    }
+    .method-grid {
+      flex-direction: column;
+      align-items: center;
+      gap: 10px;
+      margin-top: 14px;
+      width: 100%;
+    }
+    .method-card {
+      width: 100%;
+      max-width: 100%;
+      padding: 14px 16px;
+      border-radius: 14px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      text-align: left;
+    }
+    .method-card .icon {
+      font-size: 1.5rem;
+      margin-bottom: 0;
+      flex-shrink: 0;
+    }
+    .method-card h3 {
+      font-size: 0.9rem;
+      margin-bottom: 2px;
+    }
+    .method-card p {
+      font-size: 0.7rem;
+    }
+    .step-card {
+      gap: 12px;
+      max-width: 100%;
+      margin: 5px 0;
+    }
+    .step-number {
+      width: 32px;
+      height: 32px;
+      min-width: 32px;
+      font-size: 0.85rem;
+    }
+    .step-content {
+      padding-top: 2px;
+    }
+    .step-content h3 {
+      font-size: 0.9rem;
+      margin-bottom: 2px;
+    }
+    .step-content p {
+      font-size: 0.72rem;
+      line-height: 1.35;
+    }
+    .platform-header {
+      gap: 10px;
+      margin-bottom: 12px;
+    }
+    .platform-icon {
+      width: 38px;
+      height: 38px;
+      border-radius: 10px;
+      font-size: 1.1rem;
+    }
+    .platform-header div div:first-child {
+      font-size: 1rem !important;
+    }
+    .platform-header div div:last-child {
+      font-size: 0.7rem !important;
+    }
+    .ca-box {
+      font-size: 0.55rem;
+      padding: 6px 10px;
+      gap: 6px;
+      max-width: 100%;
+      word-break: break-all;
+    }
+    .corner-brand {
+      font-size: 0.55rem;
+      top: 8px;
+      right: 10px;
+    }
+    .start-title {
+      font-size: 1.5rem;
+    }
+    .start-sub {
+      font-size: 0.7rem;
+      margin-bottom: 20px;
+    }
+    .start-icon {
+      width: 50px;
+      height: 50px;
+      margin-bottom: 14px;
+    }
+    .start-icon svg {
+      width: 20px;
+      height: 20px;
+    }
+    .start-text {
+      font-size: 0.8rem;
+    }
+    .playback-controls {
+      bottom: 14px;
+      gap: 6px;
+    }
+    .play-pause-btn {
+      width: 30px;
+      height: 30px;
+    }
+    .play-pause-btn svg {
+      width: 12px;
+      height: 12px;
+    }
+    .playback-time {
+      font-size: 0.55rem;
+    }
+    .pause-badge {
+      font-size: 0.55rem;
+    }
+    .pulse-ring {
+      width: 100px;
+      height: 100px;
+    }
+    .nebula-1 { width: 250px; height: 250px; }
+    .nebula-2 { width: 200px; height: 200px; }
+    .nebula-3 { width: 150px; height: 150px; }
+    .wave-line {
+      width: 50px;
+      margin: 8px auto;
+    }
+    .bottom-bar {
+      height: 4px;
+    }
+    .bottom-bar:hover {
+      height: 8px;
+    }
+  }
+
+  @media (max-width: 400px) {
+    .scene {
+      padding: 8px;
+      padding-bottom: 36px;
+    }
+    .scene-container {
+      padding: 8px;
+      padding-bottom: 36px;
+    }
+    .text-scream {
+      font-size: 1.6rem;
+    }
+    .text-shout {
+      font-size: 1.2rem;
+    }
+    .text-speak {
+      font-size: 0.85rem;
+    }
+    .text-whisper {
+      font-size: 0.75rem;
+    }
+    .logo-text {
+      font-size: 2.5rem;
+    }
+    .step-number {
+      width: 26px;
+      height: 26px;
+      min-width: 26px;
+      font-size: 0.7rem;
+    }
+    .step-card {
+      gap: 8px;
+      margin: 3px 0;
+    }
+    .step-content h3 {
+      font-size: 0.78rem;
+    }
+    .step-content p {
+      font-size: 0.65rem;
+    }
+    .ca-box {
+      font-size: 0.45rem;
+      padding: 5px 8px;
+    }
+    .method-card {
+      padding: 10px 12px;
+      gap: 10px;
+    }
+    .method-card .icon {
+      font-size: 1.2rem;
+    }
+    .method-card h3 {
+      font-size: 0.78rem;
+    }
+    .method-card p {
+      font-size: 0.62rem;
+    }
+    .start-title {
+      font-size: 1.2rem;
+    }
+    .start-sub {
+      font-size: 0.6rem;
+    }
+    .start-icon {
+      width: 40px;
+      height: 40px;
+    }
+    .start-icon svg {
+      width: 16px;
+      height: 16px;
+    }
+    .platform-icon {
+      width: 32px;
+      height: 32px;
+      font-size: 0.9rem;
+    }
+    .platform-header div div:first-child {
+      font-size: 0.85rem !important;
+    }
+    .platform-header div div:last-child {
+      font-size: 0.6rem !important;
+    }
+    .playback-controls {
+      bottom: 10px;
+    }
+    .play-pause-btn {
+      width: 26px;
+      height: 26px;
+    }
+    .play-pause-btn svg {
+      width: 10px;
+      height: 10px;
+    }
+  }
 </style>
 </head>
 <body>

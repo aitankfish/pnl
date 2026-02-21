@@ -31,7 +31,7 @@ function CopyableAddress({ address }: { address: string }) {
 
 function AnimatedGuide() {
   return (
-    <div className="rounded-2xl overflow-hidden border border-white/10" style={{ aspectRatio: '16/9' }}>
+    <div className="rounded-2xl overflow-hidden border border-white/10 aspect-[9/14] sm:aspect-[4/3] md:aspect-[16/9]">
       <iframe
         src="/how-to-buy-animation.html"
         className="w-full h-full border-0"
