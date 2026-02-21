@@ -29,6 +29,18 @@ function CopyableAddress({ address }: { address: string }) {
   );
 }
 
+function AnimatedGuide() {
+  return (
+    <div className="rounded-2xl overflow-hidden border border-white/10" style={{ aspectRatio: '16/9' }}>
+      <iframe
+        src="/how-to-buy-animation.html"
+        className="w-full h-full border-0"
+        allow="autoplay"
+      />
+    </div>
+  );
+}
+
 const PNL_CONTRACT = '6QuNZJzUF7oZj3GsG7fVBfidX1cE81sXhb9Czi12pump';
 
 const platforms = [
@@ -325,8 +337,17 @@ export default function HowToBuy() {
           ))}
         </div>
 
+        {/* Animated Guide */}
+        <div className="mt-6">
+          <div className="flex items-center gap-2 flex-wrap mb-3">
+            <span className="text-gray-500 text-xs">CA:</span>
+            <CopyableAddress address={PNL_CONTRACT} />
+          </div>
+          <AnimatedGuide />
+        </div>
+
         {/* Footer note */}
-        <div className="mt-10 p-4 rounded-xl bg-white/5 border border-white/10">
+        <div className="mt-6 p-4 rounded-xl bg-white/5 border border-white/10">
           <p className="text-sm text-gray-400 text-center">
             Need help? Join our{' '}
             <a href="https://discord.gg/38pkg4vm" target="_blank" rel="noopener noreferrer" className="text-indigo-400 hover:text-indigo-300 underline">
