@@ -1,8 +1,8 @@
 'use client';
 
-import Link from 'next/link';
-import { ArrowLeft, ExternalLink, ChevronDown, Copy, Check } from 'lucide-react';
-import { useState, useCallback } from 'react';
+import { useRouter } from 'next/navigation';
+import { ExternalLink, ChevronDown, Copy, Check } from 'lucide-react';
+import { useState, useCallback, useRef } from 'react';
 
 function CopyableAddress({ address }: { address: string }) {
   const [copied, setCopied] = useState(false);
@@ -275,34 +275,45 @@ function PlatformSection({ platform, defaultOpen }: { platform: typeof platforms
 }
 
 export default function HowToBuy() {
-  return (
-    <div className="min-h-screen bg-black text-white py-8 px-4 sm:px-6 lg:px-8">
-      <div className="max-w-3xl mx-auto">
-        {/* Back button */}
-        <Link
-          href="/browse"
-          className="inline-flex items-center gap-2 text-gray-400 hover:text-white mb-8 transition-colors"
-        >
-          <ArrowLeft className="w-4 h-4" />
-          Browse Markets
-        </Link>
+  const router = useRouter();
+  const touchStartX = useRef(0);
+  const touchStartY = useRef(0);
 
+  const handleTouchStart = useCallback((e: React.TouchEvent) => {
+    touchStartX.current = e.touches[0].clientX;
+    touchStartY.current = e.touches[0].clientY;
+  }, []);
+
+  const handleTouchEnd = useCallback((e: React.TouchEvent) => {
+    const deltaX = e.changedTouches[0].clientX - touchStartX.current;
+    const deltaY = Math.abs(e.changedTouches[0].clientY - touchStartY.current);
+    // Swipe right: horizontal distance > 100px and more horizontal than vertical
+    if (deltaX > 100 && deltaY < 80) {
+      router.push('/browse');
+    }
+  }, [router]);
+
+  return (
+    <div
+      className="min-h-screen bg-black text-white pt-4 pb-8 px-4 sm:px-6 lg:px-8"
+      onTouchStart={handleTouchStart}
+      onTouchEnd={handleTouchEnd}
+    >
+      <div className="max-w-3xl mx-auto">
         {/* Header */}
-        <div className="mb-10">
-          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-3">
-            <h1 className="text-2xl sm:text-3xl md:text-4xl font-bold">
-              How to Buy <span className="text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-blue-500">$PNL</span>
-            </h1>
+        <div className="mb-5">
+          <h1 className="text-2xl sm:text-3xl md:text-4xl font-bold mb-2">
+            How to Buy <span className="text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-blue-500">$PNL</span>
+          </h1>
+          <div className="flex items-center gap-2 flex-wrap">
+            <span className="text-gray-500 text-xs">CA:</span>
             <CopyableAddress address={PNL_CONTRACT} />
           </div>
-          <p className="text-gray-400 text-base sm:text-lg">
-            Get $PNL tokens in just a few steps. Choose your preferred platform below.
-          </p>
         </div>
 
         {/* Tip banner */}
-        <div className="mb-8 p-4 rounded-xl bg-gradient-to-r from-cyan-500/10 to-blue-500/10 border border-cyan-500/20">
-          <p className="text-sm text-gray-300">
+        <div className="mb-5 p-3 sm:p-4 rounded-xl bg-gradient-to-r from-cyan-500/10 to-blue-500/10 border border-cyan-500/20">
+          <p className="text-xs sm:text-sm text-gray-300">
             <span className="font-semibold text-cyan-400">First things first:</span> Download Phantom wallet — you&apos;ll need it no matter which method you choose. You can buy SOL directly in Phantom with a card, or use Robinhood / Coinbase.
           </p>
         </div>
