@@ -1,0 +1,79 @@
+{
+  "name": "@pnl/shared",
+  "version": "0.1.0",
+  "private": true,
+  "main": "./dist/index.js",
+  "module": "./dist/index.mjs",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    "./config": {
+      "types": "./dist/config/index.d.ts",
+      "import": "./dist/config/index.mjs",
+      "require": "./dist/config/index.js"
+    },
+    "./solana": {
+      "types": "./dist/solana/index.d.ts",
+      "import": "./dist/solana/index.mjs",
+      "require": "./dist/solana/index.js"
+    },
+    "./hooks": {
+      "types": "./dist/hooks/index.d.ts",
+      "import": "./dist/hooks/index.mjs",
+      "require": "./dist/hooks/index.js"
+    },
+    "./types": {
+      "types": "./dist/types/index.d.ts",
+      "import": "./dist/types/index.mjs",
+      "require": "./dist/types/index.js"
+    },
+    "./services": {
+      "types": "./dist/services/index.d.ts",
+      "import": "./dist/services/index.mjs",
+      "require": "./dist/services/index.js"
+    },
+    "./contexts": {
+      "types": "./dist/contexts/index.d.ts",
+      "import": "./dist/contexts/index.mjs",
+      "require": "./dist/contexts/index.js"
+    },
+    "./utils": {
+      "types": "./dist/utils/index.d.ts",
+      "import": "./dist/utils/index.mjs",
+      "require": "./dist/utils/index.js"
+    }
+  },
+  "scripts": {
+    "build": "tsup",
+    "dev": "tsup --watch",
+    "clean": "rm -rf dist"
+  },
+  "dependencies": {
+    "bs58": "^5.0.0",
+    "zod": "^4.3.4"
+  },
+  "peerDependencies": {
+    "react": "^18.0.0",
+    "@coral-xyz/anchor": "^0.32.1",
+    "@solana/web3.js": "^1.98.4",
+    "@solana/spl-token": "^0.4.0",
+    "@privy-io/react-auth": "^3.0.0",
+    "socket.io-client": "^4.0.0",
+    "swr": "^2.0.0"
+  },
+  "peerDependenciesMeta": {
+    "@privy-io/react-auth": { "optional": true },
+    "@solana/spl-token": { "optional": true },
+    "@pump-fun/pump-sdk": { "optional": true }
+  },
+  "devDependencies": {
+    "tsup": "^8.3.0",
+    "typescript": "^5.0.0",
+    "@types/react": "^18.0.0",
+    "@coral-xyz/anchor": "^0.32.1",
+    "@solana/web3.js": "^1.98.4",
+    "@solana/spl-token": "^0.4.14",
+    "@privy-io/react-auth": "^3.5.1",
+    "socket.io-client": "^4.8.1",
+    "swr": "^2.3.6"
+  }
+}

@@ -101,4 +101,21 @@ id.json
 !**/target/types/*.json
 
 # Remotion video folder
-plp-platform/video/
+apps/web/video/
+
+# Turborepo
+.turbo/
+
+# Shared package build output
+packages/shared/dist/
+
+# Expo
+.expo/
+dist/
+*.jks
+*.p8
+*.p12
+*.key
+*.mobileprovision
+*.orig.*
+web-build/
