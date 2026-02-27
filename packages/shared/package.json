@@ -2,45 +2,15 @@
   "name": "@pnl/shared",
   "version": "0.1.0",
   "private": true,
-  "main": "./dist/index.js",
-  "module": "./dist/index.mjs",
-  "types": "./dist/index.d.ts",
+  "main": "./src/config/index.ts",
   "exports": {
-    "./config": {
-      "types": "./dist/config/index.d.ts",
-      "import": "./dist/config/index.mjs",
-      "require": "./dist/config/index.js"
-    },
-    "./solana": {
-      "types": "./dist/solana/index.d.ts",
-      "import": "./dist/solana/index.mjs",
-      "require": "./dist/solana/index.js"
-    },
-    "./hooks": {
-      "types": "./dist/hooks/index.d.ts",
-      "import": "./dist/hooks/index.mjs",
-      "require": "./dist/hooks/index.js"
-    },
-    "./types": {
-      "types": "./dist/types/index.d.ts",
-      "import": "./dist/types/index.mjs",
-      "require": "./dist/types/index.js"
-    },
-    "./services": {
-      "types": "./dist/services/index.d.ts",
-      "import": "./dist/services/index.mjs",
-      "require": "./dist/services/index.js"
-    },
-    "./contexts": {
-      "types": "./dist/contexts/index.d.ts",
-      "import": "./dist/contexts/index.mjs",
-      "require": "./dist/contexts/index.js"
-    },
-    "./utils": {
-      "types": "./dist/utils/index.d.ts",
-      "import": "./dist/utils/index.mjs",
-      "require": "./dist/utils/index.js"
-    }
+    "./config": "./src/config/index.ts",
+    "./solana": "./src/solana/index.ts",
+    "./hooks": "./src/hooks/index.ts",
+    "./types": "./src/types/index.ts",
+    "./services": "./src/services/index.ts",
+    "./contexts": "./src/contexts/index.tsx",
+    "./utils": "./src/utils/index.ts"
   },
   "scripts": {
     "build": "tsup",
