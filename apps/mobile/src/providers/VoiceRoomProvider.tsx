@@ -10,12 +10,13 @@
  */
 
 import React, { createContext, useContext, useState, useCallback, useRef, useEffect, ReactNode } from 'react';
+import { Alert } from 'react-native';
 import { io, Socket } from 'socket.io-client';
 import { Device } from 'mediasoup-client';
 import type { Transport, Producer, Consumer } from 'mediasoup-client/lib/types';
-import { mediaDevices, MediaStream as RNMediaStream } from 'react-native-webrtc';
+import { mediaDevices } from 'react-native-webrtc';
 import { router } from 'expo-router';
-import { apiUrl } from '@pnl/shared/utils';
+import { apiUrl, getSocketUrl } from '@pnl/shared/utils';
 import { VOICE_SERVER_URL } from '../config/init';
 
 export interface VoiceParticipant {
@@ -157,8 +158,18 @@ export function VoiceRoomProvider({ children }: { children: ReactNode }) {
   const reconnectTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const shouldReconnectRef = useRef(false);
   const reactionTimeoutsRef = useRef<Set<ReturnType<typeof setTimeout>>>(new Set());
+  const mainSocketRef = useRef<Socket | null>(null);
   const isMountedRef = useRef(true);
   const maxReconnectAttempts = 5;
+
+  // Lazy-connect to main socket for voice activity broadcasts
+  const getMainSocket = useCallback(() => {
+    if (mainSocketRef.current?.connected) return mainSocketRef.current;
+    if (mainSocketRef.current) mainSocketRef.current.disconnect();
+    const s = io(getSocketUrl(), { path: '/api/socket/io', transports: ['websocket', 'polling'] });
+    mainSocketRef.current = s;
+    return s;
+  }, []);
 
   // Computed
   const isFounder = walletAddress === founderWallet;
@@ -169,6 +180,11 @@ export function VoiceRoomProvider({ children }: { children: ReactNode }) {
 
   const cleanup = useCallback((intentional = true) => {
     if (intentional) shouldReconnectRef.current = false;
+
+    // Notify main socket about leaving voice room
+    if (marketAddress && mainSocketRef.current?.connected) {
+      try { mainSocketRef.current.emit('voice:left', { marketAddress }); } catch {}
+    }
 
     reactionTimeoutsRef.current.forEach((t) => clearTimeout(t));
     reactionTimeoutsRef.current.clear();
@@ -483,6 +499,9 @@ export function VoiceRoomProvider({ children }: { children: ReactNode }) {
         setIsReconnecting(false);
         setReconnectAttempts(0);
 
+        // Notify main socket about voice activity
+        try { getMainSocket().emit('voice:joined', { marketAddress: addr }); } catch {}
+
         // Founder joined notification
         if (wallet === founder) {
           fetch(apiUrl('/api/voice/founder-joined'), {
@@ -505,7 +524,34 @@ export function VoiceRoomProvider({ children }: { children: ReactNode }) {
   // Public join
   const join = useCallback(
     async (newMarketId: string, newMarketAddress: string, newMarketName: string, newWalletAddress: string, newFounderWallet: string | null) => {
-      if (isConnected || isConnecting) return;
+      if (isConnecting) return;
+
+      // Already in a voice room — ask user to switch
+      if (isConnected && marketId && marketId !== newMarketId) {
+        const currentRoomName = marketName || 'another market';
+        Alert.alert(
+          'Already in a Voice Room',
+          `You're currently in "${currentRoomName}". Leave that room to join this one?`,
+          [
+            { text: 'Stay', style: 'cancel' },
+            {
+              text: 'Switch Room',
+              style: 'destructive',
+              onPress: () => {
+                cleanup();
+                // Re-trigger join after cleanup
+                setTimeout(() => {
+                  join(newMarketId, newMarketAddress, newMarketName, newWalletAddress, newFounderWallet);
+                }, 300);
+              },
+            },
+          ],
+        );
+        return;
+      }
+
+      // Already in this room
+      if (isConnected && marketId === newMarketId) return;
 
       setMarketId(newMarketId);
       pendingJoinRef.current = {
@@ -523,7 +569,7 @@ export function VoiceRoomProvider({ children }: { children: ReactNode }) {
 
       setShowJoinChoice(true);
     },
-    [isConnected, isConnecting, doJoin],
+    [isConnected, isConnecting, marketId, marketName, doJoin, cleanup],
   );
 
   const joinAsSpeaker = useCallback(() => doJoin(true), [doJoin]);
@@ -661,6 +707,8 @@ export function VoiceRoomProvider({ children }: { children: ReactNode }) {
     return () => {
       isMountedRef.current = false;
       cleanup();
+      mainSocketRef.current?.disconnect();
+      mainSocketRef.current = null;
     };
   }, [cleanup]);
 

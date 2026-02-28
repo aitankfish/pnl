@@ -139,6 +139,7 @@ export function useAllMarketsSocket() {
   const { socket, isConnected } = useSocket();
   const [marketUpdates, setMarketUpdates] = useState<Map<string, any>>(new Map());
   const [newMarkets, setNewMarkets] = useState<any[]>([]);
+  const [activeVoiceRooms, setActiveVoiceRooms] = useState<Map<string, number>>(new Map());
   const isMountedRef = useRef(true);
 
   useEffect(() => {
@@ -176,14 +177,30 @@ export function useAllMarketsSocket() {
       });
     };
 
+    // Listen for voice room activity
+    const handleVoiceActivity = (data: { marketAddress: string; activeCount: number }) => {
+      if (!isMountedRef.current) return;
+      setActiveVoiceRooms((prev) => {
+        const next = new Map(prev);
+        if (data.activeCount > 0) {
+          next.set(data.marketAddress, data.activeCount);
+        } else {
+          next.delete(data.marketAddress);
+        }
+        return next;
+      });
+    };
+
     socket.on('market:update', handleMarketUpdate);
     socket.on('market:created', handleMarketCreated);
+    socket.on('voice:activity', handleVoiceActivity);
 
     // Cleanup
     return () => {
       isMountedRef.current = false;
       socket.off('market:update', handleMarketUpdate);
       socket.off('market:created', handleMarketCreated);
+      socket.off('voice:activity', handleVoiceActivity);
       logger.info('Unsubscribed from all markets');
     };
   }, [socket, isConnected]);
@@ -197,6 +214,7 @@ export function useAllMarketsSocket() {
     marketUpdates,
     newMarkets,
     clearNewMarkets,
+    activeVoiceRooms,
     isConnected,
   };
 }

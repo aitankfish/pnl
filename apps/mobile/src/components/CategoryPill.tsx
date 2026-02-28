@@ -1,7 +1,7 @@
 import React from 'react';
 import { Text, StyleSheet, ViewStyle, StyleProp } from 'react-native';
 import { PressableScale } from './PressableScale';
-import { colors, typography, spacing, borderRadius } from '../theme';
+import { colors, spacing, borderRadius } from '../theme';
 
 type Variant = 'tag' | 'filter';
 
@@ -33,8 +33,8 @@ export function CategoryPill({
         style,
       ]}
     >
-      <Text style={[styles.label, active && styles.activeLabel]}>
-        {label}
+      <Text style={[styles.label, isFilter && styles.filterLabel, active && styles.activeLabel]}>
+        {label.toUpperCase()}
       </Text>
     </PressableScale>
   );
@@ -42,24 +42,37 @@ export function CategoryPill({
 
 const styles = StyleSheet.create({
   pill: {
-    paddingHorizontal: spacing.sm + 4,
-    paddingVertical: spacing.xs,
-    borderRadius: borderRadius.full,
-    backgroundColor: colors.surfaceElevated,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 8,
+    backgroundColor: 'rgba(139, 92, 246, 0.2)',
+    borderWidth: 1,
+    borderColor: 'rgba(139, 92, 246, 0.35)',
   },
   filterPill: {
     paddingHorizontal: spacing.md,
     paddingVertical: spacing.sm,
+    borderRadius: borderRadius.full,
+    backgroundColor: colors.surfaceElevated,
+    borderWidth: 0,
   },
   active: {
-    backgroundColor: colors.primary,
+    backgroundColor: 'rgba(139, 92, 246, 0.45)',
+    borderColor: 'rgba(167, 139, 250, 0.6)',
   },
   label: {
-    ...typography.micro,
+    fontSize: 10,
+    fontWeight: '700',
+    letterSpacing: 1.2,
+    color: '#c4b5fd',
+  },
+  filterLabel: {
+    fontSize: 12,
+    letterSpacing: 0.3,
+    textTransform: 'none' as any,
     color: colors.textSecondary,
   },
   activeLabel: {
-    color: colors.textPrimary,
-    fontWeight: '600',
+    color: '#fff',
   },
 });

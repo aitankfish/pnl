@@ -216,6 +216,33 @@ export class SocketServer {
         });
       });
 
+      // ========================================
+      // Voice Room Activity Events
+      // ========================================
+
+      socket.on('voice:joined', (payload: { marketAddress: string }) => {
+        const roomName = `voice:${payload.marketAddress}`;
+        socket.join(roomName);
+        const count = this.getRoomSize(roomName);
+        // Broadcast to all-markets so feed can show active voice rooms
+        this.io?.to('all-markets').emit('voice:activity', {
+          marketAddress: payload.marketAddress,
+          activeCount: count,
+          timestamp: Date.now(),
+        });
+      });
+
+      socket.on('voice:left', (payload: { marketAddress: string }) => {
+        const roomName = `voice:${payload.marketAddress}`;
+        socket.leave(roomName);
+        const count = this.getRoomSize(roomName);
+        this.io?.to('all-markets').emit('voice:activity', {
+          marketAddress: payload.marketAddress,
+          activeCount: count,
+          timestamp: Date.now(),
+        });
+      });
+
       // Handle disconnection
       socket.on('disconnect', () => {
         logger.debug(`🔌 Client disconnected: ${socket.id}`);

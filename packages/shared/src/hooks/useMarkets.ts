@@ -73,7 +73,7 @@ export function useMarkets(category?: string) {
   );
 
   // Socket.IO for real-time updates
-  const { marketUpdates, isConnected: socketConnected } = useAllMarketsSocket();
+  const { marketUpdates, activeVoiceRooms, isConnected: socketConnected } = useAllMarketsSocket();
 
   // Merge socket updates with SWR data
   const markets = data?.data?.markets?.map((market) => {
@@ -98,6 +98,7 @@ export function useMarkets(category?: string) {
     markets: filteredMarkets,
     allMarkets: markets,
     syncHealth: data?.data?.syncHealth || null,
+    activeVoiceRooms,
     isLoading,
     error: error || (data?.success === false ? data.error : null),
     refresh,

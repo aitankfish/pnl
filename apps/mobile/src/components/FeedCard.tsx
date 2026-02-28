@@ -2,8 +2,9 @@ import React from 'react';
 import { View, Text, StyleSheet, Dimensions } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Image } from 'expo-image';
+import { Ionicons } from '@expo/vector-icons';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { PressableScale } from './PressableScale';
-import { VoteGauge } from './VoteGauge';
 import { PoolProgress } from './PoolProgress';
 import { CategoryPill } from './CategoryPill';
 import { TimeCountdown } from './TimeCountdown';
@@ -18,8 +19,8 @@ interface FeedCardProps {
     description?: string;
     category?: string;
     projectImageUrl?: string;
-    yesPercentage: number;
-    noPercentage: number;
+    tokenSymbol?: string;
+    totalParticipants?: number;
     poolBalance?: number;
     targetPool?: number;
     endTime?: string;
@@ -31,6 +32,8 @@ interface FeedCardProps {
 }
 
 export function FeedCard({ market, height, onVoteYes, onVoteNo, onPress }: FeedCardProps) {
+  const insets = useSafeAreaInsets();
+
   return (
     <PressableScale
       onPress={onPress}
@@ -62,7 +65,7 @@ export function FeedCard({ market, height, onVoteYes, onVoteNo, onPress }: FeedC
       />
 
       {/* Content overlay */}
-      <View style={styles.content}>
+      <View style={[styles.content, { paddingTop: insets.top + spacing.sm }]}>
         {/* Top pills */}
         <View style={styles.topRow}>
           {market.category && <CategoryPill label={market.category} variant="tag" />}
@@ -74,29 +77,33 @@ export function FeedCard({ market, height, onVoteYes, onVoteNo, onPress }: FeedC
 
         {/* Market info */}
         <View style={styles.info}>
-          <Text style={styles.title} numberOfLines={3}>
-            {market.title}
-          </Text>
+          <View style={styles.titleRow}>
+            <Text style={styles.title} numberOfLines={3}>
+              {market.title}
+            </Text>
+            {market.tokenSymbol && (
+              <Text style={styles.tokenSymbol}>${market.tokenSymbol}</Text>
+            )}
+          </View>
           {market.description && (
             <Text style={styles.description} numberOfLines={2}>
               {market.description}
             </Text>
           )}
+          {market.totalParticipants != null && market.totalParticipants > 0 && (
+            <View style={styles.metaRow}>
+              <Ionicons name="people-outline" size={14} color="rgba(255,255,255,0.6)" />
+              <Text style={styles.metaText}>{market.totalParticipants} participants</Text>
+            </View>
+          )}
         </View>
-
-        {/* Vote gauge */}
-        <VoteGauge
-          yesPercent={market.yesPercentage}
-          noPercent={market.noPercentage}
-          variant="large"
-          style={styles.gauge}
-        />
 
         {/* Pool progress */}
         {market.poolBalance != null && market.targetPool != null && (
           <PoolProgress
             current={market.poolBalance}
             target={market.targetPool}
+            tokenSymbol={market.tokenSymbol || 'SOL'}
             variant="inline"
           />
         )}
@@ -137,7 +144,14 @@ const styles = StyleSheet.create({
     gap: 6,
     marginBottom: spacing.md,
   },
+  titleRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    justifyContent: 'space-between',
+    gap: spacing.sm,
+  },
   title: {
+    flex: 1,
     fontSize: 26,
     fontWeight: '700',
     color: '#fff',
@@ -147,12 +161,25 @@ const styles = StyleSheet.create({
     textShadowOffset: { width: 0, height: 1 },
     textShadowRadius: 4,
   },
+  tokenSymbol: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: '#22d3ee',
+    fontFamily: 'monospace' as any,
+    marginTop: 6,
+  },
   description: {
     ...typography.caption,
     color: 'rgba(255,255,255,0.75)',
   },
-  gauge: {
-    marginBottom: spacing.sm,
+  metaRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+  },
+  metaText: {
+    fontSize: 12,
+    color: 'rgba(255,255,255,0.6)',
   },
   voteRow: {
     flexDirection: 'row',
