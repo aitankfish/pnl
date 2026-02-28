@@ -3,9 +3,10 @@
  */
 
 import { SWRConfiguration } from 'swr';
+import { apiUrl } from '../utils/api';
 
 export async function fetcher<T>(url: string): Promise<T> {
-  const res = await fetch(url);
+  const res = await fetch(apiUrl(url));
   if (!res.ok) {
     const error = new Error('API request failed');
     (error as any).status = res.status;
@@ -16,7 +17,7 @@ export async function fetcher<T>(url: string): Promise<T> {
 }
 
 export async function postFetcher<T>(url: string, data: any): Promise<T> {
-  const res = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data) });
+  const res = await fetch(apiUrl(url), { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data) });
   if (!res.ok) {
     const error = new Error('API request failed');
     (error as any).status = res.status;

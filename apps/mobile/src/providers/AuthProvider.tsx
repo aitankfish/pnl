@@ -1,55 +1,93 @@
 /**
  * Auth Provider for Mobile
- * Adapts useHeadlessAuth for Privy Expo SDK
+ * Uses @privy-io/expo hooks for authentication
  */
 
-import React, { createContext, useContext, useState, useCallback } from 'react';
+import React, { createContext, useContext, useMemo } from 'react';
+import {
+  usePrivy,
+  useLoginWithEmail,
+  useLoginWithOAuth,
+  useEmbeddedSolanaWallet,
+} from '@privy-io/expo';
+import type { OtpFlowState, OAuthFlowState } from '@privy-io/expo';
 
 interface AuthContextType {
   isAuthenticated: boolean;
+  isReady: boolean;
   walletAddress: string | null;
-  login: () => Promise<void>;
+  user: any;
+  // Email OTP
+  sendCode: (args: { email: string }) => Promise<any>;
+  loginWithCode: (args: { code: string; email?: string }) => Promise<any>;
+  emailState: OtpFlowState;
+  // OAuth
+  loginWithOAuth: (args: { provider: 'google' | 'apple' }) => Promise<any>;
+  oauthState: OAuthFlowState;
+  // Solana wallet
+  solanaWallet: ReturnType<typeof useEmbeddedSolanaWallet>;
+  // Logout
   logout: () => Promise<void>;
-  isLoading: boolean;
 }
 
-const AuthContext = createContext<AuthContextType>({
-  isAuthenticated: false,
-  walletAddress: null,
-  login: async () => {},
-  logout: async () => {},
-  isLoading: false,
-});
+const AuthContext = createContext<AuthContextType | null>(null);
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
-  const [walletAddress, setWalletAddress] = useState<string | null>(null);
-  const [isLoading, setIsLoading] = useState(false);
+  const { user, isReady, logout } = usePrivy();
 
-  const login = useCallback(async () => {
-    setIsLoading(true);
-    try {
-      // TODO: Integrate @privy-io/expo
-      // const { user } = await privy.login();
-      // setWalletAddress(user.wallet.address);
-      // setIsAuthenticated(true);
-    } finally {
-      setIsLoading(false);
-    }
-  }, []);
+  const {
+    sendCode,
+    loginWithCode,
+    state: emailState,
+  } = useLoginWithEmail();
 
-  const logout = useCallback(async () => {
-    setIsAuthenticated(false);
-    setWalletAddress(null);
-  }, []);
+  const {
+    login: oauthLogin,
+    state: oauthState,
+  } = useLoginWithOAuth();
+
+  const solanaWallet = useEmbeddedSolanaWallet();
+
+  const isAuthenticated = !!user;
+
+  // Extract Solana wallet address from user's linked accounts
+  const walletAddress = useMemo(() => {
+    if (!user) return null;
+    const solanaAccount = (user as any).linked_accounts?.find(
+      (a: any) => a.chain_type === 'solana' && a.wallet_client === 'privy'
+    );
+    return solanaAccount?.address || null;
+  }, [user]);
+
+  const loginWithOAuth = async (args: { provider: 'google' | 'apple' }) => {
+    return oauthLogin({ provider: args.provider });
+  };
+
+  const value: AuthContextType = {
+    isAuthenticated,
+    isReady,
+    walletAddress,
+    user,
+    sendCode,
+    loginWithCode,
+    emailState,
+    loginWithOAuth,
+    oauthState,
+    solanaWallet,
+    logout,
+  };
 
   return (
-    <AuthContext.Provider value={{ isAuthenticated, walletAddress, login, logout, isLoading }}>
+    <AuthContext.Provider value={value}>
       {children}
     </AuthContext.Provider>
   );
 }
 
 export function useAuth() {
-  return useContext(AuthContext);
+  const context = useContext(AuthContext);
+  if (!context) {
+    throw new Error('useAuth must be used within AuthProvider');
+  }
+  return context;
 }

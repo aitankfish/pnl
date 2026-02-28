@@ -26,6 +26,7 @@ export interface Market {
   status: string;
   metadataUri?: string;
   projectImageUrl?: string;
+  pitchVideoUrl?: string;
   yesPercentage?: number;
   noPercentage?: number;
   resolution?: string;

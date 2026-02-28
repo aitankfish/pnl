@@ -42,7 +42,7 @@ interface ProjectFormData {
     telegram: string;
     discord: string;
   };
-  videoUrl: string;
+  pitchVideo?: File;
   additionalNotes: string;
 }
 
@@ -65,7 +65,6 @@ const initialFormData: ProjectFormData = {
     telegram: '',
     discord: '',
   },
-  videoUrl: '',
   additionalNotes: '',
 };
 
@@ -156,14 +155,11 @@ export default function CreatePage() {
     if (!formData.marketDuration) newErrors.marketDuration = 'Market duration is required';
     if (!formData.projectImage) (newErrors as any).projectImage = 'Project image is required';
 
-    // Validate video URL if provided
-    if (formData.videoUrl.trim()) {
-      const videoUrl = formData.videoUrl.trim();
-      const youtubePattern = /(?:youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/embed\/|youtube\.com\/shorts\/)([a-zA-Z0-9_-]{11})/;
-      const twitterPattern = /(?:twitter\.com|x\.com)\/\w+\/status\/\d+/;
-
-      if (!youtubePattern.test(videoUrl) && !twitterPattern.test(videoUrl)) {
-        newErrors.videoUrl = 'Please enter a valid YouTube or X (Twitter) URL';
+    // Validate pitch video file if provided
+    if (formData.pitchVideo) {
+      const maxSize = 50 * 1024 * 1024; // 50MB
+      if (formData.pitchVideo.size > maxSize) {
+        (newErrors as any).pitchVideo = 'Video file must be 50MB or less';
       }
     }
 
@@ -224,6 +220,13 @@ export default function CreatePage() {
         documentUri = await ipfsUtils.uploadDocument(formData.projectDocument);
       }
 
+      // Step 1.6: Upload pitch video to IPFS if provided
+      let pitchVideoUri: string | undefined;
+      if (formData.pitchVideo) {
+        logger.info('Uploading pitch video to IPFS');
+        pitchVideoUri = await ipfsUtils.uploadVideo(formData.pitchVideo);
+      }
+
       // Step 2: Create project metadata
       const metadata: ProjectMetadata = {
         name: formData.name,
@@ -244,7 +247,7 @@ export default function CreatePage() {
           telegram: formData.socialLinks.telegram || undefined,
           discord: formData.socialLinks.discord || undefined,
         },
-        videoUrl: formData.videoUrl || undefined,
+        pitchVideoUrl: pitchVideoUri || undefined,
         additionalNotes: formData.additionalNotes || undefined,
         image: imageUri,
         documents: documentUri ? [documentUri] : undefined,
@@ -268,7 +271,8 @@ export default function CreatePage() {
           submitData.append('projectImage', value);
         } else if (key === 'projectDocument' && value instanceof File) {
           // Skip projectDocument here - it's already uploaded to IPFS
-          // and documentUri is added separately below
+        } else if (key === 'pitchVideo' && value instanceof File) {
+          // Skip pitchVideo here - it's already uploaded to IPFS
         } else if (value !== undefined && value !== null && value !== '') {
           submitData.append(key, value.toString());
         }
@@ -278,6 +282,9 @@ export default function CreatePage() {
       submitData.append('metadataUri', metadataUri);
       if (documentUri) {
         submitData.append('documentUri', documentUri);
+      }
+      if (pitchVideoUri) {
+        submitData.append('pitchVideoUrl', pitchVideoUri);
       }
       submitData.append('creatorWalletAddress', primaryWallet.address);
       
@@ -568,7 +575,7 @@ export default function CreatePage() {
               </CardContent>
             </Card>
 
-            {/* Project Video (Optional) */}
+            {/* Pitch Video (Optional) */}
             <Card className="bg-gradient-to-br from-white/10 to-white/5 backdrop-blur-xl border-white/20 text-white hover:border-red-500/30 transition-colors">
               <CardHeader>
                 <CardTitle className="flex items-center gap-3">
@@ -578,27 +585,86 @@ export default function CreatePage() {
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                     </svg>
                   </div>
-                  Project Video
+                  Pitch Video
                 </CardTitle>
                 <CardDescription className="text-white/70 ml-12">
-                  Add a YouTube or X (Twitter) video to showcase your project (optional)
+                  Upload a 1-2 minute pitch video to showcase your project (optional)
                 </CardDescription>
               </CardHeader>
               <CardContent>
                 <div className="space-y-2">
-                  <Label htmlFor="videoUrl" className="text-white/80">Video URL</Label>
-                  <Input
-                    id="videoUrl"
-                    type="url"
-                    placeholder="https://youtube.com/watch?v=... or https://x.com/user/status/..."
-                    value={formData.videoUrl}
-                    onChange={(e) => handleInputChange('videoUrl', e.target.value)}
-                    className="bg-white/10 border-white/20 text-white placeholder:text-white/50 focus:ring-2 focus:ring-red-500/50 transition-all"
-                  />
-                  <p className="text-xs text-white/60">
-                    Supports YouTube videos and X (Twitter) posts
-                  </p>
-                  {errors.videoUrl && <p className="text-sm text-red-400">{errors.videoUrl}</p>}
+                  <Label htmlFor="pitchVideo" className="text-white/80">Video File</Label>
+                  <label
+                    htmlFor="pitchVideo"
+                    className={`
+                      relative flex flex-col items-center justify-center p-6
+                      border-2 border-dashed rounded-xl cursor-pointer
+                      transition-all duration-200 group
+                      ${formData.pitchVideo
+                        ? 'border-green-500/50 bg-green-500/5'
+                        : 'border-white/20 bg-white/5 hover:border-red-500/50 hover:bg-red-500/5'
+                      }
+                    `}
+                  >
+                    <input
+                      id="pitchVideo"
+                      type="file"
+                      accept="video/mp4,video/quicktime"
+                      onChange={(e) => {
+                        const file = e.target.files?.[0];
+                        if (file) {
+                          if (file.size > 50 * 1024 * 1024) {
+                            setErrors(prev => ({ ...prev, pitchVideo: 'Video must be 50MB or less' } as any));
+                            return;
+                          }
+                          setFormData(prev => ({ ...prev, pitchVideo: file }));
+                          setErrors(prev => { const { pitchVideo, ...rest } = prev as any; return rest; });
+                        }
+                      }}
+                      className="hidden"
+                    />
+                    {formData.pitchVideo ? (
+                      <div className="flex flex-col items-center w-full">
+                        <video
+                          src={URL.createObjectURL(formData.pitchVideo)}
+                          className="w-full max-w-md h-48 rounded-lg object-cover mb-3 border border-green-500/30"
+                          controls
+                          muted
+                        />
+                        <div className="flex items-center gap-2">
+                          <svg className="w-4 h-4 text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
+                          </svg>
+                          <p className="text-sm text-green-400 font-medium truncate max-w-xs">{formData.pitchVideo.name}</p>
+                        </div>
+                        <p className="text-xs text-white/50 mt-1">
+                          {(formData.pitchVideo.size / 1024 / 1024).toFixed(1)} MB
+                        </p>
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            setFormData(prev => ({ ...prev, pitchVideo: undefined }));
+                          }}
+                          className="mt-2 text-xs text-red-400 hover:text-red-300 underline"
+                        >
+                          Remove video
+                        </button>
+                      </div>
+                    ) : (
+                      <>
+                        <svg className="w-10 h-10 text-white/30 mb-2 group-hover:text-red-400 transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                        </svg>
+                        <p className="text-sm text-white/60 group-hover:text-white/80">
+                          Click to upload MP4 or MOV
+                        </p>
+                        <p className="text-xs text-white/40 mt-1">Up to 2 minutes, max 50MB</p>
+                      </>
+                    )}
+                  </label>
+                  {(errors as any).pitchVideo && <p className="text-sm text-red-400">{(errors as any).pitchVideo}</p>}
                 </div>
               </CardContent>
             </Card>
@@ -1181,10 +1247,9 @@ export default function CreatePage() {
                     apiFormData.append('tokenSymbol', formData.tokenSymbol);
                     apiFormData.append('marketDuration', formData.marketDuration);
                     apiFormData.append('socialLinks', JSON.stringify(formData.socialLinks));
-                    apiFormData.append('videoUrl', formData.videoUrl || '');
                     apiFormData.append('additionalNotes', formData.additionalNotes || '');
                     apiFormData.append('creatorWalletAddress', primaryWallet.address);
-                    
+
                     // Add image file if provided
                     if (formData.projectImage) {
                       apiFormData.append('projectImage', formData.projectImage);
@@ -1193,6 +1258,11 @@ export default function CreatePage() {
                     // Add document file if provided
                     if (formData.projectDocument) {
                       apiFormData.append('projectDocument', formData.projectDocument);
+                    }
+
+                    // Add pitch video file if provided
+                    if (formData.pitchVideo) {
+                      apiFormData.append('pitchVideo', formData.pitchVideo);
                     }
 
                     // Step 2: Send data to server for IPFS upload and metadata creation

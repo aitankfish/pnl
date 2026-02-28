@@ -3,19 +3,24 @@
  * Must be imported before anything else.
  */
 
-import 'react-native-get-random-values';
-import { Buffer } from 'buffer';
-
-// Polyfills
-global.Buffer = global.Buffer || Buffer;
+// Polyfills are now in index.js (app entry point) so they run before any route imports
 
 import { setEnvConfig } from '@pnl/shared/config';
 
+// Privy App ID (same as web's NEXT_PUBLIC_PRIVY_APP_ID)
+export const PRIVY_APP_ID = 'cmgn1ettr01tal10dchxxjx2w';
+
 // In production, these would come from app.json extra or expo-constants
 // For now, configure for the deployed web backend
+// Physical device: use Mac's LAN IP. Simulator: localhost works too.
 const API_BASE_URL = __DEV__
-  ? 'http://localhost:3000'
+  ? 'http://10.0.0.72:3000'
   : 'https://pnl.market'; // Update with actual production URL
+
+// Voice server URL (separate from the main API)
+export const VOICE_SERVER_URL = __DEV__
+  ? 'http://10.0.0.72:3002'
+  : 'https://voice.pnl.market';
 
 setEnvConfig({
   SOLANA_NETWORK: 'mainnet-beta',
@@ -28,5 +33,5 @@ setEnvConfig({
   APP_URL: 'https://pnl.market',
   PINATA_JWT: '', // Set via secure config
   PINATA_GATEWAY_URL: 'https://gateway.pinata.cloud',
-  PRIVY_APP_ID: '', // Set via app config
+  PRIVY_APP_ID,
 });

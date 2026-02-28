@@ -73,6 +73,7 @@ export class SocketServer {
         credentials: true,
       },
       path: '/api/socket/io',
+      addTrailingSlash: false,
       transports: ['websocket', 'polling'],
     });
 

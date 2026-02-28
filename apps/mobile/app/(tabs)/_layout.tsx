@@ -1,6 +1,6 @@
 /**
  * Tab Navigation Layout
- * 5 tabs: Markets, Portfolio, Create, Chat, Profile
+ * 3 tabs: Feed, Explore, Profile
  * Frosted glass tab bar with cosmic dark theme
  */
 
@@ -8,24 +8,29 @@ import { Tabs } from 'expo-router';
 import { Platform, StyleSheet, View } from 'react-native';
 import { BlurView } from 'expo-blur';
 import { Ionicons } from '@expo/vector-icons';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { colors } from '../../src/theme';
 
-type TabIconName = 'trending-up' | 'wallet' | 'add-circle' | 'chatbubbles' | 'person';
+type TabIconName = 'flame' | 'flame-outline' | 'search' | 'search-outline' | 'person' | 'person-outline';
 
-function TabBarIcon({ name, color, focused }: { name: TabIconName; color: string; focused: boolean }) {
+function TabBarIcon({ name, focusedName, color, focused }: { name: TabIconName; focusedName: TabIconName; color: string; focused: boolean }) {
   return (
     <View style={styles.iconContainer}>
-      <Ionicons name={name} size={24} color={color} />
+      <Ionicons name={focused ? focusedName : name} size={24} color={color} />
       {focused && <View style={styles.activeIndicator} />}
     </View>
   );
 }
 
 export default function TabLayout() {
+  const insets = useSafeAreaInsets();
+  const tabBarHeight = 60 + (Platform.OS === 'ios' ? insets.bottom : 8);
+
   return (
     <Tabs
       screenOptions={{
         headerShown: false,
+        sceneStyle: { backgroundColor: 'transparent' },
         tabBarActiveTintColor: colors.primary,
         tabBarInactiveTintColor: colors.textMuted,
         tabBarStyle: {
@@ -33,8 +38,8 @@ export default function TabLayout() {
           backgroundColor: Platform.OS === 'ios' ? 'transparent' : colors.surface,
           borderTopColor: colors.glassBorder,
           borderTopWidth: 1,
-          height: 80,
-          paddingBottom: Platform.OS === 'ios' ? 24 : 8,
+          height: tabBarHeight,
+          paddingBottom: Platform.OS === 'ios' ? insets.bottom : 8,
           paddingTop: 8,
           elevation: 0,
         },
@@ -44,44 +49,27 @@ export default function TabLayout() {
           ) : null,
         tabBarLabelStyle: {
           fontSize: 11,
-          fontWeight: '500',
+          fontWeight: '600',
           marginTop: 2,
+          letterSpacing: 0.3,
         },
       }}
     >
       <Tabs.Screen
         name="index"
         options={{
-          title: 'Markets',
+          title: 'Feed',
           tabBarIcon: ({ color, focused }) => (
-            <TabBarIcon name="trending-up" color={color} focused={focused} />
+            <TabBarIcon name="flame-outline" focusedName="flame" color={color} focused={focused} />
           ),
         }}
       />
       <Tabs.Screen
-        name="portfolio"
+        name="explore"
         options={{
-          title: 'Portfolio',
+          title: 'Explore',
           tabBarIcon: ({ color, focused }) => (
-            <TabBarIcon name="wallet" color={color} focused={focused} />
-          ),
-        }}
-      />
-      <Tabs.Screen
-        name="create"
-        options={{
-          title: 'Create',
-          tabBarIcon: ({ color, focused }) => (
-            <TabBarIcon name="add-circle" color={color} focused={focused} />
-          ),
-        }}
-      />
-      <Tabs.Screen
-        name="chat"
-        options={{
-          title: 'Chat',
-          tabBarIcon: ({ color, focused }) => (
-            <TabBarIcon name="chatbubbles" color={color} focused={focused} />
+            <TabBarIcon name="search-outline" focusedName="search" color={color} focused={focused} />
           ),
         }}
       />
@@ -90,7 +78,7 @@ export default function TabLayout() {
         options={{
           title: 'Profile',
           tabBarIcon: ({ color, focused }) => (
-            <TabBarIcon name="person" color={color} focused={focused} />
+            <TabBarIcon name="person-outline" focusedName="person" color={color} focused={focused} />
           ),
         }}
       />

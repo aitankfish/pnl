@@ -8,7 +8,10 @@
  */
 
 import { useState } from 'react';
-import { flushSync } from 'react-dom';
+// NOTE: flushSync from 'react-dom' is NOT available in React Native.
+// React Native already batches state updates synchronously in event handlers,
+// so we use a no-op wrapper for cross-platform compatibility.
+const flushSync = (fn: () => void) => fn();
 import { useWallet } from './useWallet';
 import { TransactionInstruction } from '@solana/web3.js';
 import { getSolanaConnection } from '../solana/connection';

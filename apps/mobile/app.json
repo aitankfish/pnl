@@ -12,7 +12,9 @@
       "resizeMode": "contain",
       "backgroundColor": "#0a0e1a"
     },
-    "assetBundlePatterns": ["**/*"],
+    "assetBundlePatterns": [
+      "**/*"
+    ],
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.pnl.app",
@@ -21,7 +23,12 @@
           "phantom",
           "solflare",
           "backpack"
-        ]
+        ],
+        "NSAppTransportSecurity": {
+          "NSAllowsLocalNetworking": true
+        },
+        "NSMicrophoneUsageDescription": "PNL needs microphone access to join voice rooms",
+        "UIBackgroundModes": ["audio"]
       }
     },
     "android": {
@@ -29,7 +36,11 @@
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#0a0e1a"
       },
-      "package": "com.pnl.app"
+      "package": "com.pnl.app",
+      "permissions": [
+        "RECORD_AUDIO",
+        "MODIFY_AUDIO_SETTINGS"
+      ]
     },
     "web": {
       "bundler": "metro",
@@ -39,7 +50,8 @@
     "plugins": [
       "expo-router",
       "expo-secure-store",
-      "expo-haptics"
+      "expo-font",
+      "expo-web-browser"
     ],
     "experiments": {
       "typedRoutes": true

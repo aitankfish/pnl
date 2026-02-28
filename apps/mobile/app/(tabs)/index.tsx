@@ -1,147 +1,365 @@
 /**
- * Markets List (Home Tab)
- * - Sticky search bar (collapses on scroll)
- * - Horizontal category pills
- * - Trending hero cards + active markets list
- * - Real-time Socket.IO updates
+ * Feed Screen — TikTok-style swipeable market cards
+ * Swipe up/down between full-screen market cards.
+ * Markets with pitch videos play inline (muted autoplay, tap to unmute).
+ * Vote YES/NO with bottom buttons, auth-gated.
  */
 
-import { useState, useCallback } from 'react';
+import { useCallback, useMemo, useRef, useState } from 'react';
 import {
   View,
-  Text,
   StyleSheet,
   FlatList,
-  TextInput,
-  TouchableOpacity,
-  RefreshControl,
-  Animated,
   Dimensions,
-  ScrollView,
+  RefreshControl,
+  ActivityIndicator,
+  Text,
+  Platform,
+  ViewToken,
+  Pressable,
 } from 'react-native';
+import { Video, ResizeMode } from 'expo-av';
+import { LinearGradient } from 'expo-linear-gradient';
 import { router } from 'expo-router';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import * as Haptics from 'expo-haptics';
+import GorhomBottomSheet from '@gorhom/bottom-sheet';
 import { Ionicons } from '@expo/vector-icons';
-import { colors, spacing, typography, borderRadius } from '../../src/theme';
+import { useMarkets } from '@pnl/shared/hooks';
+import type { Market } from '@pnl/shared/hooks';
+import { useAuth } from '../../src/providers/AuthProvider';
+import { FeedCard, VoteBottomSheet, SkeletonCard, EmptyState } from '../../src/components';
+import { colors, spacing } from '../../src/theme';
 
-const { width: SCREEN_WIDTH } = Dimensions.get('window');
+const { height: WINDOW_HEIGHT, width: WINDOW_WIDTH } = Dimensions.get('window');
 
-const CATEGORIES = ['All', 'DeFi', 'AI', 'Gaming', 'DAO', 'NFT', 'Social'];
+type VoteDirection = 'yes' | 'no';
 
-// Placeholder market card - will be replaced with real data from useMarkets
-function MarketCard({ market }: { market: any }) {
+/* ── Pitch Video Card ─────────────────────────────────────── */
+
+interface PitchVideoCardProps {
+  market: Market;
+  height: number;
+  isActive: boolean;
+  onVoteYes: () => void;
+  onVoteNo: () => void;
+  onPress: () => void;
+}
+
+function PitchVideoCard({
+  market,
+  height,
+  isActive,
+  onVoteYes,
+  onVoteNo,
+  onPress,
+}: PitchVideoCardProps) {
+  const videoRef = useRef<Video>(null);
+  const [isMuted, setIsMuted] = useState(true);
+
+  const handleTap = useCallback(async () => {
+    if (!videoRef.current) return;
+    const newMuted = !isMuted;
+    setIsMuted(newMuted);
+    if (!newMuted) {
+      // Unmute and go fullscreen
+      await videoRef.current.setIsMutedAsync(false);
+      await videoRef.current.presentFullscreenPlayer();
+    } else {
+      await videoRef.current.setIsMutedAsync(true);
+    }
+  }, [isMuted]);
+
+  const handleFullscreenUpdate = useCallback(
+    async (event: { fullscreenUpdate: number }) => {
+      // fullscreenUpdate 3 = DID_DISMISS
+      if (event.fullscreenUpdate === 3) {
+        setIsMuted(true);
+        if (videoRef.current) {
+          await videoRef.current.setIsMutedAsync(true);
+        }
+      }
+    },
+    [],
+  );
+
   return (
-    <TouchableOpacity
-      style={styles.marketCard}
-      activeOpacity={0.7}
-      onPress={() => router.push(`/market/${market.id}`)}
-    >
-      <View style={styles.cardHeader}>
-        <View style={styles.categoryPill}>
-          <Text style={styles.categoryText}>{market.category}</Text>
-        </View>
-        <View style={styles.timePill}>
-          <Ionicons name="time-outline" size={12} color={colors.textMuted} />
-          <Text style={styles.timeText}>{market.timeLeft}</Text>
-        </View>
+    <Pressable style={[styles.videoCard, { height }]} onPress={handleTap}>
+      <Video
+        ref={videoRef}
+        source={{ uri: market.pitchVideoUrl! }}
+        style={StyleSheet.absoluteFill}
+        resizeMode={ResizeMode.COVER}
+        shouldPlay={isActive}
+        isLooping
+        isMuted={isMuted}
+        onFullscreenUpdate={handleFullscreenUpdate as any}
+      />
+
+      {/* Bottom gradient scrim */}
+      <LinearGradient
+        colors={['transparent', 'rgba(0,0,0,0.7)', 'rgba(0,0,0,0.9)']}
+        style={styles.gradient}
+      />
+
+      {/* Mute indicator */}
+      <View style={styles.muteIndicator}>
+        <Ionicons
+          name={isMuted ? 'volume-mute' : 'volume-high'}
+          size={18}
+          color="rgba(255,255,255,0.8)"
+        />
       </View>
 
-      <Text style={styles.marketTitle} numberOfLines={2}>{market.name}</Text>
+      {/* Market info overlay */}
+      <View style={styles.overlay}>
+        {/* Category pill */}
+        {market.category ? (
+          <View style={styles.categoryPill}>
+            <Text style={styles.categoryText}>
+              {market.category.toUpperCase()}
+            </Text>
+          </View>
+        ) : null}
 
-      <View style={styles.voteBar}>
-        <View style={[styles.yesBar, { flex: market.yesPercent }]}>
-          <Text style={styles.voteBarText}>YES {market.yesPercent}%</Text>
-        </View>
-        <View style={[styles.noBar, { flex: 100 - market.yesPercent }]}>
-          <Text style={styles.voteBarText}>NO {100 - market.yesPercent}%</Text>
+        <Text style={styles.marketTitle} numberOfLines={2}>
+          {market.name}
+        </Text>
+
+        <Text style={styles.tokenSymbol}>${market.tokenSymbol}</Text>
+
+        {market.description ? (
+          <Text style={styles.marketDescription} numberOfLines={2}>
+            {market.description}
+          </Text>
+        ) : null}
+
+        {/* Vote buttons */}
+        <View style={styles.voteRow}>
+          <Pressable
+            style={[styles.voteBtn, styles.voteBtnYes]}
+            onPress={(e) => {
+              e.stopPropagation?.();
+              onVoteYes();
+            }}
+          >
+            <Ionicons name="trending-up" size={18} color="#fff" />
+            <Text style={styles.voteBtnText}>YES</Text>
+          </Pressable>
+
+          <Pressable
+            style={[styles.voteBtn, styles.voteBtnNo]}
+            onPress={(e) => {
+              e.stopPropagation?.();
+              onVoteNo();
+            }}
+          >
+            <Ionicons name="trending-down" size={18} color="#fff" />
+            <Text style={styles.voteBtnText}>NO</Text>
+          </Pressable>
+
+          <Pressable
+            style={styles.detailBtn}
+            onPress={(e) => {
+              e.stopPropagation?.();
+              onPress();
+            }}
+          >
+            <Ionicons name="arrow-forward" size={18} color="#fff" />
+          </Pressable>
         </View>
       </View>
-
-      <View style={styles.cardFooter}>
-        <Text style={styles.poolText}>{market.poolSize} SOL</Text>
-        <View style={styles.progressContainer}>
-          <View style={[styles.progressFill, { width: `${market.poolProgress}%` }]} />
-        </View>
-      </View>
-    </TouchableOpacity>
+    </Pressable>
   );
 }
 
-export default function MarketsScreen() {
-  const [searchQuery, setSearchQuery] = useState('');
-  const [selectedCategory, setSelectedCategory] = useState('All');
-  const [refreshing, setRefreshing] = useState(false);
+/* ── Feed Screen ──────────────────────────────────────────── */
 
-  // Mock data - will be replaced with useMarkets from @pnl/shared/hooks
-  const markets = [
-    { id: '1', name: 'Will AI agents replace 50% of DeFi traders by 2026?', category: 'AI', yesPercent: 68, poolSize: '12.5', poolProgress: 83, timeLeft: '2d 14h' },
-    { id: '2', name: 'Solana TVL to exceed $20B by Q3 2026?', category: 'DeFi', yesPercent: 45, poolSize: '8.2', poolProgress: 55, timeLeft: '5d 8h' },
-    { id: '3', name: 'Gaming DAO treasury to surpass Uniswap?', category: 'Gaming', yesPercent: 23, poolSize: '3.7', poolProgress: 25, timeLeft: '12d' },
-  ];
+export default function FeedScreen() {
+  const insets = useSafeAreaInsets();
+  const tabBarHeight = Platform.OS === 'ios' ? 60 + insets.bottom : 68;
+  const cardHeight = WINDOW_HEIGHT - tabBarHeight;
+
+  const { markets, isLoading, error, refresh } = useMarkets();
+  const { isAuthenticated } = useAuth();
+
+  const [refreshing, setRefreshing] = useState(false);
+  const [activeIndex, setActiveIndex] = useState(0);
+
+  // Vote sheet state
+  const sheetRef = useRef<GorhomBottomSheet>(null);
+  const [voteDirection, setVoteDirection] = useState<VoteDirection | null>(null);
+  const [voteMarket, setVoteMarket] = useState<Market | null>(null);
+
+  // Sort: video markets first, then by original order
+  const sortedMarkets = useMemo(() => {
+    if (!markets.length) return markets;
+    return [...markets].sort((a, b) => {
+      const aHasVideo = a.pitchVideoUrl ? 1 : 0;
+      const bHasVideo = b.pitchVideoUrl ? 1 : 0;
+      return bHasVideo - aHasVideo;
+    });
+  }, [markets]);
 
   const onRefresh = useCallback(() => {
     setRefreshing(true);
-    setTimeout(() => setRefreshing(false), 1500);
-  }, []);
+    refresh();
+    setTimeout(() => setRefreshing(false), 1000);
+  }, [refresh]);
+
+  const handleVote = useCallback(
+    (market: Market, direction: VoteDirection) => {
+      if (!isAuthenticated) {
+        router.push('/login');
+        return;
+      }
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+      setVoteMarket(market);
+      setVoteDirection(direction);
+      sheetRef.current?.snapToIndex(0);
+    },
+    [isAuthenticated],
+  );
+
+  const handleVoteConfirm = useCallback(
+    (direction: VoteDirection, amount: number) => {
+      // TODO: Wire useVoting hook
+      console.log('Vote confirmed:', direction, amount, voteMarket?.id);
+      sheetRef.current?.close();
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    },
+    [voteMarket],
+  );
+
+  const onViewableItemsChanged = useCallback(
+    ({ viewableItems }: { viewableItems: ViewToken[] }) => {
+      if (viewableItems.length > 0 && viewableItems[0].index != null) {
+        setActiveIndex(viewableItems[0].index);
+      }
+    },
+    [],
+  );
+
+  const viewabilityConfig = useRef({ itemVisiblePercentThreshold: 60 }).current;
+
+  // Loading state
+  if (isLoading && !markets.length) {
+    return (
+      <View style={[styles.container, styles.center]}>
+        <ActivityIndicator size="large" color={colors.primary} />
+        <Text style={styles.loadingText}>Loading markets...</Text>
+      </View>
+    );
+  }
+
+  // Error state
+  if (error && !markets.length) {
+    return (
+      <View style={[styles.container, styles.center]}>
+        <EmptyState
+          icon="cloud-offline-outline"
+          title="Failed to load markets"
+          subtitle="Check your connection and try again"
+          actionLabel="Retry"
+          onAction={refresh}
+        />
+      </View>
+    );
+  }
+
+  // Empty state
+  if (!markets.length) {
+    return (
+      <View style={[styles.container, styles.center]}>
+        <EmptyState
+          icon="flame-outline"
+          title="No markets yet"
+          subtitle="Markets will appear here when they're created"
+        />
+      </View>
+    );
+  }
 
   return (
     <View style={styles.container}>
-      {/* Search Bar */}
-      <View style={styles.searchContainer}>
-        <View style={styles.searchBar}>
-          <Ionicons name="search" size={20} color={colors.textMuted} />
-          <TextInput
-            style={styles.searchInput}
-            placeholder="Search markets..."
-            placeholderTextColor={colors.textMuted}
-            value={searchQuery}
-            onChangeText={setSearchQuery}
-          />
-        </View>
-      </View>
-
-      {/* Category Pills */}
-      <ScrollView
-        horizontal
-        showsHorizontalScrollIndicator={false}
-        contentContainerStyle={styles.categoryContainer}
-      >
-        {CATEGORIES.map((cat) => (
-          <TouchableOpacity
-            key={cat}
-            style={[
-              styles.categoryFilterPill,
-              selectedCategory === cat && styles.categoryFilterActive,
-            ]}
-            onPress={() => setSelectedCategory(cat)}
-          >
-            <Text
-              style={[
-                styles.categoryFilterText,
-                selectedCategory === cat && styles.categoryFilterTextActive,
-              ]}
-            >
-              {cat}
-            </Text>
-          </TouchableOpacity>
-        ))}
-      </ScrollView>
-
-      {/* Markets List */}
       <FlatList
-        data={markets}
+        data={sortedMarkets}
         keyExtractor={(item) => item.id}
-        renderItem={({ item }) => <MarketCard market={item} />}
-        contentContainerStyle={styles.listContent}
+        renderItem={({ item, index }) =>
+          item.pitchVideoUrl ? (
+            <PitchVideoCard
+              market={item}
+              height={cardHeight}
+              isActive={index === activeIndex}
+              onVoteYes={() => handleVote(item, 'yes')}
+              onVoteNo={() => handleVote(item, 'no')}
+              onPress={() => router.push(`/market/${item.id}`)}
+            />
+          ) : (
+            <FeedCard
+              market={{
+                id: item.id,
+                title: item.name,
+                description: item.description,
+                category: item.category,
+                projectImageUrl: item.projectImageUrl,
+                tokenSymbol: item.tokenSymbol,
+                totalParticipants: (item.yesVotes || 0) + (item.noVotes || 0),
+                poolBalance: item.poolBalance ? Number(item.poolBalance) / 1e9 : undefined,
+                targetPool: item.targetPool ? Number(item.targetPool) : undefined,
+                endTime: item.expiryTime,
+              }}
+              height={cardHeight}
+              onVoteYes={() => handleVote(item, 'yes')}
+              onVoteNo={() => handleVote(item, 'no')}
+              onPress={() => router.push(`/market/${item.id}`)}
+            />
+          )
+        }
+        pagingEnabled
+        snapToInterval={cardHeight}
+        snapToAlignment="start"
+        decelerationRate="fast"
+        showsVerticalScrollIndicator={false}
+        onViewableItemsChanged={onViewableItemsChanged}
+        viewabilityConfig={viewabilityConfig}
         refreshControl={
           <RefreshControl
             refreshing={refreshing}
             onRefresh={onRefresh}
             tintColor={colors.primary}
+            progressViewOffset={insets.top}
           />
         }
-        ListHeaderComponent={
-          <Text style={styles.sectionTitle}>Active Markets</Text>
-        }
+        getItemLayout={(_, index) => ({
+          length: cardHeight,
+          offset: cardHeight * index,
+          index,
+        })}
+      />
+
+      {/* Position dots */}
+      {sortedMarkets.length > 1 && (
+        <View style={[styles.dots, { top: insets.top + 60 }]}>
+          {sortedMarkets.slice(0, 10).map((_, i) => (
+            <View
+              key={i}
+              style={[styles.dot, i === activeIndex && styles.dotActive]}
+            />
+          ))}
+        </View>
+      )}
+
+      {/* Vote bottom sheet */}
+      <VoteBottomSheet
+        ref={sheetRef}
+        direction={voteDirection}
+        marketTitle={voteMarket?.name ?? ''}
+        onConfirm={handleVoteConfirm}
+        onClose={() => {
+          setVoteDirection(null);
+          setVoteMarket(null);
+        }}
       />
     </View>
   );
@@ -150,143 +368,128 @@ export default function MarketsScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: colors.background,
-    paddingTop: 60,
+    backgroundColor: 'transparent',
   },
-  searchContainer: {
-    paddingHorizontal: spacing.xl,
-    paddingBottom: spacing.md,
-  },
-  searchBar: {
-    flexDirection: 'row',
+  center: {
+    justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: colors.surfaceElevated,
-    borderRadius: borderRadius.lg,
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.sm + 4,
-    borderWidth: 1,
-    borderColor: colors.border,
   },
-  searchInput: {
-    flex: 1,
-    marginLeft: spacing.sm,
-    color: colors.textPrimary,
+  loadingText: {
+    color: colors.textMuted,
+    marginTop: spacing.md,
     fontSize: 16,
   },
-  categoryContainer: {
-    paddingHorizontal: spacing.xl,
-    paddingBottom: spacing.md,
-    gap: spacing.sm,
+  dots: {
+    position: 'absolute',
+    right: 12,
+    gap: 6,
+    alignItems: 'center',
   },
-  categoryFilterPill: {
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.sm,
-    borderRadius: borderRadius.full,
-    backgroundColor: colors.surfaceElevated,
-    borderWidth: 1,
-    borderColor: colors.border,
-    marginRight: spacing.sm,
+  dot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: 'rgba(255,255,255,0.3)',
   },
-  categoryFilterActive: {
-    backgroundColor: colors.primary,
-    borderColor: colors.primary,
+  dotActive: {
+    backgroundColor: '#fff',
+    width: 8,
+    height: 8,
+    borderRadius: 4,
   },
-  categoryFilterText: {
-    color: colors.textSecondary,
-    fontSize: 14,
-    fontWeight: '500',
+
+  /* ── PitchVideoCard styles ── */
+  videoCard: {
+    width: WINDOW_WIDTH,
+    backgroundColor: '#000',
   },
-  categoryFilterTextActive: {
-    color: colors.textPrimary,
+  gradient: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    bottom: 0,
+    height: '45%',
   },
-  sectionTitle: {
-    ...typography.heading,
-    color: colors.textPrimary,
-    paddingHorizontal: spacing.xl,
-    paddingBottom: spacing.md,
+  muteIndicator: {
+    position: 'absolute',
+    bottom: 180,
+    left: 16,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    borderRadius: 20,
+    width: 36,
+    height: 36,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
-  listContent: {
-    paddingBottom: 100,
-  },
-  marketCard: {
-    backgroundColor: colors.glass,
-    marginHorizontal: spacing.xl,
-    marginBottom: spacing.md,
-    borderRadius: borderRadius.xl,
-    padding: spacing.md,
-    borderWidth: 1,
-    borderColor: colors.glassBorder,
-  },
-  cardHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginBottom: spacing.sm,
+  overlay: {
+    position: 'absolute',
+    bottom: 24,
+    left: 16,
+    right: 16,
   },
   categoryPill: {
-    backgroundColor: `${colors.primary}20`,
-    paddingHorizontal: spacing.sm + 2,
-    paddingVertical: spacing.xs,
-    borderRadius: borderRadius.full,
+    alignSelf: 'flex-start',
+    backgroundColor: 'rgba(139,92,246,0.6)',
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 12,
+    marginBottom: 8,
   },
   categoryText: {
-    ...typography.micro,
-    color: colors.primary,
-  },
-  timePill: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-  },
-  timeText: {
-    ...typography.micro,
-    color: colors.textMuted,
+    color: '#fff',
+    fontSize: 11,
+    fontWeight: '700',
+    letterSpacing: 0.5,
   },
   marketTitle: {
-    ...typography.title,
-    color: colors.textPrimary,
-    marginBottom: spacing.md,
+    color: '#fff',
+    fontSize: 24,
+    fontWeight: '800',
+    marginBottom: 4,
   },
-  voteBar: {
-    flexDirection: 'row',
-    height: 32,
-    borderRadius: borderRadius.sm,
-    overflow: 'hidden',
-    marginBottom: spacing.md,
-  },
-  yesBar: {
-    backgroundColor: `${colors.success}30`,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  noBar: {
-    backgroundColor: `${colors.danger}30`,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  voteBarText: {
-    ...typography.micro,
-    color: colors.textPrimary,
+  tokenSymbol: {
+    color: 'rgba(255,255,255,0.7)',
+    fontSize: 16,
     fontWeight: '600',
+    marginBottom: 6,
   },
-  cardFooter: {
+  marketDescription: {
+    color: 'rgba(255,255,255,0.6)',
+    fontSize: 14,
+    lineHeight: 20,
+    marginBottom: 16,
+  },
+  voteRow: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
+    gap: 10,
     alignItems: 'center',
   },
-  poolText: {
-    ...typography.caption,
-    color: colors.textSecondary,
-  },
-  progressContainer: {
+  voteBtn: {
     flex: 1,
-    height: 4,
-    backgroundColor: colors.border,
-    borderRadius: 2,
-    marginLeft: spacing.md,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    paddingVertical: 12,
+    borderRadius: 14,
   },
-  progressFill: {
-    height: '100%',
-    backgroundColor: colors.primary,
-    borderRadius: 2,
+  voteBtnYes: {
+    backgroundColor: 'rgba(34,197,94,0.8)',
+  },
+  voteBtnNo: {
+    backgroundColor: 'rgba(239,68,68,0.8)',
+  },
+  voteBtnText: {
+    color: '#fff',
+    fontSize: 15,
+    fontWeight: '700',
+  },
+  detailBtn: {
+    width: 44,
+    height: 44,
+    borderRadius: 14,
+    backgroundColor: 'rgba(255,255,255,0.15)',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
 });

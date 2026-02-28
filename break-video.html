@@ -1,0 +1,1135 @@
+\<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>PNL - The Protocol for Human Ambition</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=Space+Grotesk:wght@300;400;500;600;700&display=swap');
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    background: #000;
+    color: #fff;
+    font-family: 'Space Grotesk', 'Inter', sans-serif;
+    overflow: hidden;
+    width: 100vw;
+    height: 100vh;
+  }
+
+  /* ===== CANVAS BACKGROUND ===== */
+  #starfield {
+    position: fixed;
+    top: 0; left: 0;
+    width: 100%; height: 100%;
+    z-index: 0;
+  }
+
+  /* ===== NEBULA LAYERS ===== */
+  .nebula {
+    position: fixed;
+    border-radius: 50%;
+    filter: blur(120px);
+    z-index: 1;
+    opacity: 0;
+    transition: opacity 3s ease;
+  }
+  .nebula.active { opacity: 1; }
+
+  .nebula-1 {
+    width: 800px; height: 800px;
+    background: radial-gradient(circle, rgba(138,43,226,0.3) 0%, transparent 70%);
+    top: -200px; right: -200px;
+  }
+  .nebula-2 {
+    width: 600px; height: 600px;
+    background: radial-gradient(circle, rgba(0,191,255,0.25) 0%, transparent 70%);
+    bottom: -150px; left: -150px;
+  }
+  .nebula-3 {
+    width: 500px; height: 500px;
+    background: radial-gradient(circle, rgba(255,107,53,0.2) 0%, transparent 70%);
+    top: 50%; left: 50%;
+    transform: translate(-50%, -50%);
+  }
+
+  /* ===== SCENE CONTAINER ===== */
+  .scene-container {
+    position: fixed;
+    top: 0; left: 0;
+    width: 100%; height: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 10;
+    padding: 60px;
+  }
+
+  /* ===== SCENES ===== */
+  .scene {
+    position: absolute;
+    width: 100%;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    opacity: 0;
+    transform: scale(0.95);
+    transition: opacity 1.5s ease, transform 1.5s ease;
+    padding: 60px;
+    text-align: center;
+  }
+  .scene.active {
+    opacity: 1;
+    transform: scale(1);
+  }
+  .scene.exit {
+    opacity: 0;
+    transform: scale(1.05);
+  }
+
+  /* ===== TEXT STYLES ===== */
+  .text-whisper {
+    font-size: 1.8rem;
+    font-weight: 300;
+    color: rgba(255,255,255,0.6);
+    letter-spacing: 0.05em;
+    line-height: 1.6;
+  }
+
+  .text-speak {
+    font-size: 2.4rem;
+    font-weight: 400;
+    color: rgba(255,255,255,0.85);
+    letter-spacing: 0.02em;
+    line-height: 1.5;
+  }
+
+  .text-shout {
+    font-size: 3.5rem;
+    font-weight: 700;
+    color: #fff;
+    letter-spacing: -0.02em;
+    line-height: 1.3;
+  }
+
+  .text-scream {
+    font-size: 5rem;
+    font-weight: 900;
+    letter-spacing: -0.03em;
+    line-height: 1.1;
+    background: linear-gradient(135deg, #64C8FF 0%, #8B2CE5 50%, #FF6B35 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+
+  .text-cyan { color: #64C8FF; }
+  .text-purple { color: #8B2CE5; }
+  .text-orange { color: #FF6B35; }
+  .text-gold { color: #FFD700; }
+
+  .gradient-text {
+    background: linear-gradient(135deg, #64C8FF 0%, #8B2CE5 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+
+  /* ===== ANIMATED LINE ===== */
+  .line {
+    opacity: 0;
+    transform: translateY(30px);
+    transition: opacity 0.8s ease, transform 0.8s ease;
+  }
+  .line.visible {
+    opacity: 1;
+    transform: translateY(0);
+  }
+
+  /* ===== STAT COUNTER ===== */
+  .stat-row {
+    display: flex;
+    gap: 80px;
+    margin-top: 40px;
+  }
+  .stat {
+    text-align: center;
+    opacity: 0;
+    transform: scale(0.8);
+    transition: opacity 0.6s ease, transform 0.6s ease;
+  }
+  .stat.visible {
+    opacity: 1;
+    transform: scale(1);
+  }
+  .stat-number {
+    font-size: 4rem;
+    font-weight: 900;
+    font-family: 'Space Grotesk', monospace;
+  }
+  .stat-label {
+    font-size: 1rem;
+    color: rgba(255,255,255,0.5);
+    text-transform: uppercase;
+    letter-spacing: 0.15em;
+    margin-top: 8px;
+  }
+
+  /* ===== PULSE RING ===== */
+  .pulse-ring {
+    position: absolute;
+    width: 300px; height: 300px;
+    border-radius: 50%;
+    border: 1px solid rgba(100,200,255,0.3);
+    animation: pulseRing 3s ease-out infinite;
+  }
+  @keyframes pulseRing {
+    0% { transform: scale(0.5); opacity: 1; }
+    100% { transform: scale(3); opacity: 0; }
+  }
+
+  /* ===== LOGO ===== */
+  .logo-container {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 20px;
+  }
+  .logo-text {
+    font-size: 8rem;
+    font-weight: 900;
+    letter-spacing: -0.05em;
+    background: linear-gradient(135deg, #64C8FF 0%, #8B2CE5 40%, #FF6B35 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    filter: drop-shadow(0 0 60px rgba(100,200,255,0.4));
+  }
+  .logo-sub {
+    font-size: 1.4rem;
+    letter-spacing: 0.4em;
+    text-transform: uppercase;
+    color: rgba(255,255,255,0.5);
+  }
+
+  /* ===== VISION CARDS ===== */
+  .vision-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 30px;
+    max-width: 1200px;
+    margin-top: 50px;
+  }
+  .vision-card {
+    background: rgba(255,255,255,0.03);
+    border: 1px solid rgba(255,255,255,0.08);
+    border-radius: 16px;
+    padding: 30px;
+    text-align: left;
+    opacity: 0;
+    transform: translateY(40px);
+    transition: opacity 0.8s ease, transform 0.8s ease;
+    backdrop-filter: blur(10px);
+  }
+  .vision-card.visible {
+    opacity: 1;
+    transform: translateY(0);
+  }
+  .vision-card .icon {
+    font-size: 2.5rem;
+    margin-bottom: 16px;
+  }
+  .vision-card h3 {
+    font-size: 1.2rem;
+    font-weight: 600;
+    margin-bottom: 10px;
+    color: #64C8FF;
+  }
+  .vision-card p {
+    font-size: 0.95rem;
+    color: rgba(255,255,255,0.6);
+    line-height: 1.5;
+  }
+
+  /* ===== TIMELINE ===== */
+  .timeline {
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+    max-width: 700px;
+    width: 100%;
+    position: relative;
+  }
+  .timeline::before {
+    content: '';
+    position: absolute;
+    left: 24px;
+    top: 0;
+    bottom: 0;
+    width: 2px;
+    background: linear-gradient(to bottom, transparent, #64C8FF, #8B2CE5, transparent);
+  }
+  .timeline-item {
+    display: flex;
+    align-items: flex-start;
+    gap: 24px;
+    padding: 20px 0;
+    opacity: 0;
+    transform: translateX(-30px);
+    transition: opacity 0.8s ease, transform 0.8s ease;
+  }
+  .timeline-item.visible {
+    opacity: 1;
+    transform: translateX(0);
+  }
+  .timeline-dot {
+    width: 50px;
+    height: 50px;
+    min-width: 50px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.5rem;
+    z-index: 2;
+    background: #0f172a;
+    border: 2px solid #64C8FF;
+    box-shadow: 0 0 20px rgba(100,200,255,0.3);
+  }
+  .timeline-content {
+    text-align: left;
+    padding-top: 10px;
+  }
+  .timeline-content h3 {
+    font-size: 1.3rem;
+    font-weight: 600;
+    color: #fff;
+    margin-bottom: 6px;
+  }
+  .timeline-content p {
+    font-size: 1rem;
+    color: rgba(255,255,255,0.5);
+    line-height: 1.4;
+  }
+
+  /* ===== EPIC GLOW ===== */
+  .epic-glow {
+    position: fixed;
+    top: 50%; left: 50%;
+    transform: translate(-50%, -50%);
+    width: 0; height: 0;
+    border-radius: 50%;
+    background: radial-gradient(circle, rgba(100,200,255,0.4) 0%, rgba(139,44,229,0.2) 40%, transparent 70%);
+    z-index: 5;
+    transition: width 2s ease, height 2s ease;
+    pointer-events: none;
+  }
+  .epic-glow.expand {
+    width: 2000px;
+    height: 2000px;
+  }
+
+  /* ===== BOTTOM BAR ===== */
+  .bottom-bar {
+    position: fixed;
+    bottom: 0; left: 0;
+    width: 100%;
+    height: 4px;
+    background: rgba(255,255,255,0.05);
+    z-index: 100;
+  }
+  .bottom-bar-fill {
+    height: 100%;
+    width: 0%;
+    background: linear-gradient(90deg, #64C8FF, #8B2CE5, #FF6B35);
+    transition: width 0.3s linear;
+  }
+
+  /* ===== CORNER BRANDING ===== */
+  .corner-brand {
+    position: fixed;
+    top: 30px;
+    right: 40px;
+    z-index: 100;
+    font-size: 0.85rem;
+    color: rgba(255,255,255,0.25);
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+  }
+
+  /* ===== MANIFESTO ===== */
+  .manifesto-line {
+    font-size: 2.2rem;
+    font-weight: 300;
+    line-height: 2;
+    opacity: 0;
+    transition: opacity 1s ease, color 1s ease;
+  }
+  .manifesto-line.visible {
+    opacity: 1;
+  }
+  .manifesto-line.highlight {
+    color: #64C8FF;
+    font-weight: 600;
+  }
+
+  /* ===== GLITCH TEXT ===== */
+  @keyframes glitch {
+    0%, 100% { transform: translate(0); }
+    20% { transform: translate(-2px, 2px); }
+    40% { transform: translate(2px, -2px); }
+    60% { transform: translate(-1px, -1px); }
+    80% { transform: translate(1px, 1px); }
+  }
+
+  /* ===== FLOATING PARTICLES ===== */
+  .particle {
+    position: fixed;
+    width: 3px;
+    height: 3px;
+    background: #64C8FF;
+    border-radius: 50%;
+    z-index: 3;
+    pointer-events: none;
+    opacity: 0;
+  }
+
+  /* ===== WAVE SEPARATOR ===== */
+  .wave-line {
+    width: 120px;
+    height: 2px;
+    background: linear-gradient(90deg, transparent, #64C8FF, transparent);
+    margin: 20px auto;
+    opacity: 0;
+    transition: opacity 1s ease;
+  }
+  .wave-line.visible { opacity: 1; }
+
+  /* ===== RETURNING SOON ===== */
+  .returning {
+    position: fixed;
+    bottom: 40px;
+    left: 50%;
+    transform: translateX(-50%);
+    font-size: 0.9rem;
+    color: rgba(255,255,255,0.3);
+    letter-spacing: 0.3em;
+    text-transform: uppercase;
+    z-index: 100;
+    opacity: 0;
+    transition: opacity 1s ease;
+  }
+  .returning.visible { opacity: 1; }
+
+  /* ===== KEYFRAME FOR BREATHING ===== */
+  @keyframes breathe {
+    0%, 100% { opacity: 0.3; }
+    50% { opacity: 1; }
+  }
+
+  /* ===== HUMAN STORIES ===== */
+  .story {
+    max-width: 800px;
+    opacity: 0;
+    transform: translateY(20px);
+    transition: opacity 1s ease, transform 1s ease;
+    margin: 12px 0;
+  }
+  .story.visible {
+    opacity: 1;
+    transform: translateY(0);
+  }
+  .story-location {
+    font-size: 0.85rem;
+    text-transform: uppercase;
+    letter-spacing: 0.3em;
+    margin-bottom: 8px;
+  }
+  .story-text {
+    font-size: 1.6rem;
+    font-weight: 300;
+    color: rgba(255,255,255,0.8);
+    line-height: 1.5;
+  }
+  .story-text em {
+    font-style: normal;
+    color: #64C8FF;
+    font-weight: 500;
+  }
+
+  /* ===== FLASH ===== */
+  .flash-overlay {
+    position: fixed;
+    top: 0; left: 0;
+    width: 100%; height: 100%;
+    background: white;
+    z-index: 200;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.1s ease;
+  }
+  .flash-overlay.flash {
+    opacity: 0.8;
+    transition: opacity 0.05s ease;
+  }
+
+  /* ===== CLICK TO START OVERLAY ===== */
+  .start-overlay {
+    position: fixed;
+    top: 0; left: 0;
+    width: 100%; height: 100%;
+    background: #000;
+    z-index: 500;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: opacity 1.5s ease;
+  }
+  .start-overlay.hidden {
+    opacity: 0;
+    pointer-events: none;
+  }
+  .start-text {
+    font-size: 1.2rem;
+    color: rgba(255,255,255,0.4);
+    letter-spacing: 0.3em;
+    text-transform: uppercase;
+    animation: breathe 2s ease-in-out infinite;
+  }
+  .start-icon {
+    width: 80px;
+    height: 80px;
+    border: 2px solid rgba(100,200,255,0.3);
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-bottom: 24px;
+    transition: border-color 0.3s, box-shadow 0.3s;
+  }
+  .start-icon svg {
+    width: 30px;
+    height: 30px;
+    fill: rgba(100,200,255,0.5);
+    margin-left: 4px;
+  }
+  .start-overlay:hover .start-icon {
+    border-color: rgba(100,200,255,0.7);
+    box-shadow: 0 0 30px rgba(100,200,255,0.2);
+  }
+  .start-overlay:hover .start-icon svg {
+    fill: rgba(100,200,255,0.8);
+  }
+
+  /* ===== AUDIO TOGGLE ===== */
+  .audio-toggle {
+    position: fixed;
+    top: 30px;
+    left: 40px;
+    z-index: 100;
+    width: 36px;
+    height: 36px;
+    background: rgba(255,255,255,0.05);
+    border: 1px solid rgba(255,255,255,0.1);
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: background 0.3s;
+  }
+  .audio-toggle:hover {
+    background: rgba(255,255,255,0.1);
+  }
+  .audio-toggle svg {
+    width: 16px;
+    height: 16px;
+    fill: rgba(255,255,255,0.5);
+  }
+  .audio-toggle.muted svg {
+    fill: rgba(255,255,255,0.15);
+  }
+</style>
+</head>
+<body>
+
+<!-- Background music -->
+<audio id="bgMusic" preload="auto" src="break-music.mp3"></audio>
+
+<!-- Click to start overlay -->
+<div class="start-overlay" id="startOverlay">
+  <div class="start-icon">
+    <svg viewBox="0 0 24 24"><polygon points="5,3 19,12 5,21"/></svg>
+  </div>
+  <div class="start-text">Click to begin</div>
+</div>
+
+<!-- Audio mute toggle -->
+<div class="audio-toggle" id="audioToggle" title="Toggle audio (M)">
+  <svg id="audioIcon" viewBox="0 0 24 24"><path d="M3 9v6h4l5 5V4L7 9H3zm13.5 3c0-1.77-1.02-3.29-2.5-4.03v8.05c1.48-.73 2.5-2.25 2.5-4.02zM14 3.23v2.06c2.89.86 5 3.54 5 6.71s-2.11 5.85-5 6.71v2.06c4.01-.91 7-4.49 7-8.77s-2.99-7.86-7-8.77z"/></svg>
+</div>
+
+<!-- Starfield Canvas -->
+<canvas id="starfield"></canvas>
+
+<!-- Nebula layers -->
+<div class="nebula nebula-1" id="neb1"></div>
+<div class="nebula nebula-2" id="neb2"></div>
+<div class="nebula nebula-3" id="neb3"></div>
+
+<!-- Epic center glow -->
+<div class="epic-glow" id="epicGlow"></div>
+
+<!-- Flash overlay -->
+<div class="flash-overlay" id="flashOverlay"></div>
+
+<!-- Corner branding -->
+<div class="corner-brand">pnl.market</div>
+
+<!-- Progress bar -->
+<div class="bottom-bar">
+  <div class="bottom-bar-fill" id="progressBar"></div>
+</div>
+
+<!-- Returning text -->
+<div class="returning" id="returning">Stream returns shortly</div>
+
+<!-- ===== SCENE CONTAINER ===== -->
+<div class="scene-container">
+
+  <!-- SCENE 0: Opening - The Question -->
+  <div class="scene" id="scene0">
+    <div class="line text-whisper" id="s0l1">What if every great idea</div>
+    <div class="wave-line" id="s0w"></div>
+    <div class="line text-shout" id="s0l2" style="margin-top: 10px;">had a fair shot?</div>
+  </div>
+
+  <!-- SCENE 1: The Problem -->
+  <div class="scene" id="scene1">
+    <div class="stat-row">
+      <div class="stat" id="s1stat1">
+        <div class="stat-number text-orange" id="counter1">99%</div>
+        <div class="stat-label">of great ideas die in silence</div>
+      </div>
+      <div class="stat" id="s1stat2">
+        <div class="stat-number text-purple">$300B</div>
+        <div class="stat-label">controlled by gatekeepers</div>
+      </div>
+      <div class="stat" id="s1stat3">
+        <div class="stat-number text-cyan">0</div>
+        <div class="stat-label">fair alternatives... until now</div>
+      </div>
+    </div>
+    <div class="line text-whisper" id="s1l1" style="margin-top: 50px;">
+      Not because they're bad. Because they don't know the right people.
+    </div>
+  </div>
+
+  <!-- SCENE 2: The Spark -->
+  <div class="scene" id="scene2">
+    <div class="line text-whisper" id="s2l0" style="letter-spacing: 0.3em; text-transform: uppercase; font-size: 1rem;">Introducing</div>
+    <div class="logo-container" style="margin-top: 20px;">
+      <div class="logo-text line" id="s2logo">P&L</div>
+      <div class="logo-sub line" id="s2sub">Predict & Launch</div>
+    </div>
+    <div class="line text-speak" id="s2l1" style="margin-top: 40px; max-width: 700px;">
+      Where ideas become markets.<br>Where markets become reality.
+    </div>
+  </div>
+
+  <!-- SCENE 3: How It Works (Now) -->
+  <div class="scene" id="scene3">
+    <div class="line text-whisper" id="s3title" style="letter-spacing: 0.3em; text-transform: uppercase; font-size: 0.9rem; margin-bottom: 30px;">The Three Phases</div>
+    <div class="timeline">
+      <div class="timeline-item" id="s3t1">
+        <div class="timeline-dot">1</div>
+        <div class="timeline-content">
+          <h3 class="text-cyan">Community Validates</h3>
+          <p>Prediction market. The crowd votes YES or NO with real money.</p>
+        </div>
+      </div>
+      <div class="timeline-item" id="s3t2">
+        <div class="timeline-dot">2</div>
+        <div class="timeline-content">
+          <h3 class="text-purple">Early Believers Fund</h3>
+          <p>If the crowd says YES, supporters get in early. Skin in the game.</p>
+        </div>
+      </div>
+      <div class="timeline-item" id="s3t3">
+        <div class="timeline-dot">3</div>
+        <div class="timeline-content">
+          <h3 class="text-orange">Fair Launch</h3>
+          <p>Token launches on-chain. Community-validated. No insiders. No rugs.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- SCENE 4: The Near Future -->
+  <div class="scene" id="scene4">
+    <div class="line text-whisper" id="s4l0" style="letter-spacing: 0.3em; text-transform: uppercase; font-size: 0.9rem;">Tomorrow</div>
+    <div class="line text-scream" id="s4l1" style="margin-top: 20px;">The World's<br>Idea Exchange</div>
+    <div class="vision-grid" id="s4grid">
+      <div class="vision-card" id="s4c1">
+        <div class="icon">🧬</div>
+        <h3>Beyond Crypto</h3>
+        <p>Startups. Products. Films. Research. Every idea validated by collective intelligence.</p>
+      </div>
+      <div class="vision-card" id="s4c2">
+        <div class="icon">⚡</div>
+        <h3>Instant Capital</h3>
+        <p>From idea to funded in hours, not months. No pitch decks. No warm intros. Just conviction.</p>
+      </div>
+      <div class="vision-card" id="s4c3">
+        <div class="icon">🌍</div>
+        <h3>Borderless</h3>
+        <p>A student in Lagos. A coder in Kathmandu. A dreamer in São Paulo. Same shot. Same platform.</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- SCENE 5: Human Stories (The Wild Vision) -->
+  <div class="scene" id="scene5">
+    <div class="line text-whisper" id="s5title" style="letter-spacing: 0.3em; text-transform: uppercase; font-size: 0.9rem; margin-bottom: 40px;">When PNL reaches its peak</div>
+
+    <div class="story" id="s5s1">
+      <div class="story-location text-cyan">Lagos, Nigeria</div>
+      <div class="story-text">A 19-year-old posts a clean water filtration system. <em>Funded by 3,000 strangers in 4 hours.</em></div>
+    </div>
+
+    <div class="story" id="s5s2">
+      <div class="story-location text-purple">Tokyo, Japan</div>
+      <div class="story-text">A musician tokenizes an album concept. <em>10,000 believers before the first note is recorded.</em></div>
+    </div>
+
+    <div class="story" id="s5s3">
+      <div class="story-location text-orange">Kathmandu, Nepal</div>
+      <div class="story-text">A developer builds the next DeFi primitive. <em>The market validates it. VCs never hear about it.</em></div>
+    </div>
+
+    <div class="story" id="s5s4">
+      <div class="story-location text-gold">Everywhere</div>
+      <div class="story-text">No gatekeepers. No geography. <em>Just ideas, markets, and the truth.</em></div>
+    </div>
+  </div>
+
+  <!-- SCENE 6: The Manifesto -->
+  <div class="scene" id="scene6">
+    <div class="manifesto-line" id="s6l1">We're not building a platform.</div>
+    <div class="manifesto-line" id="s6l2">We're building the <span class="gradient-text" style="-webkit-text-fill-color: transparent;">protocol for human ambition.</span></div>
+    <div class="wave-line" id="s6w" style="margin: 30px auto;"></div>
+    <div class="manifesto-line" id="s6l3" style="font-size: 1.6rem;">Where the best ideas win.</div>
+    <div class="manifesto-line highlight" id="s6l4" style="font-size: 2.8rem; font-weight: 800;">Period.</div>
+  </div>
+
+  <!-- SCENE 7: Closing -->
+  <div class="scene" id="scene7">
+    <div class="pulse-ring" style="animation-delay: 0s;"></div>
+    <div class="pulse-ring" style="animation-delay: 1s;"></div>
+    <div class="pulse-ring" style="animation-delay: 2s;"></div>
+    <div class="logo-container">
+      <div class="logo-text line" id="s7logo" style="font-size: 10rem;">P&L</div>
+      <div class="line text-whisper" id="s7tag" style="letter-spacing: 0.2em; margin-top: 10px;">Tokenize ideas. Validate through community.<br>Launch what deserves to exist.</div>
+      <div class="line" id="s7url" style="margin-top: 30px; font-size: 1.8rem; font-weight: 600; letter-spacing: 0.1em;">
+        <span class="gradient-text" style="-webkit-text-fill-color: transparent;">pnl.market</span>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<script>
+// =============================================
+// ===== AUDIO ENGINE v5 =====
+// ===== Real MP3 + simple volume curve =====
+// ===== No Web Audio for music (CORS)  =====
+// =============================================
+
+const AudioEngine = {
+  audio: null,
+  isMuted: false,
+  startedAt: 0,
+
+  // Volume curve: [timeInSeconds, targetVolume]
+  // Smoothly interpolates between these points
+  volumeCurve: [
+    [0,    0],        // Start silent
+    [3,    0.50],     // Fade in
+    [7,    0.50],     // Hold - opening
+    [10,   0.60],     // Problem - slight lift
+    [18,   0.60],     // Hold
+    [20,   0.75],     // Spark - swell for P&L reveal
+    [30,   0.75],     // Hold
+    [34,   0.65],     // Phases - settle
+    [48,   0.65],     // Hold
+    [52,   0.75],     // Future - building
+    [70,   0.78],     // Hold
+    [75,   0.82],     // Stories - emotional rise
+    [100,  0.90],     // Growing
+    [108,  0.90],     // Hold
+    [112,  1.00],     // MANIFESTO - FULL POWER
+    [126,  1.00],     // Hold at peak
+    [127.5, 0.55],    // "Period." dip
+    [128.5, 1.00],    // Back to peak
+    [138,  1.00],     // Hold
+    [145,  0.65],     // Closing fade begins
+    [155,  0.40],     // Fading
+    [165,  0.15],     // Almost gone
+    [172,  0.00],     // Silence
+  ],
+
+  init() {
+    this.audio = document.getElementById('bgMusic');
+    this.audio.volume = 0;
+  },
+
+  start() {
+    this.audio.currentTime = 0;
+    this.audio.play();
+    this.startedAt = performance.now();
+    this._automateVolume();
+  },
+
+  // Interpolate volume based on elapsed time
+  _getVolume(elapsed) {
+    const curve = this.volumeCurve;
+    if (elapsed <= curve[0][0]) return curve[0][1];
+    if (elapsed >= curve[curve.length - 1][0]) return curve[curve.length - 1][1];
+
+    for (let i = 0; i < curve.length - 1; i++) {
+      const [t1, v1] = curve[i];
+      const [t2, v2] = curve[i + 1];
+      if (elapsed >= t1 && elapsed < t2) {
+        const progress = (elapsed - t1) / (t2 - t1);
+        // Smooth easing
+        const eased = progress * progress * (3 - 2 * progress);
+        return v1 + (v2 - v1) * eased;
+      }
+    }
+    return 0;
+  },
+
+  _automateVolume() {
+    const elapsed = (performance.now() - this.startedAt) / 1000;
+    if (!this.isMuted) {
+      this.audio.volume = this._getVolume(elapsed);
+    }
+    if (elapsed < 175) {
+      requestAnimationFrame(() => this._automateVolume());
+    }
+  },
+
+  toggleMute() {
+    this.isMuted = !this.isMuted;
+    if (this.isMuted) {
+      this.audio.volume = 0;
+    }
+    document.getElementById('audioToggle').classList.toggle('muted', this.isMuted);
+    const icon = document.getElementById('audioIcon');
+    icon.innerHTML = this.isMuted
+      ? '<path d="M16.5 12c0-1.77-1.02-3.29-2.5-4.03v2.21l2.45 2.45c.03-.2.05-.41.05-.63zm2.5 0c0 .94-.2 1.82-.54 2.64l1.51 1.51C20.63 14.91 21 13.5 21 12c0-4.28-2.99-7.86-7-8.77v2.06c2.89.86 5 3.54 5 6.71zM4.27 3L3 4.27 7.73 9H3v6h4l5 5v-6.73l4.25 4.25c-.67.52-1.42.93-2.25 1.18v2.06c1.38-.31 2.63-.95 3.69-1.81L19.73 21 21 19.73l-9-9L4.27 3zM12 4L9.91 6.09 12 8.18V4z"/>'
+      : '<path d="M3 9v6h4l5 5V4L7 9H3zm13.5 3c0-1.77-1.02-3.29-2.5-4.03v8.05c1.48-.73 2.5-2.25 2.5-4.02zM14 3.23v2.06c2.89.86 5 3.54 5 6.71s-2.11 5.85-5 6.71v2.06c4.01-.91 7-4.49 7-8.77s-2.99-7.86-7-8.77z"/>';
+  }
+};
+
+function startCinematicScore() {
+  AudioEngine.init();
+  AudioEngine.start();
+}
+
+// ===== STARFIELD =====
+const canvas = document.getElementById('starfield');
+const ctx = canvas.getContext('2d');
+let stars = [];
+let shootingStars = [];
+
+function resizeCanvas() {
+  canvas.width = window.innerWidth;
+  canvas.height = window.innerHeight;
+}
+resizeCanvas();
+window.addEventListener('resize', resizeCanvas);
+
+// Create stars
+for (let i = 0; i < 400; i++) {
+  stars.push({
+    x: Math.random() * canvas.width,
+    y: Math.random() * canvas.height,
+    size: Math.random() * 2 + 0.5,
+    speed: Math.random() * 0.5 + 0.1,
+    opacity: Math.random(),
+    twinkleSpeed: Math.random() * 0.02 + 0.005,
+    twinkleDir: Math.random() > 0.5 ? 1 : -1
+  });
+}
+
+function spawnShootingStar() {
+  shootingStars.push({
+    x: Math.random() * canvas.width,
+    y: 0,
+    length: Math.random() * 100 + 50,
+    speed: Math.random() * 8 + 4,
+    angle: Math.PI / 4 + Math.random() * 0.3,
+    opacity: 1,
+    life: 0
+  });
+}
+
+setInterval(spawnShootingStar, 3000);
+
+function drawStars() {
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+  // Stars
+  stars.forEach(star => {
+    star.opacity += star.twinkleSpeed * star.twinkleDir;
+    if (star.opacity >= 1) { star.opacity = 1; star.twinkleDir = -1; }
+    if (star.opacity <= 0.1) { star.opacity = 0.1; star.twinkleDir = 1; }
+
+    ctx.beginPath();
+    ctx.arc(star.x, star.y, star.size, 0, Math.PI * 2);
+    ctx.fillStyle = `rgba(255, 255, 255, ${star.opacity * 0.8})`;
+    ctx.fill();
+
+    // Subtle glow on bigger stars
+    if (star.size > 1.5) {
+      ctx.beginPath();
+      ctx.arc(star.x, star.y, star.size * 3, 0, Math.PI * 2);
+      ctx.fillStyle = `rgba(100, 200, 255, ${star.opacity * 0.1})`;
+      ctx.fill();
+    }
+  });
+
+  // Shooting stars
+  shootingStars.forEach((ss, i) => {
+    ss.x += Math.cos(ss.angle) * ss.speed;
+    ss.y += Math.sin(ss.angle) * ss.speed;
+    ss.life++;
+    ss.opacity = Math.max(0, 1 - ss.life / 60);
+
+    if (ss.opacity <= 0) {
+      shootingStars.splice(i, 1);
+      return;
+    }
+
+    const tailX = ss.x - Math.cos(ss.angle) * ss.length;
+    const tailY = ss.y - Math.sin(ss.angle) * ss.length;
+
+    const gradient = ctx.createLinearGradient(tailX, tailY, ss.x, ss.y);
+    gradient.addColorStop(0, `rgba(100, 200, 255, 0)`);
+    gradient.addColorStop(1, `rgba(100, 200, 255, ${ss.opacity})`);
+
+    ctx.beginPath();
+    ctx.moveTo(tailX, tailY);
+    ctx.lineTo(ss.x, ss.y);
+    ctx.strokeStyle = gradient;
+    ctx.lineWidth = 1.5;
+    ctx.stroke();
+  });
+
+  requestAnimationFrame(drawStars);
+}
+drawStars();
+
+// ===== FLOATING PARTICLES =====
+function createParticles() {
+  for (let i = 0; i < 30; i++) {
+    const p = document.createElement('div');
+    p.className = 'particle';
+    p.style.left = Math.random() * 100 + 'vw';
+    p.style.top = Math.random() * 100 + 'vh';
+    const size = Math.random() * 4 + 1;
+    p.style.width = size + 'px';
+    p.style.height = size + 'px';
+    const colors = ['#64C8FF', '#8B2CE5', '#FF6B35', '#FFD700'];
+    p.style.background = colors[Math.floor(Math.random() * colors.length)];
+    p.style.boxShadow = `0 0 ${size * 3}px ${p.style.background}`;
+    document.body.appendChild(p);
+
+    animateParticle(p);
+  }
+}
+
+function animateParticle(p) {
+  const duration = Math.random() * 8000 + 4000;
+  const startX = parseFloat(p.style.left);
+  const startY = parseFloat(p.style.top);
+  const endX = startX + (Math.random() - 0.5) * 20;
+  const endY = startY + (Math.random() - 0.5) * 20;
+
+  p.animate([
+    { left: startX + 'vw', top: startY + 'vh', opacity: 0 },
+    { left: (startX + endX) / 2 + 'vw', top: (startY + endY) / 2 + 'vh', opacity: 0.6 },
+    { left: endX + 'vw', top: endY + 'vh', opacity: 0 }
+  ], {
+    duration: duration,
+    iterations: Infinity,
+    delay: Math.random() * 3000
+  });
+}
+createParticles();
+
+// ===== SCENE TIMELINE ENGINE =====
+const TOTAL_DURATION = 170000; // 2:50 total
+let startTime = null;
+let currentScene = -1;
+
+const timeline = [
+  // Scene 0: Opening (0s - 8s)
+  { time: 0,    action: () => showScene(0) },
+  { time: 500,  action: () => revealLine('s0l1') },
+  { time: 1200, action: () => { document.getElementById('s0w').classList.add('visible'); }},
+  { time: 2000, action: () => revealLine('s0l2') },
+
+  // Scene 1: The Problem (8s - 20s)
+  { time: 8000,  action: () => showScene(1) },
+  { time: 9000,  action: () => document.getElementById('s1stat1').classList.add('visible') },
+  { time: 10500, action: () => document.getElementById('s1stat2').classList.add('visible') },
+  { time: 12000, action: () => document.getElementById('s1stat3').classList.add('visible') },
+  { time: 14000, action: () => revealLine('s1l1') },
+
+  // Scene 2: The Spark (20s - 32s)
+  { time: 20000, action: () => { showScene(2); flash(); }},
+  { time: 20500, action: () => revealLine('s2l0') },
+  { time: 22000, action: () => { revealLine('s2logo'); activateNebulas(); }},
+  { time: 24000, action: () => revealLine('s2sub') },
+  { time: 26500, action: () => revealLine('s2l1') },
+
+  // Scene 3: How it works (32s - 50s)
+  { time: 32000, action: () => showScene(3) },
+  { time: 33000, action: () => revealLine('s3title') },
+  { time: 35000, action: () => document.getElementById('s3t1').classList.add('visible') },
+  { time: 38000, action: () => document.getElementById('s3t2').classList.add('visible') },
+  { time: 41000, action: () => document.getElementById('s3t3').classList.add('visible') },
+
+  // Scene 4: Near Future (50s - 72s)
+  { time: 50000, action: () => showScene(4) },
+  { time: 51000, action: () => revealLine('s4l0') },
+  { time: 52500, action: () => revealLine('s4l1') },
+  { time: 56000, action: () => document.getElementById('s4c1').classList.add('visible') },
+  { time: 59000, action: () => document.getElementById('s4c2').classList.add('visible') },
+  { time: 62000, action: () => document.getElementById('s4c3').classList.add('visible') },
+
+  // Scene 5: Human Stories - Wild Vision (72s - 110s)
+  { time: 72000,  action: () => showScene(5) },
+  { time: 73000,  action: () => revealLine('s5title') },
+  { time: 76000,  action: () => document.getElementById('s5s1').classList.add('visible') },
+  { time: 84000,  action: () => document.getElementById('s5s2').classList.add('visible') },
+  { time: 92000,  action: () => document.getElementById('s5s3').classList.add('visible') },
+  { time: 100000, action: () => document.getElementById('s5s4').classList.add('visible') },
+
+  // Scene 6: Manifesto (110s - 140s)
+  { time: 110000, action: () => { showScene(6); expandGlow(); }},
+  { time: 112000, action: () => { document.getElementById('s6l1').classList.add('visible'); }},
+  { time: 116000, action: () => { document.getElementById('s6l2').classList.add('visible'); }},
+  { time: 121000, action: () => { document.getElementById('s6w').classList.add('visible'); }},
+  { time: 124000, action: () => { document.getElementById('s6l3').classList.add('visible'); }},
+  { time: 128000, action: () => { document.getElementById('s6l4').classList.add('visible'); flash(); }},
+
+  // Scene 7: Closing (140s - 170s)
+  { time: 140000, action: () => showScene(7) },
+  { time: 141500, action: () => revealLine('s7logo') },
+  { time: 144000, action: () => revealLine('s7tag') },
+  { time: 148000, action: () => revealLine('s7url') },
+  { time: 152000, action: () => document.getElementById('returning').classList.add('visible') },
+];
+
+let executedEvents = new Set();
+
+function tick(timestamp) {
+  if (!startTime) startTime = timestamp;
+  const elapsed = timestamp - startTime;
+
+  // Progress bar
+  const progress = Math.min(elapsed / TOTAL_DURATION * 100, 100);
+  document.getElementById('progressBar').style.width = progress + '%';
+
+  // Execute timeline events
+  timeline.forEach((event, i) => {
+    if (elapsed >= event.time && !executedEvents.has(i)) {
+      executedEvents.add(i);
+      event.action();
+    }
+  });
+
+  if (elapsed < TOTAL_DURATION) {
+    requestAnimationFrame(tick);
+  }
+}
+
+function showScene(index) {
+  document.querySelectorAll('.scene').forEach(s => {
+    if (s.classList.contains('active')) {
+      s.classList.remove('active');
+      s.classList.add('exit');
+    }
+  });
+
+  setTimeout(() => {
+    document.querySelectorAll('.scene').forEach(s => s.classList.remove('exit'));
+    const scene = document.getElementById('scene' + index);
+    if (scene) scene.classList.add('active');
+  }, 800);
+
+  currentScene = index;
+}
+
+function revealLine(id) {
+  const el = document.getElementById(id);
+  if (el) el.classList.add('visible');
+}
+
+function activateNebulas() {
+  document.getElementById('neb1').classList.add('active');
+  document.getElementById('neb2').classList.add('active');
+  setTimeout(() => document.getElementById('neb3').classList.add('active'), 1000);
+}
+
+function expandGlow() {
+  document.getElementById('epicGlow').classList.add('expand');
+}
+
+function flash() {
+  const overlay = document.getElementById('flashOverlay');
+  overlay.classList.add('flash');
+  setTimeout(() => overlay.classList.remove('flash'), 150);
+}
+
+// ===== START (click required for audio) =====
+const startOverlay = document.getElementById('startOverlay');
+
+startOverlay.addEventListener('click', () => {
+  startOverlay.classList.add('hidden');
+  setTimeout(() => startOverlay.style.display = 'none', 1500);
+
+  // Start cinematic audio
+  startCinematicScore();
+
+  // Start visual timeline
+  setTimeout(() => requestAnimationFrame(tick), 300);
+});
+
+// ===== AUDIO TOGGLE =====
+document.getElementById('audioToggle').addEventListener('click', () => {
+  if (AudioEngine.ctx) AudioEngine.toggleMute();
+});
+
+// ===== KEYBOARD CONTROLS =====
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'r' || e.key === 'R') {
+    location.reload();
+  }
+  if (e.key === 'm' || e.key === 'M') {
+    if (AudioEngine.ctx) AudioEngine.toggleMute();
+  }
+});
+</script>
+
+</body>
+</html>

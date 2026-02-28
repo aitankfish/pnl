@@ -27,7 +27,8 @@ export interface ProjectMetadata {
     telegram?: string;
     discord?: string;
   };
-  videoUrl?: string; // YouTube or X/Twitter video URL
+  videoUrl?: string; // YouTube or X/Twitter video URL (legacy)
+  pitchVideoUrl?: string; // IPFS URI for uploaded pitch video
   additionalNotes?: string;
   image?: string;
   documents?: string[];
@@ -70,6 +71,7 @@ class IPFSUtils {
     metadata: string | null;
     images: string | null;
     documents: string | null;
+    videos: string | null;
   };
 
   constructor() {
@@ -87,7 +89,8 @@ class IPFSUtils {
     this.groups = {
       metadata: null,
       images: null,
-      documents: null
+      documents: null,
+      videos: null
     };
     
     logger.info('IPFS Configuration', {
@@ -115,14 +118,15 @@ class IPFSUtils {
 
     try {
       // Check if groups already exist
-      if (this.groups.metadata && this.groups.images && this.groups.documents) {
+      if (this.groups.metadata && this.groups.images && this.groups.documents && this.groups.videos) {
         return;
       }
 
       const groupNames = {
         metadata: 'PLP-Project-Metadata',
-        images: 'PLP-Project-Images', 
-        documents: 'PLP-Project-Documents'
+        images: 'PLP-Project-Images',
+        documents: 'PLP-Project-Documents',
+        videos: 'PLP-Pitch-Videos'
       };
 
       for (const [type, groupName] of Object.entries(groupNames)) {
@@ -559,6 +563,108 @@ class IPFSUtils {
       cidVersion: 1,
     });
     formData.append('pinataOptions', options);
+
+    const response = await fetch('https://api.pinata.cloud/pinning/pinFileToIPFS', {
+      method: 'POST',
+      headers: {
+        'pinata_api_key': this.pinataApiKey,
+        'pinata_secret_api_key': this.pinataSecretKey,
+      },
+      body: formData,
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      throw new Error(`Pinata API error: ${response.status} ${response.statusText} - ${errorText}`);
+    }
+
+    const result = await response.json();
+    return result.IpfsHash;
+  }
+
+  /**
+   * Upload video to IPFS (for pitch videos)
+   */
+  async uploadVideo(file: File): Promise<string> {
+    try {
+      const hasCredentials = this.useJwt || (this.pinataApiKey && this.pinataSecretKey);
+
+      if (!hasCredentials) {
+        logger.warn('No Pinata credentials configured, using mock video hash');
+        return this.generateMockIPFSUri('video');
+      }
+
+      await this.ensureGroups();
+
+      let ipfsHash: string;
+
+      if (this.useJwt) {
+        ipfsHash = await this.uploadVideoWithJwt(file);
+      } else {
+        ipfsHash = await this.uploadVideoWithApiKeys(file);
+      }
+
+      logger.info('Video uploaded to IPFS', {
+        fileName: file.name,
+        ipfsHash,
+        pinataUrl: `${this.pinataGatewayUrl}/ipfs/${ipfsHash}`,
+        method: this.useJwt ? 'JWT' : 'API_KEYS',
+        groupId: this.groups.videos
+      });
+
+      return `ipfs://${ipfsHash}`;
+    } catch (error) {
+      logger.error('Failed to upload video to IPFS', error);
+      return this.generateMockIPFSUri('video');
+    }
+  }
+
+  private async uploadVideoWithJwt(file: File): Promise<string> {
+    const formData = new FormData();
+    formData.append('file', file);
+
+    const metadata: PinataMetadata = {
+      name: file.name,
+    };
+
+    if (this.groups.videos) {
+      metadata.group_id = this.groups.videos;
+    }
+
+    formData.append('pinataMetadata', JSON.stringify(metadata));
+    formData.append('pinataOptions', JSON.stringify({ cidVersion: 1 }));
+
+    const response = await fetch('https://api.pinata.cloud/pinning/pinFileToIPFS', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${this.pinataJwt}`,
+      },
+      body: formData,
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      throw new Error(`Pinata JWT API error: ${response.status} ${response.statusText} - ${errorText}`);
+    }
+
+    const result = await response.json();
+    return result.IpfsHash;
+  }
+
+  private async uploadVideoWithApiKeys(file: File): Promise<string> {
+    const formData = new FormData();
+    formData.append('file', file);
+
+    const metadata: PinataMetadata = {
+      name: file.name,
+    };
+
+    if (this.groups.videos) {
+      metadata.group_id = this.groups.videos;
+    }
+
+    formData.append('pinataMetadata', JSON.stringify(metadata));
+    formData.append('pinataOptions', JSON.stringify({ cidVersion: 1 }));
 
     const response = await fetch('https://api.pinata.cloud/pinning/pinFileToIPFS', {
       method: 'POST',

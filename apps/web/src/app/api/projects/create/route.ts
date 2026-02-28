@@ -34,6 +34,19 @@ export async function POST(request: NextRequest) {
         logger.info('📊 API: Image file found, size:', imageFile.size);
       }
 
+      // Handle pitch video upload
+      const pitchVideoFile = formData.get('pitchVideo') as File;
+      if (pitchVideoFile && pitchVideoFile.size > 0) {
+        body.pitchVideo = pitchVideoFile;
+        logger.info('API: Pitch video file found, size:', pitchVideoFile.size);
+      }
+
+      // Handle pre-uploaded pitchVideoUrl
+      const pitchVideoUrl = formData.get('pitchVideoUrl') as string;
+      if (pitchVideoUrl) {
+        body.pitchVideoUrl = pitchVideoUrl;
+      }
+
       // Handle document upload
       const documentFile = formData.get('projectDocument') as File;
       logger.info('📊 API: Document from FormData:', {
@@ -82,6 +95,7 @@ export async function POST(request: NextRequest) {
     let metadataUri: string;
     let imageUri: string | undefined;
     let documentUri: string | undefined;
+    let pitchVideoUri: string | undefined;
 
     if (body.metadataUri) {
       // Metadata already uploaded by client
@@ -100,6 +114,15 @@ export async function POST(request: NextRequest) {
       if (body.projectDocument) {
         logger.info('Uploading project document to IPFS');
         documentUri = await ipfsUtils.uploadDocument(body.projectDocument);
+      }
+
+      // Upload pitch video to IPFS if provided as file
+      if (body.pitchVideo) {
+        logger.info('Uploading pitch video to IPFS');
+        pitchVideoUri = await ipfsUtils.uploadVideo(body.pitchVideo);
+      } else if (body.pitchVideoUrl) {
+        // Use pre-uploaded video URL
+        pitchVideoUri = body.pitchVideoUrl;
       }
 
       // Create project metadata
@@ -123,6 +146,7 @@ export async function POST(request: NextRequest) {
           discord: body.socialLinks?.discord || undefined,
         },
         videoUrl: body.videoUrl || undefined,
+        pitchVideoUrl: pitchVideoUri || undefined,
         additionalNotes: body.additionalNotes || undefined,
         image: imageUri,
         createdAt: new Date().toISOString(),
@@ -176,6 +200,7 @@ export async function POST(request: NextRequest) {
       tokenSymbol: body.tokenSymbol,
       socialLinks: body.socialLinks || {},
       projectImageUrl: imageUri,
+      pitchVideoUrl: pitchVideoUri,
       documentUrls: documentUri ? [documentUri] : [],
       status: 'active',
       createdAt: new Date(),

@@ -6,7 +6,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { io, Socket } from 'socket.io-client';
 import { createClientLogger } from '../utils/logger';
-import { getEnvConfig } from '../config/environment';
+import { getSocketUrl } from '../utils/api';
 
 const logger = createClientLogger();
 
@@ -23,35 +23,14 @@ export function useSocket(config?: SocketConfig) {
   const [connectionError, setConnectionError] = useState<string | null>(null);
   const socketRef = useRef<Socket | null>(null);
   const isMountedRef = useRef(true);
+  const hasLoggedErrorRef = useRef(false);
 
   useEffect(() => {
     isMountedRef.current = true;
-    // Determine the correct socket URL based on environment
-    let defaultUrl: string;
-
-    // In production (Vercel/deployment), use the same origin without custom port
-    // In development, use the custom socket port (3001)
-    const isDev = typeof process !== 'undefined' && process.env?.NODE_ENV === 'development';
-
-    if (!isDev || (typeof window !== 'undefined' && window.location.hostname !== 'localhost')) {
-      // Production: use same domain/protocol (reverse proxy or unified server handles routing)
-      defaultUrl = typeof window !== 'undefined' ? window.location.origin : '';
-    } else {
-      // Development: use separate socket server on port 3001
-      let socketPort = '3001';
-      try {
-        const envConfig = getEnvConfig();
-        // Check for socket port in env if available
-        socketPort = (envConfig as any).SOCKET_PORT || '3001';
-      } catch {
-        // getEnvConfig not initialized yet, use default
-      }
-      defaultUrl = typeof window !== 'undefined'
-        ? `${window.location.protocol}//${window.location.hostname}:${socketPort}`
-        : '';
-    }
-
-    const url = config?.url || defaultUrl;
+    hasLoggedErrorRef.current = false;
+    // Determine the correct socket URL
+    // getSocketUrl() handles both web (window.location) and mobile (API_BASE_URL)
+    const url = config?.url || getSocketUrl();
     const path = config?.path || '/api/socket/io';
 
     // Create socket connection
@@ -61,7 +40,7 @@ export function useSocket(config?: SocketConfig) {
       reconnection: true,
       reconnectionDelay: 1000,
       reconnectionDelayMax: 5000,
-      reconnectionAttempts: 5,
+      reconnectionAttempts: 3,
     });
 
     socketRef.current = socket;
@@ -70,6 +49,7 @@ export function useSocket(config?: SocketConfig) {
     socket.on('connect', () => {
       if (!isMountedRef.current) return;
       logger.info('Socket.IO connected');
+      hasLoggedErrorRef.current = false;
       setIsConnected(true);
       setConnectionError(null);
     });
@@ -82,7 +62,11 @@ export function useSocket(config?: SocketConfig) {
 
     socket.on('connect_error', (error) => {
       if (!isMountedRef.current) return;
-      logger.error(`Socket.IO connection error: ${error.message}`);
+      // Only log first error per connection attempt to reduce noise
+      if (!hasLoggedErrorRef.current) {
+        logger.warn(`Socket.IO connection error: ${error.message}`);
+        hasLoggedErrorRef.current = true;
+      }
       setConnectionError(error.message);
       setIsConnected(false);
     });

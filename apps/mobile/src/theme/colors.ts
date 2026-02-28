@@ -34,6 +34,23 @@ export const colors = {
   // Glassmorphism
   glass: 'rgba(17, 24, 39, 0.8)',
   glassBorder: 'rgba(99, 102, 241, 0.15)',
+
+  // Semantic tints (15% opacity)
+  successLight: 'rgba(16, 185, 129, 0.15)',
+  dangerLight: 'rgba(239, 68, 68, 0.15)',
+  warningLight: 'rgba(245, 158, 11, 0.15)',
+
+  // Overlays & sheets
+  overlay: 'rgba(0, 0, 0, 0.6)',
+  sheetBackground: '#1a1f2e',
+  sheetHandle: '#4b5563',
+
+  // Interaction
+  pressedOverlay: 'rgba(255, 255, 255, 0.05)',
+
+  // Live / urgency
+  livePulse: '#22c55e',
+  urgentRed: '#dc2626',
 } as const;
 
 export type ColorKey = keyof typeof colors;

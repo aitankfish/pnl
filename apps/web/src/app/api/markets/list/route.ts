@@ -199,6 +199,7 @@ export async function GET(request: NextRequest) {
         status: market.resolution || (market.marketState === 0 ? 'active' : 'resolved'),
         metadataUri: market.metadataUri,
         projectImageUrl: convertToGatewayUrl(project?.projectImageUrl),
+        pitchVideoUrl: convertToGatewayUrl(project?.pitchVideoUrl),
 
         // On-chain fields from blockchain sync
         // For resolved markets, use final values captured at resolution (before pool emptied by claims)

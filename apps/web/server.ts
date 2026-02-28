@@ -19,9 +19,8 @@ import { initializeSocketServer } from './src/services/socket/socket-server';
 import { startBlockchainSync } from './src/services/blockchain-sync/sync-manager';
 
 const dev = process.env.NODE_ENV !== 'production';
-// In production, bind to 0.0.0.0 to allow external connections
-// In development, use localhost
-const hostname = dev ? 'localhost' : '0.0.0.0';
+// Bind to 0.0.0.0 to allow external connections (mobile devices on LAN)
+const hostname = '0.0.0.0';
 const port = parseInt(process.env.PORT || '3000', 10);
 
 // Create Next.js app
@@ -29,7 +28,11 @@ const app = next({ dev, hostname, port });
 const handle = app.getRequestHandler();
 
 app.prepare().then(() => {
-  // Create HTTP server
+  // Create HTTP server with the Next.js request handler as the callback.
+  // IMPORTANT: Socket.IO's engine.io attach() captures existing request
+  // listeners, removes them, and re-invokes them for non-socket paths.
+  // The callback passed to createServer() becomes the initial request
+  // listener that Socket.IO will capture and manage.
   const httpServer = createServer(async (req, res) => {
     try {
       const parsedUrl = parse(req.url!, true);
@@ -41,7 +44,12 @@ app.prepare().then(() => {
     }
   });
 
-  // Initialize Socket.IO
+  // Initialize Socket.IO AFTER creating the server with the Next.js handler.
+  // engine.io's attach() will:
+  //   1. Capture the existing Next.js request listener
+  //   2. Remove it
+  //   3. Add its own handler that intercepts /api/socket/io requests
+  //   4. For non-socket requests, call the captured Next.js handler
   console.log('🚀 About to initialize Socket.IO server...');
   initializeSocketServer(httpServer);
   console.log('✅ Socket.IO initialization complete');
@@ -51,7 +59,7 @@ app.prepare().then(() => {
     const displayHost = hostname === '0.0.0.0' ? 'localhost' : hostname;
     console.log(`> Ready on http://${displayHost}:${port}`);
     console.log(`> Environment: ${dev ? 'development' : 'production'}`);
-    console.log(`> Socket.IO: ${dev ? 'http://localhost:3001' : 'enabled on same port'}`);
+    console.log(`> Socket.IO: enabled on same port (path: /api/socket/io)`);
 
     // Start blockchain sync after server is fully ready
     // This ensures Socket.IO is listening before broadcasts start
