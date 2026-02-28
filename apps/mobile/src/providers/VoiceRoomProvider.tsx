@@ -18,6 +18,7 @@ import { mediaDevices } from 'react-native-webrtc';
 import { router } from 'expo-router';
 import { apiUrl, getSocketUrl } from '@pnl/shared/utils';
 import { VOICE_SERVER_URL } from '../config/init';
+import { useLiveActivity } from '../hooks/useLiveActivity';
 
 export interface VoiceParticipant {
   peerId: string;
@@ -105,6 +106,8 @@ export function useVoiceRoomContextSafe() {
 }
 
 export function VoiceRoomProvider({ children }: { children: ReactNode }) {
+  const { startActivity, updateActivity, endActivity } = useLiveActivity();
+
   // Connection state
   const [isConnected, setIsConnected] = useState(false);
   const [isConnecting, setIsConnecting] = useState(false);
@@ -181,6 +184,9 @@ export function VoiceRoomProvider({ children }: { children: ReactNode }) {
   const cleanup = useCallback((intentional = true) => {
     if (intentional) shouldReconnectRef.current = false;
 
+    // End Live Activity on Dynamic Island
+    endActivity();
+
     // Notify main socket about leaving voice room
     if (marketAddress && mainSocketRef.current?.connected) {
       try { mainSocketRef.current.emit('voice:left', { marketAddress }); } catch {}
@@ -244,7 +250,7 @@ export function VoiceRoomProvider({ children }: { children: ReactNode }) {
         pendingJoinRef.current = null;
       }
     }
-  }, []);
+  }, [endActivity]);
 
   const consumeProducer = useCallback(async (producerId: string, peerId: string) => {
     if (!socketRef.current || !deviceRef.current || !recvTransportRef.current) return;
@@ -499,6 +505,10 @@ export function VoiceRoomProvider({ children }: { children: ReactNode }) {
         setIsReconnecting(false);
         setReconnectAttempts(0);
 
+        // Start Live Activity on Dynamic Island
+        const symbol = name.replace(/\s+/g, '').substring(0, 6).toUpperCase();
+        startActivity(pendingJoinRef.current?.marketAddress || addr, name, symbol);
+
         // Notify main socket about voice activity
         try { getMainSocket().emit('voice:joined', { marketAddress: addr }); } catch {}
 
@@ -518,7 +528,7 @@ export function VoiceRoomProvider({ children }: { children: ReactNode }) {
         pendingJoinRef.current = null;
       }
     },
-    [isConnected, isConnecting, cleanup, consumeProducer, reconnectAttempts, marketId, marketAddress, walletAddress, marketName, founderWallet],
+    [isConnected, isConnecting, cleanup, consumeProducer, reconnectAttempts, marketId, marketAddress, walletAddress, marketName, founderWallet, startActivity],
   );
 
   // Public join
@@ -711,6 +721,13 @@ export function VoiceRoomProvider({ children }: { children: ReactNode }) {
       mainSocketRef.current = null;
     };
   }, [cleanup]);
+
+  // Update Live Activity when voice room state changes
+  useEffect(() => {
+    if (!isConnected) return;
+    const activeSpeaker = participants.find((p) => p.isSpeaking);
+    updateActivity(participants.length, isMuted, activeSpeaker?.displayName);
+  }, [isConnected, participants, isMuted, updateActivity]);
 
   const value: VoiceRoomContextType = {
     isConnected,

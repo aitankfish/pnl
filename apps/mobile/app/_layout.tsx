@@ -7,8 +7,9 @@ import '../src/config/init'; // Must be first - polyfills + env config
 
 import { useEffect } from 'react';
 import { StatusBar } from 'expo-status-bar';
-import { Stack } from 'expo-router';
+import { Stack, usePathname, useLocalSearchParams } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
+import * as Linking from 'expo-linking';
 import { SWRConfig } from 'swr';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { PrivyProvider, PrivyElements } from '@privy-io/expo';
@@ -16,7 +17,7 @@ import { NetworkProvider } from '@pnl/shared/contexts';
 import { swrConfig } from '@pnl/shared/services';
 import { PRIVY_APP_ID } from '../src/config/init';
 import { AuthProvider } from '../src/providers/AuthProvider';
-import { VoiceRoomProvider } from '../src/providers/VoiceRoomProvider';
+import { VoiceRoomProvider, useVoiceRoomContextSafe } from '../src/providers/VoiceRoomProvider';
 import { StarField } from '../src/components';
 import { MiniVoiceBar } from '../src/components/community';
 import { colors } from '../src/theme';
@@ -24,9 +25,34 @@ import { colors } from '../src/theme';
 SplashScreen.preventAutoHideAsync();
 
 function AppContent() {
+  const pathname = usePathname();
+  const params = useLocalSearchParams<{ id?: string }>();
+  const voiceRoom = useVoiceRoomContextSafe();
+
+  // Extract market ID when on a market detail page
+  const currentMarketId = pathname?.startsWith('/market/') ? params.id ?? null : null;
+
   useEffect(() => {
     SplashScreen.hideAsync();
   }, []);
+
+  // Handle pnl://voice/leave deep link from Dynamic Island
+  useEffect(() => {
+    const subscription = Linking.addEventListener('url', ({ url }) => {
+      if (url === 'pnl://voice/leave') {
+        voiceRoom?.leave();
+      }
+    });
+
+    // Check initial URL (app opened via deep link)
+    Linking.getInitialURL().then((url) => {
+      if (url === 'pnl://voice/leave') {
+        voiceRoom?.leave();
+      }
+    });
+
+    return () => subscription.remove();
+  }, [voiceRoom]);
 
   return (
     <StarField>
@@ -54,6 +80,7 @@ function AppContent() {
           }}
         />
       </Stack>
+      <MiniVoiceBar currentMarketId={currentMarketId} />
     </StarField>
   );
 }
@@ -68,7 +95,6 @@ export default function RootLayout() {
             <AuthProvider>
               <VoiceRoomProvider>
                 <AppContent />
-                <MiniVoiceBar />
               </VoiceRoomProvider>
             </AuthProvider>
           </NetworkProvider>
