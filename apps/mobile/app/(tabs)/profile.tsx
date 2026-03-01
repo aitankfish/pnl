@@ -13,6 +13,7 @@ import {
   Image,
   TextInput,
   ActivityIndicator,
+  Linking,
 } from 'react-native';
 import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
@@ -20,6 +21,7 @@ import * as Clipboard from 'expo-clipboard';
 import * as Haptics from 'expo-haptics';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import * as WebBrowser from 'expo-web-browser';
 import { useAuth } from '../../src/providers/AuthProvider';
 import { useProfile, resolveAvatarUrl } from '../../src/hooks/useProfile';
 import { usePositions } from '../../src/hooks/usePositions';
@@ -376,6 +378,52 @@ export default function ProfileScreen() {
           <SettingsRow icon="help-circle-outline" label="Help & Support" />
           <SettingsRow icon="information-circle-outline" label="About PNL" />
         </View>
+
+        {/* Footer links — matches web footer */}
+        <View style={styles.footerSection}>
+          <Text style={styles.footerTagline}>launch your idea</Text>
+
+          <View style={styles.footerIcons}>
+            <FooterIcon
+              icon="document-text"
+              color="#60a5fa"
+              label="Whitepaper"
+              onPress={() => router.push('/whitepaper')}
+            />
+            <FooterIcon
+              icon="lock-closed"
+              color="#fbbf24"
+              label="Terms"
+              onPress={() => WebBrowser.openBrowserAsync('https://pnl.market/terms')}
+            />
+            <FooterIcon
+              icon="shield-checkmark"
+              color="#34d399"
+              label="Privacy"
+              onPress={() => WebBrowser.openBrowserAsync('https://pnl.market/privacy')}
+            />
+            <FooterIcon
+              icon="help-circle"
+              color="#22d3ee"
+              label="How to Buy"
+              onPress={() => WebBrowser.openBrowserAsync('https://pnl.market/how-to-buy')}
+            />
+            <FooterIcon
+              icon="logo-twitter"
+              color="#f9fafb"
+              label="X"
+              onPress={() => Linking.openURL('https://x.com/pnldotmarket')}
+            />
+            <FooterIcon
+              icon="logo-discord"
+              color="#818cf8"
+              label="Discord"
+              onPress={() => Linking.openURL('https://discord.gg/38pkg4vm')}
+            />
+          </View>
+
+          <Text style={styles.footerCopy}>© 2025 PNL</Text>
+        </View>
       </ScrollView>
 
       {/* Onboarding / Edit Profile modal */}
@@ -408,6 +456,25 @@ function SettingsRow({
       <Ionicons name={icon} size={20} color={colors.textSecondary} />
       <Text style={styles.settingsLabel}>{label}</Text>
       <Ionicons name="chevron-forward" size={18} color={colors.textMuted} />
+    </PressableScale>
+  );
+}
+
+function FooterIcon({
+  icon,
+  color,
+  label,
+  onPress,
+}: {
+  icon: keyof typeof Ionicons.glyphMap;
+  color: string;
+  label: string;
+  onPress: () => void;
+}) {
+  return (
+    <PressableScale onPress={onPress} style={styles.footerIconBtn}>
+      <Ionicons name={icon} size={18} color={color} />
+      <Text style={styles.footerIconLabel}>{label}</Text>
     </PressableScale>
   );
 }
@@ -721,5 +788,38 @@ const styles = StyleSheet.create({
     ...typography.body,
     color: colors.textPrimary,
     flex: 1,
+  },
+  // Footer
+  footerSection: {
+    alignItems: 'center',
+    marginTop: spacing.lg,
+    paddingTop: spacing.lg,
+    borderTopWidth: 1,
+    borderTopColor: 'rgba(255, 255, 255, 0.05)',
+  },
+  footerTagline: {
+    ...typography.caption,
+    color: colors.textMuted,
+    marginBottom: spacing.md,
+  },
+  footerIcons: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    justifyContent: 'center',
+    gap: spacing.md,
+  },
+  footerIconBtn: {
+    alignItems: 'center',
+    gap: 4,
+    minWidth: 48,
+  },
+  footerIconLabel: {
+    fontSize: 10,
+    color: colors.textMuted,
+  },
+  footerCopy: {
+    fontSize: 11,
+    color: colors.textMuted,
+    marginTop: spacing.md,
   },
 });
