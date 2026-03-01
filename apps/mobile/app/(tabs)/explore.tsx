@@ -361,7 +361,7 @@ const styles = StyleSheet.create({
     fontSize: 16,
   },
   listContent: {
-    paddingBottom: 160,
+    paddingBottom: spacing.lg,
   },
   sectionHeader: {
     paddingBottom: spacing.sm,

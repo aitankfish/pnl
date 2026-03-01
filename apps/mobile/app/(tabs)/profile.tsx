@@ -130,7 +130,7 @@ export default function ProfileScreen() {
         }
       />
 
-      <ScrollView contentContainerStyle={[styles.content, { paddingBottom: 100 + insets.bottom }]}>
+      <ScrollView contentContainerStyle={[styles.content, { paddingBottom: spacing.lg }]}>
         {/* Section 1: User Info */}
         {isAuthenticated ? (
           <View style={styles.userSection}>
@@ -369,14 +369,16 @@ export default function ProfileScreen() {
             />
           )}
           <SettingsRow icon="wallet-outline" label="Connected Wallets" />
-          <SettingsRow icon="notifications-outline" label="Notifications" />
           <SettingsRow
             icon="document-text-outline"
             label="Whitepaper"
             onPress={() => router.push('/whitepaper')}
           />
-          <SettingsRow icon="help-circle-outline" label="Help & Support" />
-          <SettingsRow icon="information-circle-outline" label="About PNL" />
+          <SettingsRow
+            icon="help-circle-outline"
+            label="Help & Support"
+            onPress={() => router.push('/help')}
+          />
         </View>
 
         {/* Footer links — matches web footer */}
@@ -384,12 +386,6 @@ export default function ProfileScreen() {
           <Text style={styles.footerTagline}>launch your idea</Text>
 
           <View style={styles.footerIcons}>
-            <FooterIcon
-              icon="document-text"
-              color="#60a5fa"
-              label="Whitepaper"
-              onPress={() => router.push('/whitepaper')}
-            />
             <FooterIcon
               icon="lock-closed"
               color="#fbbf24"
@@ -406,7 +402,7 @@ export default function ProfileScreen() {
               icon="help-circle"
               color="#22d3ee"
               label="How to Buy"
-              onPress={() => WebBrowser.openBrowserAsync('https://pnl.market/how-to-buy')}
+              onPress={() => router.push('/how-to-buy')}
             />
             <FooterIcon
               icon="logo-twitter"

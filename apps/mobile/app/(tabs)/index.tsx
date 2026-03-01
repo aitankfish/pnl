@@ -181,6 +181,7 @@ interface PitchVideoCardProps {
   height: number;
   isActive: boolean;
   voiceActive: boolean;
+  votingState?: { voteType: 'yes' | 'no' } | null;
   onVoteYes: () => void;
   onVoteNo: () => void;
   onPress: () => void;
@@ -191,10 +192,15 @@ function PitchVideoCard({
   height,
   isActive,
   voiceActive,
+  votingState,
   onVoteYes,
   onVoteNo,
   onPress,
 }: PitchVideoCardProps) {
+  const isActionable = market.isYesVoteEnabled || market.isNoVoteEnabled;
+  const isVotingYes = votingState?.voteType === 'yes';
+  const isVotingNo = votingState?.voteType === 'no';
+  const isVoting = !!votingState;
   const videoRef = useRef<Video>(null);
   const [isMuted, setIsMuted] = useState(true);
 
@@ -278,29 +284,64 @@ function PitchVideoCard({
           </Text>
         ) : null}
 
-        {/* Vote buttons */}
+        {/* Vote buttons — only when actionable */}
         <View style={styles.voteRow}>
-          <Pressable
-            style={[styles.voteBtn, styles.voteBtnYes]}
-            onPress={(e) => {
-              e.stopPropagation?.();
-              onVoteYes();
-            }}
-          >
-            <Ionicons name="trending-up" size={18} color="#fff" />
-            <Text style={styles.voteBtnText}>YES</Text>
-          </Pressable>
+          {isActionable && (
+            <>
+              <Pressable
+                style={[styles.voteBtn, (!market.isYesVoteEnabled || isVoting) && styles.voteBtnDisabled]}
+                disabled={isVoting || !market.isYesVoteEnabled}
+                onPress={(e) => {
+                  e.stopPropagation?.();
+                  onVoteYes();
+                }}
+              >
+                <LinearGradient
+                  colors={['#10b981', '#059669']}
+                  start={{ x: 0, y: 0 }}
+                  end={{ x: 1, y: 0 }}
+                  style={[
+                    styles.voteBtnGradient,
+                    (!market.isYesVoteEnabled || isVoting) && styles.voteGradientDisabled,
+                  ]}
+                >
+                  {isVotingYes ? (
+                    <ActivityIndicator size="small" color="#fff" />
+                  ) : (
+                    <>
+                      <Ionicons name="trending-up" size={16} color="#fff" />
+                      <Text style={styles.voteBtnText}>YES</Text>
+                    </>
+                  )}
+                </LinearGradient>
+              </Pressable>
 
-          <Pressable
-            style={[styles.voteBtn, styles.voteBtnNo]}
-            onPress={(e) => {
-              e.stopPropagation?.();
-              onVoteNo();
-            }}
-          >
-            <Ionicons name="trending-down" size={18} color="#fff" />
-            <Text style={styles.voteBtnText}>NO</Text>
-          </Pressable>
+              <Pressable
+                style={[styles.voteBtn, (!market.isNoVoteEnabled || isVoting) && styles.voteBtnDisabled]}
+                disabled={isVoting || !market.isNoVoteEnabled}
+                onPress={(e) => {
+                  e.stopPropagation?.();
+                  onVoteNo();
+                }}
+              >
+                <View
+                  style={[
+                    styles.noBtnInner,
+                    (!market.isNoVoteEnabled || isVoting) && styles.noBtnDisabled,
+                  ]}
+                >
+                  {isVotingNo ? (
+                    <ActivityIndicator size="small" color="#fff" />
+                  ) : (
+                    <>
+                      <Ionicons name="trending-down" size={16} color="#fff" />
+                      <Text style={styles.voteBtnText}>NO</Text>
+                    </>
+                  )}
+                </View>
+              </Pressable>
+            </>
+          )}
 
           <Pressable
             style={styles.detailBtn}
@@ -459,6 +500,10 @@ export default function FeedScreen() {
                   poolBalance: item.poolBalance ? Number(item.poolBalance) / 1e9 : undefined,
                   targetPool: item.targetPool ? Number(item.targetPool) : undefined,
                   endTime: item.expiryTime,
+                  isYesVoteEnabled: item.isYesVoteEnabled,
+                  isNoVoteEnabled: item.isNoVoteEnabled,
+                  status: item.status,
+                  displayStatus: item.displayStatus,
                 }}
                 height={cardHeight}
                 onVoteYes={() => handleVote(item, 'yes')}
@@ -624,6 +669,11 @@ const styles = StyleSheet.create({
   },
   voteBtn: {
     flex: 1,
+  },
+  voteBtnDisabled: {
+    opacity: 0.4,
+  },
+  voteBtnGradient: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
@@ -631,11 +681,22 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     borderRadius: 14,
   },
-  voteBtnYes: {
-    backgroundColor: 'rgba(34,197,94,0.8)',
+  voteGradientDisabled: {
+    opacity: 0.6,
   },
-  voteBtnNo: {
-    backgroundColor: 'rgba(239,68,68,0.8)',
+  noBtnInner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    paddingVertical: 12,
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.25)',
+    backgroundColor: 'rgba(255,255,255,0.08)',
+  },
+  noBtnDisabled: {
+    opacity: 0.6,
   },
   voteBtnText: {
     color: '#fff',

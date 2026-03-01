@@ -13,9 +13,21 @@ import { apiUrl } from '@pnl/shared/utils';
 import { useAuth } from '../../src/providers/AuthProvider';
 import { colors } from '../../src/theme';
 
-const TAB_BAR_BG = '#0b1228'; // Deep navy
+const TAB_BAR_BG = 'transparent';
 
 type TabIconName = keyof typeof Ionicons.glyphMap;
+
+function RingsIcon({ color, focused }: { color: string; focused: boolean }) {
+  return (
+    <View style={styles.ringsContainer}>
+      <View style={[styles.ringOuter, { borderColor: color, borderWidth: focused ? 2 : 1.5 }]}>
+        <View style={[styles.ringMiddle, { borderColor: color, borderWidth: focused ? 2 : 1.5 }]}>
+          <View style={[styles.ringInner, { borderColor: color, borderWidth: focused ? 2 : 1.5 }]} />
+        </View>
+      </View>
+    </View>
+  );
+}
 
 function TabBarIcon({
   name,
@@ -81,18 +93,14 @@ export default function TabLayout() {
         tabBarActiveTintColor: colors.primary,
         tabBarInactiveTintColor: 'rgba(148, 163, 184, 0.6)',
         tabBarStyle: {
-          position: 'absolute',
           backgroundColor: TAB_BAR_BG,
-          borderTopColor: 'rgba(99, 102, 241, 0.12)',
+          borderTopColor: 'rgba(255, 255, 255, 0.06)',
           borderTopWidth: 1,
           height: tabBarHeight,
           paddingBottom: Platform.OS === 'ios' ? insets.bottom : 8,
           paddingTop: 8,
           elevation: 0,
-          shadowColor: '#000',
-          shadowOffset: { width: 0, height: -4 },
-          shadowOpacity: 0.3,
-          shadowRadius: 12,
+          shadowOpacity: 0,
         },
         tabBarLabelStyle: {
           fontSize: 11,
@@ -105,9 +113,12 @@ export default function TabLayout() {
       <Tabs.Screen
         name="index"
         options={{
-          title: 'Feed',
+          title: 'Predict',
           tabBarIcon: ({ color, focused }) => (
-            <TabBarIcon name="flame-outline" focusedName="flame" color={color} focused={focused} />
+            <View style={styles.iconContainer}>
+              <RingsIcon color={color} focused={focused} />
+              {focused && <View style={styles.activeIndicator} />}
+            </View>
           ),
         }}
       />
@@ -125,7 +136,7 @@ export default function TabLayout() {
         options={{
           title: 'Launched',
           tabBarIcon: ({ color, focused }) => (
-            <TabBarIcon name="rocket-outline" focusedName="rocket" color={color} focused={focused} />
+            <TabBarIcon name="sparkles-outline" focusedName="sparkles" color={color} focused={focused} />
           ),
         }}
       />
@@ -173,6 +184,31 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.8,
     shadowRadius: 4,
   },
+  ringsContainer: {
+    width: 24,
+    height: 24,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  ringOuter: {
+    width: 22,
+    height: 22,
+    borderRadius: 11,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  ringMiddle: {
+    width: 14,
+    height: 14,
+    borderRadius: 7,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  ringInner: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+  },
   badge: {
     position: 'absolute',
     top: -4,
@@ -185,7 +221,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     paddingHorizontal: 4,
     borderWidth: 2,
-    borderColor: TAB_BAR_BG,
+    borderColor: '#000',
   },
   badgeText: {
     color: '#fff',

@@ -401,7 +401,7 @@ export default function NotificationsScreen() {
           renderItem={({ item }) => (
             <NotificationRow item={item} onMarkRead={markAsRead} onDelete={deleteNotification} />
           )}
-          contentContainerStyle={{ paddingBottom: 100 }}
+          contentContainerStyle={{ paddingBottom: 16 }}
           refreshControl={
             <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.primary} />
           }

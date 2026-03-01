@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, Text, StyleSheet, Dimensions } from 'react-native';
+import { View, Text, StyleSheet, Dimensions, ActivityIndicator } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Image } from 'expo-image';
 import { Ionicons } from '@expo/vector-icons';
@@ -8,7 +8,7 @@ import { PressableScale } from './PressableScale';
 import { PoolProgress } from './PoolProgress';
 import { CategoryPill } from './CategoryPill';
 import { TimeCountdown } from './TimeCountdown';
-import { colors, typography, spacing } from '../theme';
+import { colors, typography, spacing, borderRadius } from '../theme';
 
 const { height: SCREEN_HEIGHT } = Dimensions.get('window');
 
@@ -24,15 +24,24 @@ interface FeedCardProps {
     poolBalance?: number;
     targetPool?: number;
     endTime?: string;
+    isYesVoteEnabled?: boolean;
+    isNoVoteEnabled?: boolean;
+    status?: string;
+    displayStatus?: string;
   };
   height: number;
+  votingState?: { voteType: 'yes' | 'no' } | null;
   onVoteYes: () => void;
   onVoteNo: () => void;
   onPress: () => void;
 }
 
-export function FeedCard({ market, height, onVoteYes, onVoteNo, onPress }: FeedCardProps) {
+export function FeedCard({ market, height, votingState, onVoteYes, onVoteNo, onPress }: FeedCardProps) {
   const insets = useSafeAreaInsets();
+  const isActionable = market.isYesVoteEnabled || market.isNoVoteEnabled;
+  const isVotingYes = votingState?.voteType === 'yes';
+  const isVotingNo = votingState?.voteType === 'no';
+  const isVoting = !!votingState;
 
   return (
     <PressableScale
@@ -108,15 +117,62 @@ export function FeedCard({ market, height, onVoteYes, onVoteNo, onPress }: FeedC
           />
         )}
 
-        {/* Vote buttons */}
-        <View style={styles.voteRow}>
-          <PressableScale onPress={onVoteYes} style={StyleSheet.flatten([styles.voteButton, styles.yesButton])}>
-            <Text style={styles.voteButtonText}>YES</Text>
-          </PressableScale>
-          <PressableScale onPress={onVoteNo} style={StyleSheet.flatten([styles.voteButton, styles.noButton])}>
-            <Text style={styles.voteButtonText}>NO</Text>
-          </PressableScale>
-        </View>
+        {/* Vote buttons — only when actionable */}
+        {isActionable && (
+          <View style={styles.voteRow}>
+            <PressableScale
+              onPress={onVoteYes}
+              disabled={isVoting || !market.isYesVoteEnabled}
+              style={[
+                styles.voteButton,
+                (!market.isYesVoteEnabled || isVoting) && styles.voteButtonDisabled,
+              ]}
+            >
+              <LinearGradient
+                colors={['#10b981', '#059669']}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 0 }}
+                style={[
+                  styles.voteButtonGradient,
+                  (!market.isYesVoteEnabled || isVoting) && styles.voteGradientDisabled,
+                ]}
+              >
+                {isVotingYes ? (
+                  <ActivityIndicator size="small" color="#fff" />
+                ) : (
+                  <>
+                    <Ionicons name="trending-up" size={16} color="#fff" />
+                    <Text style={styles.voteButtonText}>YES</Text>
+                  </>
+                )}
+              </LinearGradient>
+            </PressableScale>
+            <PressableScale
+              onPress={onVoteNo}
+              disabled={isVoting || !market.isNoVoteEnabled}
+              style={[
+                styles.voteButton,
+                (!market.isNoVoteEnabled || isVoting) && styles.voteButtonDisabled,
+              ]}
+            >
+              <View
+                style={[
+                  styles.noButtonInner,
+                  (!market.isNoVoteEnabled || isVoting) && styles.noButtonDisabled,
+                ]}
+              >
+                {isVotingNo ? (
+                  <ActivityIndicator size="small" color="#fff" />
+                ) : (
+                  <>
+                    <Ionicons name="trending-down" size={16} color="#fff" />
+                    <Text style={styles.voteButtonText}>NO</Text>
+                  </>
+                )}
+              </View>
+            </PressableScale>
+          </View>
+        )}
       </View>
     </PressableScale>
   );
@@ -188,21 +244,39 @@ const styles = StyleSheet.create({
   },
   voteButton: {
     flex: 1,
-    paddingVertical: 16,
-    borderRadius: 16,
+  },
+  voteButtonDisabled: {
+    opacity: 0.4,
+  },
+  voteButtonGradient: {
+    flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
+    gap: 6,
+    paddingVertical: 14,
+    borderRadius: 14,
   },
-  yesButton: {
-    backgroundColor: colors.success,
-  },
-  noButton: {
-    backgroundColor: colors.danger,
+  voteGradientDisabled: {
+    opacity: 0.6,
   },
   voteButtonText: {
-    fontSize: 18,
+    fontSize: 16,
     fontWeight: '800',
     color: '#fff',
-    letterSpacing: 1,
+    letterSpacing: 0.5,
+  },
+  noButtonInner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    paddingVertical: 14,
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.25)',
+    backgroundColor: 'rgba(255,255,255,0.08)',
+  },
+  noButtonDisabled: {
+    opacity: 0.6,
   },
 });
