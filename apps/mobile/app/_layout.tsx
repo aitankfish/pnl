@@ -73,6 +73,12 @@ function AppContent() {
           }}
         />
         <Stack.Screen
+          name="profile/[wallet]"
+          options={{
+            animation: 'slide_from_right',
+          }}
+        />
+        <Stack.Screen
           name="login"
           options={{
             presentation: 'modal',

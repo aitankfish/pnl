@@ -22,3 +22,7 @@ export { LockedCard } from './LockedCard';
 export { UserPosition } from './UserPosition';
 export { MarketStatusCard } from './MarketStatusCard';
 export { FavoriteButton } from './FavoriteButton';
+export { StatusTabs } from './StatusTabs';
+export { CategoryChip } from './CategoryChip';
+export { CategorySheet } from './CategorySheet';
+export { SearchDropdown } from './SearchDropdown';
