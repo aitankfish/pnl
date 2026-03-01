@@ -14,12 +14,12 @@ export const PRIVY_APP_ID = 'cmgn1ettr01tal10dchxxjx2w';
 // For now, configure for the deployed web backend
 // Physical device: use Mac's LAN IP. Simulator: localhost works too.
 const API_BASE_URL = __DEV__
-  ? 'http://10.0.0.72:3000'
+  ? 'http://localhost:3000'
   : 'https://pnl.market'; // Update with actual production URL
 
 // Voice server URL (separate from the main API)
 export const VOICE_SERVER_URL = __DEV__
-  ? 'http://10.0.0.72:3002'
+  ? 'http://localhost:3002'
   : 'https://voice.pnl.market';
 
 setEnvConfig({

@@ -2,7 +2,7 @@ import { useCallback } from 'react';
 import { View, Text, StyleSheet, Pressable, Alert, ActionSheetIOS, Platform } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
-import type { IChatMessage } from '@pnl/shared/hooks/useChat';
+import type { IChatMessage } from '@pnl/shared/hooks';
 import { colors, spacing, typography, borderRadius } from '../../theme';
 
 const REACTION_EMOJIS = ['🚀', '💎', '🔥', '👀', '❤️'] as const;

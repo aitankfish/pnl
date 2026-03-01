@@ -14,9 +14,10 @@ interface FavoriteButtonProps {
   marketId: string;
   walletAddress: string | null;
   initialCount?: number;
+  variant?: 'header' | 'floating';
 }
 
-export function FavoriteButton({ marketId, walletAddress, initialCount = 0 }: FavoriteButtonProps) {
+export function FavoriteButton({ marketId, walletAddress, initialCount = 0, variant = 'header' }: FavoriteButtonProps) {
   const [isFavorite, setIsFavorite] = useState(false);
   const [count, setCount] = useState(initialCount);
   const [isLoading, setIsLoading] = useState(false);
@@ -75,15 +76,21 @@ export function FavoriteButton({ marketId, walletAddress, initialCount = 0 }: Fa
     }
   }, [walletAddress, marketId, isFavorite, isLoading]);
 
+  const isFloating = variant === 'floating';
+
   return (
-    <PressableScale onPress={toggleFavorite} style={styles.container} disabled={!walletAddress}>
+    <PressableScale
+      onPress={toggleFavorite}
+      style={isFloating ? styles.floatingContainer : styles.container}
+      disabled={!walletAddress}
+    >
       <Ionicons
         name={isFavorite ? 'heart' : 'heart-outline'}
-        size={20}
-        color={isFavorite ? colors.danger : '#fff'}
+        size={isFloating ? 22 : 20}
+        color={isFavorite ? colors.danger : 'rgba(255,255,255,0.85)'}
       />
       {count > 0 && (
-        <Text style={styles.count}>{count}</Text>
+        <Text style={isFloating ? styles.floatingCount : styles.count}>{count}</Text>
       )}
     </PressableScale>
   );
@@ -100,8 +107,18 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     gap: 2,
   },
+  floatingContainer: {
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   count: {
     ...typography.micro,
     color: '#fff',
+  },
+  floatingCount: {
+    ...typography.micro,
+    color: 'rgba(255,255,255,0.6)',
+    fontSize: 10,
+    marginTop: 1,
   },
 });

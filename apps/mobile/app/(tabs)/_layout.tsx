@@ -1,6 +1,6 @@
 /**
  * Tab Navigation Layout
- * 4 tabs: Feed, Explore, Notifications, Profile
+ * 5 tabs: Feed, Explore, Launched, Alerts, Profile
  * Dark navy tab bar with cosmic theme
  */
 
@@ -117,6 +117,15 @@ export default function TabLayout() {
           title: 'Explore',
           tabBarIcon: ({ color, focused }) => (
             <TabBarIcon name="search-outline" focusedName="search" color={color} focused={focused} />
+          ),
+        }}
+      />
+      <Tabs.Screen
+        name="launched"
+        options={{
+          title: 'Launched',
+          tabBarIcon: ({ color, focused }) => (
+            <TabBarIcon name="rocket-outline" focusedName="rocket" color={color} focused={focused} />
           ),
         }}
       />

@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { View, Text, StyleSheet, Pressable } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import type { IChatMessage } from '@pnl/shared/hooks/useChat';
+import type { IChatMessage } from '@pnl/shared/hooks';
 import { colors, spacing, typography, borderRadius } from '../../theme';
 
 interface PinnedMessageBannerProps {

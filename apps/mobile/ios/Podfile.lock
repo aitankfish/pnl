@@ -23,6 +23,9 @@ PODS:
     - Yoga
   - EXApplication (7.0.8):
     - ExpoModulesCore
+  - EXAV (16.0.8):
+    - ExpoModulesCore
+    - ReactCommon/turbomodule/core
   - EXConstants (18.0.13):
     - ExpoModulesCore
   - Expo (54.0.33):
@@ -2159,6 +2162,7 @@ PODS:
 DEPENDENCIES:
   - "AsyncStorage (from `../node_modules/@react-native-async-storage/async-storage`)"
   - EXApplication (from `../../../node_modules/expo-application/ios`)
+  - EXAV (from `../../../node_modules/expo-av/ios`)
   - EXConstants (from `../../../node_modules/expo-constants/ios`)
   - Expo (from `../../../node_modules/expo`)
   - ExpoAppleAuthentication (from `../../../node_modules/expo-apple-authentication/ios`)
@@ -2275,6 +2279,8 @@ EXTERNAL SOURCES:
     :path: "../node_modules/@react-native-async-storage/async-storage"
   EXApplication:
     :path: "../../../node_modules/expo-application/ios"
+  EXAV:
+    :path: "../../../node_modules/expo-av/ios"
   EXConstants:
     :path: "../../../node_modules/expo-constants/ios"
   Expo:
@@ -2476,6 +2482,7 @@ EXTERNAL SOURCES:
 SPEC CHECKSUMS:
   AsyncStorage: b7e9d8feded2a33e90a600565c35fcf9fcc37543
   EXApplication: 1e98d4b1dccdf30627f92917f4b2c5a53c330e5f
+  EXAV: b60fcf142fae6684d295bc28cd7cfcb3335570ea
   EXConstants: fce59a631a06c4151602843667f7cfe35f81e271
   Expo: aadbcc8c6c14ff3105a9154f1683cb1424ff0d2a
   ExpoAppleAuthentication: 86e97b24bd6687c156c55bb448f570bc29081ace

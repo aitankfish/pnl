@@ -22,10 +22,12 @@ import {
   NativeScrollEvent,
   Linking,
   Alert,
+  Pressable,
 } from 'react-native';
 import { useLocalSearchParams, router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { Image } from 'expo-image';
+import { Video, ResizeMode, AVPlaybackStatus } from 'expo-av';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as Haptics from 'expo-haptics';
@@ -37,6 +39,7 @@ import { useMarket, useNetwork } from '@pnl/shared/hooks';
 import { fetcher } from '@pnl/shared/services';
 import { apiUrl } from '@pnl/shared/utils';
 import { useAuth } from '../../src/providers/AuthProvider';
+import { useTokenStats } from '../../src/hooks/useTokenStats';
 import {
   ScreenHeader,
   PressableScale,
@@ -63,6 +66,13 @@ const TABS = ['Overview', 'AI Analysis', 'Activity', 'Community'] as const;
 type TabName = (typeof TABS)[number];
 type VoteDirection = 'yes' | 'no';
 
+const TAB_ICONS: Record<TabName, { outline: keyof typeof Ionicons.glyphMap; filled: keyof typeof Ionicons.glyphMap; shortLabel: string }> = {
+  'Overview':    { outline: 'layers-outline',      filled: 'layers',      shortLabel: 'Info' },
+  'AI Analysis': { outline: 'sparkles-outline',    filled: 'sparkles',    shortLabel: 'AI' },
+  'Activity':    { outline: 'pulse-outline',       filled: 'pulse',       shortLabel: 'Activity' },
+  'Community':   { outline: 'chatbubbles-outline', filled: 'chatbubbles', shortLabel: 'Chat' },
+};
+
 // ── Helpers ────────────────────────────────────────────────────────────────
 
 function truncateAddress(addr?: string): string {
@@ -82,6 +92,16 @@ function formatLabel(value: string): string {
   };
   if (map[value.toLowerCase()]) return map[value.toLowerCase()];
   return value.split(' ').map(w => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase()).join(' ');
+}
+
+function isDirectVideoUrl(url?: string): boolean {
+  if (!url) return false;
+  return /\.(mp4|mov|webm|m3u8)(\?|$)/i.test(url);
+}
+
+function isEmbeddableVideo(url?: string): boolean {
+  if (!url) return false;
+  return /youtube\.com|youtu\.be|vimeo\.com/i.test(url);
 }
 
 // ── Screen ─────────────────────────────────────────────────────────────────
@@ -146,6 +166,26 @@ export default function MarketDetailScreen() {
     opacity: interpolate(scrollY.value, [HERO_HEIGHT - 120, HERO_HEIGHT - 60], [0, 1], Extrapolation.CLAMP),
   }));
 
+  // ── Hero video ──
+  const videoRef = useRef<Video>(null);
+  const videoUrl = (market as any)?.metadata?.videoUrl;
+  const hasDirectVideo = isDirectVideoUrl(videoUrl);
+  const hasYouTubeVideo = isEmbeddableVideo(videoUrl);
+
+  const handleVideoTap = useCallback(async () => {
+    if (!videoRef.current) return;
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    await videoRef.current.setIsMutedAsync(false);
+    await videoRef.current.presentFullscreenPlayer();
+  }, []);
+
+  const handleFullscreenUpdate = useCallback(async (event: { fullscreenUpdate: number }) => {
+    // Re-mute when exiting fullscreen (3 = PLAYER_DID_DISMISS)
+    if (event.fullscreenUpdate === 3 && videoRef.current) {
+      await videoRef.current.setIsMutedAsync(true);
+    }
+  }, []);
+
   // ── Vote sheet ──
   const sheetRef = useRef<GorhomBottomSheet>(null);
   const [voteDirection, setVoteDirection] = useState<VoteDirection | null>(null);
@@ -163,6 +203,13 @@ export default function MarketDetailScreen() {
     if (!market) return undefined;
     return { totalYesVotes: market.yesVotes ?? 0, totalNoVotes: market.noVotes ?? 0, yesPercentage: yesPercent, totalParticipants };
   }, [market, yesPercent, totalParticipants]);
+
+  // ── Launched token detection ──
+  const tokenMintAddress = (market as any)?.tokenMint || (market as any)?.pumpFunTokenAddress || null;
+  const isTokenLaunched = isResolved && market?.resolution === 'YesWins' && !!tokenMintAddress;
+  const tokenAddresses = useMemo(() => tokenMintAddress ? [tokenMintAddress] : [], [tokenMintAddress]);
+  const { stats: tokenStats } = useTokenStats(tokenAddresses);
+  const liveStats = tokenMintAddress ? tokenStats.get(tokenMintAddress) : null;
 
   // ── Handlers ──
 
@@ -261,7 +308,7 @@ export default function MarketDetailScreen() {
 
   return (
     <View style={styles.container}>
-      {/* Header */}
+      {/* Header — back button only, actions moved to floating bar */}
       <ScreenHeader
         transparent
         left={
@@ -269,49 +316,65 @@ export default function MarketDetailScreen() {
             <Ionicons name="chevron-back" size={24} color="#fff" />
           </PressableScale>
         }
-        right={
-          <View style={styles.headerRight}>
-            <FavoriteButton
-              marketId={market.id}
-              walletAddress={walletAddress}
-              initialCount={(market as any).favoriteCount ?? 0}
-            />
-            <PressableScale onPress={handleShare} style={styles.headerButton}>
-              <Ionicons name="share-outline" size={22} color="#fff" />
-            </PressableScale>
-          </View>
-        }
       />
       <Animated.View style={[styles.headerBg, { height: insets.top + 52 }, headerBgStyle]} />
 
-      {/* Tabs — always visible, outside ScrollView so Community tab can manage its own scroll */}
-      <View style={styles.tabBar}>
-        {TABS.map(tab => (
-          <PressableScale key={tab} onPress={() => setActiveTab(tab)} haptic={false} style={[styles.tab, activeTab === tab && styles.tabActive]}>
-            <Text style={[styles.tabText, activeTab === tab && styles.tabTextActive]}>{tab}</Text>
-          </PressableScale>
-        ))}
-      </View>
-
       {/* Community tab renders outside ScrollView (has its own FlatList) */}
       {activeTab === 'Community' ? (
-        <CommunityHub
-          marketId={market.id}
-          marketAddress={market.marketAddress}
-          marketName={market.name}
-          walletAddress={walletAddress}
-          founderWallet={(market as any).founderWallet}
-          hasPosition={!!positionData}
-        />
+        <View style={{ flex: 1, marginTop: insets.top + 52 }}>
+          <CommunityHub
+            marketId={market.id}
+            marketAddress={market.marketAddress}
+            marketName={market.name}
+            walletAddress={walletAddress}
+            founderWallet={(market as any).founderWallet}
+            hasPosition={!!positionData}
+          />
+        </View>
       ) : (
         <ScrollView
           onScroll={handleScroll}
           scrollEventThrottle={16}
           contentContainerStyle={[styles.scrollContent, { paddingBottom: 100 + insets.bottom }]}
         >
-          {/* Parallax hero */}
+          {/* Parallax hero — video or image */}
           <Animated.View style={[styles.heroContainer, heroStyle]}>
-            {market.projectImageUrl ? (
+            {hasDirectVideo ? (
+              <>
+                <Pressable onPress={handleVideoTap} style={StyleSheet.absoluteFill}>
+                  <Video
+                    ref={videoRef}
+                    source={{ uri: videoUrl }}
+                    style={StyleSheet.absoluteFill}
+                    resizeMode={ResizeMode.COVER}
+                    shouldPlay
+                    isLooping
+                    isMuted
+                    onFullscreenUpdate={handleFullscreenUpdate as any}
+                  />
+                </Pressable>
+                {/* Play hint overlay */}
+                <View style={styles.videoPlayHint} pointerEvents="none">
+                  <View style={styles.videoPlayBtn}>
+                    <Ionicons name="volume-mute" size={16} color="#fff" />
+                  </View>
+                </View>
+              </>
+            ) : hasYouTubeVideo ? (
+              <Pressable onPress={() => Linking.openURL(videoUrl)} style={StyleSheet.absoluteFill}>
+                {market.projectImageUrl ? (
+                  <Image source={{ uri: market.projectImageUrl }} style={StyleSheet.absoluteFill} contentFit="cover" transition={300} />
+                ) : (
+                  <LinearGradient colors={[colors.gradientStart, colors.background]} style={StyleSheet.absoluteFill} />
+                )}
+                {/* YouTube play overlay — centered */}
+                <View style={styles.videoPlayCenter} pointerEvents="none">
+                  <View style={styles.videoPlayBtnLg}>
+                    <Ionicons name="play" size={28} color="#fff" />
+                  </View>
+                </View>
+              </Pressable>
+            ) : market.projectImageUrl ? (
               <Image source={{ uri: market.projectImageUrl }} style={StyleSheet.absoluteFill} contentFit="cover" transition={300} />
             ) : (
               <LinearGradient colors={[colors.gradientStart, colors.background]} style={StyleSheet.absoluteFill} />
@@ -339,10 +402,66 @@ export default function MarketDetailScreen() {
               </View>
             )}
 
-            {market.description && (
-              <Text style={styles.description} numberOfLines={4}>{market.description}</Text>
-            )}
           </View>
+
+          {/* Live token stats — only when launched */}
+          {isTokenLaunched && (
+            <View style={styles.section}>
+              <GlassCard style={styles.tokenStatsCard}>
+                <View style={styles.tokenStatsHeader}>
+                  <Ionicons name="rocket" size={14} color="#22c55e" />
+                  <Text style={styles.tokenStatsTitle}>Token Live</Text>
+                </View>
+                <View style={styles.tokenStatsGrid}>
+                  <View style={styles.tokenStatCell}>
+                    <Text style={styles.tokenStatLabel}>Price</Text>
+                    <Text style={styles.tokenStatValue}>
+                      {liveStats?.price != null
+                        ? liveStats.price < 0.000001 ? `$${liveStats.price.toExponential(2)}`
+                        : liveStats.price < 0.01 ? `$${liveStats.price.toFixed(6)}`
+                        : liveStats.price < 1 ? `$${liveStats.price.toFixed(4)}`
+                        : `$${liveStats.price.toFixed(2)}`
+                        : '-'}
+                    </Text>
+                  </View>
+                  <View style={styles.tokenStatCell}>
+                    <Text style={styles.tokenStatLabel}>24h</Text>
+                    <Text style={[
+                      styles.tokenStatValue,
+                      liveStats?.priceChange24h != null && {
+                        color: liveStats.priceChange24h >= 0 ? '#10b981' : '#ef4444',
+                      },
+                    ]}>
+                      {liveStats?.priceChange24h != null
+                        ? `${liveStats.priceChange24h >= 0 ? '+' : ''}${liveStats.priceChange24h.toFixed(1)}%`
+                        : '-'}
+                    </Text>
+                  </View>
+                  <View style={styles.tokenStatCell}>
+                    <Text style={styles.tokenStatLabel}>MCap</Text>
+                    <Text style={styles.tokenStatValue}>
+                      {liveStats?.marketCap != null
+                        ? liveStats.marketCap >= 1e9 ? `$${(liveStats.marketCap / 1e9).toFixed(2)}B`
+                        : liveStats.marketCap >= 1e6 ? `$${(liveStats.marketCap / 1e6).toFixed(2)}M`
+                        : liveStats.marketCap >= 1e3 ? `$${(liveStats.marketCap / 1e3).toFixed(2)}K`
+                        : `$${liveStats.marketCap.toFixed(2)}`
+                        : '-'}
+                    </Text>
+                  </View>
+                  <View style={styles.tokenStatCell}>
+                    <Text style={styles.tokenStatLabel}>Holders</Text>
+                    <Text style={styles.tokenStatValue}>
+                      {liveStats?.holders != null
+                        ? liveStats.holders >= 1e6 ? `${(liveStats.holders / 1e6).toFixed(1)}M`
+                        : liveStats.holders >= 1e3 ? `${(liveStats.holders / 1e3).toFixed(1)}K`
+                        : liveStats.holders.toLocaleString()
+                        : '-'}
+                    </Text>
+                  </View>
+                </View>
+              </GlassCard>
+            </View>
+          )}
 
           {/* Vote gauge — conditional */}
           <View style={styles.section}>
@@ -363,46 +482,25 @@ export default function MarketDetailScreen() {
           {/* Pool progress */}
           <View style={styles.section}>
             <PoolProgress
-              current={market.poolBalance ? Number(market.poolBalance) : 0}
+              current={market.poolBalance ? Number(market.poolBalance) / 1e9 : 0}
               target={market.targetPool ? Number(market.targetPool) : 0}
               variant="card"
             />
           </View>
 
-          {/* Countdown */}
-          {(market as any).endTime && (
-            <GlassCard style={styles.countdownCard}>
-              <View style={styles.countdownRow}>
-                <Ionicons name="time-outline" size={18} color={colors.textSecondary} />
-                <Text style={styles.countdownLabel}>Time Remaining</Text>
-                <TimeCountdown endTime={(market as any).endTime} />
-              </View>
-            </GlassCard>
-          )}
-
-          {/* Market Status Card (resolution, claims, founder actions, vesting) */}
-          <View style={styles.section}>
-            <MarketStatusCard
-              market={market as any}
-              positionData={positionData}
-              vestingData={vestingData}
-              walletAddress={walletAddress}
-              network={network}
-              onRefresh={() => { refreshMarket(); refetchPosition(); }}
-            />
-          </View>
-
-          {/* User position */}
-          {positionData && (
-            <View style={styles.section}>
-              <UserPosition positionData={positionData} />
-            </View>
-          )}
-
           {/* Tab content */}
           <View style={styles.tabContent}>
             {activeTab === 'Overview' && (
-              <OverviewTab market={market} network={network} onCopyAddress={handleCopyAddress} />
+              <OverviewTab
+                market={market}
+                network={network}
+                onCopyAddress={handleCopyAddress}
+                positionData={positionData}
+                vestingData={vestingData}
+                walletAddress={walletAddress}
+                onRefresh={() => { refreshMarket(); refetchPosition(); }}
+                tokenMintAddr={tokenMintAddress}
+              />
             )}
             {activeTab === 'AI Analysis' && (
               <GrokAnalysis marketId={market.id} resolution={market.resolution} votingData={grokVotingData} />
@@ -431,6 +529,51 @@ export default function MarketDetailScreen() {
           </View>
         </ScrollView>
       )}
+
+      {/* Floating action bar — TikTok-style vertical stack */}
+      <View style={[styles.floatingTabs, { top: insets.top + 220 }]}>
+        {/* Favorite */}
+        <View style={styles.floatingTabItem}>
+          <View style={styles.floatingTabIcon}>
+            <FavoriteButton
+              marketId={market.id}
+              walletAddress={walletAddress}
+              initialCount={(market as any).favoriteCount ?? 0}
+              variant="floating"
+            />
+          </View>
+          <Text style={styles.floatingTabLabel}>Like</Text>
+        </View>
+
+        {/* Share */}
+        <PressableScale onPress={handleShare} style={styles.floatingTabItem}>
+          <View style={styles.floatingTabIcon}>
+            <Ionicons name="arrow-redo-outline" size={22} color="rgba(255,255,255,0.85)" />
+          </View>
+          <Text style={styles.floatingTabLabel}>Share</Text>
+        </PressableScale>
+
+        {/* Divider */}
+        <View style={styles.floatingDivider} />
+
+        {/* Tab navigation icons */}
+        {TABS.map(tab => {
+          const active = activeTab === tab;
+          const { outline, filled, shortLabel } = TAB_ICONS[tab];
+          return (
+            <PressableScale
+              key={tab}
+              onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); setActiveTab(tab); }}
+              style={styles.floatingTabItem}
+            >
+              <View style={[styles.floatingTabIcon, active && styles.floatingTabIconActive]}>
+                <Ionicons name={active ? filled : outline} size={22} color={active ? colors.primary : 'rgba(255,255,255,0.85)'} />
+              </View>
+              <Text style={[styles.floatingTabLabel, active && styles.floatingTabLabelActive]}>{shortLabel}</Text>
+            </PressableScale>
+          );
+        })}
+      </View>
 
       {/* Sticky vote buttons */}
       <View style={[styles.stickyVotes, { paddingBottom: insets.bottom || 16 }]}>
@@ -474,16 +617,49 @@ export default function MarketDetailScreen() {
 
 // ── Overview Tab ────────────────────────────────────────────────────────────
 
-function OverviewTab({ market, network, onCopyAddress }: { market: any; network: string; onCopyAddress: (addr: string) => void }) {
+function OverviewTab({ market, network, onCopyAddress, positionData, vestingData, walletAddress, onRefresh, tokenMintAddr }: {
+  market: any;
+  network: string;
+  onCopyAddress: (addr: string) => void;
+  positionData: any;
+  vestingData: any;
+  walletAddress: string | null | undefined;
+  onRefresh: () => void;
+  tokenMintAddr: string | null;
+}) {
   const metadata = market.metadata;
 
   return (
     <View style={ov.container}>
+      {/* Countdown */}
+      {market.endTime && (
+        <GlassCard style={ov.countdownCard}>
+          <View style={ov.countdownRow}>
+            <Ionicons name="time-outline" size={18} color={colors.textSecondary} />
+            <Text style={ov.countdownLabel}>Time Remaining</Text>
+            <TimeCountdown endTime={market.endTime} />
+          </View>
+        </GlassCard>
+      )}
+
+      {/* Market Status Card */}
+      <MarketStatusCard
+        market={market}
+        positionData={positionData}
+        vestingData={vestingData}
+        walletAddress={walletAddress ?? null}
+        network={network}
+        onRefresh={onRefresh}
+      />
+
+      {/* User position */}
+      {positionData && <UserPosition positionData={positionData} />}
+
       {/* Full description */}
       {market.description ? <Text style={ov.description}>{market.description}</Text> : null}
 
-      {/* Video embed link */}
-      {metadata?.videoUrl ? (
+      {/* Video link — only show if it's a YouTube/external video (direct videos play in hero) */}
+      {metadata?.videoUrl && !isDirectVideoUrl(metadata.videoUrl) ? (
         <PressableScale onPress={() => Linking.openURL(metadata.videoUrl)} style={ov.videoLink}>
           <Ionicons name="play-circle-outline" size={20} color={colors.primary} />
           <Text style={ov.videoLinkText}>Watch Project Video</Text>
@@ -499,63 +675,87 @@ function OverviewTab({ market, network, onCopyAddress }: { market: any; network:
         </GlassCard>
       ) : null}
 
-      {/* Metadata tags */}
+      {/* All badges + docs + social — single unified row like web */}
       <View style={ov.metaGrid}>
-        {market.tokenSymbol ? <MetaTag label="Token" value={`$${market.tokenSymbol}`} /> : null}
-        {market.category ? <MetaTag label="Category" value={formatLabel(market.category)} /> : null}
-        {market.stage ? <MetaTag label="Stage" value={formatLabel(market.stage)} /> : null}
-        {market.phase ? <MetaTag label="Phase" value={market.phase} /> : null}
-        {metadata?.projectType ? <MetaTag label="Type" value={formatLabel(metadata.projectType)} /> : null}
-        {metadata?.teamSize ? <MetaTag label="Team Size" value={String(metadata.teamSize)} /> : null}
-        {metadata?.location ? <MetaTag label="Location" value={metadata.location} /> : null}
+        {market.tokenSymbol ? <MetaTag icon="pricetag" label={`$${market.tokenSymbol}`} bg="rgba(255,255,255,0.05)" border="rgba(255,255,255,0.1)" color="#fff" /> : null}
+        {market.category ? <MetaTag icon="grid" label={formatLabel(market.category)} bg="rgba(168,85,247,0.15)" border="rgba(168,85,247,0.3)" color="#c084fc" /> : null}
+        {market.stage ? <MetaTag icon="flag" label={formatLabel(market.stage)} bg="rgba(255,255,255,0.08)" border="rgba(255,255,255,0.15)" color="#e2e8f0" /> : null}
+        {metadata?.projectType ? <MetaTag icon="rocket" label={formatLabel(metadata.projectType)} bg="rgba(34,211,238,0.12)" border="rgba(34,211,238,0.25)" color="#67e8f9" /> : null}
+        {metadata?.teamSize ? <MetaTag icon="people" label={`${metadata.teamSize}`} bg="rgba(251,146,60,0.1)" border="rgba(251,146,60,0.2)" color="#fdba74" /> : null}
+        {metadata?.location ? <MetaTag icon="location" label={metadata.location} bg="rgba(74,222,128,0.1)" border="rgba(74,222,128,0.2)" color="#86efac" /> : null}
+        {market.phase ? <MetaTag icon="layers" label={market.phase} bg="rgba(255,255,255,0.05)" border="rgba(255,255,255,0.1)" color="#94a3b8" /> : null}
+        {market.documentUrls?.map((url: string, i: number) => (
+          <PressableScale key={`doc-${i}`} onPress={() => Linking.openURL(url)}>
+            <MetaTag icon="document-text" label="Docs" bg="rgba(96,165,250,0.1)" border="rgba(96,165,250,0.2)" color="#93c5fd" />
+          </PressableScale>
+        ))}
+        {metadata?.socialLinks?.website ? <SocialLink icon="globe-outline" label="Web" url={metadata.socialLinks.website} /> : null}
+        {metadata?.socialLinks?.twitter ? <SocialLink icon="logo-twitter" label="X" url={metadata.socialLinks.twitter} /> : null}
+        {metadata?.socialLinks?.discord ? <SocialLink icon="logo-discord" label="Discord" url={metadata.socialLinks.discord} /> : null}
+        {metadata?.socialLinks?.github ? <SocialLink icon="logo-github" label="GitHub" url={metadata.socialLinks.github} /> : null}
+        {metadata?.socialLinks?.telegram ? <SocialLink icon="paper-plane-outline" label="TG" url={metadata.socialLinks.telegram} /> : null}
       </View>
 
-      {/* Social links */}
-      {metadata?.socialLinks && Object.values(metadata.socialLinks).some(Boolean) ? (
-        <View style={ov.socialSection}>
-          <Text style={ov.sectionTitle}>Links</Text>
-          <View style={ov.socialGrid}>
-            {metadata.socialLinks.website ? <SocialLink icon="globe-outline" label="Website" url={metadata.socialLinks.website} /> : null}
-            {metadata.socialLinks.twitter ? <SocialLink icon="logo-twitter" label="Twitter" url={metadata.socialLinks.twitter} /> : null}
-            {metadata.socialLinks.discord ? <SocialLink icon="logo-discord" label="Discord" url={metadata.socialLinks.discord} /> : null}
-            {metadata.socialLinks.github ? <SocialLink icon="logo-github" label="GitHub" url={metadata.socialLinks.github} /> : null}
-            {metadata.socialLinks.telegram ? <SocialLink icon="paper-plane-outline" label="Telegram" url={metadata.socialLinks.telegram} /> : null}
+      {/* On-chain info — gradient card like web */}
+      <View style={ov.onchainCard}>
+        <View style={ov.onchainHeader}>
+          <Ionicons name="link-outline" size={14} color="#c084fc" />
+          <Text style={ov.onchainTitle}>On-chain</Text>
+        </View>
+        <View style={ov.onchainGrid}>
+          {tokenMintAddr ? (
+            <AddressRow label="Token" address={tokenMintAddr} network={network} onCopy={onCopyAddress} color="#22c55e" explorerUrl={`https://orb.helius.dev/address/${tokenMintAddr}`} />
+          ) : null}
+          {market.marketAddress ? (
+            <AddressRow label="Market" address={market.marketAddress} network={network} onCopy={onCopyAddress} color="#22d3ee" explorerUrl={`https://orb.helius.dev/address/${market.marketAddress}`} />
+          ) : null}
+          {market.founderWallet ? (
+            <AddressRow label="Founder" address={market.founderWallet} network={network} onCopy={onCopyAddress} color="#c084fc" />
+          ) : null}
+          {market.id ? (
+            <AddressRow label="ID" address={market.id} network={network} onCopy={onCopyAddress} color="#94a3b8" noExplorer />
+          ) : null}
+        </View>
+      </View>
+
+      {/* External links — only when token is launched */}
+      {tokenMintAddr ? (
+        <View style={ov.externalLinksCard}>
+          <View style={ov.onchainHeader}>
+            <Ionicons name="open-outline" size={14} color="#22d3ee" />
+            <Text style={ov.onchainTitle}>View on</Text>
+          </View>
+          <View style={ov.externalLinksRow}>
+            <PressableScale onPress={() => Linking.openURL(`https://orb.helius.dev/address/${tokenMintAddr}`)} style={ov.externalLinkBtn}>
+              <Ionicons name="wallet-outline" size={14} color="#a855f7" />
+              <Text style={[ov.externalLinkText, { color: '#a855f7' }]}>Helius</Text>
+            </PressableScale>
+            <PressableScale onPress={() => Linking.openURL(`https://birdeye.so/token/${tokenMintAddr}?chain=solana`)} style={ov.externalLinkBtn}>
+              <Ionicons name="eye-outline" size={14} color="#f59e0b" />
+              <Text style={[ov.externalLinkText, { color: '#f59e0b' }]}>Birdeye</Text>
+            </PressableScale>
+            <PressableScale onPress={() => Linking.openURL(`https://dexscreener.com/solana/${tokenMintAddr}`)} style={ov.externalLinkBtn}>
+              <Ionicons name="bar-chart-outline" size={14} color="#22c55e" />
+              <Text style={[ov.externalLinkText, { color: '#22c55e' }]}>DEX</Text>
+            </PressableScale>
+            <PressableScale onPress={() => Linking.openURL(`https://pump.fun/coin/${tokenMintAddr}`)} style={ov.externalLinkBtn}>
+              <Ionicons name="rocket-outline" size={14} color="#ec4899" />
+              <Text style={[ov.externalLinkText, { color: '#ec4899' }]}>Pump</Text>
+            </PressableScale>
           </View>
         </View>
       ) : null}
-
-      {/* Documents */}
-      {market.documentUrls?.length > 0 ? (
-        <View style={ov.socialSection}>
-          <Text style={ov.sectionTitle}>Documents</Text>
-          {market.documentUrls.map((url: string, i: number) => (
-            <SocialLink key={i} icon="document-outline" label={`Document ${i + 1}`} url={url} />
-          ))}
-        </View>
-      ) : null}
-
-      {/* On-chain info */}
-      <View style={ov.onchainSection}>
-        <Text style={ov.sectionTitle}>On-chain Info</Text>
-        {market.marketAddress ? (
-          <AddressRow label="Market" address={market.marketAddress} network={network} onCopy={onCopyAddress} />
-        ) : null}
-        {market.founderWallet ? (
-          <AddressRow label="Founder" address={market.founderWallet} network={network} onCopy={onCopyAddress} color={colors.accent} />
-        ) : null}
-        {market.id ? (
-          <AddressRow label="Market ID" address={market.id} network={network} onCopy={onCopyAddress} noExplorer />
-        ) : null}
-      </View>
     </View>
   );
 }
 
-function MetaTag({ label, value }: { label: string; value: string }) {
+function MetaTag({ icon, label, bg, border, color }: {
+  icon: keyof typeof Ionicons.glyphMap; label: string; bg: string; border: string; color: string;
+}) {
   return (
-    <View style={ov.metaTag}>
-      <Text style={ov.metaLabel}>{label}</Text>
-      <Text style={ov.metaValue}>{value}</Text>
+    <View style={[ov.metaTag, { backgroundColor: bg, borderColor: border }]}>
+      <Ionicons name={icon} size={12} color={color} />
+      <Text style={[ov.metaValue, { color }]}>{label}</Text>
     </View>
   );
 }
@@ -563,27 +763,26 @@ function MetaTag({ label, value }: { label: string; value: string }) {
 function SocialLink({ icon, label, url }: { icon: keyof typeof Ionicons.glyphMap; label: string; url: string }) {
   return (
     <PressableScale onPress={() => Linking.openURL(url)} style={ov.socialLink}>
-      <Ionicons name={icon} size={16} color={colors.primary} />
+      <Ionicons name={icon} size={14} color={colors.primary} />
       <Text style={ov.socialLinkText}>{label}</Text>
-      <Ionicons name="open-outline" size={12} color={colors.textMuted} />
     </PressableScale>
   );
 }
 
-function AddressRow({ label, address, network, onCopy, noExplorer, color }: {
-  label: string; address: string; network: string; onCopy: (addr: string) => void; noExplorer?: boolean; color?: string;
+function AddressRow({ label, address, network, onCopy, noExplorer, color, explorerUrl }: {
+  label: string; address: string; network: string; onCopy: (addr: string) => void; noExplorer?: boolean; color?: string; explorerUrl?: string;
 }) {
   return (
     <View style={ov.addressRow}>
-      <Text style={[ov.addressLabel, color ? { color } : undefined]}>{label}</Text>
+      <Text style={[ov.addressLabel, { color: color || colors.textSecondary }]}>{label}</Text>
       <View style={ov.addressActions}>
-        <Text style={ov.addressValue}>{truncateAddress(address)}</Text>
+        <Text style={[ov.addressValue, { color: color || colors.textMuted }]}>{truncateAddress(address)}</Text>
         <PressableScale onPress={() => onCopy(address)} style={ov.addressBtn}>
-          <Ionicons name="copy-outline" size={14} color={colors.textMuted} />
+          <Ionicons name="copy-outline" size={12} color={color || colors.textMuted} />
         </PressableScale>
         {!noExplorer ? (
-          <PressableScale onPress={() => Linking.openURL(getExplorerUrl(address, network))} style={ov.addressBtn}>
-            <Ionicons name="open-outline" size={14} color={colors.textMuted} />
+          <PressableScale onPress={() => Linking.openURL(explorerUrl || getExplorerUrl(address, network))} style={ov.addressBtn}>
+            <Ionicons name="open-outline" size={12} color={color || colors.textMuted} />
           </PressableScale>
         ) : null}
       </View>
@@ -592,43 +791,67 @@ function AddressRow({ label, address, network, onCopy, noExplorer, color }: {
 }
 
 const ov = StyleSheet.create({
-  container: { gap: spacing.lg },
-  description: { ...typography.body, color: colors.textSecondary, lineHeight: 24 },
+  container: { gap: spacing.md },
+  countdownCard: { padding: spacing.sm },
+  countdownRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
+  countdownLabel: { ...typography.caption, color: colors.textSecondary, flex: 1 },
+  description: { ...typography.caption, color: colors.textSecondary, lineHeight: 20 },
   videoLink: {
     flexDirection: 'row', alignItems: 'center', gap: spacing.sm,
-    backgroundColor: 'rgba(129,140,248,0.1)', borderRadius: borderRadius.md, padding: spacing.md,
+    backgroundColor: 'rgba(129,140,248,0.1)', borderRadius: borderRadius.md, padding: spacing.sm,
     borderWidth: 1, borderColor: 'rgba(129,140,248,0.2)',
   },
   videoLinkText: { ...typography.captionBold, color: colors.primary, flex: 1 },
-  notesCard: { padding: spacing.md, gap: spacing.sm },
-  notesTitle: { ...typography.captionBold, color: '#22d3ee' },
-  notesText: { ...typography.caption, color: colors.textSecondary, lineHeight: 22 },
-  metaGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm },
+  notesCard: { padding: spacing.sm, gap: spacing.xs },
+  notesTitle: { ...typography.captionBold, color: '#22d3ee', fontSize: 11 },
+  notesText: { ...typography.caption, color: colors.textSecondary, lineHeight: 20, fontSize: 12 },
+  metaGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 6 },
   metaTag: {
-    backgroundColor: colors.surface, borderRadius: borderRadius.md, borderWidth: 1, borderColor: colors.border,
-    paddingHorizontal: spacing.sm + 2, paddingVertical: spacing.xs + 2,
+    flexDirection: 'row', alignItems: 'center', gap: 4,
+    borderRadius: 8, borderWidth: 1,
+    paddingHorizontal: 8, paddingVertical: 5,
   },
-  metaLabel: { ...typography.micro, color: colors.textMuted, marginBottom: 1 },
-  metaValue: { ...typography.captionBold, color: colors.textPrimary },
-  socialSection: { gap: spacing.sm },
-  sectionTitle: { ...typography.captionBold, color: colors.textMuted, textTransform: 'uppercase' as any, letterSpacing: 0.5 },
-  socialGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm },
+  metaValue: { fontSize: 11, fontWeight: '600' },
   socialLink: {
-    flexDirection: 'row', alignItems: 'center', gap: spacing.xs,
-    backgroundColor: colors.surface, borderRadius: borderRadius.md, borderWidth: 1, borderColor: colors.border,
-    paddingHorizontal: spacing.sm + 2, paddingVertical: spacing.sm,
+    flexDirection: 'row', alignItems: 'center', gap: 4,
+    backgroundColor: 'rgba(255,255,255,0.05)', borderRadius: 8, borderWidth: 1, borderColor: 'rgba(255,255,255,0.1)',
+    paddingHorizontal: 8, paddingVertical: 5,
   },
-  socialLinkText: { ...typography.captionBold, color: colors.textPrimary },
-  onchainSection: { gap: spacing.sm },
+  socialLinkText: { fontSize: 11, fontWeight: '500', color: colors.textPrimary },
+  onchainCard: {
+    backgroundColor: 'rgba(168,85,247,0.04)',
+    borderWidth: 1, borderColor: 'rgba(255,255,255,0.08)',
+    borderRadius: 12, padding: spacing.sm, gap: 8,
+  },
+  onchainHeader: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  onchainTitle: { fontSize: 12, fontWeight: '600', color: '#fff' },
+  onchainGrid: { gap: 4 },
   addressRow: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
-    backgroundColor: colors.surface, borderRadius: borderRadius.md,
-    paddingHorizontal: spacing.sm + 2, paddingVertical: spacing.sm,
+    backgroundColor: 'rgba(0,0,0,0.2)', borderRadius: 8,
+    paddingHorizontal: 8, paddingVertical: 6,
   },
-  addressLabel: { ...typography.captionBold, color: colors.textSecondary },
-  addressActions: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
-  addressValue: { ...typography.caption, color: colors.textMuted, fontVariant: ['tabular-nums'] },
-  addressBtn: { padding: spacing.xs },
+  addressLabel: { fontSize: 11, fontWeight: '600' },
+  addressActions: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  addressValue: { fontSize: 11, fontFamily: 'Courier', fontVariant: ['tabular-nums'] as any },
+  addressBtn: { padding: 3 },
+  externalLinksCard: {
+    backgroundColor: 'rgba(34,211,238,0.04)',
+    borderWidth: 1, borderColor: 'rgba(255,255,255,0.08)',
+    borderRadius: 12, padding: spacing.sm, gap: 8,
+  },
+  externalLinksRow: {
+    flexDirection: 'row', gap: 6,
+  },
+  externalLinkBtn: {
+    flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
+    gap: 4, paddingVertical: 8, borderRadius: 8,
+    backgroundColor: 'rgba(255,255,255,0.04)',
+    borderWidth: 1, borderColor: 'rgba(255,255,255,0.06)',
+  },
+  externalLinkText: {
+    fontSize: 10, fontWeight: '700',
+  },
 });
 
 // ── Main Styles ─────────────────────────────────────────────────────────────
@@ -641,27 +864,54 @@ const styles = StyleSheet.create({
     width: 40, height: 40, borderRadius: 20, backgroundColor: 'rgba(0,0,0,0.4)',
     alignItems: 'center', justifyContent: 'center',
   },
-  headerRight: { flexDirection: 'row', gap: spacing.sm },
   headerBg: { position: 'absolute', top: 0, left: 0, right: 0, backgroundColor: 'rgba(10,14,26,0.95)', zIndex: 9 },
   heroContainer: { height: HERO_HEIGHT, overflow: 'hidden' },
   heroScrim: { position: 'absolute', bottom: 0, left: 0, right: 0, height: 100 },
+  videoPlayHint: {
+    position: 'absolute', bottom: 12, left: 12,
+  },
+  videoPlayCenter: {
+    ...StyleSheet.absoluteFillObject,
+    alignItems: 'center', justifyContent: 'center',
+  },
+  videoPlayBtn: {
+    width: 32, height: 32, borderRadius: 16,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    alignItems: 'center', justifyContent: 'center',
+    borderWidth: 1, borderColor: 'rgba(255,255,255,0.15)',
+  },
+  videoPlayBtnLg: {
+    width: 56, height: 56, borderRadius: 28,
+    backgroundColor: 'rgba(0,0,0,0.6)',
+    alignItems: 'center', justifyContent: 'center',
+    borderWidth: 1.5, borderColor: 'rgba(255,255,255,0.2)',
+  },
   scrollContent: {},
-  infoSection: { paddingHorizontal: spacing.md, marginTop: -spacing.xl, marginBottom: spacing.lg },
-  pillRow: { flexDirection: 'row', gap: spacing.sm, marginBottom: spacing.sm, flexWrap: 'wrap' },
-  title: { ...typography.display, color: colors.textPrimary, marginBottom: spacing.xs },
-  description: { ...typography.body, color: colors.textSecondary, lineHeight: 24 },
-  creatorRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.xs, marginBottom: spacing.sm },
+  infoSection: { paddingLeft: spacing.md, paddingRight: 62, marginTop: -spacing.xl, marginBottom: spacing.sm },
+  pillRow: { flexDirection: 'row', gap: spacing.sm, marginBottom: spacing.xs, flexWrap: 'wrap' },
+  title: { ...typography.display, color: colors.textPrimary, marginBottom: 2 },
+  creatorRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.xs },
   creatorText: { ...typography.caption, color: colors.warning },
-  section: { paddingHorizontal: spacing.md, marginBottom: spacing.lg },
-  countdownCard: { marginHorizontal: spacing.md, padding: spacing.md, marginBottom: spacing.lg },
-  countdownRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
-  countdownLabel: { ...typography.caption, color: colors.textSecondary, flex: 1 },
-  tabBar: { flexDirection: 'row', marginHorizontal: spacing.md, borderBottomWidth: 1, borderBottomColor: colors.border, marginBottom: spacing.md },
-  tab: { flex: 1, paddingVertical: spacing.md, alignItems: 'center' },
-  tabActive: { borderBottomWidth: 2, borderBottomColor: colors.primary },
-  tabText: { ...typography.caption, color: colors.textMuted },
-  tabTextActive: { color: colors.primary, fontWeight: '600' },
-  tabContent: { paddingHorizontal: spacing.md, paddingVertical: spacing.md },
+  section: { paddingLeft: spacing.md, paddingRight: 62, marginBottom: spacing.sm },
+  tabContent: { paddingLeft: spacing.md, paddingRight: 62, paddingVertical: spacing.md },
+  floatingTabs: {
+    position: 'absolute', right: 2, zIndex: 20,
+    alignItems: 'center', gap: 4,
+  },
+  floatingTabItem: { alignItems: 'center', gap: 3 },
+  floatingTabIcon: {
+    width: 46, height: 46, borderRadius: 23,
+    backgroundColor: 'rgba(0,0,0,0.55)',
+    alignItems: 'center', justifyContent: 'center',
+    borderWidth: 1, borderColor: 'rgba(255,255,255,0.08)',
+  },
+  floatingTabIconActive: {
+    backgroundColor: 'rgba(129,140,248,0.18)',
+    borderColor: 'rgba(129,140,248,0.4)',
+  },
+  floatingTabLabel: { ...typography.micro, color: 'rgba(255,255,255,0.6)', fontSize: 10 },
+  floatingTabLabelActive: { color: colors.primary },
+  floatingDivider: { width: 28, height: 1, backgroundColor: 'rgba(255,255,255,0.12)', marginVertical: 2 },
   stickyVotes: {
     position: 'absolute', bottom: 0, left: 0, right: 0,
     flexDirection: 'row', gap: spacing.sm, paddingHorizontal: spacing.md, paddingTop: spacing.sm,
@@ -684,4 +934,15 @@ const styles = StyleSheet.create({
     flexDirection: 'row', alignItems: 'center', gap: spacing.xs, justifyContent: 'center',
   },
   disabledText: { ...typography.micro, color: colors.textMuted },
+  // Token stats bar (launched markets)
+  tokenStatsCard: { padding: spacing.sm, gap: 8 },
+  tokenStatsHeader: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  tokenStatsTitle: { fontSize: 12, fontWeight: '700', color: '#22c55e' },
+  tokenStatsGrid: { flexDirection: 'row', gap: 4 },
+  tokenStatCell: {
+    flex: 1, alignItems: 'center', backgroundColor: 'rgba(0,0,0,0.2)',
+    borderRadius: 8, padding: 8,
+  },
+  tokenStatLabel: { fontSize: 9, fontWeight: '500', color: colors.textMuted, marginBottom: 2 },
+  tokenStatValue: { fontSize: 11, fontWeight: '700', color: colors.textPrimary, fontVariant: ['tabular-nums'] },
 });

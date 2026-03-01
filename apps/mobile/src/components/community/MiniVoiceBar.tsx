@@ -2,6 +2,7 @@ import { View, Text, StyleSheet, Pressable } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { router } from 'expo-router';
 import { useVoiceRoomContextSafe } from '../../providers/VoiceRoomProvider';
 import { PressableScale } from '../PressableScale';
 import { colors, spacing, typography, borderRadius } from '../../theme';
@@ -16,15 +17,17 @@ export function MiniVoiceBar({ currentMarketId }: MiniVoiceBarProps) {
   const insets = useSafeAreaInsets();
 
   if (!voice?.isConnected) return null;
-  // Don't show when on the same market page
+  // Don't show when on the same market page (CommunityHub shows full voice UI there)
   if (currentMarketId && voice.marketId === currentMarketId) return null;
 
   const participantCount = voice.participants.length + 1; // +1 for self
   const roomLabel = voice.roomTitle || voice.marketName || 'Voice Room';
 
-  const handlePress = () => {
+  const handleTapToReturn = () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    voice.expandToRoom();
+    if (voice.marketId) {
+      router.push(`/market/${voice.marketId}` as any);
+    }
   };
 
   const handleMuteToggle = () => {
@@ -38,7 +41,7 @@ export function MiniVoiceBar({ currentMarketId }: MiniVoiceBarProps) {
   };
 
   return (
-    <Pressable onPress={handlePress} style={[styles.container, { bottom: 80 + insets.bottom }]}>
+    <Pressable onPress={handleTapToReturn} style={[styles.container, { bottom: 80 + insets.bottom }]}>
       <View style={styles.content}>
         {/* Live indicator */}
         <View style={styles.liveDot} />
@@ -46,8 +49,8 @@ export function MiniVoiceBar({ currentMarketId }: MiniVoiceBarProps) {
         {/* Room info */}
         <View style={styles.info}>
           <Text style={styles.roomName} numberOfLines={1}>{roomLabel}</Text>
-          <Text style={styles.participantCount}>
-            {participantCount} participant{participantCount !== 1 ? 's' : ''}
+          <Text style={styles.tapHint}>
+            {participantCount} in room · Tap to return
           </Text>
         </View>
 
@@ -106,7 +109,7 @@ const styles = StyleSheet.create({
     ...typography.captionBold,
     color: colors.textPrimary,
   },
-  participantCount: {
+  tapHint: {
     ...typography.micro,
     color: colors.textMuted,
   },

@@ -1,6 +1,7 @@
-import { useState } from 'react';
-import { View, Text, StyleSheet, Pressable } from 'react-native';
+import { useState, useEffect } from 'react';
+import { View, Text, StyleSheet, Pressable, Animated } from 'react-native';
 import { useVoiceRoomContextSafe } from '../../providers/VoiceRoomProvider';
+import { VOICE_SERVER_URL } from '../../config/init';
 import { ChatRoom } from './ChatRoom';
 import { VoiceRoom } from './VoiceRoom';
 import { colors, spacing, typography, borderRadius } from '../../theme';
@@ -26,7 +27,47 @@ export function CommunityHub({
 }: CommunityHubProps) {
   const [activeTab, setActiveTab] = useState<SubTab>('Chat');
   const voice = useVoiceRoomContextSafe();
-  const voiceIsLive = voice?.isConnected && voice.marketAddress === marketAddress;
+  const isConnectedToThisRoom = voice?.isConnected && voice.marketAddress === marketAddress;
+
+  // Voice room status polling for non-connected users (matches web CommunityHub)
+  const [voiceRoomActive, setVoiceRoomActive] = useState(false);
+  const [voiceParticipantCount, setVoiceParticipantCount] = useState(0);
+
+  // If connected to this room, use real-time context data
+  useEffect(() => {
+    if (isConnectedToThisRoom) {
+      setVoiceRoomActive(true);
+      setVoiceParticipantCount((voice?.participants?.length || 0) + 1);
+    }
+  }, [isConnectedToThisRoom, voice?.participants?.length]);
+
+  // Poll voice server for room status when NOT connected (for visitors/strangers)
+  useEffect(() => {
+    if (isConnectedToThisRoom) return;
+
+    const fetchRoomStatus = async () => {
+      try {
+        const response = await fetch(`${VOICE_SERVER_URL}/room-status/${marketAddress}`, {
+          method: 'GET',
+          headers: { Accept: 'application/json' },
+        });
+        if (response.ok) {
+          const data = await response.json();
+          setVoiceRoomActive(data.active && data.participantCount > 0);
+          setVoiceParticipantCount(data.participantCount || 0);
+        }
+      } catch {
+        setVoiceRoomActive(false);
+        setVoiceParticipantCount(0);
+      }
+    };
+
+    fetchRoomStatus();
+    const interval = setInterval(fetchRoomStatus, 10000);
+    return () => clearInterval(interval);
+  }, [marketAddress, isConnectedToThisRoom]);
+
+  const showLiveIndicator = voiceRoomActive;
 
   return (
     <View style={styles.container}>
@@ -40,11 +81,18 @@ export function CommunityHub({
         </Pressable>
         <Pressable
           onPress={() => setActiveTab('Voice')}
-          style={[styles.tab, activeTab === 'Voice' && styles.tabActive]}
+          style={[styles.tab, activeTab === 'Voice' && styles.tabActive, showLiveIndicator && styles.tabVoiceLive]}
         >
           <View style={styles.voiceTabContent}>
-            <Text style={[styles.tabText, activeTab === 'Voice' && styles.tabTextActive]}>Voice</Text>
-            {voiceIsLive && <View style={styles.liveDot} />}
+            <Text style={[styles.tabText, activeTab === 'Voice' && styles.tabTextActive, showLiveIndicator && styles.tabTextLive]}>Voice</Text>
+            {showLiveIndicator && (
+              <>
+                <View style={styles.liveDot} />
+                {voiceParticipantCount > 0 && (
+                  <Text style={styles.liveCount}>({voiceParticipantCount})</Text>
+                )}
+              </>
+            )}
           </View>
         </Pressable>
       </View>
@@ -97,15 +145,30 @@ const styles = StyleSheet.create({
   tabTextActive: {
     color: colors.primary,
   },
+  tabVoiceLive: {
+    borderBottomColor: '#22c55e',
+  },
+  tabTextLive: {
+    color: '#4ade80',
+  },
   voiceTabContent: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing.xs,
   },
   liveDot: {
-    width: 6,
-    height: 6,
-    borderRadius: 3,
-    backgroundColor: colors.livePulse,
+    width: 7,
+    height: 7,
+    borderRadius: 4,
+    backgroundColor: '#22c55e',
+    shadowColor: '#22c55e',
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.8,
+    shadowRadius: 4,
+  },
+  liveCount: {
+    fontSize: 10,
+    fontWeight: '700',
+    color: '#4ade80',
   },
 });

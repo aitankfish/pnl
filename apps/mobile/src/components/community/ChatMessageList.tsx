@@ -1,6 +1,6 @@
 import { useRef, useCallback, useMemo } from 'react';
 import { View, FlatList, ActivityIndicator, Text, StyleSheet } from 'react-native';
-import type { IChatMessage } from '@pnl/shared/hooks/useChat';
+import type { IChatMessage } from '@pnl/shared/hooks';
 import { ChatMessageItem } from './ChatMessageItem';
 import { colors, spacing, typography } from '../../theme';
 

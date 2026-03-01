@@ -42,6 +42,8 @@ export interface Market {
   lastSyncedAt?: string | null;
   isStale?: boolean;
   syncStatus?: string;
+  totalParticipants?: number;
+  createdAt?: string;
 }
 
 export interface SyncHealth {
@@ -60,10 +62,13 @@ interface MarketsResponse {
 /**
  * Hook to fetch all active markets with real-time updates
  */
-export function useMarkets(category?: string) {
+export function useMarkets(category?: string, status?: string) {
+  // Build SWR key with status parameter for server-side filtering
+  const swrKey = `/api/markets/list?status=${status || 'active'}`;
+
   // Fetch markets via SWR
   const { data, error, isLoading, mutate } = useSWR<ApiResponse<MarketsResponse>>(
-    '/api/markets/list',
+    swrKey,
     fetcher,
     {
       ...realtimeConfig,

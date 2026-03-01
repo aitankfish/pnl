@@ -1,6 +1,6 @@
 import { useState, useCallback, useMemo } from 'react';
 import { View, StyleSheet } from 'react-native';
-import { useChat } from '@pnl/shared/hooks/useChat';
+import { useChat } from '@pnl/shared/hooks';
 import { ChatMessageList } from './ChatMessageList';
 import { ChatInput } from './ChatInput';
 import { TypingIndicator } from './TypingIndicator';

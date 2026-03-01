@@ -1,10 +1,19 @@
 /**
- * Profile Tab — Portfolio, positions, settings, create CTA
- * Combines old Profile + Portfolio + Create entry point
+ * Profile Tab — User profile, portfolio, positions, settings
+ * Fetches real profile data from API, shows onboarding modal for new users.
  */
 
-import { useCallback } from 'react';
-import { View, Text, StyleSheet, ScrollView, Alert } from 'react-native';
+import { useState, useCallback, useMemo } from 'react';
+import {
+  View,
+  Text,
+  StyleSheet,
+  ScrollView,
+  Alert,
+  Image,
+  TextInput,
+  ActivityIndicator,
+} from 'react-native';
 import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import * as Clipboard from 'expo-clipboard';
@@ -12,6 +21,8 @@ import * as Haptics from 'expo-haptics';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuth } from '../../src/providers/AuthProvider';
+import { useProfile, resolveAvatarUrl } from '../../src/hooks/useProfile';
+import { usePositions } from '../../src/hooks/usePositions';
 import {
   ScreenHeader,
   PressableScale,
@@ -19,6 +30,7 @@ import {
   SectionHeader,
   EmptyState,
 } from '../../src/components';
+import { ProfileSetupModal } from '../../src/components/ProfileSetupModal';
 import { colors, spacing, typography, borderRadius } from '../../src/theme';
 
 function truncateAddress(addr: string) {
@@ -28,6 +40,31 @@ function truncateAddress(addr: string) {
 export default function ProfileScreen() {
   const insets = useSafeAreaInsets();
   const { isAuthenticated, user, walletAddress, logout } = useAuth();
+  const {
+    profile,
+    isLoading: profileLoading,
+    needsSetup,
+    refresh: refreshProfile,
+    updateProfile,
+    isUpdating,
+    checkUsername,
+    generateUsername,
+  } = useProfile(walletAddress);
+
+  const {
+    active,
+    resolved,
+    claimable,
+    all,
+    isLoading: positionsLoading,
+  } = usePositions(walletAddress);
+
+  const [showSetupModal, setShowSetupModal] = useState(false);
+  const [isEditing, setIsEditing] = useState(false);
+  const [editBio, setEditBio] = useState('');
+
+  // Show setup modal when profile needs setup
+  const shouldShowSetup = isAuthenticated && needsSetup && !profileLoading;
 
   const handleCopyAddress = useCallback(async () => {
     if (!walletAddress) return;
@@ -46,15 +83,47 @@ export default function ProfileScreen() {
     ]);
   }, [logout]);
 
+  const handleEditBio = useCallback(() => {
+    setEditBio(profile?.bio || '');
+    setIsEditing(true);
+  }, [profile?.bio]);
+
+  const handleSaveBio = useCallback(async () => {
+    const success = await updateProfile({ bio: editBio.trim() || undefined });
+    if (success) {
+      setIsEditing(false);
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    }
+  }, [editBio, updateProfile]);
+
+  // Compute portfolio value from active positions
+  const totalStaked = useMemo(
+    () => all.reduce((sum, p) => sum + (p.totalAmount || 0), 0),
+    [all],
+  );
+
+  const displayName = profile?.username
+    ? `@${profile.username}`
+    : (user as any)?.email?.address || 'PNL User';
+
+  const avatarUrl = profile?.profilePhotoUrl
+    ? resolveAvatarUrl(profile.profilePhotoUrl)
+    : null;
+
   return (
     <View style={styles.container}>
       <ScreenHeader
         title="Profile"
         right={
           isAuthenticated ? (
-            <PressableScale onPress={handleLogout}>
-              <Ionicons name="log-out-outline" size={24} color={colors.textSecondary} />
-            </PressableScale>
+            <View style={styles.headerRight}>
+              <PressableScale onPress={() => setShowSetupModal(true)}>
+                <Ionicons name="create-outline" size={22} color={colors.textSecondary} />
+              </PressableScale>
+              <PressableScale onPress={handleLogout}>
+                <Ionicons name="log-out-outline" size={24} color={colors.textSecondary} />
+              </PressableScale>
+            </View>
           ) : undefined
         }
       />
@@ -64,17 +133,75 @@ export default function ProfileScreen() {
         {isAuthenticated ? (
           <View style={styles.userSection}>
             <View style={styles.avatarRing}>
-              <View style={styles.avatar}>
-                <Ionicons name="person" size={32} color={colors.textMuted} />
-              </View>
+              {avatarUrl ? (
+                <Image source={{ uri: avatarUrl }} style={styles.avatar} />
+              ) : (
+                <View style={[styles.avatar, styles.avatarPlaceholder]}>
+                  <Ionicons name="person" size={32} color={colors.textMuted} />
+                </View>
+              )}
             </View>
-            <Text style={styles.displayName}>
-              {(user as any)?.email?.address || 'PNL User'}
-            </Text>
+            <Text style={styles.displayName}>{displayName}</Text>
+            {profile?.bio ? (
+              <Text style={styles.bio}>{profile.bio}</Text>
+            ) : null}
             {walletAddress && (
               <PressableScale onPress={handleCopyAddress} style={styles.addressRow}>
                 <Text style={styles.address}>{truncateAddress(walletAddress)}</Text>
                 <Ionicons name="copy-outline" size={14} color={colors.textMuted} />
+              </PressableScale>
+            )}
+
+            {/* Stats row */}
+            <View style={styles.statsRow}>
+              <View style={styles.statItem}>
+                <Text style={styles.statValue}>{profile?.totalPredictions ?? 0}</Text>
+                <Text style={styles.statLabel}>Predictions</Text>
+              </View>
+              <View style={styles.statDivider} />
+              <View style={styles.statItem}>
+                <Text style={styles.statValue}>{profile?.projectsCreated ?? 0}</Text>
+                <Text style={styles.statLabel}>Projects</Text>
+              </View>
+              <View style={styles.statDivider} />
+              <View style={styles.statItem}>
+                <Text style={styles.statValue}>{profile?.reputationScore ?? 0}</Text>
+                <Text style={styles.statLabel}>Reputation</Text>
+              </View>
+            </View>
+
+            {/* Bio edit inline */}
+            {isEditing && (
+              <View style={styles.editBioContainer}>
+                <TextInput
+                  style={styles.editBioInput}
+                  placeholder="Write a bio..."
+                  placeholderTextColor={colors.textMuted}
+                  value={editBio}
+                  onChangeText={setEditBio}
+                  multiline
+                  maxLength={160}
+                  autoFocus
+                />
+                <View style={styles.editBioActions}>
+                  <PressableScale onPress={() => setIsEditing(false)}>
+                    <Text style={styles.cancelText}>Cancel</Text>
+                  </PressableScale>
+                  <PressableScale onPress={handleSaveBio} style={styles.saveBioBtn}>
+                    {isUpdating ? (
+                      <ActivityIndicator size="small" color="#fff" />
+                    ) : (
+                      <Text style={styles.saveBioText}>Save</Text>
+                    )}
+                  </PressableScale>
+                </View>
+              </View>
+            )}
+
+            {!isEditing && !profile?.bio && (
+              <PressableScale onPress={handleEditBio} style={styles.addBioBtn}>
+                <Ionicons name="add-circle-outline" size={16} color={colors.primary} />
+                <Text style={styles.addBioText}>Add bio</Text>
               </PressableScale>
             )}
           </View>
@@ -98,34 +225,108 @@ export default function ProfileScreen() {
         {isAuthenticated && (
           <>
             <GlassCard style={styles.portfolioCard}>
-              <Text style={styles.portfolioLabel}>Total Value</Text>
-              <Text style={styles.portfolioValue}>--.- SOL</Text>
-              <Text style={styles.portfolioUsd}>$--.--</Text>
-              <View style={styles.quickActions}>
-                <PressableScale style={styles.quickAction}>
-                  <Ionicons name="arrow-down-outline" size={18} color={colors.primary} />
-                  <Text style={styles.quickActionText}>Deposit</Text>
-                </PressableScale>
-                <PressableScale style={styles.quickAction}>
-                  <Ionicons name="arrow-up-outline" size={18} color={colors.primary} />
-                  <Text style={styles.quickActionText}>Withdraw</Text>
-                </PressableScale>
-                <PressableScale style={styles.quickAction}>
-                  <Ionicons name="gift-outline" size={18} color={colors.primary} />
-                  <Text style={styles.quickActionText}>Claim</Text>
-                </PressableScale>
+              <Text style={styles.portfolioLabel}>Total Staked</Text>
+              <Text style={styles.portfolioValue}>
+                {totalStaked > 0 ? `${totalStaked.toFixed(2)} SOL` : '0.00 SOL'}
+              </Text>
+              <View style={styles.positionCounts}>
+                <View style={styles.positionCountItem}>
+                  <View style={[styles.positionDot, { backgroundColor: colors.primary }]} />
+                  <Text style={styles.positionCountText}>{active.length} Active</Text>
+                </View>
+                <View style={styles.positionCountItem}>
+                  <View style={[styles.positionDot, { backgroundColor: colors.success }]} />
+                  <Text style={styles.positionCountText}>{claimable.length} Claimable</Text>
+                </View>
+                <View style={styles.positionCountItem}>
+                  <View style={[styles.positionDot, { backgroundColor: colors.textMuted }]} />
+                  <Text style={styles.positionCountText}>{resolved.length} Resolved</Text>
+                </View>
               </View>
             </GlassCard>
 
             {/* Section 3: Active Positions */}
-            <SectionHeader title="Active Positions" count={0} />
-            <EmptyState
-              icon="bar-chart-outline"
-              title="No positions yet"
-              subtitle="Vote on markets to start building your portfolio"
-              actionLabel="Browse Markets"
-              onAction={() => router.push('/(tabs)/explore')}
-            />
+            <SectionHeader title="Active Positions" count={active.length} />
+            {positionsLoading && active.length === 0 ? (
+              <View style={styles.loadingContainer}>
+                <ActivityIndicator size="small" color={colors.primary} />
+              </View>
+            ) : active.length > 0 ? (
+              active.map((pos) => (
+                <PressableScale
+                  key={`${pos.marketId}-${pos.voteType}`}
+                  onPress={() => router.push(`/market/${pos.marketId}`)}
+                  style={styles.positionCard}
+                >
+                  <View style={styles.positionHeader}>
+                    <Text style={styles.positionName} numberOfLines={1}>
+                      {pos.marketName}
+                    </Text>
+                    <View
+                      style={[
+                        styles.voteBadge,
+                        { backgroundColor: pos.voteType === 'yes' ? 'rgba(16, 185, 129, 0.15)' : 'rgba(239, 68, 68, 0.15)' },
+                      ]}
+                    >
+                      <Text
+                        style={[
+                          styles.voteBadgeText,
+                          { color: pos.voteType === 'yes' ? colors.success : colors.danger },
+                        ]}
+                      >
+                        {pos.voteType.toUpperCase()}
+                      </Text>
+                    </View>
+                  </View>
+                  <View style={styles.positionDetails}>
+                    <Text style={styles.positionDetail}>
+                      {pos.totalAmount.toFixed(3)} SOL
+                    </Text>
+                    <Text style={styles.positionDetailMuted}>
+                      {pos.totalShares.toFixed(1)} shares
+                    </Text>
+                    <Text style={styles.positionDetailMuted}>
+                      {((pos.voteType === 'yes' ? pos.currentYesPrice : pos.currentNoPrice) * 100).toFixed(1)}%
+                    </Text>
+                  </View>
+                </PressableScale>
+              ))
+            ) : (
+              <EmptyState
+                icon="bar-chart-outline"
+                title="No positions yet"
+                subtitle="Vote on markets to start building your portfolio"
+                actionLabel="Browse Markets"
+                onAction={() => router.push('/(tabs)/explore')}
+              />
+            )}
+
+            {/* Claimable section */}
+            {claimable.length > 0 && (
+              <>
+                <SectionHeader title="Claimable Rewards" count={claimable.length} style={styles.sectionGap} />
+                {claimable.map((pos) => (
+                  <PressableScale
+                    key={`claim-${pos.marketId}-${pos.voteType}`}
+                    onPress={() => router.push(`/market/${pos.marketId}`)}
+                    style={[styles.positionCard, styles.claimableCard]}
+                  >
+                    <View style={styles.positionHeader}>
+                      <Text style={styles.positionName} numberOfLines={1}>
+                        {pos.marketName}
+                      </Text>
+                      <View style={styles.claimBadge}>
+                        <Ionicons name="gift" size={12} color={colors.success} />
+                        <Text style={styles.claimBadgeText}>Claim</Text>
+                      </View>
+                    </View>
+                    <Text style={styles.positionDetail}>
+                      {pos.totalAmount.toFixed(3)} SOL staked
+                    </Text>
+                  </PressableScale>
+                ))}
+              </>
+            )}
           </>
         )}
 
@@ -158,19 +359,52 @@ export default function ProfileScreen() {
         {/* Section 5: Settings */}
         <SectionHeader title="Settings" style={styles.sectionGap} />
         <View style={styles.settingsList}>
+          {isAuthenticated && (
+            <SettingsRow
+              icon="create-outline"
+              label="Edit Profile"
+              onPress={() => setShowSetupModal(true)}
+            />
+          )}
           <SettingsRow icon="wallet-outline" label="Connected Wallets" />
           <SettingsRow icon="notifications-outline" label="Notifications" />
+          <SettingsRow
+            icon="document-text-outline"
+            label="Whitepaper"
+            onPress={() => router.push('/whitepaper')}
+          />
           <SettingsRow icon="help-circle-outline" label="Help & Support" />
           <SettingsRow icon="information-circle-outline" label="About PNL" />
         </View>
       </ScrollView>
+
+      {/* Onboarding / Edit Profile modal */}
+      <ProfileSetupModal
+        visible={shouldShowSetup || showSetupModal}
+        onComplete={() => {
+          setShowSetupModal(false);
+          refreshProfile();
+        }}
+        updateProfile={updateProfile}
+        generateUsername={generateUsername}
+        checkUsername={checkUsername}
+        email={(user as any)?.email?.address}
+      />
     </View>
   );
 }
 
-function SettingsRow({ icon, label }: { icon: keyof typeof Ionicons.glyphMap; label: string }) {
+function SettingsRow({
+  icon,
+  label,
+  onPress,
+}: {
+  icon: keyof typeof Ionicons.glyphMap;
+  label: string;
+  onPress?: () => void;
+}) {
   return (
-    <PressableScale style={styles.settingsRow}>
+    <PressableScale style={styles.settingsRow} onPress={onPress}>
       <Ionicons name={icon} size={20} color={colors.textSecondary} />
       <Text style={styles.settingsLabel}>{label}</Text>
       <Ionicons name="chevron-forward" size={18} color={colors.textMuted} />
@@ -186,6 +420,11 @@ const styles = StyleSheet.create({
   content: {
     paddingHorizontal: spacing.md,
   },
+  headerRight: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.md,
+  },
   // User section
   userSection: {
     alignItems: 'center',
@@ -200,11 +439,14 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: spacing.sm,
+    overflow: 'hidden',
   },
   avatar: {
     width: 72,
     height: 72,
     borderRadius: 36,
+  },
+  avatarPlaceholder: {
     backgroundColor: colors.surfaceElevated,
     alignItems: 'center',
     justifyContent: 'center',
@@ -212,6 +454,13 @@ const styles = StyleSheet.create({
   displayName: {
     ...typography.title,
     color: colors.textPrimary,
+  },
+  bio: {
+    ...typography.caption,
+    color: colors.textSecondary,
+    textAlign: 'center',
+    marginTop: 4,
+    maxWidth: 280,
   },
   addressRow: {
     flexDirection: 'row',
@@ -223,6 +472,85 @@ const styles = StyleSheet.create({
     ...typography.micro,
     color: colors.textMuted,
     fontVariant: ['tabular-nums'],
+  },
+  // Stats row
+  statsRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: spacing.md,
+    backgroundColor: colors.glass,
+    borderRadius: borderRadius.lg,
+    borderWidth: 1,
+    borderColor: colors.glassBorder,
+    paddingVertical: spacing.sm + 4,
+    paddingHorizontal: spacing.md,
+  },
+  statItem: {
+    flex: 1,
+    alignItems: 'center',
+  },
+  statValue: {
+    ...typography.bodyBold,
+    color: colors.textPrimary,
+    fontSize: 18,
+  },
+  statLabel: {
+    ...typography.micro,
+    color: colors.textMuted,
+    marginTop: 2,
+  },
+  statDivider: {
+    width: 1,
+    height: 28,
+    backgroundColor: colors.border,
+  },
+  // Bio editing
+  editBioContainer: {
+    width: '100%',
+    marginTop: spacing.sm,
+  },
+  editBioInput: {
+    backgroundColor: colors.surfaceElevated,
+    borderRadius: borderRadius.md,
+    borderWidth: 1,
+    borderColor: colors.border,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+    color: colors.textPrimary,
+    fontSize: 14,
+    minHeight: 60,
+  },
+  editBioActions: {
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
+    alignItems: 'center',
+    gap: spacing.sm,
+    marginTop: spacing.xs,
+  },
+  cancelText: {
+    ...typography.caption,
+    color: colors.textMuted,
+  },
+  saveBioBtn: {
+    backgroundColor: colors.primary,
+    paddingHorizontal: spacing.md,
+    paddingVertical: 6,
+    borderRadius: borderRadius.full,
+  },
+  saveBioText: {
+    ...typography.caption,
+    color: '#fff',
+    fontWeight: '600',
+  },
+  addBioBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    marginTop: spacing.sm,
+  },
+  addBioText: {
+    ...typography.caption,
+    color: colors.primary,
   },
   // Sign in section
   signInSection: {
@@ -266,23 +594,89 @@ const styles = StyleSheet.create({
   portfolioValue: {
     ...typography.numericLarge,
     color: colors.textPrimary,
+    marginBottom: spacing.sm,
   },
-  portfolioUsd: {
-    ...typography.caption,
-    color: colors.textMuted,
-    marginBottom: spacing.md,
-  },
-  quickActions: {
+  positionCounts: {
     flexDirection: 'row',
-    gap: spacing.lg,
+    gap: spacing.md,
+    marginTop: spacing.xs,
   },
-  quickAction: {
+  positionCountItem: {
+    flexDirection: 'row',
     alignItems: 'center',
     gap: 4,
   },
-  quickActionText: {
+  positionDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+  },
+  positionCountText: {
     ...typography.micro,
     color: colors.textSecondary,
+  },
+  // Positions
+  positionCard: {
+    backgroundColor: colors.glass,
+    borderRadius: borderRadius.md,
+    borderWidth: 1,
+    borderColor: colors.glassBorder,
+    padding: spacing.md,
+    marginBottom: spacing.sm,
+  },
+  claimableCard: {
+    borderColor: 'rgba(16, 185, 129, 0.3)',
+  },
+  positionHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: spacing.xs,
+  },
+  positionName: {
+    ...typography.bodyBold,
+    color: colors.textPrimary,
+    flex: 1,
+    marginRight: spacing.sm,
+  },
+  voteBadge: {
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: borderRadius.sm,
+  },
+  voteBadgeText: {
+    fontSize: 11,
+    fontWeight: '700',
+  },
+  claimBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: 'rgba(16, 185, 129, 0.15)',
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: borderRadius.sm,
+  },
+  claimBadgeText: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: colors.success,
+  },
+  positionDetails: {
+    flexDirection: 'row',
+    gap: spacing.md,
+  },
+  positionDetail: {
+    ...typography.caption,
+    color: colors.textPrimary,
+  },
+  positionDetailMuted: {
+    ...typography.caption,
+    color: colors.textMuted,
+  },
+  loadingContainer: {
+    paddingVertical: spacing.xl,
+    alignItems: 'center',
   },
   // Create
   sectionGap: {

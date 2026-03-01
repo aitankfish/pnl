@@ -51,14 +51,15 @@ const styles = StyleSheet.create({
   },
   filterPill: {
     paddingHorizontal: spacing.md,
-    paddingVertical: spacing.sm,
+    paddingVertical: 6,
     borderRadius: borderRadius.full,
     backgroundColor: colors.surfaceElevated,
-    borderWidth: 0,
+    borderWidth: 1,
+    borderColor: colors.border,
   },
   active: {
-    backgroundColor: 'rgba(139, 92, 246, 0.45)',
-    borderColor: 'rgba(167, 139, 250, 0.6)',
+    backgroundColor: 'rgba(139, 92, 246, 0.2)',
+    borderColor: 'rgba(139, 92, 246, 0.6)',
   },
   label: {
     fontSize: 10,
@@ -70,9 +71,9 @@ const styles = StyleSheet.create({
     fontSize: 12,
     letterSpacing: 0.3,
     textTransform: 'none' as any,
-    color: colors.textSecondary,
+    color: colors.textPrimary,
   },
   activeLabel: {
-    color: '#fff',
+    color: '#c4b5fd',
   },
 });

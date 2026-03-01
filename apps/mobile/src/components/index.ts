@@ -26,3 +26,5 @@ export { StatusTabs } from './StatusTabs';
 export { CategoryChip } from './CategoryChip';
 export { CategorySheet } from './CategorySheet';
 export { SearchDropdown } from './SearchDropdown';
+export { LaunchedTokenCard } from './LaunchedTokenCard';
+export { ProfileSetupModal } from './ProfileSetupModal';
