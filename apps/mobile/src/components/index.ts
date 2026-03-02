@@ -28,4 +28,6 @@ export { CategorySheet } from './CategorySheet';
 export { SearchDropdown } from './SearchDropdown';
 export { LaunchedTokenCard } from './LaunchedTokenCard';
 export { ProfileSetupModal } from './ProfileSetupModal';
+export { PortfolioTabs } from './PortfolioTabs';
+export { VoteHistorySheet } from './VoteHistorySheet';
 export { WelcomeCard } from './WelcomeCard';

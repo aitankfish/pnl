@@ -47,6 +47,7 @@ export function ProfileSetupModal({
   const [username, setUsername] = useState('');
   const [selectedAvatar, setSelectedAvatar] = useState('');
   const [bio, setBio] = useState('');
+  const [twitter, setTwitter] = useState('');
   const [isSaving, setIsSaving] = useState(false);
   const [isGenerating, setIsGenerating] = useState(false);
   const [usernameError, setUsernameError] = useState('');
@@ -120,6 +121,7 @@ export function ProfileSetupModal({
       username: usernameToSave,
       profilePhotoUrl: avatarPath,
       bio: bio.trim() || undefined,
+      twitter: twitter.trim() || undefined,
       email,
     });
 
@@ -129,7 +131,7 @@ export function ProfileSetupModal({
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       onComplete();
     }
-  }, [username, selectedAvatar, bio, email, updateProfile, generateUsername, validateUsername, onComplete]);
+  }, [username, selectedAvatar, bio, twitter, email, updateProfile, generateUsername, validateUsername, onComplete]);
 
   return (
     <Modal
@@ -248,6 +250,24 @@ export function ProfileSetupModal({
             textAlignVertical="top"
           />
           <Text style={styles.charCount}>{bio.length}/160</Text>
+
+          {/* Twitter (optional) */}
+          <Text style={styles.sectionLabel}>Twitter / X (optional)</Text>
+          <View style={styles.inputContainer}>
+            <Ionicons name="logo-twitter" size={16} color={colors.textMuted} style={{ marginRight: 4 }} />
+            <Text style={styles.inputPrefix}>@</Text>
+            <TextInput
+              style={styles.input}
+              placeholder="your_handle"
+              placeholderTextColor={colors.textMuted}
+              value={twitter}
+              onChangeText={(text) => setTwitter(text.replace(/[^a-zA-Z0-9_]/g, ''))}
+              autoCapitalize="none"
+              autoCorrect={false}
+              maxLength={15}
+            />
+          </View>
+          <Text style={styles.hintText}>Your X / Twitter handle</Text>
 
           {/* Save button */}
           <PressableScale onPress={handleSave} style={styles.saveBtn}>

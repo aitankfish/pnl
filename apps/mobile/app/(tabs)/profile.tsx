@@ -1,9 +1,9 @@
 /**
- * Profile Tab — User profile, portfolio, positions, settings
- * Fetches real profile data from API, shows onboarding modal for new users.
+ * Profile Tab — Unified wallet + profile + positions + settings
+ * Wallet (balance, actions, tokens) at top, then profile, positions, settings.
  */
 
-import { useState, useCallback, useMemo } from 'react';
+import { useState, useCallback, useMemo, useRef } from 'react';
 import {
   View,
   Text,
@@ -14,17 +14,25 @@ import {
   TextInput,
   ActivityIndicator,
   Linking,
+  RefreshControl,
 } from 'react-native';
 import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import * as Clipboard from 'expo-clipboard';
 import * as Haptics from 'expo-haptics';
 import { LinearGradient } from 'expo-linear-gradient';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as WebBrowser from 'expo-web-browser';
+import { useFundSolanaWallet } from '@privy-io/expo/ui';
+import GorhomBottomSheet from '@gorhom/bottom-sheet';
+import { useAllTokenBalances } from '@pnl/shared/hooks';
+import { useSolPrice } from '@pnl/shared/hooks';
 import { useAuth } from '../../src/providers/AuthProvider';
 import { useProfile, resolveAvatarUrl } from '../../src/hooks/useProfile';
 import { usePositions } from '../../src/hooks/usePositions';
+import { useWalletBalance } from '../../src/hooks/useWalletBalance';
+import { useTokenStats } from '../../src/hooks/useTokenStats';
+import { useMobileCreatorFees } from '../../src/hooks/useMobileCreatorFees';
+import { usePhotoUpload } from '../../src/hooks/usePhotoUpload';
 import {
   ScreenHeader,
   PressableScale,
@@ -33,14 +41,23 @@ import {
   EmptyState,
 } from '../../src/components';
 import { ProfileSetupModal } from '../../src/components/ProfileSetupModal';
+import { PortfolioTabs } from '../../src/components/PortfolioTabs';
+import { SendSheet } from '../../src/components/wallet/SendSheet';
+import { DepositSheet } from '../../src/components/wallet/DepositSheet';
+import { SecuritySheet } from '../../src/components/wallet/SecuritySheet';
 import { colors, spacing, typography, borderRadius } from '../../src/theme';
 
 function truncateAddress(addr: string) {
   return `${addr.slice(0, 6)}...${addr.slice(-4)}`;
 }
 
+function formatUsd(value: number | null | undefined): string {
+  if (value == null) return '--';
+  if (value < 0.01 && value > 0) return '<$0.01';
+  return `$${value.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+}
+
 export default function ProfileScreen() {
-  const insets = useSafeAreaInsets();
   const { isAuthenticated, user, walletAddress, logout } = useAuth();
   const {
     profile,
@@ -61,12 +78,64 @@ export default function ProfileScreen() {
     isLoading: positionsLoading,
   } = usePositions(walletAddress);
 
+  // Wallet hooks
+  const { solBalance, solBalanceUsd, isLoading: balanceLoading, refresh: refreshBalance } = useWalletBalance(walletAddress);
+  const { solPrice } = useSolPrice();
+  const { tokens, isLoading: tokensLoading } = useAllTokenBalances(walletAddress);
+  const { fundWallet } = useFundSolanaWallet();
+  const tokenMints = useMemo(() => tokens.map((t) => t.mint), [tokens]);
+  const { stats: tokenStats } = useTokenStats(tokenMints);
+
+  // Photo upload
+  const { pickAndUploadPhoto, isUploading: isPhotoUploading } = usePhotoUpload();
+
+  // Creator fees
+  const {
+    totalClaimable,
+    hasClaimableFees,
+    launchedTokenCount,
+    data: creatorFeesData,
+    claimFees,
+    isClaiming,
+    refresh: refreshCreatorFees,
+  } = useMobileCreatorFees(walletAddress);
+
+  // Bottom sheet refs
+  const sendRef = useRef<GorhomBottomSheet>(null);
+  const depositRef = useRef<GorhomBottomSheet>(null);
+  const securityRef = useRef<GorhomBottomSheet>(null);
+
   const [showSetupModal, setShowSetupModal] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
   const [editBio, setEditBio] = useState('');
+  const [refreshing, setRefreshing] = useState(false);
 
   // Show setup modal when profile needs setup
   const shouldShowSetup = isAuthenticated && needsSetup && !profileLoading;
+
+  // Portfolio value
+  const totalPortfolioUsd = useMemo(() => {
+    let total = solBalanceUsd || 0;
+    for (const token of tokens) {
+      const stat = tokenStats.get(token.mint);
+      if (stat?.price) {
+        total += token.uiAmount * stat.price;
+      }
+    }
+    return total;
+  }, [solBalanceUsd, tokens, tokenStats]);
+
+  const totalStaked = useMemo(
+    () => all.reduce((sum, p) => sum + (p.totalAmount || 0), 0),
+    [all],
+  );
+
+  const handleRefresh = useCallback(async () => {
+    setRefreshing(true);
+    await refreshBalance();
+    refreshCreatorFees();
+    setRefreshing(false);
+  }, [refreshBalance, refreshCreatorFees]);
 
   const handleCopyAddress = useCallback(async () => {
     if (!walletAddress) return;
@@ -98,11 +167,49 @@ export default function ProfileScreen() {
     }
   }, [editBio, updateProfile]);
 
-  // Compute portfolio value from active positions
-  const totalStaked = useMemo(
-    () => all.reduce((sum, p) => sum + (p.totalAmount || 0), 0),
-    [all],
-  );
+  const handleBuySol = useCallback(async () => {
+    if (!walletAddress) return;
+    try {
+      await fundWallet({ address: walletAddress, asset: 'SOL', cluster: 'mainnet-beta' });
+    } catch {
+      // User cancelled
+    }
+  }, [walletAddress, fundWallet]);
+
+  const handleSwap = useCallback(() => {
+    WebBrowser.openBrowserAsync('https://jup.ag/swap/SOL-USDC');
+  }, []);
+
+  const handleCopyMint = useCallback(async (mint: string) => {
+    await Clipboard.setStringAsync(mint);
+    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+  }, []);
+
+  const handleClaimFees = useCallback(async () => {
+    const result = await claimFees();
+    if (result.success) {
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    } else {
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+    }
+  }, [claimFees]);
+
+  const handleAvatarPress = useCallback(async () => {
+    const url = await pickAndUploadPhoto();
+    if (url) {
+      const success = await updateProfile({ profilePhotoUrl: url });
+      if (success) {
+        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+        refreshProfile();
+      }
+    }
+  }, [pickAndUploadPhoto, updateProfile, refreshProfile]);
+
+  const handleOpenTwitter = useCallback(() => {
+    if (profile?.twitter) {
+      Linking.openURL(`https://x.com/${profile.twitter}`);
+    }
+  }, [profile?.twitter]);
 
   const displayName = profile?.username
     ? `@${profile.username}`
@@ -130,22 +237,50 @@ export default function ProfileScreen() {
         }
       />
 
-      <ScrollView contentContainerStyle={[styles.content, { paddingBottom: spacing.lg }]}>
+      <ScrollView
+        contentContainerStyle={[styles.content, { paddingBottom: spacing.lg }]}
+        refreshControl={
+          isAuthenticated ? (
+            <RefreshControl
+              refreshing={refreshing}
+              onRefresh={handleRefresh}
+              tintColor={colors.primary}
+            />
+          ) : undefined
+        }
+      >
         {/* Section 1: User Info */}
         {isAuthenticated ? (
           <View style={styles.userSection}>
-            <View style={styles.avatarRing}>
-              {avatarUrl ? (
-                <Image source={{ uri: avatarUrl }} style={styles.avatar} />
+            <PressableScale onPress={handleAvatarPress} style={styles.avatarWrapper}>
+              <View style={styles.avatarRing}>
+                {avatarUrl ? (
+                  <Image source={{ uri: avatarUrl }} style={styles.avatar} />
+                ) : (
+                  <View style={[styles.avatar, styles.avatarPlaceholder]}>
+                    <Ionicons name="person" size={32} color={colors.textMuted} />
+                  </View>
+                )}
+              </View>
+              {isPhotoUploading ? (
+                <View style={styles.cameraBadge}>
+                  <ActivityIndicator size={12} color="#fff" />
+                </View>
               ) : (
-                <View style={[styles.avatar, styles.avatarPlaceholder]}>
-                  <Ionicons name="person" size={32} color={colors.textMuted} />
+                <View style={styles.cameraBadge}>
+                  <Ionicons name="camera" size={12} color="#fff" />
                 </View>
               )}
-            </View>
+            </PressableScale>
             <Text style={styles.displayName}>{displayName}</Text>
             {profile?.bio ? (
               <Text style={styles.bio}>{profile.bio}</Text>
+            ) : null}
+            {profile?.twitter ? (
+              <PressableScale onPress={handleOpenTwitter} style={styles.twitterRow}>
+                <Ionicons name="logo-twitter" size={14} color={colors.textSecondary} />
+                <Text style={styles.twitterHandle}>@{profile.twitter}</Text>
+              </PressableScale>
             ) : null}
             {walletAddress && (
               <PressableScale onPress={handleCopyAddress} style={styles.addressRow}>
@@ -161,15 +296,21 @@ export default function ProfileScreen() {
                 <Text style={styles.statLabel}>Predictions</Text>
               </View>
               <View style={styles.statDivider} />
-              <View style={styles.statItem}>
-                <Text style={styles.statValue}>{profile?.projectsCreated ?? 0}</Text>
-                <Text style={styles.statLabel}>Projects</Text>
-              </View>
+              <PressableScale
+                style={styles.statItem}
+                onPress={() => router.push({ pathname: '/followers', params: { type: 'followers', wallet: walletAddress! } })}
+              >
+                <Text style={styles.statValue}>{profile?.followerCount ?? 0}</Text>
+                <Text style={styles.statLabel}>Followers</Text>
+              </PressableScale>
               <View style={styles.statDivider} />
-              <View style={styles.statItem}>
-                <Text style={styles.statValue}>{profile?.reputationScore ?? 0}</Text>
-                <Text style={styles.statLabel}>Reputation</Text>
-              </View>
+              <PressableScale
+                style={styles.statItem}
+                onPress={() => router.push({ pathname: '/followers', params: { type: 'following', wallet: walletAddress! } })}
+              >
+                <Text style={styles.statValue}>{profile?.followingCount ?? 0}</Text>
+                <Text style={styles.statLabel}>Following</Text>
+              </PressableScale>
             </View>
 
             {/* Bio edit inline */}
@@ -223,116 +364,193 @@ export default function ProfileScreen() {
           </View>
         )}
 
-        {/* Section 2: Portfolio Summary */}
+        {/* ─── WALLET SECTION ─── */}
         {isAuthenticated && (
           <>
-            <GlassCard style={styles.portfolioCard}>
-              <Text style={styles.portfolioLabel}>Total Staked</Text>
-              <Text style={styles.portfolioValue}>
-                {totalStaked > 0 ? `${totalStaked.toFixed(2)} SOL` : '0.00 SOL'}
-              </Text>
-              <View style={styles.positionCounts}>
-                <View style={styles.positionCountItem}>
-                  <View style={[styles.positionDot, { backgroundColor: colors.primary }]} />
-                  <Text style={styles.positionCountText}>{active.length} Active</Text>
-                </View>
-                <View style={styles.positionCountItem}>
-                  <View style={[styles.positionDot, { backgroundColor: colors.success }]} />
-                  <Text style={styles.positionCountText}>{claimable.length} Claimable</Text>
-                </View>
-                <View style={styles.positionCountItem}>
-                  <View style={[styles.positionDot, { backgroundColor: colors.textMuted }]} />
-                  <Text style={styles.positionCountText}>{resolved.length} Resolved</Text>
-                </View>
+            {/* Balance Card */}
+            <GlassCard style={styles.balanceCard}>
+              <Text style={styles.balanceLabel}>Total Balance</Text>
+              <Text style={styles.balanceUsd}>{formatUsd(totalPortfolioUsd)}</Text>
+              <View style={styles.solRow}>
+                <Text style={styles.solBalance}>
+                  {balanceLoading ? '...' : solBalance.toFixed(4)} SOL
+                </Text>
+                {solPrice && (
+                  <Text style={styles.solUsdHint}>@ {formatUsd(solPrice)}/SOL</Text>
+                )}
               </View>
             </GlassCard>
 
-            {/* Section 3: Active Positions */}
-            <SectionHeader title="Active Positions" count={active.length} />
-            {positionsLoading && active.length === 0 ? (
-              <View style={styles.loadingContainer}>
-                <ActivityIndicator size="small" color={colors.primary} />
+            {/* Action Buttons */}
+            <View style={styles.actionsRow}>
+              <ActionButton icon="card-outline" label="Buy" color={colors.success} onPress={handleBuySol} />
+              <ActionButton icon="send-outline" label="Send" color={colors.primary} onPress={() => sendRef.current?.snapToIndex(0)} />
+              <ActionButton icon="download-outline" label="Receive" color="#22d3ee" onPress={() => depositRef.current?.snapToIndex(0)} />
+              <ActionButton icon="swap-horizontal-outline" label="Swap" color={colors.accent} onPress={handleSwap} />
+            </View>
+
+            {/* Token List */}
+            <SectionHeader title="Your Tokens" count={tokens.length + 1} />
+
+            {/* SOL row */}
+            <PressableScale
+              onPress={walletAddress ? () => handleCopyMint(walletAddress) : undefined}
+              style={styles.tokenRow}
+            >
+              <LinearGradient
+                colors={['#9945FF', '#14F195']}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 1 }}
+                style={styles.tokenLogo}
+              >
+                <Text style={styles.tokenLogoText}>S</Text>
+              </LinearGradient>
+              <View style={styles.tokenInfo}>
+                <Text style={styles.tokenSymbol}>SOL</Text>
+                <Text style={styles.tokenName}>Solana</Text>
               </View>
-            ) : active.length > 0 ? (
-              active.map((pos) => (
-                <PressableScale
-                  key={`${pos.marketId}-${pos.voteType}`}
-                  onPress={() => router.push(`/market/${pos.marketId}`)}
-                  style={styles.positionCard}
-                >
-                  <View style={styles.positionHeader}>
-                    <Text style={styles.positionName} numberOfLines={1}>
-                      {pos.marketName}
-                    </Text>
-                    <View
-                      style={[
-                        styles.voteBadge,
-                        { backgroundColor: pos.voteType === 'yes' ? 'rgba(16, 185, 129, 0.15)' : 'rgba(239, 68, 68, 0.15)' },
-                      ]}
-                    >
-                      <Text
-                        style={[
-                          styles.voteBadgeText,
-                          { color: pos.voteType === 'yes' ? colors.success : colors.danger },
-                        ]}
-                      >
-                        {pos.voteType.toUpperCase()}
+              <View style={styles.tokenValues}>
+                <Text style={styles.tokenBalanceText}>{solBalance.toFixed(4)}</Text>
+                <Text style={styles.tokenUsd}>{formatUsd(solBalanceUsd)}</Text>
+              </View>
+            </PressableScale>
+
+            {/* SPL tokens */}
+            {tokensLoading && tokens.length === 0 ? (
+              <View style={styles.loadingRow}>
+                <ActivityIndicator size="small" color={colors.primary} />
+                <Text style={styles.loadingRowText}>Loading tokens...</Text>
+              </View>
+            ) : (
+              tokens.map((token) => {
+                const stat = tokenStats.get(token.mint);
+                const tokenUsd = stat?.price ? token.uiAmount * stat.price : null;
+                const change = stat?.priceChange24h;
+
+                return (
+                  <PressableScale
+                    key={token.mint}
+                    onPress={() => handleCopyMint(token.mint)}
+                    style={styles.tokenRow}
+                  >
+                    {token.logoURI ? (
+                      <Image source={{ uri: token.logoURI }} style={styles.tokenLogo} />
+                    ) : (
+                      <View style={[styles.tokenLogo, styles.tokenLogoPlaceholder]}>
+                        <Text style={styles.tokenLogoText}>
+                          {token.symbol?.charAt(0) || '?'}
+                        </Text>
+                      </View>
+                    )}
+                    <View style={styles.tokenInfo}>
+                      <Text style={styles.tokenSymbol}>{token.symbol || 'Unknown'}</Text>
+                      <Text style={styles.tokenName} numberOfLines={1}>
+                        {token.name || 'Unknown Token'}
                       </Text>
                     </View>
-                  </View>
-                  <View style={styles.positionDetails}>
-                    <Text style={styles.positionDetail}>
-                      {pos.totalAmount.toFixed(3)} SOL
-                    </Text>
-                    <Text style={styles.positionDetailMuted}>
-                      {pos.totalShares.toFixed(1)} shares
-                    </Text>
-                    <Text style={styles.positionDetailMuted}>
-                      {((pos.voteType === 'yes' ? pos.currentYesPrice : pos.currentNoPrice) * 100).toFixed(1)}%
-                    </Text>
-                  </View>
-                </PressableScale>
-              ))
-            ) : (
-              <EmptyState
-                icon="bar-chart-outline"
-                title="No positions yet"
-                subtitle="Vote on markets to start building your portfolio"
-                actionLabel="Browse Markets"
-                onAction={() => router.push('/(tabs)/explore')}
-              />
-            )}
-
-            {/* Claimable section */}
-            {claimable.length > 0 && (
-              <>
-                <SectionHeader title="Claimable Rewards" count={claimable.length} style={styles.sectionGap} />
-                {claimable.map((pos) => (
-                  <PressableScale
-                    key={`claim-${pos.marketId}-${pos.voteType}`}
-                    onPress={() => router.push(`/market/${pos.marketId}`)}
-                    style={[styles.positionCard, styles.claimableCard]}
-                  >
-                    <View style={styles.positionHeader}>
-                      <Text style={styles.positionName} numberOfLines={1}>
-                        {pos.marketName}
+                    <View style={styles.tokenValues}>
+                      <Text style={styles.tokenBalanceText}>
+                        {token.uiAmount < 1000
+                          ? token.uiAmount.toFixed(2)
+                          : token.uiAmount.toLocaleString(undefined, { maximumFractionDigits: 0 })}
                       </Text>
-                      <View style={styles.claimBadge}>
-                        <Ionicons name="gift" size={12} color={colors.success} />
-                        <Text style={styles.claimBadgeText}>Claim</Text>
+                      <View style={styles.tokenUsdRow}>
+                        {tokenUsd != null && (
+                          <Text style={styles.tokenUsd}>{formatUsd(tokenUsd)}</Text>
+                        )}
+                        {change != null && (
+                          <Text
+                            style={[
+                              styles.changeText,
+                              { color: change >= 0 ? colors.success : colors.danger },
+                            ]}
+                          >
+                            {change >= 0 ? '+' : ''}{change.toFixed(1)}%
+                          </Text>
+                        )}
                       </View>
                     </View>
-                    <Text style={styles.positionDetail}>
-                      {pos.totalAmount.toFixed(3)} SOL staked
-                    </Text>
                   </PressableScale>
-                ))}
+                );
+              })
+            )}
+          </>
+        )}
+
+        {/* ─── PORTFOLIO TABS (Predictions / Projects / Watchlist) ─── */}
+        {isAuthenticated && walletAddress && (
+          <>
+            <PortfolioTabs
+              walletAddress={walletAddress}
+              active={active}
+              claimable={claimable}
+              resolved={resolved}
+              all={all}
+              positionsLoading={positionsLoading}
+              totalStaked={totalStaked}
+              favoriteMarketIds={profile?.favoriteMarkets ?? []}
+            />
+
+            {/* Creator Fees */}
+            {launchedTokenCount > 0 && (
+              <>
+                <SectionHeader title="Creator Fees" count={launchedTokenCount} style={styles.sectionGap} />
+                <GlassCard style={styles.creatorCard}>
+                  <View style={styles.creatorHeader}>
+                    <Ionicons name="gift-outline" size={20} color={colors.accent} />
+                    <Text style={styles.creatorTitle}>Claimable Fees</Text>
+                  </View>
+                  <Text style={styles.creatorAmount}>
+                    {totalClaimable.toFixed(6)} SOL
+                  </Text>
+                  {solPrice && (
+                    <Text style={styles.creatorUsd}>
+                      {formatUsd(totalClaimable * solPrice)}
+                    </Text>
+                  )}
+
+                  {creatorFeesData?.tokens?.map((item) => (
+                    <View key={item.token.tokenAddress} style={styles.feeTokenRow}>
+                      <View style={styles.feeTokenInfo}>
+                        <Text style={styles.feeTokenSymbol}>{item.token.symbol}</Text>
+                        <Text style={styles.feeTokenName}>{item.token.name}</Text>
+                      </View>
+                      <Text style={styles.feeTokenAmount}>
+                        {item.claimableAmount.toFixed(6)} SOL
+                      </Text>
+                    </View>
+                  ))}
+
+                  {hasClaimableFees && (
+                    <PressableScale
+                      onPress={handleClaimFees}
+                      disabled={isClaiming}
+                      style={styles.claimButton}
+                    >
+                      <LinearGradient
+                        colors={[colors.gradientStart, colors.gradientEnd]}
+                        start={{ x: 0, y: 0 }}
+                        end={{ x: 1, y: 0 }}
+                        style={styles.claimGradient}
+                      >
+                        {isClaiming ? (
+                          <ActivityIndicator size="small" color="#fff" />
+                        ) : (
+                          <>
+                            <Ionicons name="download-outline" size={16} color="#fff" />
+                            <Text style={styles.claimText}>Claim All</Text>
+                          </>
+                        )}
+                      </LinearGradient>
+                    </PressableScale>
+                  )}
+                </GlassCard>
               </>
             )}
           </>
         )}
 
-        {/* Section 4: Create */}
+        {/* Section: Create */}
         {isAuthenticated && (
           <>
             <SectionHeader title="Create" style={styles.sectionGap} />
@@ -358,7 +576,7 @@ export default function ProfileScreen() {
           </>
         )}
 
-        {/* Section 5: Settings */}
+        {/* Section: Settings */}
         <SectionHeader title="Settings" style={styles.sectionGap} />
         <View style={styles.settingsList}>
           {isAuthenticated && (
@@ -368,7 +586,13 @@ export default function ProfileScreen() {
               onPress={() => setShowSetupModal(true)}
             />
           )}
-          <SettingsRow icon="wallet-outline" label="Connected Wallets" />
+          {isAuthenticated && (
+            <SettingsRow
+              icon="key-outline"
+              label="Export Private Key"
+              onPress={() => securityRef.current?.snapToIndex(0)}
+            />
+          )}
           <SettingsRow
             icon="document-text-outline"
             label="Whitepaper"
@@ -381,7 +605,7 @@ export default function ProfileScreen() {
           />
         </View>
 
-        {/* Footer links — matches web footer */}
+        {/* Footer */}
         <View style={styles.footerSection}>
           <Text style={styles.footerTagline}>launch your idea</Text>
 
@@ -434,7 +658,54 @@ export default function ProfileScreen() {
         checkUsername={checkUsername}
         email={(user as any)?.email?.address}
       />
+
+      {/* Bottom Sheets */}
+      {walletAddress && (
+        <>
+          <SendSheet
+            ref={sendRef}
+            walletAddress={walletAddress}
+            solBalance={solBalance}
+            tokens={tokens}
+            onClose={() => sendRef.current?.close()}
+            onSuccess={() => refreshBalance()}
+          />
+          <DepositSheet
+            ref={depositRef}
+            walletAddress={walletAddress}
+            onClose={() => depositRef.current?.close()}
+          />
+          <SecuritySheet
+            ref={securityRef}
+            walletAddress={walletAddress}
+            onClose={() => securityRef.current?.close()}
+          />
+        </>
+      )}
     </View>
+  );
+}
+
+/* ---------- Sub-components ---------- */
+
+function ActionButton({
+  icon,
+  label,
+  color,
+  onPress,
+}: {
+  icon: keyof typeof Ionicons.glyphMap;
+  label: string;
+  color: string;
+  onPress: () => void;
+}) {
+  return (
+    <PressableScale onPress={onPress} style={styles.actionBtn}>
+      <View style={[styles.actionIcon, { backgroundColor: `${color}15` }]}>
+        <Ionicons name={icon} size={22} color={color} />
+      </View>
+      <Text style={styles.actionLabel}>{label}</Text>
+    </PressableScale>
   );
 }
 
@@ -475,6 +746,8 @@ function FooterIcon({
   );
 }
 
+/* ---------- Styles ---------- */
+
 const styles = StyleSheet.create({
   container: {
     flex: 1,
@@ -488,10 +761,11 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: spacing.md,
   },
+
   // User section
   userSection: {
     alignItems: 'center',
-    marginBottom: spacing.lg,
+    marginBottom: spacing.md,
   },
   avatarRing: {
     width: 80,
@@ -501,7 +775,6 @@ const styles = StyleSheet.create({
     borderColor: colors.primary,
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: spacing.sm,
     overflow: 'hidden',
   },
   avatar: {
@@ -513,6 +786,33 @@ const styles = StyleSheet.create({
     backgroundColor: colors.surfaceElevated,
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  avatarWrapper: {
+    position: 'relative',
+    marginBottom: spacing.sm,
+  },
+  cameraBadge: {
+    position: 'absolute',
+    bottom: 0,
+    right: -2,
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    backgroundColor: colors.primary,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 2,
+    borderColor: colors.background,
+  },
+  twitterRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    marginTop: 4,
+  },
+  twitterHandle: {
+    ...typography.caption,
+    color: colors.textSecondary,
   },
   displayName: {
     ...typography.title,
@@ -536,6 +836,7 @@ const styles = StyleSheet.create({
     color: colors.textMuted,
     fontVariant: ['tabular-nums'],
   },
+
   // Stats row
   statsRow: {
     flexDirection: 'row',
@@ -567,6 +868,7 @@ const styles = StyleSheet.create({
     height: 28,
     backgroundColor: colors.border,
   },
+
   // Bio editing
   editBioContainer: {
     width: '100%',
@@ -615,6 +917,7 @@ const styles = StyleSheet.create({
     ...typography.caption,
     color: colors.primary,
   },
+
   // Sign in section
   signInSection: {
     alignItems: 'center',
@@ -643,104 +946,197 @@ const styles = StyleSheet.create({
     ...typography.bodyBold,
     color: '#fff',
   },
-  // Portfolio
-  portfolioCard: {
-    padding: spacing.md,
-    marginBottom: spacing.lg,
+
+  // ─── Wallet: Balance Card ───
+  balanceCard: {
+    padding: spacing.lg,
     alignItems: 'center',
+    marginBottom: spacing.sm,
   },
-  portfolioLabel: {
+  balanceLabel: {
     ...typography.caption,
     color: colors.textSecondary,
     marginBottom: 4,
   },
-  portfolioValue: {
+  balanceUsd: {
     ...typography.numericLarge,
     color: colors.textPrimary,
-    marginBottom: spacing.sm,
+    marginBottom: 4,
   },
-  positionCounts: {
-    flexDirection: 'row',
-    gap: spacing.md,
-    marginTop: spacing.xs,
-  },
-  positionCountItem: {
+  solRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 4,
+    gap: 6,
   },
-  positionDot: {
-    width: 6,
-    height: 6,
-    borderRadius: 3,
+  solBalance: {
+    ...typography.numeric,
+    color: colors.textSecondary,
+    fontSize: 14,
   },
-  positionCountText: {
+  solUsdHint: {
+    ...typography.micro,
+    color: colors.textMuted,
+  },
+
+  // ─── Wallet: Action Buttons ───
+  actionsRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-around',
+    marginBottom: spacing.md,
+    paddingHorizontal: spacing.sm,
+  },
+  actionBtn: {
+    alignItems: 'center',
+    gap: 6,
+  },
+  actionIcon: {
+    width: 52,
+    height: 52,
+    borderRadius: 26,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  actionLabel: {
     ...typography.micro,
     color: colors.textSecondary,
   },
-  // Positions
-  positionCard: {
-    backgroundColor: colors.glass,
-    borderRadius: borderRadius.md,
-    borderWidth: 1,
-    borderColor: colors.glassBorder,
-    padding: spacing.md,
-    marginBottom: spacing.sm,
-  },
-  claimableCard: {
-    borderColor: 'rgba(16, 185, 129, 0.3)',
-  },
-  positionHeader: {
+
+  // ─── Wallet: Token List ───
+  tokenRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: spacing.xs,
+    gap: spacing.sm,
+    paddingVertical: spacing.sm + 2,
+    paddingHorizontal: spacing.sm,
+    borderRadius: borderRadius.md,
   },
-  positionName: {
+  tokenLogo: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  tokenLogoPlaceholder: {
+    backgroundColor: colors.surfaceElevated,
+  },
+  tokenLogoText: {
+    ...typography.bodyBold,
+    color: '#fff',
+    fontSize: 16,
+  },
+  tokenInfo: {
+    flex: 1,
+  },
+  tokenSymbol: {
     ...typography.bodyBold,
     color: colors.textPrimary,
-    flex: 1,
-    marginRight: spacing.sm,
   },
-  voteBadge: {
-    paddingHorizontal: 8,
-    paddingVertical: 2,
-    borderRadius: borderRadius.sm,
+  tokenName: {
+    ...typography.micro,
+    color: colors.textMuted,
   },
-  voteBadgeText: {
-    fontSize: 11,
-    fontWeight: '700',
+  tokenValues: {
+    alignItems: 'flex-end',
   },
-  claimBadge: {
+  tokenBalanceText: {
+    ...typography.captionBold,
+    color: colors.textPrimary,
+    fontVariant: ['tabular-nums'],
+  },
+  tokenUsd: {
+    ...typography.micro,
+    color: colors.textMuted,
+    fontVariant: ['tabular-nums'],
+  },
+  tokenUsdRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 4,
-    backgroundColor: 'rgba(16, 185, 129, 0.15)',
-    paddingHorizontal: 8,
-    paddingVertical: 2,
-    borderRadius: borderRadius.sm,
+    gap: 6,
   },
-  claimBadgeText: {
-    fontSize: 11,
-    fontWeight: '700',
-    color: colors.success,
+  changeText: {
+    ...typography.micro,
+    fontWeight: '600',
+    fontVariant: ['tabular-nums'],
   },
-  positionDetails: {
+  loadingRow: {
     flexDirection: 'row',
-    gap: spacing.md,
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: spacing.sm,
+    paddingVertical: spacing.md,
   },
-  positionDetail: {
-    ...typography.caption,
-    color: colors.textPrimary,
-  },
-  positionDetailMuted: {
+  loadingRowText: {
     ...typography.caption,
     color: colors.textMuted,
   },
-  loadingContainer: {
-    paddingVertical: spacing.xl,
-    alignItems: 'center',
+
+  // ─── Wallet: Creator Fees ───
+  creatorCard: {
+    padding: spacing.md,
   },
+  creatorHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+    marginBottom: spacing.sm,
+  },
+  creatorTitle: {
+    ...typography.bodyBold,
+    color: colors.textPrimary,
+  },
+  creatorAmount: {
+    ...typography.numericLarge,
+    color: colors.textPrimary,
+    fontSize: 22,
+  },
+  creatorUsd: {
+    ...typography.micro,
+    color: colors.textMuted,
+    marginBottom: spacing.sm,
+  },
+  feeTokenRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingVertical: spacing.xs,
+    borderTopWidth: 1,
+    borderTopColor: colors.border,
+  },
+  feeTokenInfo: {
+    flex: 1,
+  },
+  feeTokenSymbol: {
+    ...typography.captionBold,
+    color: colors.textPrimary,
+  },
+  feeTokenName: {
+    ...typography.micro,
+    color: colors.textMuted,
+  },
+  feeTokenAmount: {
+    ...typography.captionBold,
+    color: colors.success,
+    fontVariant: ['tabular-nums'],
+  },
+  claimButton: {
+    borderRadius: borderRadius.full,
+    overflow: 'hidden',
+    marginTop: spacing.md,
+  },
+  claimGradient: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    paddingVertical: 14,
+    borderRadius: borderRadius.full,
+  },
+  claimText: {
+    ...typography.bodyBold,
+    color: '#fff',
+  },
+
   // Create
   sectionGap: {
     marginTop: spacing.md,
@@ -764,6 +1160,7 @@ const styles = StyleSheet.create({
     color: 'rgba(255,255,255,0.7)',
     textAlign: 'center',
   },
+
   // Settings
   settingsList: {
     backgroundColor: colors.surface,
@@ -785,6 +1182,7 @@ const styles = StyleSheet.create({
     color: colors.textPrimary,
     flex: 1,
   },
+
   // Footer
   footerSection: {
     alignItems: 'center',

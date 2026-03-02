@@ -20,6 +20,7 @@ export interface UserProfile {
   successfulProjects: number;
   followerCount: number;
   followingCount: number;
+  favoriteMarkets: string[];
   createdAt: string;
   updatedAt: string;
 }
