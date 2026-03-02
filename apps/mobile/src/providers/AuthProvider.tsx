@@ -39,7 +39,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     sendCode,
     loginWithCode,
     state: emailState,
-  } = useLoginWithEmail();
+  } = useLoginWithEmail({
+    onError: (error) => {
+      console.error('[Privy Email OTP Error]', error?.message || error);
+    },
+    onSendCodeSuccess: ({ email }) => {
+      console.log('[Privy] OTP code sent to:', email);
+    },
+    onLoginSuccess: (user, isNewUser) => {
+      console.log('[Privy] Login success, new user:', isNewUser);
+    },
+  });
 
   const {
     login: oauthLogin,

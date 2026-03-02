@@ -53,6 +53,12 @@ config.resolver.resolveRequest = (context, moduleName, platform) => {
     return { type: 'sourceFile', filePath: path.join(joseBase, 'dist/browser/index.js') };
   }
 
+  // Resolve @privy-io/expo subpath exports (Metro can struggle with package exports)
+  if (moduleName === '@privy-io/expo/ui') {
+    const expoBase = path.join(monorepoRoot, 'node_modules', '@privy-io', 'expo');
+    return { type: 'sourceFile', filePath: path.join(expoBase, 'dist', 'esm', 'ui.js') };
+  }
+
   // Redirect @privy-io/react-auth AND all subpaths (e.g. /solana) to a mobile-safe shim
   // Mobile uses @privy-io/expo instead — react-auth is web-only and crashes on RN
   if (moduleName === '@privy-io/react-auth' || moduleName.startsWith('@privy-io/react-auth/')) {

@@ -78,6 +78,13 @@ export default function LoginScreen() {
     emailState.status === 'submitting-code' ||
     oauthState.status === 'loading';
 
+  // Surface errors from emailState (Privy may report errors via state, not promise rejection)
+  useEffect(() => {
+    if (emailState.status === 'error' && 'error' in emailState && emailState.error) {
+      setError(emailState.error.message || 'Authentication error');
+    }
+  }, [emailState]);
+
   // Logo entrance animation
   useEffect(() => {
     RNAnimated.parallel([
@@ -132,10 +139,13 @@ export default function LoginScreen() {
     if (!email.trim()) return;
     setError(null);
     try {
-      await sendCode({ email: email.trim() });
+      console.log('[Login] Sending OTP to:', email.trim());
+      const result = await sendCode({ email: email.trim() });
+      console.log('[Login] sendCode result:', JSON.stringify(result));
       setResendCountdown(60);
       transitionTo('otp');
     } catch (e: any) {
+      console.error('[Login] sendCode error:', e);
       setError(e?.message || 'Failed to send code');
     }
   };
@@ -144,7 +154,7 @@ export default function LoginScreen() {
     setError(null);
     try {
       await loginWithCode({ code, email: email.trim() });
-      router.back();
+      router.replace('/(tabs)/profile');
     } catch (e: any) {
       setError(e?.message || 'Invalid code');
     }
@@ -154,7 +164,7 @@ export default function LoginScreen() {
     setError(null);
     try {
       await loginWithOAuth({ provider });
-      router.back();
+      router.replace('/(tabs)/profile');
     } catch (e: any) {
       setError(e?.message || `${provider} login failed`);
     }

@@ -10,6 +10,13 @@ import { setEnvConfig } from '@pnl/shared/config';
 // Privy App ID (same as web's NEXT_PUBLIC_PRIVY_APP_ID)
 export const PRIVY_APP_ID = 'cmgn1ettr01tal10dchxxjx2w';
 
+// Privy Client ID (required by @privy-io/expo for auth flows)
+// Get this from https://dashboard.privy.io/ → your app → Settings → Clients
+export const PRIVY_CLIENT_ID = 'client-WY6Rc7yvQxe6GD9R24eu4pyedJ8ofSba5Q7RwaRQJvgfh';
+
+// In production, these would come from app.json extra or expo-constants
+// For now, configure for the deployed web backend
+// Physical device: use Mac's LAN IP. Simulator: localhost works too.
 // In production, these would come from app.json extra or expo-constants
 // For now, configure for the deployed web backend
 // Physical device: use Mac's LAN IP. Simulator: localhost works too.

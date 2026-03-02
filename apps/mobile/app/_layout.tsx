@@ -12,10 +12,11 @@ import * as SplashScreen from 'expo-splash-screen';
 import * as Linking from 'expo-linking';
 import { SWRConfig } from 'swr';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
-import { PrivyProvider, PrivyElements } from '@privy-io/expo';
+import { PrivyProvider } from '@privy-io/expo';
+import { PrivyElements } from '@privy-io/expo/ui';
 import { NetworkProvider } from '@pnl/shared/contexts';
 import { swrConfig } from '@pnl/shared/services';
-import { PRIVY_APP_ID } from '../src/config/init';
+import { PRIVY_APP_ID, PRIVY_CLIENT_ID } from '../src/config/init';
 import { AuthProvider } from '../src/providers/AuthProvider';
 import { VoiceRoomProvider, useVoiceRoomContextSafe } from '../src/providers/VoiceRoomProvider';
 import { StarField } from '../src/components';
@@ -94,7 +95,7 @@ function AppContent() {
 export default function RootLayout() {
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
-      <PrivyProvider appId={PRIVY_APP_ID}>
+      <PrivyProvider appId={PRIVY_APP_ID} clientId={PRIVY_CLIENT_ID}>
         <PrivyElements />
         <SWRConfig value={swrConfig}>
           <NetworkProvider>
