@@ -564,6 +564,7 @@ export default function FeedScreen() {
           setVoteMarket(null);
         }}
       />
+
     </View>
   );
 }

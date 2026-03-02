@@ -1,6 +1,7 @@
 /**
  * Login Screen — Bottom-aligned, OTP boxes, animated transitions
  * Email OTP + OAuth (Google/Apple)
+ * Polished with gradient icon circles, stagger animations, and gradient buttons
  */
 
 import { useState, useCallback, useEffect, useRef } from 'react';
@@ -14,6 +15,7 @@ import {
   ActivityIndicator,
   Animated as RNAnimated,
 } from 'react-native';
+import { LinearGradient } from 'expo-linear-gradient';
 import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -23,6 +25,36 @@ import { PressableScale, OTPInput } from '../src/components';
 
 type LoginStep = 'choose' | 'email' | 'otp';
 
+// Gradient icon circle for auth method buttons
+function GradientIcon({
+  name,
+  gradientColors,
+}: {
+  name: keyof typeof Ionicons.glyphMap;
+  gradientColors: [string, string];
+}) {
+  return (
+    <LinearGradient
+      colors={gradientColors}
+      start={{ x: 0, y: 0 }}
+      end={{ x: 1, y: 1 }}
+      style={iconStyles.circle}
+    >
+      <Ionicons name={name} size={18} color="#fff" />
+    </LinearGradient>
+  );
+}
+
+const iconStyles = StyleSheet.create({
+  circle: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+});
+
 export default function LoginScreen() {
   const { sendCode, loginWithCode, emailState, loginWithOAuth, oauthState } = useAuth();
   const insets = useSafeAreaInsets();
@@ -30,13 +62,52 @@ export default function LoginScreen() {
   const [email, setEmail] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [resendCountdown, setResendCountdown] = useState(0);
+  const [emailFocused, setEmailFocused] = useState(false);
 
   const fadeAnim = useRef(new RNAnimated.Value(1)).current;
+  const logoScale = useRef(new RNAnimated.Value(0.85)).current;
+  const logoOpacity = useRef(new RNAnimated.Value(0)).current;
+
+  // Stagger method buttons
+  const method1Anim = useRef(new RNAnimated.Value(0)).current;
+  const method2Anim = useRef(new RNAnimated.Value(0)).current;
+  const method3Anim = useRef(new RNAnimated.Value(0)).current;
 
   const isLoading =
     emailState.status === 'sending-code' ||
     emailState.status === 'submitting-code' ||
     oauthState.status === 'loading';
+
+  // Logo entrance animation
+  useEffect(() => {
+    RNAnimated.parallel([
+      RNAnimated.spring(logoScale, {
+        toValue: 1,
+        friction: 6,
+        tension: 80,
+        useNativeDriver: true,
+      }),
+      RNAnimated.timing(logoOpacity, {
+        toValue: 1,
+        duration: 400,
+        useNativeDriver: true,
+      }),
+    ]).start();
+  }, [logoScale, logoOpacity]);
+
+  // Stagger method buttons when step is 'choose'
+  useEffect(() => {
+    if (step === 'choose') {
+      method1Anim.setValue(0);
+      method2Anim.setValue(0);
+      method3Anim.setValue(0);
+      RNAnimated.stagger(80, [
+        RNAnimated.timing(method1Anim, { toValue: 1, duration: 300, useNativeDriver: true }),
+        RNAnimated.timing(method2Anim, { toValue: 1, duration: 300, useNativeDriver: true }),
+        RNAnimated.timing(method3Anim, { toValue: 1, duration: 300, useNativeDriver: true }),
+      ]).start();
+    }
+  }, [step, method1Anim, method2Anim, method3Anim]);
 
   // Animated step transition
   const transitionTo = useCallback(
@@ -100,6 +171,11 @@ export default function LoginScreen() {
     }
   };
 
+  const methodAnimStyle = (anim: RNAnimated.Value) => ({
+    opacity: anim,
+    transform: [{ translateY: anim.interpolate({ inputRange: [0, 1], outputRange: [16, 0] }) }],
+  });
+
   return (
     <KeyboardAvoidingView
       style={styles.container}
@@ -114,10 +190,16 @@ export default function LoginScreen() {
       </PressableScale>
 
       {/* Brand section — top */}
-      <View style={[styles.brandSection, { paddingTop: insets.top + 60 }]}>
+      <RNAnimated.View
+        style={[
+          styles.brandSection,
+          { paddingTop: insets.top + 60, opacity: logoOpacity, transform: [{ scale: logoScale }] },
+        ]}
+      >
         <Text style={styles.logo}>PNL</Text>
         <Text style={styles.tagline}>Predict & Launch</Text>
-      </View>
+        <Text style={styles.subtitle}>Connect to start predicting</Text>
+      </RNAnimated.View>
 
       {/* Content — bottom aligned */}
       <View style={styles.spacer} />
@@ -133,32 +215,38 @@ export default function LoginScreen() {
         {/* Step: Choose */}
         {step === 'choose' && (
           <View style={styles.methods}>
-            <PressableScale style={styles.methodButton} onPress={() => transitionTo('email')}>
-              <Ionicons name="mail-outline" size={22} color={colors.textPrimary} />
-              <Text style={styles.methodText}>Continue with Email</Text>
-            </PressableScale>
+            <RNAnimated.View style={methodAnimStyle(method1Anim)}>
+              <PressableScale style={styles.methodButton} onPress={() => transitionTo('email')}>
+                <GradientIcon name="mail-outline" gradientColors={['#6366f1', '#818cf8']} />
+                <Text style={styles.methodText}>Continue with Email</Text>
+              </PressableScale>
+            </RNAnimated.View>
 
-            <PressableScale
-              style={styles.methodButton}
-              onPress={() => handleOAuth('google')}
-              disabled={isLoading}
-            >
-              <Ionicons name="logo-google" size={22} color={colors.textPrimary} />
-              <Text style={styles.methodText}>Continue with Google</Text>
-              {oauthState.status === 'loading' && (
-                <ActivityIndicator size="small" color={colors.primary} />
-              )}
-            </PressableScale>
-
-            {Platform.OS === 'ios' && (
+            <RNAnimated.View style={methodAnimStyle(method2Anim)}>
               <PressableScale
                 style={styles.methodButton}
-                onPress={() => handleOAuth('apple')}
+                onPress={() => handleOAuth('google')}
                 disabled={isLoading}
               >
-                <Ionicons name="logo-apple" size={22} color={colors.textPrimary} />
-                <Text style={styles.methodText}>Continue with Apple</Text>
+                <GradientIcon name="logo-google" gradientColors={['#ea4335', '#fa7b17']} />
+                <Text style={styles.methodText}>Continue with Google</Text>
+                {oauthState.status === 'loading' && (
+                  <ActivityIndicator size="small" color={colors.primary} />
+                )}
               </PressableScale>
+            </RNAnimated.View>
+
+            {Platform.OS === 'ios' && (
+              <RNAnimated.View style={methodAnimStyle(method3Anim)}>
+                <PressableScale
+                  style={styles.methodButton}
+                  onPress={() => handleOAuth('apple')}
+                  disabled={isLoading}
+                >
+                  <GradientIcon name="logo-apple" gradientColors={['#6b7280', '#d1d5db']} />
+                  <Text style={styles.methodText}>Continue with Apple</Text>
+                </PressableScale>
+              </RNAnimated.View>
             )}
           </View>
         )}
@@ -168,7 +256,7 @@ export default function LoginScreen() {
           <View style={styles.inputSection}>
             <Text style={styles.stepTitle}>Enter your email</Text>
             <TextInput
-              style={styles.input}
+              style={[styles.input, emailFocused && styles.inputFocused]}
               placeholder="you@example.com"
               placeholderTextColor={colors.textMuted}
               value={email}
@@ -177,17 +265,26 @@ export default function LoginScreen() {
               keyboardType="email-address"
               autoFocus
               editable={!isLoading}
+              onFocus={() => setEmailFocused(true)}
+              onBlur={() => setEmailFocused(false)}
             />
             <PressableScale
-              style={[styles.primaryButton, (!email.trim() || isLoading) && styles.disabled]}
+              style={[styles.sendCodeWrapper, (!email.trim() || isLoading) && styles.disabled]}
               onPress={handleSendCode}
               disabled={!email.trim() || isLoading}
             >
-              {isLoading ? (
-                <ActivityIndicator color="#fff" />
-              ) : (
-                <Text style={styles.primaryButtonText}>Send Code</Text>
-              )}
+              <LinearGradient
+                colors={[colors.gradientStart, colors.gradientEnd]}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 0 }}
+                style={styles.sendCodeGradient}
+              >
+                {isLoading ? (
+                  <ActivityIndicator color="#fff" />
+                ) : (
+                  <Text style={styles.primaryButtonText}>Send Code</Text>
+                )}
+              </LinearGradient>
             </PressableScale>
             <PressableScale
               onPress={() => transitionTo('choose')}
@@ -262,6 +359,11 @@ const styles = StyleSheet.create({
     color: colors.textSecondary,
     marginTop: spacing.xs,
   },
+  subtitle: {
+    fontSize: 14,
+    color: colors.textMuted,
+    marginTop: spacing.sm,
+  },
   spacer: {
     flex: 1,
   },
@@ -290,10 +392,10 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     backgroundColor: colors.surfaceElevated,
     borderRadius: borderRadius.lg,
-    paddingVertical: 16,
-    paddingHorizontal: spacing.lg,
+    paddingVertical: 14,
+    paddingHorizontal: spacing.md,
     borderWidth: 1,
-    borderColor: colors.border,
+    borderColor: colors.glassBorder,
     gap: spacing.md,
   },
   methodText: {
@@ -318,20 +420,32 @@ const styles = StyleSheet.create({
     borderRadius: borderRadius.lg,
     paddingVertical: 16,
     paddingHorizontal: spacing.lg,
-    borderWidth: 1,
+    borderWidth: 1.5,
     borderColor: colors.border,
     color: colors.textPrimary,
     fontSize: 18,
   },
+  inputFocused: {
+    borderColor: colors.primary,
+    ...(Platform.OS === 'ios' && {
+      shadowColor: colors.primary,
+      shadowOffset: { width: 0, height: 0 },
+      shadowOpacity: 0.3,
+      shadowRadius: 6,
+    }),
+  },
   otpRow: {
     marginVertical: spacing.sm,
   },
-  primaryButton: {
-    backgroundColor: colors.primary,
+  sendCodeWrapper: {
     borderRadius: borderRadius.lg,
+    overflow: 'hidden',
+  },
+  sendCodeGradient: {
     paddingVertical: 16,
     alignItems: 'center',
     justifyContent: 'center',
+    borderRadius: borderRadius.lg,
   },
   disabled: {
     opacity: 0.5,

@@ -4,13 +4,14 @@
  * Dark navy tab bar with cosmic theme
  */
 
-import { useEffect, useState } from 'react';
-import { Tabs } from 'expo-router';
+import { useCallback, useEffect, useState } from 'react';
+import { Tabs, router } from 'expo-router';
 import { Platform, StyleSheet, View, Text } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { apiUrl } from '@pnl/shared/utils';
 import { useAuth } from '../../src/providers/AuthProvider';
+import { WelcomeCard } from '../../src/components';
 import { colors } from '../../src/theme';
 
 const TAB_BAR_BG = 'transparent';
@@ -64,6 +65,18 @@ export default function TabLayout() {
   const tabBarHeight = 60 + (Platform.OS === 'ios' ? insets.bottom : 8);
   const { isAuthenticated, walletAddress } = useAuth();
   const [unreadCount, setUnreadCount] = useState(0);
+  // Show welcome every time user is not logged in; dismiss lets them browse
+  const [welcomeDismissed, setWelcomeDismissed] = useState(false);
+  const showWelcome = !isAuthenticated && !welcomeDismissed;
+
+  // Reset dismissed flag when user logs out so welcome shows again
+  useEffect(() => {
+    if (!isAuthenticated) setWelcomeDismissed(false);
+  }, [isAuthenticated]);
+
+  const dismissWelcome = useCallback(() => {
+    setWelcomeDismissed(true);
+  }, []);
 
   // Poll unread count
   useEffect(() => {
@@ -86,6 +99,7 @@ export default function TabLayout() {
   }, [isAuthenticated, walletAddress]);
 
   return (
+    <View style={styles.layoutRoot}>
     <Tabs
       screenOptions={{
         headerShown: false,
@@ -165,10 +179,24 @@ export default function TabLayout() {
         }}
       />
     </Tabs>
+
+    {/* Full-screen welcome — covers tabs + tab bar */}
+    {showWelcome && (
+      <WelcomeCard
+        onSignIn={() => {
+          router.push('/login');
+        }}
+        onDismiss={dismissWelcome}
+      />
+    )}
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
+  layoutRoot: {
+    flex: 1,
+  },
   iconContainer: {
     alignItems: 'center',
     justifyContent: 'center',

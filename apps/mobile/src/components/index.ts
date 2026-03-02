@@ -28,3 +28,4 @@ export { CategorySheet } from './CategorySheet';
 export { SearchDropdown } from './SearchDropdown';
 export { LaunchedTokenCard } from './LaunchedTokenCard';
 export { ProfileSetupModal } from './ProfileSetupModal';
+export { WelcomeCard } from './WelcomeCard';

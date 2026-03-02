@@ -1,5 +1,5 @@
 import React, { useRef, useState } from 'react';
-import { View, TextInput, StyleSheet, ViewStyle } from 'react-native';
+import { View, TextInput, StyleSheet, ViewStyle, Platform } from 'react-native';
 import { colors, borderRadius, spacing } from '../theme';
 
 interface OTPInputProps {
@@ -10,6 +10,7 @@ interface OTPInputProps {
 
 export function OTPInput({ length = 6, onComplete, style }: OTPInputProps) {
   const [values, setValues] = useState<string[]>(Array(length).fill(''));
+  const [focusedIndex, setFocusedIndex] = useState<number | null>(null);
   const inputs = useRef<(TextInput | null)[]>([]);
 
   const handleChange = (text: string, index: number) => {
@@ -55,7 +56,13 @@ export function OTPInput({ length = 6, onComplete, style }: OTPInputProps) {
           value={val}
           onChangeText={text => handleChange(text, i)}
           onKeyPress={e => handleKeyPress(e, i)}
-          style={[styles.box, val ? styles.filled : null]}
+          onFocus={() => setFocusedIndex(i)}
+          onBlur={() => setFocusedIndex((prev) => (prev === i ? null : prev))}
+          style={[
+            styles.box,
+            val ? styles.filled : null,
+            focusedIndex === i && styles.active,
+          ]}
           keyboardType="number-pad"
           maxLength={i === 0 ? length : 1}
           textContentType="oneTimeCode"
@@ -87,6 +94,18 @@ const styles = StyleSheet.create({
   },
   filled: {
     borderColor: colors.primary,
-    backgroundColor: colors.surfaceElevated,
+    backgroundColor: 'rgba(129, 140, 248, 0.08)',
+  },
+  active: {
+    borderColor: colors.primary,
+    ...(Platform.OS === 'ios' && {
+      shadowColor: colors.primary,
+      shadowOffset: { width: 0, height: 0 },
+      shadowOpacity: 0.6,
+      shadowRadius: 8,
+    }),
+    ...(Platform.OS === 'android' && {
+      elevation: 4,
+    }),
   },
 });
