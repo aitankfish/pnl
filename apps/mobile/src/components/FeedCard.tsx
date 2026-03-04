@@ -1,10 +1,10 @@
 import React from 'react';
 import { View, Text, StyleSheet, Dimensions, ActivityIndicator } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
-import { Image } from 'expo-image';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { PressableScale } from './PressableScale';
+import { ImageGallery } from './ImageGallery';
 import { PoolProgress } from './PoolProgress';
 import { CategoryPill } from './CategoryPill';
 import { TimeCountdown } from './TimeCountdown';
@@ -19,6 +19,7 @@ interface FeedCardProps {
     description?: string;
     category?: string;
     projectImageUrl?: string;
+    galleryImageUrls?: string[];
     tokenSymbol?: string;
     totalParticipants?: number;
     poolBalance?: number;
@@ -51,12 +52,10 @@ export function FeedCard({ market, height, votingState, onVoteYes, onVoteNo, onP
       style={{ width: '100%', height } as any}
     >
       {market.projectImageUrl ? (
-        <Image
-          source={{ uri: market.projectImageUrl }}
-          style={StyleSheet.absoluteFill}
-          contentFit="cover"
-          transition={300}
-        />
+        (() => {
+          const allImages = [market.projectImageUrl, ...(market.galleryImageUrls || [])].filter(Boolean) as string[];
+          return <ImageGallery images={allImages} height={height} />;
+        })()
       ) : (
         <LinearGradient
           colors={[colors.gradientStart, colors.background]}
@@ -66,7 +65,12 @@ export function FeedCard({ market, height, votingState, onVoteYes, onVoteNo, onP
         />
       )}
 
-      {/* Dark gradient scrim for readability */}
+      {/* Dark gradient scrims for readability — top + bottom */}
+      <LinearGradient
+        colors={['rgba(0,0,0,0.6)', 'rgba(0,0,0,0.2)', 'transparent']}
+        locations={[0, 0.25, 0.45]}
+        style={StyleSheet.absoluteFill}
+      />
       <LinearGradient
         colors={['transparent', 'rgba(0,0,0,0.3)', 'rgba(0,0,0,0.85)']}
         locations={[0, 0.4, 1]}
@@ -75,14 +79,15 @@ export function FeedCard({ market, height, votingState, onVoteYes, onVoteNo, onP
 
       {/* Content overlay */}
       <View style={[styles.content, { paddingTop: insets.top + spacing.sm }]}>
-        {/* Top pills */}
-        <View style={styles.topRow}>
-          {market.category && <CategoryPill label={market.category} variant="tag" />}
-          {market.endTime && <TimeCountdown endTime={market.endTime} />}
-        </View>
-
         {/* Spacer pushes content to bottom */}
         <View style={styles.spacer} />
+
+        {/* Category near the title */}
+        {market.category && (
+          <View style={styles.pillRow}>
+            <CategoryPill label={market.category} variant="tag" />
+          </View>
+        )}
 
         {/* Market info */}
         <View style={styles.info}>
@@ -188,10 +193,10 @@ const styles = StyleSheet.create({
     paddingBottom: spacing.xl,
     justifyContent: 'flex-start',
   },
-  topRow: {
+  pillRow: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
+    marginBottom: spacing.sm,
   },
   spacer: {
     flex: 1,

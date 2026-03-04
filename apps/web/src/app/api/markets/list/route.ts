@@ -199,6 +199,7 @@ export async function GET(request: NextRequest) {
         status: market.resolution || (market.marketState === 0 ? 'active' : 'resolved'),
         metadataUri: market.metadataUri,
         projectImageUrl: convertToGatewayUrl(project?.projectImageUrl),
+        galleryImageUrls: (project?.galleryImageUrls || []).map(convertToGatewayUrl).filter(Boolean),
         pitchVideoUrl: convertToGatewayUrl(project?.pitchVideoUrl),
 
         // On-chain fields from blockchain sync
@@ -223,6 +224,12 @@ export async function GET(request: NextRequest) {
 
         // Vote button states from shared utility
         ...voteStates,
+
+        // Timestamps
+        createdAt: market.createdAt,
+
+        // Favorites
+        favoriteCount: market.favoriteCount || 0,
 
         // Sync status
         lastSyncedAt: market.lastSyncedAt || null,

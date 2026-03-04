@@ -7,7 +7,7 @@ import '../src/config/init'; // Must be first - polyfills + env config
 
 import { useEffect } from 'react';
 import { StatusBar } from 'expo-status-bar';
-import { Stack, usePathname, useLocalSearchParams } from 'expo-router';
+import { Stack, usePathname } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import * as Linking from 'expo-linking';
 import { SWRConfig } from 'swr';
@@ -21,17 +21,17 @@ import { AuthProvider } from '../src/providers/AuthProvider';
 import { VoiceRoomProvider, useVoiceRoomContextSafe } from '../src/providers/VoiceRoomProvider';
 import { StarField } from '../src/components';
 import { MiniVoiceBar } from '../src/components/community';
-import { colors } from '../src/theme';
 
 SplashScreen.preventAutoHideAsync();
 
 function AppContent() {
   const pathname = usePathname();
-  const params = useLocalSearchParams<{ id?: string }>();
   const voiceRoom = useVoiceRoomContextSafe();
 
-  // Extract market ID when on a market detail page
-  const currentMarketId = pathname?.startsWith('/market/') ? params.id ?? null : null;
+  // Extract market ID from pathname (useLocalSearchParams doesn't work in _layout for nested routes)
+  const currentMarketId = pathname?.startsWith('/market/')
+    ? pathname.replace('/market/', '').split('/')[0] || null
+    : null;
 
   useEffect(() => {
     SplashScreen.hideAsync();
@@ -77,6 +77,13 @@ function AppContent() {
           name="profile/[wallet]"
           options={{
             animation: 'slide_from_right',
+          }}
+        />
+        <Stack.Screen
+          name="create"
+          options={{
+            animation: 'slide_from_bottom',
+            gestureEnabled: false,
           }}
         />
         <Stack.Screen

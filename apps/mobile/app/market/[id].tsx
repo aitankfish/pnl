@@ -28,6 +28,7 @@ import { useLocalSearchParams, router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { Image } from 'expo-image';
 import { Video, ResizeMode, AVPlaybackStatus } from 'expo-av';
+import { WebView } from 'react-native-webview';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as Haptics from 'expo-haptics';
@@ -38,8 +39,12 @@ import useSWR from 'swr';
 import { useMarket, useNetwork } from '@pnl/shared/hooks';
 import { fetcher } from '@pnl/shared/services';
 import { apiUrl } from '@pnl/shared/utils';
+import { Transaction } from '@solana/web3.js';
+import { getSolanaConnection } from '@pnl/shared/solana';
 import { useAuth } from '../../src/providers/AuthProvider';
+import { useVoiceRoomContextSafe } from '../../src/providers/VoiceRoomProvider';
 import { useTokenStats } from '../../src/hooks/useTokenStats';
+import { useToggleFollow } from '../../src/hooks/useFollow';
 import {
   ScreenHeader,
   PressableScale,
@@ -57,6 +62,8 @@ import {
   UserPosition,
   MarketStatusCard,
   FavoriteButton,
+  BirdeyeChart,
+  TradeSheet,
 } from '../../src/components';
 import { CommunityHub } from '../../src/components/community';
 import { colors, spacing, typography, borderRadius } from '../../src/theme';
@@ -104,16 +111,84 @@ function isEmbeddableVideo(url?: string): boolean {
   return /youtube\.com|youtu\.be|vimeo\.com/i.test(url);
 }
 
+function extractYouTubeId(url?: string): string | null {
+  if (!url) return null;
+  const match = url.match(/(?:youtu\.be\/|youtube\.com\/(?:watch\?v=|embed\/|shorts\/))([a-zA-Z0-9_-]{11})/);
+  return match?.[1] || null;
+}
+
 // ── Screen ─────────────────────────────────────────────────────────────────
 
 export default function MarketDetailScreen() {
-  const { id } = useLocalSearchParams<{ id: string }>();
+  const { id, tab } = useLocalSearchParams<{ id: string; tab?: string }>();
   const { market, isLoading, error, refresh: refreshMarket } = useMarket(id ?? null);
-  const { isAuthenticated, walletAddress } = useAuth();
+  const { isAuthenticated, walletAddress, getAccessToken, solanaWallet } = useAuth();
   const { network } = useNetwork();
   const [isVoting, setIsVoting] = useState(false);
+
+  // ── Creator follow ──
+  const founderWallet = (market as any)?.founderWallet;
+  const isOwnMarket = !!walletAddress && walletAddress === founderWallet;
+  const { toggleFollow, isToggling: isFollowToggling } = useToggleFollow(walletAddress ?? null);
+  const [isFollowingCreator, setIsFollowingCreator] = useState(false);
+
+  // Check follow status on mount
+  useEffect(() => {
+    if (!walletAddress || !founderWallet || isOwnMarket) return;
+    let mounted = true;
+    fetch(apiUrl(`/api/profile/${founderWallet}/follow-status?viewer=${walletAddress}`))
+      .then(r => r.json())
+      .then(data => { if (mounted && data.success) setIsFollowingCreator(data.data.isFollowing); })
+      .catch(() => {});
+    return () => { mounted = false; };
+  }, [walletAddress, founderWallet, isOwnMarket]);
+
+  const handleFollowToggle = useCallback(async () => {
+    if (!founderWallet) return;
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    const success = await toggleFollow(founderWallet, isFollowingCreator);
+    if (success) setIsFollowingCreator(prev => !prev);
+  }, [founderWallet, isFollowingCreator, toggleFollow]);
   const insets = useSafeAreaInsets();
-  const [activeTab, setActiveTab] = useState<TabName>('Overview');
+  const [activeTab, setActiveTab] = useState<TabName>(
+    tab === 'community' ? 'Community' : 'Overview',
+  );
+  const prevTabRef = useRef<TabName>('Overview');
+
+  const handleSetActiveTab = useCallback((tab: TabName) => {
+    if (tab === 'Community') {
+      prevTabRef.current = activeTab;
+      // Un-minimize voice when entering Community tab
+      if (voice?.isMinimized) voice.setMinimized(false);
+    }
+    setActiveTab(tab);
+  }, [activeTab, voice]);
+
+  const handleCommunityDismiss = useCallback(() => {
+    setActiveTab(prevTabRef.current);
+  }, []);
+
+  // ── Voice room: auto-switch to Community tab when returning via MiniVoiceBar ──
+  const voice = useVoiceRoomContextSafe();
+  const wasMinimized = useRef(voice?.isMinimized ?? false);
+  const hasAutoSwitched = useRef(false);
+
+  // On mount: if voice is connected to this market and not minimized, jump to Community
+  useEffect(() => {
+    if (!hasAutoSwitched.current && voice?.isConnected && voice.marketId === id && !voice.isMinimized) {
+      setActiveTab('Community');
+      hasAutoSwitched.current = true;
+    }
+  }, [voice?.isConnected, voice?.marketId, voice?.isMinimized, id]);
+
+  // During session: detect minimized → expanded transition
+  useEffect(() => {
+    const isMinimized = voice?.isMinimized ?? false;
+    if (wasMinimized.current && !isMinimized && voice?.isConnected && voice.marketId === id) {
+      setActiveTab('Community');
+    }
+    wasMinimized.current = isMinimized;
+  }, [voice?.isMinimized, voice?.isConnected, voice?.marketId, id]);
 
   // ── Position data (platform-agnostic SWR) ──
   const { data: positionResponse, mutate: refetchPosition } = useSWR(
@@ -123,21 +198,13 @@ export default function MarketDetailScreen() {
   );
   const positionData = (positionResponse as any)?.success ? (positionResponse as any).data : null;
 
-  // ── Activity + holders data (only for resolved markets) ──
-  const [holdersData, setHoldersData] = useState<any>(null);
-  useEffect(() => {
-    if (!id || !market?.resolution || market.resolution === 'Unresolved') return;
-    let mounted = true;
-    const fetchHolders = async () => {
-      try {
-        const res = await fetch(apiUrl(`/api/markets/${id}/activity?network=${network}`));
-        const data = await res.json();
-        if (mounted && data.success) setHoldersData(data.data);
-      } catch { /* non-critical */ }
-    };
-    fetchHolders();
-    return () => { mounted = false; };
-  }, [id, network, market?.resolution]);
+  // ── Activity + holders data (all markets, polls every 20s like web) ──
+  const { data: activityResponse, mutate: refetchActivity } = useSWR(
+    id ? `/api/markets/${id}/activity?network=${network}` : null,
+    fetcher,
+    { refreshInterval: 20000, revalidateOnFocus: true, dedupingInterval: 10000, keepPreviousData: true },
+  );
+  const holdersData = (activityResponse as any)?.success ? (activityResponse as any).data : null;
 
   // ── Vesting data (founder-only, YesWins markets) ──
   const isFounder = !!walletAddress && !!market?.founderWallet && walletAddress === market.founderWallet;
@@ -147,7 +214,7 @@ export default function MarketDetailScreen() {
       ? `/api/markets/${market.marketAddress}/vesting?network=${network}`
       : null,
     fetcher,
-    { dedupingInterval: 30000 },
+    { dedupingInterval: 30000, shouldRetryOnError: false },
   );
   const vestingData = (vestingResponse as any)?.success ? (vestingResponse as any).data : null;
 
@@ -171,6 +238,7 @@ export default function MarketDetailScreen() {
   const videoUrl = (market as any)?.metadata?.videoUrl;
   const hasDirectVideo = isDirectVideoUrl(videoUrl);
   const hasYouTubeVideo = isEmbeddableVideo(videoUrl);
+  const [ytPlaying, setYtPlaying] = useState(false);
 
   const handleVideoTap = useCallback(async () => {
     if (!videoRef.current) return;
@@ -186,9 +254,78 @@ export default function MarketDetailScreen() {
     }
   }, []);
 
+  // ── Hero media helper (used in pager page 2 & non-launched fallback) ──
+  const renderHeroMedia = useCallback(() => {
+    if (hasDirectVideo) {
+      return (
+        <>
+          <Pressable onPress={handleVideoTap} style={StyleSheet.absoluteFill}>
+            <Video
+              ref={videoRef}
+              source={{ uri: videoUrl }}
+              style={StyleSheet.absoluteFill}
+              resizeMode={ResizeMode.COVER}
+              shouldPlay
+              isLooping
+              isMuted
+              onFullscreenUpdate={handleFullscreenUpdate as any}
+            />
+          </Pressable>
+          <View style={styles.videoPlayHint} pointerEvents="none">
+            <View style={styles.videoPlayBtn}>
+              <Ionicons name="volume-mute" size={16} color="#fff" />
+            </View>
+          </View>
+        </>
+      );
+    }
+    if (hasYouTubeVideo) {
+      const ytId = extractYouTubeId(videoUrl);
+      // Playing state: show inline WebView player
+      if (ytPlaying && ytId) {
+        return (
+          <WebView
+            source={{ uri: `https://www.youtube-nocookie.com/embed/${ytId}?autoplay=1&playsinline=1&controls=1&modestbranding=1&rel=0&origin=https://pnl.market` }}
+            style={StyleSheet.absoluteFill}
+            allowsInlineMediaPlayback
+            allowsFullscreenVideo
+            mediaPlaybackRequiresUserAction={false}
+            javaScriptEnabled
+            scrollEnabled={false}
+            originWhitelist={['*']}
+            userAgent="Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Mobile/15E148 Safari/604.1"
+          />
+        );
+      }
+      // Thumbnail state: show image with play button
+      return (
+        <Pressable onPress={() => ytId ? setYtPlaying(true) : Linking.openURL(videoUrl)} style={StyleSheet.absoluteFill}>
+          {market?.projectImageUrl ? (
+            <Image source={{ uri: market.projectImageUrl }} style={StyleSheet.absoluteFill} contentFit="cover" transition={300} />
+          ) : (
+            <LinearGradient colors={[colors.gradientStart, colors.background]} style={StyleSheet.absoluteFill} />
+          )}
+          <View style={styles.videoPlayCenter} pointerEvents="none">
+            <View style={styles.videoPlayBtnLg}>
+              <Ionicons name="play" size={28} color="#fff" />
+            </View>
+          </View>
+        </Pressable>
+      );
+    }
+    if (market?.projectImageUrl) {
+      return <Image source={{ uri: market.projectImageUrl }} style={StyleSheet.absoluteFill} contentFit="cover" transition={300} />;
+    }
+    return <LinearGradient colors={[colors.gradientStart, colors.background]} style={StyleSheet.absoluteFill} />;
+  }, [hasDirectVideo, hasYouTubeVideo, videoUrl, market?.projectImageUrl, handleVideoTap, handleFullscreenUpdate, ytPlaying]);
+
   // ── Vote sheet ──
   const sheetRef = useRef<GorhomBottomSheet>(null);
   const [voteDirection, setVoteDirection] = useState<VoteDirection | null>(null);
+
+  // ── Trade sheet (launched tokens) ──
+  const tradeSheetRef = useRef<GorhomBottomSheet>(null);
+  const [tradeMode, setTradeMode] = useState<'buy' | 'sell'>('buy');
 
   // ── Derived state ──
   const isResolved = market?.resolution && market.resolution !== 'Unresolved';
@@ -213,6 +350,16 @@ export default function MarketDetailScreen() {
 
   // ── Handlers ──
 
+  const openTrade = useCallback(
+    (mode: 'buy' | 'sell') => {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+      if (!isAuthenticated) { router.push('/login'); return; }
+      setTradeMode(mode);
+      tradeSheetRef.current?.snapToIndex(0);
+    },
+    [isAuthenticated],
+  );
+
   const handleVote = useCallback(
     (direction: VoteDirection) => {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
@@ -233,10 +380,11 @@ export default function MarketDetailScreen() {
 
   const handleVoteConfirm = useCallback(
     async (direction: VoteDirection, amount: number) => {
-      if (!market || !walletAddress) return;
+      if (!market || !walletAddress || !solanaWallet) return;
       sheetRef.current?.close();
       setIsVoting(true);
       try {
+        // Step 1: Prepare transaction on server
         const prepareRes = await fetch(apiUrl('/api/markets/vote/prepare'), {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -244,23 +392,48 @@ export default function MarketDetailScreen() {
         });
         const prepareData = await prepareRes.json();
         if (!prepareData.success) throw new Error(prepareData.error || 'Failed to prepare vote transaction');
-        // TODO: Sign with Privy Expo SDK
-        Alert.alert('Transaction Prepared', 'On-chain signing via Privy Expo SDK is not yet wired. The transaction was prepared successfully.');
+
+        // Step 2: Sign & send with Privy embedded wallet
+        const txBytes = Buffer.from(prepareData.data.serializedTransaction, 'base64');
+        const transaction = Transaction.from(txBytes);
+        const provider = await solanaWallet.wallets![0].getProvider();
+        const { signature } = await (provider as any).signAndSendTransaction(transaction);
+
+        // Step 3: Wait for confirmation
+        const connection = await getSolanaConnection();
+        await connection.confirmTransaction(signature, 'confirmed');
+
+        // Step 4: Record in database
+        await fetch(apiUrl('/api/markets/vote/complete'), {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            marketId: market.id,
+            voteType: direction,
+            amount,
+            signature,
+            traderWallet: walletAddress,
+          }),
+        });
+
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+        Alert.alert('Vote Confirmed', `Your ${direction.toUpperCase()} vote of ${amount} SOL was confirmed on-chain.`);
         refetchPosition();
+        refreshMarket();
       } catch (err: any) {
+        console.error('Vote error:', err);
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
         Alert.alert('Vote Failed', err.message || 'Something went wrong');
       } finally {
         setIsVoting(false);
       }
     },
-    [market, walletAddress, network, refetchPosition],
+    [market, walletAddress, solanaWallet, network, refetchPosition, refreshMarket],
   );
 
   const handleShare = useCallback(async () => {
     if (!market) return;
-    await Share.share({ message: `Check out "${market.name}" on PNL — predict & launch!`, url: `https://pnl.fun/market/${market.id}` });
+    await Share.share({ message: `Check out "${market.name}" on PNL — predict & launch!`, url: `https://pnl.market/market/${market.id}` });
   }, [market]);
 
   const handleCopyAddress = useCallback(async (addr: string) => {
@@ -308,12 +481,16 @@ export default function MarketDetailScreen() {
 
   return (
     <View style={styles.container}>
-      {/* Header — back button only, actions moved to floating bar */}
       <ScreenHeader
         transparent
         left={
           <PressableScale onPress={() => router.back()} style={styles.headerButton}>
             <Ionicons name="chevron-back" size={24} color="#fff" />
+          </PressableScale>
+        }
+        right={
+          <PressableScale onPress={handleShare} style={styles.headerButton}>
+            <Ionicons name="arrow-redo-outline" size={20} color="#fff" />
           </PressableScale>
         }
       />
@@ -329,6 +506,9 @@ export default function MarketDetailScreen() {
             walletAddress={walletAddress}
             founderWallet={(market as any).founderWallet}
             hasPosition={!!positionData}
+            onDismiss={handleCommunityDismiss}
+            getAccessToken={getAccessToken}
+            initialSubTab={tab === 'community' ? 'Voice' : undefined}
           />
         </View>
       ) : (
@@ -337,81 +517,116 @@ export default function MarketDetailScreen() {
           scrollEventThrottle={16}
           contentContainerStyle={[styles.scrollContent, { paddingBottom: 100 + insets.bottom }]}
         >
-          {/* Parallax hero — video or image */}
+          {/* Parallax hero — always shows media; chart moved below for launched tokens */}
           <Animated.View style={[styles.heroContainer, heroStyle]}>
-            {hasDirectVideo ? (
-              <>
-                <Pressable onPress={handleVideoTap} style={StyleSheet.absoluteFill}>
-                  <Video
-                    ref={videoRef}
-                    source={{ uri: videoUrl }}
-                    style={StyleSheet.absoluteFill}
-                    resizeMode={ResizeMode.COVER}
-                    shouldPlay
-                    isLooping
-                    isMuted
-                    onFullscreenUpdate={handleFullscreenUpdate as any}
-                  />
-                </Pressable>
-                {/* Play hint overlay */}
-                <View style={styles.videoPlayHint} pointerEvents="none">
-                  <View style={styles.videoPlayBtn}>
-                    <Ionicons name="volume-mute" size={16} color="#fff" />
-                  </View>
-                </View>
-              </>
-            ) : hasYouTubeVideo ? (
-              <Pressable onPress={() => Linking.openURL(videoUrl)} style={StyleSheet.absoluteFill}>
-                {market.projectImageUrl ? (
-                  <Image source={{ uri: market.projectImageUrl }} style={StyleSheet.absoluteFill} contentFit="cover" transition={300} />
-                ) : (
-                  <LinearGradient colors={[colors.gradientStart, colors.background]} style={StyleSheet.absoluteFill} />
-                )}
-                {/* YouTube play overlay — centered */}
-                <View style={styles.videoPlayCenter} pointerEvents="none">
-                  <View style={styles.videoPlayBtnLg}>
-                    <Ionicons name="play" size={28} color="#fff" />
-                  </View>
-                </View>
-              </Pressable>
-            ) : market.projectImageUrl ? (
-              <Image source={{ uri: market.projectImageUrl }} style={StyleSheet.absoluteFill} contentFit="cover" transition={300} />
-            ) : (
-              <LinearGradient colors={[colors.gradientStart, colors.background]} style={StyleSheet.absoluteFill} />
-            )}
+            {renderHeroMedia()}
             <LinearGradient colors={['transparent', colors.background]} style={styles.heroScrim} />
           </Animated.View>
 
           {/* Market info */}
           <View style={styles.infoSection}>
-            <View style={styles.pillRow}>
-              {market.category && <CategoryPill label={formatLabel(market.category)} variant="tag" />}
-              {market.displayStatus && <CategoryPill label={market.displayStatus} variant="tag" />}
-              {(market as any).projectAge && <CategoryPill label={(market as any).projectAge} variant="tag" />}
-            </View>
+            {!isTokenLaunched && (
+              <View style={styles.pillRow}>
+                {market.category && <CategoryPill label={formatLabel(market.category)} variant="tag" />}
+                {market.displayStatus && <CategoryPill label={market.displayStatus} variant="tag" />}
+                {(market as any).projectAge && <CategoryPill label={(market as any).projectAge} variant="tag" />}
+              </View>
+            )}
 
-            <Text style={styles.title}>{market.name}</Text>
+            {/* Launched token: horizontal identity bar — image | ticker + name | CA */}
+            {isTokenLaunched && tokenMintAddress ? (
+              <View style={styles.tokenIdentityBar}>
+                <Image
+                  source={{ uri: market.projectImageUrl }}
+                  style={styles.tokenIdentityImage}
+                  contentFit="cover"
+                  transition={200}
+                />
+                <View style={styles.tokenIdentityInfo}>
+                  <Text style={styles.tokenIdentityName} numberOfLines={1}>{market.name}</Text>
+                  <Text style={styles.tokenIdentityTicker}>${market.tokenSymbol || 'TOKEN'}</Text>
+                  {(market as any).founderWallet && (
+                    <View style={styles.tokenIdentityFounder}>
+                      <Ionicons name="person-circle-outline" size={11} color={colors.warning} />
+                      <Text style={styles.tokenIdentityFounderText} numberOfLines={1}>
+                        {(market as any).founderDisplayName || (market as any).founderUsername || truncateAddress((market as any).founderWallet)}
+                      </Text>
+                    </View>
+                  )}
+                </View>
+                <PressableScale
+                  onPress={() => handleCopyAddress(tokenMintAddress)}
+                  style={styles.tokenIdentityCA}
+                >
+                  <Text style={styles.tokenIdentityCAText}>{truncateAddress(tokenMintAddress)}</Text>
+                  <Ionicons name="copy-outline" size={11} color={colors.textMuted} />
+                </PressableScale>
+              </View>
+            ) : (
+              <Text style={styles.title}>{market.name}</Text>
+            )}
 
-            {/* Creator badge */}
-            {(market as any).founderWallet && (
+            {/* Creator badge + follow */}
+            {founderWallet && !isTokenLaunched && (
               <View style={styles.creatorRow}>
-                <Ionicons name="person-circle-outline" size={16} color={colors.warning} />
-                <Text style={styles.creatorText}>
-                  by {(market as any).founderDisplayName || (market as any).founderUsername || truncateAddress((market as any).founderWallet)}
-                </Text>
+                <PressableScale onPress={() => router.push(`/profile/${founderWallet}` as any)} style={styles.creatorInfo}>
+                  <Ionicons name="person-circle-outline" size={16} color={colors.warning} />
+                  <Text style={styles.creatorText}>
+                    by {(market as any).founderDisplayName || (market as any).founderUsername || truncateAddress(founderWallet)}
+                  </Text>
+                </PressableScale>
+                {walletAddress && !isOwnMarket && (
+                  <PressableScale
+                    onPress={handleFollowToggle}
+                    disabled={isFollowToggling}
+                    style={[styles.followBtn, isFollowingCreator && styles.followBtnActive]}
+                  >
+                    <Ionicons
+                      name={isFollowingCreator ? 'checkmark' : 'add'}
+                      size={12}
+                      color={isFollowingCreator ? colors.textSecondary : '#fff'}
+                    />
+                    <Text style={[styles.followBtnText, isFollowingCreator && styles.followBtnTextActive]}>
+                      {isFollowingCreator ? 'Following' : 'Follow'}
+                    </Text>
+                  </PressableScale>
+                )}
               </View>
             )}
 
           </View>
 
-          {/* Live token stats — only when launched */}
-          {isTokenLaunched && (
-            <View style={styles.section}>
-              <GlassCard style={styles.tokenStatsCard}>
-                <View style={styles.tokenStatsHeader}>
-                  <Ionicons name="rocket" size={14} color="#22c55e" />
-                  <Text style={styles.tokenStatsTitle}>Token Live</Text>
+          {/* Community validation — vote gauge + pool progress */}
+          <View style={styles.section}>
+            {isResolved ? (
+              <VoteGauge yesPercent={yesPercent} noPercent={noPercent} yesCount={market.yesVotes} noCount={market.noVotes} variant="detailed" />
+            ) : (
+              <View style={styles.antiBandwagon}>
+                <View style={styles.antiBandwagonBar}>
+                  <View style={[styles.antiBandwagonFill, { flex: 1, backgroundColor: colors.surface }]} />
                 </View>
+                <Text style={styles.antiBandwagonText}>
+                  {totalParticipants} participant{totalParticipants !== 1 ? 's' : ''} voted
+                </Text>
+              </View>
+            )}
+          </View>
+
+          <View style={styles.section}>
+            <PoolProgress
+              current={market.poolBalance ? Number(market.poolBalance) / 1e9 : 0}
+              target={market.targetPool ? Number(market.targetPool) : 0}
+              variant="card"
+            />
+          </View>
+
+          {/* Chart + live stats — only for launched tokens, placed after community data */}
+          {isTokenLaunched && tokenMintAddress && (
+            <View style={styles.section}>
+              <BirdeyeChart tokenMint={tokenMintAddress} height={300} />
+
+              {/* Live token stats grid */}
+              <GlassCard style={styles.tokenStatsCard}>
                 <View style={styles.tokenStatsGrid}>
                   <View style={styles.tokenStatCell}>
                     <Text style={styles.tokenStatLabel}>Price</Text>
@@ -448,6 +663,30 @@ export default function MarketDetailScreen() {
                         : '-'}
                     </Text>
                   </View>
+                </View>
+                <View style={styles.tokenStatsGrid}>
+                  <View style={styles.tokenStatCell}>
+                    <Text style={styles.tokenStatLabel}>Volume</Text>
+                    <Text style={styles.tokenStatValue}>
+                      {liveStats?.volume24h != null
+                        ? liveStats.volume24h >= 1e9 ? `$${(liveStats.volume24h / 1e9).toFixed(2)}B`
+                        : liveStats.volume24h >= 1e6 ? `$${(liveStats.volume24h / 1e6).toFixed(2)}M`
+                        : liveStats.volume24h >= 1e3 ? `$${(liveStats.volume24h / 1e3).toFixed(2)}K`
+                        : `$${liveStats.volume24h.toFixed(2)}`
+                        : '-'}
+                    </Text>
+                  </View>
+                  <View style={styles.tokenStatCell}>
+                    <Text style={styles.tokenStatLabel}>Liquidity</Text>
+                    <Text style={styles.tokenStatValue}>
+                      {liveStats?.liquidity != null
+                        ? liveStats.liquidity >= 1e9 ? `$${(liveStats.liquidity / 1e9).toFixed(2)}B`
+                        : liveStats.liquidity >= 1e6 ? `$${(liveStats.liquidity / 1e6).toFixed(2)}M`
+                        : liveStats.liquidity >= 1e3 ? `$${(liveStats.liquidity / 1e3).toFixed(2)}K`
+                        : `$${liveStats.liquidity.toFixed(2)}`
+                        : '-'}
+                    </Text>
+                  </View>
                   <View style={styles.tokenStatCell}>
                     <Text style={styles.tokenStatLabel}>Holders</Text>
                     <Text style={styles.tokenStatValue}>
@@ -463,31 +702,6 @@ export default function MarketDetailScreen() {
             </View>
           )}
 
-          {/* Vote gauge — conditional */}
-          <View style={styles.section}>
-            {isResolved ? (
-              <VoteGauge yesPercent={yesPercent} noPercent={noPercent} yesCount={market.yesVotes} noCount={market.noVotes} variant="detailed" />
-            ) : (
-              <View style={styles.antiBandwagon}>
-                <View style={styles.antiBandwagonBar}>
-                  <View style={[styles.antiBandwagonFill, { flex: 1, backgroundColor: colors.surface }]} />
-                </View>
-                <Text style={styles.antiBandwagonText}>
-                  {totalParticipants} participant{totalParticipants !== 1 ? 's' : ''} voted
-                </Text>
-              </View>
-            )}
-          </View>
-
-          {/* Pool progress */}
-          <View style={styles.section}>
-            <PoolProgress
-              current={market.poolBalance ? Number(market.poolBalance) / 1e9 : 0}
-              target={market.targetPool ? Number(market.targetPool) : 0}
-              variant="card"
-            />
-          </View>
-
           {/* Tab content */}
           <View style={styles.tabContent}>
             {activeTab === 'Overview' && (
@@ -498,6 +712,7 @@ export default function MarketDetailScreen() {
                 positionData={positionData}
                 vestingData={vestingData}
                 walletAddress={walletAddress}
+                solanaWallet={solanaWallet}
                 onRefresh={() => { refreshMarket(); refetchPosition(); }}
                 tokenMintAddr={tokenMintAddress}
               />
@@ -506,32 +721,28 @@ export default function MarketDetailScreen() {
               <GrokAnalysis marketId={market.id} resolution={market.resolution} votingData={grokVotingData} />
             )}
             {activeTab === 'Activity' && (
-              isResolved ? (
-                <View style={{ gap: spacing.lg }}>
-                  <ActivityFeed marketId={market.id} />
-                  {holdersData ? (
-                    <MarketHolders
-                      yesHolders={holdersData.yesHolders ?? []}
-                      noHolders={holdersData.noHolders ?? []}
-                      totalYesStake={holdersData.totalYesStake ?? 0}
-                      totalNoStake={holdersData.totalNoStake ?? 0}
-                      uniqueHolders={holdersData.uniqueHolders ?? 0}
-                      yesPercentage={market.yesPercentage}
-                      noPercentage={market.noPercentage}
-                      currentUserWallet={walletAddress ?? undefined}
-                    />
-                  ) : null}
-                </View>
-              ) : (
-                <LockedCard />
-              )
+              <View style={{ gap: spacing.lg }}>
+                <ActivityFeed marketId={market.id} />
+                {holdersData ? (
+                  <MarketHolders
+                    yesHolders={holdersData.yesHolders ?? []}
+                    noHolders={holdersData.noHolders ?? []}
+                    totalYesStake={holdersData.totalYesStake ?? 0}
+                    totalNoStake={holdersData.totalNoStake ?? 0}
+                    uniqueHolders={holdersData.uniqueHolders ?? 0}
+                    yesPercentage={market.yesPercentage}
+                    noPercentage={market.noPercentage}
+                    currentUserWallet={walletAddress ?? undefined}
+                  />
+                ) : null}
+              </View>
             )}
           </View>
         </ScrollView>
       )}
 
-      {/* Floating action bar — TikTok-style vertical stack */}
-      <View style={[styles.floatingTabs, { top: insets.top + 220 }]}>
+      {/* Floating action bar — TikTok-style vertical stack (hidden in Community tab) */}
+      {activeTab !== 'Community' && <View style={[styles.floatingTabs, { top: insets.top + 220 }]}>
         {/* Favorite */}
         <View style={styles.floatingTabItem}>
           <View style={styles.floatingTabIcon}>
@@ -545,14 +756,6 @@ export default function MarketDetailScreen() {
           <Text style={styles.floatingTabLabel}>Like</Text>
         </View>
 
-        {/* Share */}
-        <PressableScale onPress={handleShare} style={styles.floatingTabItem}>
-          <View style={styles.floatingTabIcon}>
-            <Ionicons name="arrow-redo-outline" size={22} color="rgba(255,255,255,0.85)" />
-          </View>
-          <Text style={styles.floatingTabLabel}>Share</Text>
-        </PressableScale>
-
         {/* Divider */}
         <View style={styles.floatingDivider} />
 
@@ -563,7 +766,7 @@ export default function MarketDetailScreen() {
           return (
             <PressableScale
               key={tab}
-              onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); setActiveTab(tab); }}
+              onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); handleSetActiveTab(tab); }}
               style={styles.floatingTabItem}
             >
               <View style={[styles.floatingTabIcon, active && styles.floatingTabIconActive]}>
@@ -573,35 +776,56 @@ export default function MarketDetailScreen() {
             </PressableScale>
           );
         })}
-      </View>
+      </View>}
 
-      {/* Sticky vote buttons */}
-      <View style={[styles.stickyVotes, { paddingBottom: insets.bottom || 16 }]}>
-        <PressableScale
-          onPress={() => handleVote('yes')}
-          style={[styles.voteButton, styles.yesButton, (yesDisabled || isVoting) && styles.voteButtonDisabled]}
-          disabled={isVoting}
-        >
-          <Ionicons name="trending-up" size={20} color="#fff" />
-          <Text style={styles.voteButtonText}>{isVoting && voteDirection === 'yes' ? 'Voting...' : 'Vote YES'}</Text>
-        </PressableScale>
-        <PressableScale
-          onPress={() => handleVote('no')}
-          style={[styles.voteButton, styles.noButton, (noDisabled || isVoting) && styles.voteButtonDisabled]}
-          disabled={isVoting}
-        >
-          <Ionicons name="trending-down" size={20} color="#fff" />
-          <Text style={styles.voteButtonText}>{isVoting && voteDirection === 'no' ? 'Voting...' : 'Vote NO'}</Text>
-        </PressableScale>
-      </View>
+      {/* Sticky bottom buttons — trade for launched, vote otherwise (hidden in Community tab) */}
+      {activeTab !== 'Community' && (
+        isTokenLaunched ? (
+          <View style={[styles.stickyVotes, { paddingBottom: insets.bottom || 16 }]}>
+            <PressableScale
+              onPress={() => openTrade('buy')}
+              style={[styles.voteButton, styles.buyButton]}
+            >
+              <Text style={styles.tradeButtonText}>+ {market.tokenSymbol || 'TOKEN'}</Text>
+            </PressableScale>
+            <PressableScale
+              onPress={() => openTrade('sell')}
+              style={[styles.voteButton, styles.sellButton]}
+            >
+              <Text style={styles.tradeButtonText}>{'\u2212'} {market.tokenSymbol || 'TOKEN'}</Text>
+            </PressableScale>
+          </View>
+        ) : (
+          <>
+            <View style={[styles.stickyVotes, { paddingBottom: insets.bottom || 16 }]}>
+              <PressableScale
+                onPress={() => handleVote('yes')}
+                style={[styles.voteButton, styles.yesButton, (yesDisabled || isVoting) && styles.voteButtonDisabled]}
+                disabled={isVoting}
+              >
+                <Ionicons name="trending-up" size={20} color="#fff" />
+                <Text style={styles.voteButtonText}>{isVoting && voteDirection === 'yes' ? 'Voting...' : 'Vote YES'}</Text>
+              </PressableScale>
+              <PressableScale
+                onPress={() => handleVote('no')}
+                style={[styles.voteButton, styles.noButton, (noDisabled || isVoting) && styles.voteButtonDisabled]}
+                disabled={isVoting}
+              >
+                <Ionicons name="trending-down" size={20} color="#fff" />
+                <Text style={styles.voteButtonText}>{isVoting && voteDirection === 'no' ? 'Voting...' : 'Vote NO'}</Text>
+              </PressableScale>
+            </View>
 
-      {/* Disabled reason */}
-      {disabledReason && !isVoting ? (
-        <View style={[styles.disabledBanner, { bottom: (insets.bottom || 16) + 60 }]}>
-          <Ionicons name="information-circle-outline" size={14} color={colors.textMuted} />
-          <Text style={styles.disabledText}>{disabledReason}</Text>
-        </View>
-      ) : null}
+            {/* Disabled reason */}
+            {disabledReason && !isVoting ? (
+              <View style={[styles.disabledBanner, { bottom: (insets.bottom || 16) + 60 }]}>
+                <Ionicons name="information-circle-outline" size={14} color={colors.textMuted} />
+                <Text style={styles.disabledText}>{disabledReason}</Text>
+              </View>
+            ) : null}
+          </>
+        )
+      )}
 
       {/* Vote bottom sheet */}
       <VoteBottomSheet
@@ -611,19 +835,31 @@ export default function MarketDetailScreen() {
         onConfirm={handleVoteConfirm}
         onClose={() => setVoteDirection(null)}
       />
+
+      {/* Trade bottom sheet (launched tokens) */}
+      {isTokenLaunched && (
+        <TradeSheet
+          ref={tradeSheetRef}
+          tokenMint={tokenMintAddress}
+          tokenSymbol={market.tokenSymbol || 'TOKEN'}
+          initialMode={tradeMode}
+          onClose={() => {}}
+        />
+      )}
     </View>
   );
 }
 
 // ── Overview Tab ────────────────────────────────────────────────────────────
 
-function OverviewTab({ market, network, onCopyAddress, positionData, vestingData, walletAddress, onRefresh, tokenMintAddr }: {
+function OverviewTab({ market, network, onCopyAddress, positionData, vestingData, walletAddress, solanaWallet, onRefresh, tokenMintAddr }: {
   market: any;
   network: string;
   onCopyAddress: (addr: string) => void;
   positionData: any;
   vestingData: any;
   walletAddress: string | null | undefined;
+  solanaWallet: any;
   onRefresh: () => void;
   tokenMintAddr: string | null;
 }) {
@@ -648,6 +884,7 @@ function OverviewTab({ market, network, onCopyAddress, positionData, vestingData
         positionData={positionData}
         vestingData={vestingData}
         walletAddress={walletAddress ?? null}
+        solanaWallet={solanaWallet}
         network={network}
         onRefresh={onRefresh}
       />
@@ -658,14 +895,34 @@ function OverviewTab({ market, network, onCopyAddress, positionData, vestingData
       {/* Full description */}
       {market.description ? <Text style={ov.description}>{market.description}</Text> : null}
 
-      {/* Video link — only show if it's a YouTube/external video (direct videos play in hero) */}
-      {metadata?.videoUrl && !isDirectVideoUrl(metadata.videoUrl) ? (
-        <PressableScale onPress={() => Linking.openURL(metadata.videoUrl)} style={ov.videoLink}>
-          <Ionicons name="play-circle-outline" size={20} color={colors.primary} />
-          <Text style={ov.videoLinkText}>Watch Project Video</Text>
-          <Ionicons name="open-outline" size={14} color={colors.textMuted} />
-        </PressableScale>
-      ) : null}
+      {/* Inline video embed for YouTube/Vimeo links */}
+      {metadata?.videoUrl && !isDirectVideoUrl(metadata.videoUrl) ? (() => {
+        const ytId = extractYouTubeId(metadata.videoUrl);
+        if (ytId) {
+          return (
+            <View style={ov.videoEmbed}>
+              <WebView
+                source={{ uri: `https://www.youtube-nocookie.com/embed/${ytId}?playsinline=1&controls=1&modestbranding=1&rel=0&origin=https://pnl.market` }}
+                style={ov.videoWebView}
+                allowsInlineMediaPlayback
+                allowsFullscreenVideo
+                mediaPlaybackRequiresUserAction={false}
+                javaScriptEnabled
+                scrollEnabled={false}
+                originWhitelist={['*']}
+                userAgent="Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Mobile/15E148 Safari/604.1"
+              />
+            </View>
+          );
+        }
+        return (
+          <PressableScale onPress={() => Linking.openURL(metadata.videoUrl)} style={ov.videoLink}>
+            <Ionicons name="play-circle-outline" size={20} color={colors.primary} />
+            <Text style={ov.videoLinkText}>Watch Project Video</Text>
+            <Ionicons name="open-outline" size={14} color={colors.textMuted} />
+          </PressableScale>
+        );
+      })() : null}
 
       {/* Additional notes */}
       {metadata?.additionalNotes ? (
@@ -795,7 +1052,17 @@ const ov = StyleSheet.create({
   countdownCard: { padding: spacing.sm },
   countdownRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
   countdownLabel: { ...typography.caption, color: colors.textSecondary, flex: 1 },
-  description: { ...typography.caption, color: colors.textSecondary, lineHeight: 20 },
+  description: { ...typography.caption, color: colors.textSecondary, lineHeight: 20, textAlign: 'center' },
+  videoEmbed: {
+    borderRadius: borderRadius.md,
+    overflow: 'hidden',
+    height: 200,
+    backgroundColor: '#000',
+  },
+  videoWebView: {
+    flex: 1,
+    backgroundColor: '#000',
+  },
   videoLink: {
     flexDirection: 'row', alignItems: 'center', gap: spacing.sm,
     backgroundColor: 'rgba(129,140,248,0.1)', borderRadius: borderRadius.md, padding: spacing.sm,
@@ -890,9 +1157,45 @@ const styles = StyleSheet.create({
   infoSection: { paddingLeft: spacing.md, paddingRight: 62, marginTop: -spacing.xl, marginBottom: spacing.sm },
   pillRow: { flexDirection: 'row', gap: spacing.sm, marginBottom: spacing.xs, flexWrap: 'wrap' },
   title: { ...typography.display, color: colors.textPrimary, marginBottom: 2 },
-  creatorRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.xs },
+  tokenIdentityBar: {
+    flexDirection: 'row', alignItems: 'center', gap: 10,
+    backgroundColor: 'rgba(255,255,255,0.04)',
+    borderRadius: borderRadius.lg, borderWidth: 1, borderColor: 'rgba(255,255,255,0.08)',
+    padding: 10, marginBottom: 4,
+  },
+  tokenIdentityImage: {
+    width: 40, height: 40, borderRadius: 20,
+    borderWidth: 1.5, borderColor: 'rgba(255,255,255,0.15)',
+  },
+  tokenIdentityInfo: { flex: 1, gap: 1 },
+  tokenIdentityName: { fontSize: 15, fontWeight: '700', color: colors.textPrimary, lineHeight: 20 },
+  tokenIdentityTicker: { fontSize: 12, fontWeight: '600', color: colors.primary },
+  tokenIdentityFounder: { flexDirection: 'row', alignItems: 'center', gap: 3, marginTop: 1 },
+  tokenIdentityFounderText: { fontSize: 10, fontWeight: '500', color: colors.warning },
+  tokenIdentityCA: {
+    flexDirection: 'row', alignItems: 'center', gap: 4,
+    backgroundColor: 'rgba(255,255,255,0.06)', borderRadius: borderRadius.full,
+    paddingHorizontal: 8, paddingVertical: 5,
+  },
+  tokenIdentityCAText: { fontSize: 10, fontWeight: '500', color: colors.textMuted, fontFamily: 'Courier', fontVariant: ['tabular-nums'] as any },
+  creatorRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
+  creatorInfo: { flexDirection: 'row', alignItems: 'center', gap: spacing.xs },
   creatorText: { ...typography.caption, color: colors.warning },
+  followBtn: {
+    flexDirection: 'row', alignItems: 'center', gap: 3,
+    paddingHorizontal: 8, paddingVertical: 3,
+    borderRadius: 10,
+    backgroundColor: colors.primary,
+  },
+  followBtnActive: {
+    backgroundColor: 'transparent',
+    borderWidth: 1,
+    borderColor: 'rgba(148,163,184,0.3)',
+  },
+  followBtnText: { fontSize: 10, fontWeight: '700', color: '#fff' },
+  followBtnTextActive: { color: colors.textSecondary },
   section: { paddingLeft: spacing.md, paddingRight: 62, marginBottom: spacing.sm },
+  sectionFullWidth: { paddingHorizontal: spacing.md, marginBottom: spacing.sm },
   tabContent: { paddingLeft: spacing.md, paddingRight: 62, paddingVertical: spacing.md },
   floatingTabs: {
     position: 'absolute', right: 2, zIndex: 20,
@@ -925,6 +1228,9 @@ const styles = StyleSheet.create({
   noButton: { backgroundColor: colors.danger },
   voteButtonDisabled: { opacity: 0.4 },
   voteButtonText: { ...typography.bodyBold, color: '#fff' },
+  buyButton: { backgroundColor: '#86efac' },
+  sellButton: { backgroundColor: '#fca5a5' },
+  tradeButtonText: { ...typography.bodyBold, color: '#1a1a2e', fontSize: 16 },
   antiBandwagon: { gap: spacing.sm },
   antiBandwagonBar: { height: 8, borderRadius: borderRadius.full, backgroundColor: colors.surface, overflow: 'hidden', flexDirection: 'row' },
   antiBandwagonFill: { borderRadius: borderRadius.full },

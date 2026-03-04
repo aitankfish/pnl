@@ -22,6 +22,8 @@ import * as Haptics from 'expo-haptics';
 import { useMarkets, useNetwork } from '@pnl/shared/hooks';
 import { FEES } from '@pnl/shared/config';
 import { apiUrl } from '@pnl/shared/utils';
+import { Transaction } from '@solana/web3.js';
+import { getSolanaConnection } from '@pnl/shared/solana';
 import { useAuth } from '../../src/providers/AuthProvider';
 import {
   ScreenHeader,
@@ -36,7 +38,7 @@ import {
   SearchDropdown,
 } from '../../src/components';
 import { useSearch } from '../../src/hooks/useSearch';
-import { colors, spacing, borderRadius, typography } from '../../src/theme';
+import { colors, spacing, borderRadius } from '../../src/theme';
 
 const STATUS_TABS = [
   { value: 'active', label: 'Live' },
@@ -67,9 +69,9 @@ export default function ExploreScreen() {
   const [sortBy, setSortBy] = useState<SortOption>('Trending');
   const [votingState, setVotingState] = useState<{ marketId: string; voteType: 'yes' | 'no' } | null>(null);
   const [searchFocused, setSearchFocused] = useState(false);
-  const { isAuthenticated, walletAddress } = useAuth();
+  const { isAuthenticated, walletAddress, solanaWallet } = useAuth();
   const { network } = useNetwork();
-  const { results: searchResults, isSearching, totalResults } = useSearch(searchQuery);
+  const { results: searchResults, isSearching } = useSearch(searchQuery);
 
   const { markets, isLoading, error, refresh } = useMarkets(
     selectedCategory !== 'All' ? selectedCategory : undefined,
@@ -97,12 +99,11 @@ export default function ExploreScreen() {
 
   const handleQuickVote = useCallback(
     async (market: (typeof markets)[number], voteType: 'yes' | 'no') => {
-      if (!isAuthenticated || !walletAddress) {
+      if (!isAuthenticated || !walletAddress || !solanaWallet) {
         router.push('/login');
         return;
       }
 
-      // Check disabled state and show reason
       if (voteType === 'yes' && !market.isYesVoteEnabled) {
         if (market.yesVoteDisabledReason) Alert.alert('Cannot Vote', market.yesVoteDisabledReason);
         return;
@@ -116,6 +117,7 @@ export default function ExploreScreen() {
       setVotingState({ marketId: market.id, voteType });
 
       try {
+        // Step 1: Prepare transaction
         const prepareRes = await fetch(apiUrl('/api/markets/vote/prepare'), {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -130,20 +132,40 @@ export default function ExploreScreen() {
         const prepareData = await prepareRes.json();
         if (!prepareData.success) throw new Error(prepareData.error || 'Failed to prepare vote');
 
-        // TODO: Sign with Privy Expo SDK once wired
+        // Step 2: Sign & send with Privy embedded wallet
+        const txBytes = Buffer.from(prepareData.data.serializedTransaction, 'base64');
+        const transaction = Transaction.from(txBytes);
+        const provider = await solanaWallet.wallets![0].getProvider();
+        const { signature } = await (provider as any).signAndSendTransaction(transaction);
+
+        // Step 3: Wait for confirmation
+        const connection = await getSolanaConnection();
+        await connection.confirmTransaction(signature, 'confirmed');
+
+        // Step 4: Record in database
+        await fetch(apiUrl('/api/markets/vote/complete'), {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            marketId: market.id,
+            voteType,
+            amount: QUICK_VOTE_AMOUNT,
+            signature,
+            traderWallet: walletAddress,
+          }),
+        });
+
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-        Alert.alert(
-          'Transaction Prepared',
-          `Quick vote ${voteType.toUpperCase()} (${QUICK_VOTE_AMOUNT} SOL) prepared. On-chain signing via Privy Expo SDK is not yet wired.`,
-        );
+        refresh();
       } catch (err: any) {
+        console.error('Quick vote error:', err);
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
         Alert.alert('Vote Failed', err.message || 'Something went wrong');
       } finally {
         setVotingState(null);
       }
     },
-    [isAuthenticated, walletAddress, network],
+    [isAuthenticated, walletAddress, solanaWallet, network, refresh],
   );
 
   const filteredMarkets = useMemo(() => {
@@ -158,7 +180,6 @@ export default function ExploreScreen() {
           m.tokenSymbol?.toLowerCase().includes(q),
       );
     }
-    // Sort
     if (sortBy === 'Newest') {
       result = [...result].sort(
         (a, b) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime(),
@@ -168,7 +189,6 @@ export default function ExploreScreen() {
         (a, b) => new Date(a.expiryTime || '9999').getTime() - new Date(b.expiryTime || '9999').getTime(),
       );
     }
-    // 'Trending' uses default API order
     return result;
   }, [markets, searchQuery, sortBy]);
 
@@ -198,7 +218,6 @@ export default function ExploreScreen() {
           ) : null}
         </View>
 
-        {/* Search results dropdown */}
         {searchFocused && searchQuery.trim().length > 0 && (
           <SearchDropdown
             results={searchResults}
@@ -311,7 +330,7 @@ export default function ExploreScreen() {
             router.push('/login');
             return;
           }
-          // TODO: Navigate to create flow
+          router.push('/create');
         }}
         style={[styles.fab, { bottom: 80 + insets.bottom }]}
       >

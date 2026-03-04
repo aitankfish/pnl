@@ -274,7 +274,7 @@ export default function VoiceRoom({
     removeCoHost,
   } = useVoiceRoomContext();
 
-  const canJoin = walletAddress && (hasPosition || walletAddress === founderWallet);
+  const canJoin = !!walletAddress;
   const prevParticipantsRef = useRef<number>(0);
   const timeoutsRef = useRef<Set<NodeJS.Timeout>>(new Set());
 
@@ -477,10 +477,6 @@ export default function VoiceRoom({
         {!walletAddress ? (
           <div className="w-full px-4 py-3 bg-white/5 rounded-full border border-white/10 text-center">
             <span className="text-sm text-gray-400">Sign in to join voice chat</span>
-          </div>
-        ) : !canJoin ? (
-          <div className="w-full px-4 py-3 bg-amber-500/10 rounded-full border border-amber-500/20 text-center">
-            <span className="text-sm text-amber-300">Vote YES or NO to unlock voice</span>
           </div>
         ) : (
           <button

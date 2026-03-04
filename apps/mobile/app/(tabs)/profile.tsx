@@ -1,6 +1,6 @@
 /**
- * Profile Tab — Unified wallet + profile + positions + settings
- * Wallet (balance, actions, tokens) at top, then profile, positions, settings.
+ * Profile Tab — Pump.fun-inspired wallet-first layout
+ * Compact header → hero balance → action buttons → stat cards → bio → tokens → portfolio → settings
  */
 
 import { useState, useCallback, useMemo, useRef } from 'react';
@@ -15,6 +15,7 @@ import {
   ActivityIndicator,
   Linking,
   RefreshControl,
+  Pressable,
 } from 'react-native';
 import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
@@ -23,6 +24,7 @@ import * as Haptics from 'expo-haptics';
 import { LinearGradient } from 'expo-linear-gradient';
 import * as WebBrowser from 'expo-web-browser';
 import { useFundSolanaWallet } from '@privy-io/expo/ui';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import GorhomBottomSheet from '@gorhom/bottom-sheet';
 import { useAllTokenBalances } from '@pnl/shared/hooks';
 import { useSolPrice } from '@pnl/shared/hooks';
@@ -34,7 +36,6 @@ import { useTokenStats } from '../../src/hooks/useTokenStats';
 import { useMobileCreatorFees } from '../../src/hooks/useMobileCreatorFees';
 import { usePhotoUpload } from '../../src/hooks/usePhotoUpload';
 import {
-  ScreenHeader,
   PressableScale,
   GlassCard,
   SectionHeader,
@@ -45,7 +46,10 @@ import { PortfolioTabs } from '../../src/components/PortfolioTabs';
 import { SendSheet } from '../../src/components/wallet/SendSheet';
 import { DepositSheet } from '../../src/components/wallet/DepositSheet';
 import { SecuritySheet } from '../../src/components/wallet/SecuritySheet';
+import { TradeSheet } from '../../src/components/TradeSheet';
 import { colors, spacing, typography, borderRadius } from '../../src/theme';
+
+const PNL_TOKEN_MINT = '6QuNZJzUF7oZj3GsG7fVBfidX1cE81sXhb9Czi12pump';
 
 function truncateAddress(addr: string) {
   return `${addr.slice(0, 6)}...${addr.slice(-4)}`;
@@ -58,6 +62,7 @@ function formatUsd(value: number | null | undefined): string {
 }
 
 export default function ProfileScreen() {
+  const insets = useSafeAreaInsets();
   const { isAuthenticated, user, walletAddress, logout } = useAuth();
   const {
     profile,
@@ -104,8 +109,12 @@ export default function ProfileScreen() {
   const sendRef = useRef<GorhomBottomSheet>(null);
   const depositRef = useRef<GorhomBottomSheet>(null);
   const securityRef = useRef<GorhomBottomSheet>(null);
+  const tradeRef = useRef<GorhomBottomSheet>(null);
+  const scrollRef = useRef<ScrollView>(null);
 
   const [showSetupModal, setShowSetupModal] = useState(false);
+  const [showMenu, setShowMenu] = useState(false);
+  const [avatarError, setAvatarError] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
   const [editBio, setEditBio] = useState('');
   const [refreshing, setRefreshing] = useState(false);
@@ -176,10 +185,6 @@ export default function ProfileScreen() {
     }
   }, [walletAddress, fundWallet]);
 
-  const handleSwap = useCallback(() => {
-    WebBrowser.openBrowserAsync('https://jup.ag/swap/SOL-USDC');
-  }, []);
-
   const handleCopyMint = useCallback(async (mint: string) => {
     await Clipboard.setStringAsync(mint);
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
@@ -219,26 +224,98 @@ export default function ProfileScreen() {
     ? resolveAvatarUrl(profile.profilePhotoUrl)
     : null;
 
+  // Reset avatar error when URL changes (e.g. after uploading a new photo)
+  const prevAvatarUrl = useRef(avatarUrl);
+  if (prevAvatarUrl.current !== avatarUrl) {
+    prevAvatarUrl.current = avatarUrl;
+    if (avatarError) setAvatarError(false);
+  }
+
   return (
     <View style={styles.container}>
-      <ScreenHeader
-        title="Profile"
-        right={
-          isAuthenticated ? (
-            <View style={styles.headerRight}>
-              <PressableScale onPress={() => setShowSetupModal(true)}>
-                <Ionicons name="create-outline" size={22} color={colors.textSecondary} />
+      {/* ─── Compact Header (replaces ScreenHeader) ─── */}
+      {isAuthenticated ? (
+        <View style={[styles.compactHeader, { paddingTop: insets.top + 8 }]}>
+          <View style={styles.headerLeft}>
+            <PressableScale onPress={handleAvatarPress} style={styles.headerAvatarWrap}>
+              {avatarUrl && !avatarError ? (
+                <Image
+                  source={{ uri: avatarUrl }}
+                  style={styles.headerAvatar}
+                  onError={() => setAvatarError(true)}
+                />
+              ) : (
+                <View style={[styles.headerAvatar, styles.headerAvatarPlaceholder]}>
+                  <Ionicons name="person" size={16} color={colors.textMuted} />
+                </View>
+              )}
+              {isPhotoUploading && (
+                <ActivityIndicator size={10} color={colors.primary} style={{ position: 'absolute' }} />
+              )}
+            </PressableScale>
+            <Text style={styles.headerName} numberOfLines={1}>{displayName}</Text>
+            {walletAddress && (
+              <PressableScale onPress={handleCopyAddress} style={styles.headerAddr}>
+                <Text style={styles.headerAddrText}>{truncateAddress(walletAddress)}</Text>
+                <Ionicons name="copy-outline" size={12} color={colors.textMuted} />
               </PressableScale>
-              <PressableScale onPress={handleLogout}>
-                <Ionicons name="log-out-outline" size={24} color={colors.textSecondary} />
-              </PressableScale>
-            </View>
-          ) : undefined
-        }
-      />
+            )}
+          </View>
+          <PressableScale onPress={() => setShowMenu((v) => !v)}>
+            <Ionicons name="menu-outline" size={24} color={colors.textSecondary} />
+          </PressableScale>
+        </View>
+      ) : (
+        <View style={{ height: insets.top + 8 }} />
+      )}
+
+      {/* ─── Hamburger dropdown ─── */}
+      {showMenu && (
+        <Pressable style={styles.menuOverlay} onPress={() => setShowMenu(false)}>
+          <View style={[styles.menuDropdown, { top: insets.top + 52 }]}>
+            <PressableScale
+              style={styles.menuItem}
+              onPress={() => { setShowMenu(false); setShowSetupModal(true); }}
+            >
+              <Ionicons name="create-outline" size={18} color={colors.textSecondary} />
+              <Text style={styles.menuItemText}>Edit Profile</Text>
+            </PressableScale>
+            <PressableScale
+              style={styles.menuItem}
+              onPress={() => { setShowMenu(false); securityRef.current?.snapToIndex(0); }}
+            >
+              <Ionicons name="key-outline" size={18} color={colors.textSecondary} />
+              <Text style={styles.menuItemText}>Export Private Key</Text>
+            </PressableScale>
+            <PressableScale
+              style={styles.menuItem}
+              onPress={() => { setShowMenu(false); router.push('/whitepaper'); }}
+            >
+              <Ionicons name="document-text-outline" size={18} color={colors.textSecondary} />
+              <Text style={styles.menuItemText}>Whitepaper</Text>
+            </PressableScale>
+            <PressableScale
+              style={styles.menuItem}
+              onPress={() => { setShowMenu(false); router.push('/help'); }}
+            >
+              <Ionicons name="help-circle-outline" size={18} color={colors.textSecondary} />
+              <Text style={styles.menuItemText}>Help & Support</Text>
+            </PressableScale>
+            <PressableScale
+              style={[styles.menuItem, styles.menuItemLast]}
+              onPress={() => { setShowMenu(false); handleLogout(); }}
+            >
+              <Ionicons name="log-out-outline" size={18} color={colors.danger} />
+              <Text style={[styles.menuItemText, { color: colors.danger }]}>Sign Out</Text>
+            </PressableScale>
+          </View>
+        </Pressable>
+      )}
 
       <ScrollView
+        ref={scrollRef}
         contentContainerStyle={[styles.content, { paddingBottom: spacing.lg }]}
+        onScrollBeginDrag={() => showMenu && setShowMenu(false)}
         refreshControl={
           isAuthenticated ? (
             <RefreshControl
@@ -249,69 +326,80 @@ export default function ProfileScreen() {
           ) : undefined
         }
       >
-        {/* Section 1: User Info */}
         {isAuthenticated ? (
-          <View style={styles.userSection}>
-            <PressableScale onPress={handleAvatarPress} style={styles.avatarWrapper}>
-              <View style={styles.avatarRing}>
-                {avatarUrl ? (
-                  <Image source={{ uri: avatarUrl }} style={styles.avatar} />
-                ) : (
-                  <View style={[styles.avatar, styles.avatarPlaceholder]}>
-                    <Ionicons name="person" size={32} color={colors.textMuted} />
-                  </View>
+          <>
+            {/* ─── Hero Balance ─── */}
+            <View style={styles.heroSection}>
+              <Text style={styles.heroUsd}>{formatUsd(totalPortfolioUsd)}</Text>
+              <View style={styles.heroSolRow}>
+                <Text style={styles.heroSol}>
+                  {balanceLoading ? '...' : solBalance.toFixed(4)} SOL
+                </Text>
+                {solPrice && (
+                  <Text style={styles.heroSolHint}>@ {formatUsd(solPrice)}/SOL</Text>
                 )}
               </View>
-              {isPhotoUploading ? (
-                <View style={styles.cameraBadge}>
-                  <ActivityIndicator size={12} color="#fff" />
-                </View>
-              ) : (
-                <View style={styles.cameraBadge}>
-                  <Ionicons name="camera" size={12} color="#fff" />
-                </View>
-              )}
-            </PressableScale>
-            <Text style={styles.displayName}>{displayName}</Text>
-            {profile?.bio ? (
-              <Text style={styles.bio}>{profile.bio}</Text>
-            ) : null}
-            {profile?.twitter ? (
-              <PressableScale onPress={handleOpenTwitter} style={styles.twitterRow}>
-                <Ionicons name="logo-twitter" size={14} color={colors.textSecondary} />
-                <Text style={styles.twitterHandle}>@{profile.twitter}</Text>
-              </PressableScale>
-            ) : null}
-            {walletAddress && (
-              <PressableScale onPress={handleCopyAddress} style={styles.addressRow}>
-                <Text style={styles.address}>{truncateAddress(walletAddress)}</Text>
-                <Ionicons name="copy-outline" size={14} color={colors.textMuted} />
-              </PressableScale>
-            )}
+            </View>
 
-            {/* Stats row */}
-            <View style={styles.statsRow}>
-              <View style={styles.statItem}>
-                <Text style={styles.statValue}>{profile?.totalPredictions ?? 0}</Text>
-                <Text style={styles.statLabel}>Predictions</Text>
-              </View>
-              <View style={styles.statDivider} />
+            {/* ─── Action Buttons ─── */}
+            <View style={styles.actionsRow}>
+              <ActionButton icon="card-outline" label="Buy" color={colors.success} onPress={handleBuySol} />
+              <ActionButton icon="send-outline" label="Send" color={colors.primary} onPress={() => sendRef.current?.snapToIndex(0)} />
+              <ActionButton icon="download-outline" label="Receive" color="#22d3ee" onPress={() => depositRef.current?.snapToIndex(0)} />
+              <ActionButton icon="swap-horizontal-outline" label="Swap" color={colors.accent} onPress={() => tradeRef.current?.snapToIndex(0)} />
+              <ActionButton icon="add-circle-outline" label="Create" color="#f59e0b" onPress={() => router.push('/create')} />
+            </View>
+
+            {/* ─── Stats Cards ─── */}
+            <View style={styles.statsCardRow}>
+              <GlassCard style={styles.statCard}>
+                <Text style={styles.statCardValue}>{profile?.totalPredictions ?? 0}</Text>
+                <Text style={styles.statCardLabel}>Predictions</Text>
+              </GlassCard>
               <PressableScale
-                style={styles.statItem}
+                style={{ flex: 1 }}
                 onPress={() => router.push({ pathname: '/followers', params: { type: 'followers', wallet: walletAddress! } })}
               >
-                <Text style={styles.statValue}>{profile?.followerCount ?? 0}</Text>
-                <Text style={styles.statLabel}>Followers</Text>
+                <GlassCard style={styles.statCard}>
+                  <Text style={styles.statCardValue}>{profile?.followerCount ?? 0}</Text>
+                  <Text style={styles.statCardLabel}>Followers</Text>
+                </GlassCard>
               </PressableScale>
-              <View style={styles.statDivider} />
               <PressableScale
-                style={styles.statItem}
+                style={{ flex: 1 }}
                 onPress={() => router.push({ pathname: '/followers', params: { type: 'following', wallet: walletAddress! } })}
               >
-                <Text style={styles.statValue}>{profile?.followingCount ?? 0}</Text>
-                <Text style={styles.statLabel}>Following</Text>
+                <GlassCard style={styles.statCard}>
+                  <Text style={styles.statCardValue}>{profile?.followingCount ?? 0}</Text>
+                  <Text style={styles.statCardLabel}>Following</Text>
+                </GlassCard>
               </PressableScale>
             </View>
+
+            {/* ─── Bio + Twitter inline ─── */}
+            {!isEditing && (profile?.bio || profile?.twitter) && (
+              <PressableScale onPress={handleEditBio} style={styles.bioSection}>
+                <Text style={styles.bioInlineText} numberOfLines={2}>
+                  {profile?.bio || ''}
+                  {profile?.bio && profile?.twitter ? (
+                    <Text style={styles.bioDot}> · </Text>
+                  ) : null}
+                  {profile?.twitter ? (
+                    <Text
+                      style={styles.bioTwitter}
+                      onPress={(e) => { e.stopPropagation?.(); handleOpenTwitter(); }}
+                    >
+                      @{profile.twitter}
+                    </Text>
+                  ) : null}
+                </Text>
+              </PressableScale>
+            )}
+            {!isEditing && !profile?.bio && !profile?.twitter && (
+              <PressableScale onPress={handleEditBio} style={styles.bioSection}>
+                <Text style={styles.addBioText}>+ Add bio</Text>
+              </PressableScale>
+            )}
 
             {/* Bio edit inline */}
             {isEditing && (
@@ -341,55 +429,7 @@ export default function ProfileScreen() {
               </View>
             )}
 
-            {!isEditing && !profile?.bio && (
-              <PressableScale onPress={handleEditBio} style={styles.addBioBtn}>
-                <Ionicons name="add-circle-outline" size={16} color={colors.primary} />
-                <Text style={styles.addBioText}>Add bio</Text>
-              </PressableScale>
-            )}
-          </View>
-        ) : (
-          <View style={styles.signInSection}>
-            <Ionicons name="person-circle-outline" size={64} color={colors.textMuted} />
-            <Text style={styles.signInTitle}>Sign in to PNL</Text>
-            <Text style={styles.signInSubtitle}>
-              Track your predictions, portfolio, and earnings
-            </Text>
-            <PressableScale
-              onPress={() => router.push('/login')}
-              style={styles.signInButton}
-            >
-              <Text style={styles.signInButtonText}>Sign In</Text>
-            </PressableScale>
-          </View>
-        )}
-
-        {/* ─── WALLET SECTION ─── */}
-        {isAuthenticated && (
-          <>
-            {/* Balance Card */}
-            <GlassCard style={styles.balanceCard}>
-              <Text style={styles.balanceLabel}>Total Balance</Text>
-              <Text style={styles.balanceUsd}>{formatUsd(totalPortfolioUsd)}</Text>
-              <View style={styles.solRow}>
-                <Text style={styles.solBalance}>
-                  {balanceLoading ? '...' : solBalance.toFixed(4)} SOL
-                </Text>
-                {solPrice && (
-                  <Text style={styles.solUsdHint}>@ {formatUsd(solPrice)}/SOL</Text>
-                )}
-              </View>
-            </GlassCard>
-
-            {/* Action Buttons */}
-            <View style={styles.actionsRow}>
-              <ActionButton icon="card-outline" label="Buy" color={colors.success} onPress={handleBuySol} />
-              <ActionButton icon="send-outline" label="Send" color={colors.primary} onPress={() => sendRef.current?.snapToIndex(0)} />
-              <ActionButton icon="download-outline" label="Receive" color="#22d3ee" onPress={() => depositRef.current?.snapToIndex(0)} />
-              <ActionButton icon="swap-horizontal-outline" label="Swap" color={colors.accent} onPress={handleSwap} />
-            </View>
-
-            {/* Token List */}
+            {/* ─── Token List ─── */}
             <SectionHeader title="Your Tokens" count={tokens.length + 1} />
 
             {/* SOL row */}
@@ -475,6 +515,20 @@ export default function ProfileScreen() {
               })
             )}
           </>
+        ) : (
+          <View style={styles.signInSection}>
+            <Ionicons name="person-circle-outline" size={64} color={colors.textMuted} />
+            <Text style={styles.signInTitle}>Sign in to PNL</Text>
+            <Text style={styles.signInSubtitle}>
+              Track your predictions, portfolio, and earnings
+            </Text>
+            <PressableScale
+              onPress={() => router.push('/login')}
+              style={styles.signInButton}
+            >
+              <Text style={styles.signInButtonText}>Sign In</Text>
+            </PressableScale>
+          </View>
         )}
 
         {/* ─── PORTFOLIO TABS (Predictions / Projects / Watchlist) ─── */}
@@ -549,61 +603,6 @@ export default function ProfileScreen() {
             )}
           </>
         )}
-
-        {/* Section: Create */}
-        {isAuthenticated && (
-          <>
-            <SectionHeader title="Create" style={styles.sectionGap} />
-            <PressableScale
-              onPress={() => {
-                // TODO: Navigate to create flow
-              }}
-              style={styles.createCard}
-            >
-              <LinearGradient
-                colors={[colors.gradientStart, colors.gradientEnd]}
-                start={{ x: 0, y: 0 }}
-                end={{ x: 1, y: 1 }}
-                style={styles.createGradient}
-              >
-                <Ionicons name="add-circle" size={32} color="#fff" />
-                <Text style={styles.createTitle}>Launch Your Idea</Text>
-                <Text style={styles.createSubtitle}>
-                  Create a prediction market for any token launch
-                </Text>
-              </LinearGradient>
-            </PressableScale>
-          </>
-        )}
-
-        {/* Section: Settings */}
-        <SectionHeader title="Settings" style={styles.sectionGap} />
-        <View style={styles.settingsList}>
-          {isAuthenticated && (
-            <SettingsRow
-              icon="create-outline"
-              label="Edit Profile"
-              onPress={() => setShowSetupModal(true)}
-            />
-          )}
-          {isAuthenticated && (
-            <SettingsRow
-              icon="key-outline"
-              label="Export Private Key"
-              onPress={() => securityRef.current?.snapToIndex(0)}
-            />
-          )}
-          <SettingsRow
-            icon="document-text-outline"
-            label="Whitepaper"
-            onPress={() => router.push('/whitepaper')}
-          />
-          <SettingsRow
-            icon="help-circle-outline"
-            label="Help & Support"
-            onPress={() => router.push('/help')}
-          />
-        </View>
 
         {/* Footer */}
         <View style={styles.footerSection}>
@@ -680,6 +679,13 @@ export default function ProfileScreen() {
             walletAddress={walletAddress}
             onClose={() => securityRef.current?.close()}
           />
+          <TradeSheet
+            ref={tradeRef}
+            tokenMint={PNL_TOKEN_MINT}
+            tokenSymbol="PNL"
+            initialMode="buy"
+            onClose={() => tradeRef.current?.close()}
+          />
         </>
       )}
     </View>
@@ -705,24 +711,6 @@ function ActionButton({
         <Ionicons name={icon} size={22} color={color} />
       </View>
       <Text style={styles.actionLabel}>{label}</Text>
-    </PressableScale>
-  );
-}
-
-function SettingsRow({
-  icon,
-  label,
-  onPress,
-}: {
-  icon: keyof typeof Ionicons.glyphMap;
-  label: string;
-  onPress?: () => void;
-}) {
-  return (
-    <PressableScale style={styles.settingsRow} onPress={onPress}>
-      <Ionicons name={icon} size={20} color={colors.textSecondary} />
-      <Text style={styles.settingsLabel}>{label}</Text>
-      <Ionicons name="chevron-forward" size={18} color={colors.textMuted} />
     </PressableScale>
   );
 }
@@ -756,123 +744,189 @@ const styles = StyleSheet.create({
   content: {
     paddingHorizontal: spacing.md,
   },
-  headerRight: {
+
+  // ─── Compact Header ───
+  compactHeader: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: spacing.md,
+    justifyContent: 'space-between',
+    paddingHorizontal: spacing.md,
+    paddingBottom: spacing.sm,
   },
-
-  // User section
-  userSection: {
+  headerLeft: {
+    flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: spacing.md,
+    gap: 8,
+    flex: 1,
+    minWidth: 0,
   },
-  avatarRing: {
-    width: 80,
-    height: 80,
-    borderRadius: 40,
-    borderWidth: 2,
-    borderColor: colors.primary,
-    alignItems: 'center',
-    justifyContent: 'center',
-    overflow: 'hidden',
+  headerAvatarWrap: {
+    position: 'relative',
   },
-  avatar: {
-    width: 72,
-    height: 72,
-    borderRadius: 36,
+  headerAvatar: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
   },
-  avatarPlaceholder: {
+  headerAvatarPlaceholder: {
     backgroundColor: colors.surfaceElevated,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  avatarWrapper: {
-    position: 'relative',
-    marginBottom: spacing.sm,
-  },
-  cameraBadge: {
-    position: 'absolute',
-    bottom: 0,
-    right: -2,
-    width: 24,
-    height: 24,
-    borderRadius: 12,
-    backgroundColor: colors.primary,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderWidth: 2,
-    borderColor: colors.background,
-  },
-  twitterRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    marginTop: 4,
-  },
-  twitterHandle: {
-    ...typography.caption,
-    color: colors.textSecondary,
-  },
-  displayName: {
-    ...typography.title,
+  headerName: {
+    ...typography.captionBold,
     color: colors.textPrimary,
+    flexShrink: 1,
   },
-  bio: {
-    ...typography.caption,
-    color: colors.textSecondary,
-    textAlign: 'center',
-    marginTop: 4,
-    maxWidth: 280,
-  },
-  addressRow: {
+  headerAddr: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 4,
-    marginTop: 4,
+    gap: 3,
   },
-  address: {
+  headerAddrText: {
     ...typography.micro,
     color: colors.textMuted,
     fontVariant: ['tabular-nums'],
   },
 
-  // Stats row
-  statsRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginTop: spacing.md,
-    backgroundColor: colors.glass,
+  // ─── Hamburger Menu ───
+  menuOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    zIndex: 100,
+  },
+  menuDropdown: {
+    position: 'absolute',
+    right: spacing.md,
+    backgroundColor: colors.surfaceElevated,
     borderRadius: borderRadius.lg,
     borderWidth: 1,
-    borderColor: colors.glassBorder,
-    paddingVertical: spacing.sm + 4,
-    paddingHorizontal: spacing.md,
+    borderColor: colors.border,
+    overflow: 'hidden',
+    zIndex: 101,
+    minWidth: 200,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.3,
+    shadowRadius: 16,
+    elevation: 12,
   },
-  statItem: {
+  menuItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+    paddingHorizontal: spacing.md,
+    paddingVertical: 14,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.border,
+  },
+  menuItemLast: {
+    borderBottomWidth: 0,
+  },
+  menuItemText: {
+    ...typography.body,
+    color: colors.textPrimary,
+  },
+
+  // ─── Hero Balance ───
+  heroSection: {
+    alignItems: 'center',
+    paddingVertical: spacing.lg,
+  },
+  heroUsd: {
+    fontSize: 36,
+    fontWeight: '700',
+    color: colors.textPrimary,
+    fontVariant: ['tabular-nums'],
+    letterSpacing: -0.5,
+  },
+  heroSolRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginTop: 4,
+  },
+  heroSol: {
+    ...typography.numeric,
+    color: colors.textSecondary,
+    fontSize: 14,
+  },
+  heroSolHint: {
+    ...typography.micro,
+    color: colors.textMuted,
+  },
+
+  // ─── Action Buttons ───
+  actionsRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-around',
+    marginBottom: spacing.md,
+    paddingHorizontal: spacing.sm,
+  },
+  actionBtn: {
+    alignItems: 'center',
+    gap: 6,
+  },
+  actionIcon: {
+    width: 52,
+    height: 52,
+    borderRadius: 26,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  actionLabel: {
+    ...typography.micro,
+    color: colors.textSecondary,
+  },
+
+  // ─── Stats Cards ───
+  statsCardRow: {
+    flexDirection: 'row',
+    gap: spacing.sm,
+    marginBottom: spacing.md,
+  },
+  statCard: {
     flex: 1,
     alignItems: 'center',
+    paddingVertical: spacing.sm + 4,
+    paddingHorizontal: spacing.xs,
   },
-  statValue: {
+  statCardValue: {
     ...typography.bodyBold,
     color: colors.textPrimary,
     fontSize: 18,
   },
-  statLabel: {
+  statCardLabel: {
     ...typography.micro,
     color: colors.textMuted,
     marginTop: 2,
   },
-  statDivider: {
-    width: 1,
-    height: 28,
-    backgroundColor: colors.border,
+
+  // ─── Bio Section ───
+  bioSection: {
+    marginBottom: spacing.md,
+    paddingHorizontal: spacing.xs,
+  },
+  bioInlineText: {
+    ...typography.caption,
+    color: colors.textSecondary,
+    textAlign: 'center',
+  },
+  bioDot: {
+    color: colors.textMuted,
+  },
+  bioTwitter: {
+    color: colors.primary,
+  },
+  addBioText: {
+    ...typography.caption,
+    color: colors.primary,
+    textAlign: 'center',
   },
 
-  // Bio editing
+  // ─── Bio editing ───
   editBioContainer: {
     width: '100%',
-    marginTop: spacing.sm,
+    marginBottom: spacing.md,
   },
   editBioInput: {
     backgroundColor: colors.surfaceElevated,
@@ -907,18 +961,8 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontWeight: '600',
   },
-  addBioBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    marginTop: spacing.sm,
-  },
-  addBioText: {
-    ...typography.caption,
-    color: colors.primary,
-  },
 
-  // Sign in section
+  // ─── Sign in section ───
   signInSection: {
     alignItems: 'center',
     paddingVertical: spacing.xl,
@@ -947,61 +991,7 @@ const styles = StyleSheet.create({
     color: '#fff',
   },
 
-  // ─── Wallet: Balance Card ───
-  balanceCard: {
-    padding: spacing.lg,
-    alignItems: 'center',
-    marginBottom: spacing.sm,
-  },
-  balanceLabel: {
-    ...typography.caption,
-    color: colors.textSecondary,
-    marginBottom: 4,
-  },
-  balanceUsd: {
-    ...typography.numericLarge,
-    color: colors.textPrimary,
-    marginBottom: 4,
-  },
-  solRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-  },
-  solBalance: {
-    ...typography.numeric,
-    color: colors.textSecondary,
-    fontSize: 14,
-  },
-  solUsdHint: {
-    ...typography.micro,
-    color: colors.textMuted,
-  },
-
-  // ─── Wallet: Action Buttons ───
-  actionsRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-around',
-    marginBottom: spacing.md,
-    paddingHorizontal: spacing.sm,
-  },
-  actionBtn: {
-    alignItems: 'center',
-    gap: 6,
-  },
-  actionIcon: {
-    width: 52,
-    height: 52,
-    borderRadius: 26,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  actionLabel: {
-    ...typography.micro,
-    color: colors.textSecondary,
-  },
-
-  // ─── Wallet: Token List ───
+  // ─── Token List ───
   tokenRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -1071,7 +1061,7 @@ const styles = StyleSheet.create({
     color: colors.textMuted,
   },
 
-  // ─── Wallet: Creator Fees ───
+  // ─── Creator Fees ───
   creatorCard: {
     padding: spacing.md,
   },
@@ -1137,53 +1127,11 @@ const styles = StyleSheet.create({
     color: '#fff',
   },
 
-  // Create
   sectionGap: {
     marginTop: spacing.md,
   },
-  createCard: {
-    borderRadius: borderRadius.lg,
-    overflow: 'hidden',
-    marginBottom: spacing.lg,
-  },
-  createGradient: {
-    padding: spacing.lg,
-    alignItems: 'center',
-    gap: spacing.sm,
-  },
-  createTitle: {
-    ...typography.title,
-    color: '#fff',
-  },
-  createSubtitle: {
-    ...typography.caption,
-    color: 'rgba(255,255,255,0.7)',
-    textAlign: 'center',
-  },
 
-  // Settings
-  settingsList: {
-    backgroundColor: colors.surface,
-    borderRadius: borderRadius.lg,
-    borderWidth: 1,
-    borderColor: colors.border,
-    overflow: 'hidden',
-  },
-  settingsRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    padding: spacing.md,
-    gap: spacing.sm,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.border,
-  },
-  settingsLabel: {
-    ...typography.body,
-    color: colors.textPrimary,
-    flex: 1,
-  },
-
-  // Footer
+  // ─── Footer ───
   footerSection: {
     alignItems: 'center',
     marginTop: spacing.lg,

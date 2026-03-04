@@ -21,7 +21,7 @@ export interface UserProject {
 }
 
 export function useProjects(walletAddress: string | null) {
-  const { data, error, isLoading, mutate } = useSWR<ApiResponse<UserProject[]>>(
+  const { data, error, isLoading, mutate } = useSWR<ApiResponse<{ projects: UserProject[]; total: number }>>(
     walletAddress ? `/api/user/${walletAddress}/projects` : null,
     fetcher,
     {
@@ -31,7 +31,7 @@ export function useProjects(walletAddress: string | null) {
   );
 
   return {
-    projects: data?.data ?? [],
+    projects: data?.data?.projects ?? [],
     isLoading,
     error,
     refresh: mutate,

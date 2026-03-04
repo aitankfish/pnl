@@ -136,6 +136,10 @@ const ProjectSchema = new mongoose.Schema({
   projectImageUrl: {
     type: String,
   },
+  galleryImageUrls: {
+    type: [String],
+    default: [],
+  },
   pitchVideoUrl: {
     type: String,
   },
@@ -766,6 +770,7 @@ export interface IProject {
   tokenSymbol: string;
   socialLinks: Map<string, string>;
   projectImageUrl?: string;
+  galleryImageUrls?: string[];
   pitchVideoUrl?: string;
   documentUrls?: string[];
   status: string;

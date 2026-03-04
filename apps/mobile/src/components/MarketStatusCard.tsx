@@ -9,6 +9,8 @@ import React, { useState, useCallback, useEffect } from 'react';
 import { View, Text, StyleSheet, ActivityIndicator, Alert } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
+import { Transaction } from '@solana/web3.js';
+import { getSolanaConnection } from '@pnl/shared/solana';
 import { apiUrl } from '@pnl/shared/utils';
 import { colors, spacing, borderRadius, typography } from '../theme';
 import { GlassCard } from './GlassCard';
@@ -72,6 +74,7 @@ interface MarketStatusCardProps {
   positionData: PositionData | null;
   vestingData: VestingData | null;
   walletAddress: string | null;
+  solanaWallet: any;
   network: string;
   onRefresh: () => void;
 }
@@ -95,7 +98,7 @@ function getYesWinning(market: MarketData): boolean {
   return (market.yesPercentage ?? 50) >= 50;
 }
 
-// ── Prepare + Sign pattern (signing is TODO for Privy Expo) ────────────────
+// ── Prepare + Sign helpers ─────────────────────────────────────────────────
 
 async function prepareTransaction(endpoint: string, body: object): Promise<any> {
   const res = await fetch(apiUrl(endpoint), {
@@ -106,6 +109,41 @@ async function prepareTransaction(endpoint: string, body: object): Promise<any> 
   const data = await res.json();
   if (!data.success) throw new Error(data.error || 'Transaction preparation failed');
   return data;
+}
+
+/** Sign a prepared transaction via Privy embedded wallet, confirm on-chain, optionally call a complete endpoint. */
+async function signAndSendPrepared(
+  solanaWallet: any,
+  prepareData: any,
+  completeEndpoint?: string,
+  completeBody?: object,
+): Promise<string> {
+  const serialized = prepareData.data?.serializedTransaction ?? prepareData.serializedTransaction;
+  if (!serialized) throw new Error('No serialized transaction in response');
+
+  const txBytes = Buffer.from(serialized, 'base64');
+  const transaction = Transaction.from(txBytes);
+  const provider = await solanaWallet.wallets![0].getProvider();
+  const { signature } = await (provider as any).signAndSendTransaction(transaction);
+
+  // Wait for on-chain confirmation
+  const connection = await getSolanaConnection();
+  await connection.confirmTransaction(signature, 'confirmed');
+
+  // Call complete endpoint if provided (non-fatal — on-chain tx already succeeded)
+  if (completeEndpoint && completeBody) {
+    try {
+      await fetch(apiUrl(completeEndpoint), {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ...completeBody, signature }),
+      });
+    } catch (e) {
+      console.warn('Complete endpoint failed (non-fatal):', e);
+    }
+  }
+
+  return signature;
 }
 
 // ── Action Button ──────────────────────────────────────────────────────────
@@ -149,12 +187,14 @@ function ClaimSection({
   market,
   positionData,
   walletAddress,
+  solanaWallet,
   network,
   onRefresh,
 }: {
   market: MarketData;
   positionData: PositionData | null;
   walletAddress: string | null;
+  solanaWallet: any;
   network: string;
   onRefresh: () => void;
 }) {
@@ -174,7 +214,7 @@ function ClaimSection({
   }
 
   const handleClaim = async () => {
-    if (!walletAddress) {
+    if (!walletAddress || !solanaWallet) {
       Alert.alert('Connect Wallet', 'Please connect your wallet to claim.');
       return;
     }
@@ -188,12 +228,14 @@ function ClaimSection({
         network,
       });
 
-      // TODO: Sign with Privy Expo SDK
-      Alert.alert(
-        'Claim Prepared',
-        'Transaction prepared successfully. On-chain signing via Privy Expo SDK is not yet wired.',
-      );
+      await signAndSendPrepared(solanaWallet, data, '/api/markets/claim/complete', {
+        marketId: market.id,
+        userWallet: walletAddress,
+      });
+
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      Alert.alert('Success', 'Claim transaction confirmed!');
+      onRefresh();
     } catch (err: any) {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
       Alert.alert('Claim Failed', err.message);
@@ -251,11 +293,13 @@ function ClaimSection({
 function FounderActions({
   market,
   walletAddress,
+  solanaWallet,
   network,
   onRefresh,
 }: {
   market: MarketData;
   walletAddress: string | null;
+  solanaWallet: any;
   network: string;
   onRefresh: () => void;
 }) {
@@ -274,16 +318,25 @@ function FounderActions({
           color={colors.danger}
           bgColor={colors.dangerLight}
           onPress={async () => {
+            if (!solanaWallet) return;
             setIsResolving(true);
+            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
             try {
-              await prepareTransaction('/api/markets/resolve/prepare', {
+              const data = await prepareTransaction('/api/markets/resolve/prepare', {
                 marketAddress: market.marketAddress,
                 userWallet: walletAddress,
                 network,
                 needsTokenLaunch: false,
               });
-              Alert.alert('Resolve Prepared', 'Transaction prepared. Signing via Privy Expo SDK not yet wired.');
+              await signAndSendPrepared(solanaWallet, data, '/api/markets/resolve/complete', {
+                marketId: market.id,
+                userWallet: walletAddress,
+              });
+              Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+              Alert.alert('Success', 'Market resolved!');
+              onRefresh();
             } catch (err: any) {
+              Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
               Alert.alert('Error', err.message);
             } finally {
               setIsResolving(false);
@@ -318,15 +371,24 @@ function FounderActions({
           color={colors.primary}
           bgColor="rgba(129,140,248,0.15)"
           onPress={async () => {
+            if (!solanaWallet) return;
             setIsExtending(true);
+            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
             try {
-              await prepareTransaction('/api/markets/extend/prepare', {
+              const data = await prepareTransaction('/api/markets/extend/prepare', {
                 marketAddress: market.marketAddress,
                 userWallet: walletAddress,
                 network,
               });
-              Alert.alert('Extend Prepared', 'Transaction prepared. Signing via Privy Expo SDK not yet wired.');
+              await signAndSendPrepared(solanaWallet, data, '/api/markets/extend/complete', {
+                marketId: market.id,
+                userWallet: walletAddress,
+              });
+              Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+              Alert.alert('Success', 'Market extended to Funding Phase!');
+              onRefresh();
             } catch (err: any) {
+              Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
               Alert.alert('Error', err.message);
             } finally {
               setIsExtending(false);
@@ -354,9 +416,11 @@ function FounderActions({
           color={colors.success}
           bgColor={colors.successLight}
           onPress={async () => {
+            if (!solanaWallet) return;
             setIsResolving(true);
+            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
             try {
-              await prepareTransaction('/api/markets/resolve/prepare', {
+              const data = await prepareTransaction('/api/markets/resolve/prepare', {
                 marketAddress: market.marketAddress,
                 userWallet: walletAddress,
                 network,
@@ -367,8 +431,15 @@ function FounderActions({
                   description: `${market.name} — community-backed via PNL prediction market`,
                 },
               });
-              Alert.alert('Launch Prepared', 'Transaction prepared. Signing via Privy Expo SDK not yet wired.');
+              await signAndSendPrepared(solanaWallet, data, '/api/markets/resolve/complete', {
+                marketId: market.id,
+                userWallet: walletAddress,
+              });
+              Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+              Alert.alert('Success', `$${market.tokenSymbol || 'TOKEN'} launched successfully!`);
+              onRefresh();
             } catch (err: any) {
+              Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
               Alert.alert('Error', err.message);
             } finally {
               setIsResolving(false);
@@ -389,16 +460,25 @@ function FounderActions({
         color={colors.danger}
         bgColor={colors.dangerLight}
         onPress={async () => {
+          if (!solanaWallet) return;
           setIsResolving(true);
+          Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
           try {
-            await prepareTransaction('/api/markets/resolve/prepare', {
+            const data = await prepareTransaction('/api/markets/resolve/prepare', {
               marketAddress: market.marketAddress,
               userWallet: walletAddress,
               network,
               needsTokenLaunch: false,
             });
-            Alert.alert('Resolve Prepared', 'Transaction prepared. Signing via Privy Expo SDK not yet wired.');
+            await signAndSendPrepared(solanaWallet, data, '/api/markets/resolve/complete', {
+              marketId: market.id,
+              userWallet: walletAddress,
+            });
+            Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+            Alert.alert('Success', 'Market resolved!');
+            onRefresh();
           } catch (err: any) {
+            Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
             Alert.alert('Error', err.message);
           } finally {
             setIsResolving(false);
@@ -418,11 +498,13 @@ function TeamVestingSection({
   market,
   vestingData,
   walletAddress,
+  solanaWallet,
   network,
 }: {
   market: MarketData;
   vestingData: VestingData | null;
   walletAddress: string | null;
+  solanaWallet: any;
   network: string;
 }) {
   const [isInitializing, setIsInitializing] = useState(false);
@@ -470,17 +552,21 @@ function TeamVestingSection({
             disabled={!hasClaimable}
             loading={isClaiming}
             onPress={async () => {
-              if (!hasClaimable) return;
+              if (!hasClaimable || !solanaWallet) return;
               setIsClaiming(true);
+              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
               try {
-                await prepareTransaction('/api/markets/team-vesting/claim', {
+                const data = await prepareTransaction('/api/markets/team-vesting/claim', {
                   marketAddress: market.marketAddress,
                   tokenMint: vestingData?.tokenMint,
                   userWallet: walletAddress,
                   network,
                 });
-                Alert.alert('Claim Prepared', 'Transaction prepared. Signing via Privy Expo SDK not yet wired.');
+                await signAndSendPrepared(solanaWallet, data);
+                Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+                Alert.alert('Success', 'Team tokens claimed!');
               } catch (err: any) {
+                Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
                 Alert.alert('Error', err.message);
               } finally {
                 setIsClaiming(false);
@@ -510,16 +596,21 @@ function TeamVestingSection({
           bgColor={colors.warningLight}
           loading={isInitializing}
           onPress={async () => {
+            if (!solanaWallet) return;
             setIsInitializing(true);
+            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
             try {
-              await prepareTransaction('/api/markets/team-vesting/init', {
+              const data = await prepareTransaction('/api/markets/team-vesting/init', {
                 marketAddress: market.marketAddress,
                 teamWallet: walletAddress,
                 userWallet: walletAddress,
                 network,
               });
-              Alert.alert('Init Prepared', 'Transaction prepared. Signing via Privy Expo SDK not yet wired.');
+              await signAndSendPrepared(solanaWallet, data);
+              Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+              Alert.alert('Success', 'Team vesting initialized!');
             } catch (err: any) {
+              Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
               Alert.alert('Error', err.message);
             } finally {
               setIsInitializing(false);
@@ -539,11 +630,13 @@ function FounderSolVestingSection({
   market,
   vestingData,
   walletAddress,
+  solanaWallet,
   network,
 }: {
   market: MarketData;
   vestingData: VestingData | null;
   walletAddress: string | null;
+  solanaWallet: any;
   network: string;
 }) {
   const [isInitializing, setIsInitializing] = useState(false);
@@ -587,16 +680,20 @@ function FounderSolVestingSection({
           disabled={!hasClaimable}
           loading={isClaiming}
           onPress={async () => {
-            if (!hasClaimable) return;
+            if (!hasClaimable || !solanaWallet) return;
             setIsClaiming(true);
+            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
             try {
-              await prepareTransaction('/api/markets/founder-sol/claim', {
+              const data = await prepareTransaction('/api/markets/founder-sol/claim', {
                 marketAddress: market.marketAddress,
                 userWallet: walletAddress,
                 network,
               });
-              Alert.alert('Claim Prepared', 'Transaction prepared. Signing via Privy Expo SDK not yet wired.');
+              await signAndSendPrepared(solanaWallet, data);
+              Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+              Alert.alert('Success', 'SOL claimed!');
             } catch (err: any) {
+              Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
               Alert.alert('Error', err.message);
             } finally {
               setIsClaiming(false);
@@ -624,15 +721,20 @@ function FounderSolVestingSection({
         bgColor={colors.successLight}
         loading={isInitializing}
         onPress={async () => {
+          if (!solanaWallet) return;
           setIsInitializing(true);
+          Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
           try {
-            await prepareTransaction('/api/markets/founder-sol/init', {
+            const data = await prepareTransaction('/api/markets/founder-sol/init', {
               marketAddress: market.marketAddress,
               userWallet: walletAddress,
               network,
             });
-            Alert.alert('Init Prepared', 'Transaction prepared. Signing via Privy Expo SDK not yet wired.');
+            await signAndSendPrepared(solanaWallet, data);
+            Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+            Alert.alert('Success', 'SOL vesting initialized!');
           } catch (err: any) {
+            Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
             Alert.alert('Error', err.message);
           } finally {
             setIsInitializing(false);
@@ -648,10 +750,12 @@ function FounderSolVestingSection({
 function CloseMarketSection({
   market,
   walletAddress,
+  solanaWallet,
   network,
 }: {
   market: MarketData;
   walletAddress: string | null;
+  solanaWallet: any;
   network: string;
 }) {
   const [isClosing, setIsClosing] = useState(false);
@@ -672,15 +776,20 @@ function CloseMarketSection({
         bgColor={colors.surface}
         loading={isClosing}
         onPress={async () => {
+          if (!solanaWallet) return;
           setIsClosing(true);
+          Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
           try {
-            await prepareTransaction('/api/markets/close-market', {
+            const data = await prepareTransaction('/api/markets/close-market', {
               marketAddress: market.marketAddress,
               userWallet: walletAddress,
               network,
             });
-            Alert.alert('Close Prepared', 'Transaction prepared. Signing via Privy Expo SDK not yet wired.');
+            await signAndSendPrepared(solanaWallet, data);
+            Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+            Alert.alert('Success', 'Market closed. Rent recovered!');
           } catch (err: any) {
+            Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
             Alert.alert('Error', err.message);
           } finally {
             setIsClosing(false);
@@ -716,6 +825,7 @@ export function MarketStatusCard({
   positionData,
   vestingData,
   walletAddress,
+  solanaWallet,
   network,
   onRefresh,
 }: MarketStatusCardProps) {
@@ -819,6 +929,7 @@ export function MarketStatusCard({
         market={market}
         positionData={positionData}
         walletAddress={walletAddress}
+        solanaWallet={solanaWallet}
         network={network}
         onRefresh={onRefresh}
       />
@@ -827,6 +938,7 @@ export function MarketStatusCard({
       <FounderActions
         market={market}
         walletAddress={walletAddress}
+        solanaWallet={solanaWallet}
         network={network}
         onRefresh={onRefresh}
       />
@@ -836,6 +948,7 @@ export function MarketStatusCard({
         market={market}
         vestingData={vestingData}
         walletAddress={walletAddress}
+        solanaWallet={solanaWallet}
         network={network}
       />
 
@@ -844,6 +957,7 @@ export function MarketStatusCard({
         market={market}
         vestingData={vestingData}
         walletAddress={walletAddress}
+        solanaWallet={solanaWallet}
         network={network}
       />
 
@@ -851,6 +965,7 @@ export function MarketStatusCard({
       <CloseMarketSection
         market={market}
         walletAddress={walletAddress}
+        solanaWallet={solanaWallet}
         network={network}
       />
     </View>

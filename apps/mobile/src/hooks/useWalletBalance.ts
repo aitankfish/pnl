@@ -35,7 +35,7 @@ export function useWalletBalance(walletAddress: string | null) {
 
   useEffect(() => {
     fetchBalance();
-    intervalRef.current = setInterval(fetchBalance, 30_000);
+    intervalRef.current = setInterval(fetchBalance, 45_000);
     return () => {
       if (intervalRef.current) clearInterval(intervalRef.current);
     };

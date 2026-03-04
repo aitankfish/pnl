@@ -12,9 +12,10 @@ interface ChatRoomProps {
   walletAddress?: string | null;
   founderWallet?: string | null;
   hasPosition: boolean;
+  getAccessToken?: () => Promise<string | null>;
 }
 
-export function ChatRoom({ marketAddress, walletAddress, founderWallet, hasPosition }: ChatRoomProps) {
+export function ChatRoom({ marketAddress, walletAddress, founderWallet, hasPosition, getAccessToken }: ChatRoomProps) {
   const {
     messages,
     pinnedMessages,
@@ -28,7 +29,7 @@ export function ChatRoom({ marketAddress, walletAddress, founderWallet, hasPosit
     addReaction,
     deleteMessage,
     togglePin,
-  } = useChat({ marketAddress, walletAddress });
+  } = useChat({ marketAddress, walletAddress, getAccessToken });
 
   const [replyToId, setReplyToId] = useState<string | null>(null);
 

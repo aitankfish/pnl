@@ -26,19 +26,20 @@ import { colors, spacing, borderRadius, typography } from '../theme';
 interface VoteHistoryEntry {
   voteType: 'yes' | 'no';
   amount: number;
-  shares: number;
-  price: number;
   timestamp: string;
   signature: string;
 }
 
-interface VoteHistorySummary {
-  yesVotes: number;
-  yesTotal: number;
-  noVotes: number;
-  noTotal: number;
-  totalInvested: number;
+interface VoteHistoryApiResponse {
   trades: VoteHistoryEntry[];
+  summary: {
+    totalInvested: number;
+    totalYesAmount: number;
+    totalNoAmount: number;
+    yesTradeCount: number;
+    noTradeCount: number;
+    totalTrades: number;
+  };
 }
 
 interface VoteHistorySheetProps {
@@ -51,7 +52,7 @@ export const VoteHistorySheet = forwardRef<GorhomBottomSheet, VoteHistorySheetPr
   ({ position, walletAddress, onClose }, ref) => {
     const snapPoints = useMemo(() => ['70%'], []);
 
-    const { data, isLoading } = useSWR<ApiResponse<VoteHistorySummary>>(
+    const { data, isLoading } = useSWR<ApiResponse<VoteHistoryApiResponse>>(
       position
         ? `/api/markets/${position.marketId}/vote-history?wallet=${walletAddress}`
         : null,
@@ -59,7 +60,15 @@ export const VoteHistorySheet = forwardRef<GorhomBottomSheet, VoteHistorySheetPr
       { dedupingInterval: 10_000 },
     );
 
-    const history = data?.data ?? null;
+    const apiData = data?.data ?? null;
+    const history = apiData ? {
+      yesVotes: apiData.summary.yesTradeCount,
+      yesTotal: apiData.summary.totalYesAmount,
+      noVotes: apiData.summary.noTradeCount,
+      noTotal: apiData.summary.totalNoAmount,
+      totalInvested: apiData.summary.totalInvested,
+      trades: apiData.trades,
+    } : null;
 
     const renderBackdrop = (props: any) => (
       <BottomSheetBackdrop {...props} disappearsOnIndex={-1} appearsOnIndex={0} opacity={0.6} />

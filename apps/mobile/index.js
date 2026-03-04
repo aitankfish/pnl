@@ -1,5 +1,10 @@
 // Entry point — polyfills MUST run before expo-router loads any routes
-import 'react-native-webrtc'; // Register WebRTC globals for mediasoup-client
+// Guard WebRTC import — native module not available in Expo Go
+// registerGlobals() sets global.RTCPeerConnection etc. needed by mediasoup-client
+try {
+  const { registerGlobals } = require('react-native-webrtc');
+  registerGlobals();
+} catch (_e) { /* Expo Go: skip WebRTC registration */ }
 import 'react-native-get-random-values';
 import { Buffer } from 'buffer';
 import * as ExpoCrypto from 'expo-crypto';

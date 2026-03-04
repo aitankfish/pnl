@@ -24,10 +24,10 @@ export interface FavoriteMarket {
 export function useFavorites(walletAddress: string | null, favoriteMarketIds: string[]) {
   const [isToggling, setIsToggling] = useState(false);
 
-  // Fetch all favorited market data in a single batch
-  const { data, error, isLoading, mutate } = useSWR<ApiResponse<FavoriteMarket[]>>(
+  // Fetch all favorited market data from profile favorites endpoint
+  const { data, error, isLoading, mutate } = useSWR<ApiResponse<{ favorites: FavoriteMarket[]; total: number }>>(
     walletAddress && favoriteMarketIds.length > 0
-      ? `/api/user/${walletAddress}/favorites`
+      ? `/api/profile/${walletAddress}/favorites`
       : null,
     fetcher,
     {
@@ -63,7 +63,7 @@ export function useFavorites(walletAddress: string | null, favoriteMarketIds: st
   );
 
   return {
-    favorites: data?.data ?? [],
+    favorites: data?.data?.favorites ?? [],
     isLoading,
     error,
     toggleFavorite,

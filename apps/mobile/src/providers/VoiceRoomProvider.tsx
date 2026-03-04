@@ -14,7 +14,9 @@ import { Alert } from 'react-native';
 import { io, Socket } from 'socket.io-client';
 import { Device } from 'mediasoup-client';
 import type { Transport, Producer, Consumer } from 'mediasoup-client/lib/types';
-import { mediaDevices } from 'react-native-webrtc';
+// Lazy-load react-native-webrtc to avoid crash in Expo Go
+let mediaDevices: any;
+try { mediaDevices = require('react-native-webrtc').mediaDevices; } catch (_e) { mediaDevices = null; }
 import { router } from 'expo-router';
 import { apiUrl, getSocketUrl } from '@pnl/shared/utils';
 import { VOICE_SERVER_URL } from '../config/init';
@@ -285,7 +287,11 @@ export function VoiceRoomProvider({ children }: { children: ReactNode }) {
   const doJoin = useCallback(
     async (joinAsSpeaker: boolean) => {
       const pending = pendingJoinRef.current;
-      if (!pending || isConnected || isConnecting) return;
+      if (!pending || isConnected || isConnecting) {
+        console.log('[Voice] doJoin early return:', { pending: !!pending, isConnected, isConnecting });
+        return;
+      }
+      console.log('[Voice] doJoin starting, joinAsSpeaker:', joinAsSpeaker);
 
       const { marketAddress: addr, marketName: name, walletAddress: wallet, founderWallet: founder } = pending;
 
@@ -302,6 +308,13 @@ export function VoiceRoomProvider({ children }: { children: ReactNode }) {
 
       try {
         // Get mic stream via react-native-webrtc
+        console.log('[Voice] mediaDevices available:', !!mediaDevices);
+        if (!mediaDevices) {
+          throw new Error(
+            'react-native-webrtc is not available. Voice rooms require a development build (not Expo Go).',
+          );
+        }
+        console.log('[Voice] Requesting mic permission...');
         const stream = await mediaDevices.getUserMedia({
           audio: {
             echoCancellation: true,
@@ -316,14 +329,23 @@ export function VoiceRoomProvider({ children }: { children: ReactNode }) {
           track.enabled = false;
         });
 
-        // Connect to voice server
-        const socket = io(VOICE_SERVER_URL, { transports: ['websocket'] });
+        // Connect to voice server (use websocket + polling fallback like main socket)
+        console.log('[Voice] Got mic stream, connecting to voice server:', VOICE_SERVER_URL);
+        const socket = io(VOICE_SERVER_URL, {
+          transports: ['websocket', 'polling'],
+          reconnection: false, // We handle reconnection manually
+        });
         socketRef.current = socket;
 
         await new Promise<void>((resolve, reject) => {
           socket.on('connect', () => resolve());
-          socket.on('connect_error', (err) => reject(err));
-          setTimeout(() => reject(new Error('Connection timeout')), 10000);
+          socket.on('connect_error', (err) =>
+            reject(new Error(`Voice server unreachable: ${err.message}`)),
+          );
+          setTimeout(
+            () => reject(new Error('Voice server connection timed out. Is the voice server running?')),
+            10000,
+          );
         });
 
         // Join room
@@ -334,8 +356,9 @@ export function VoiceRoomProvider({ children }: { children: ReactNode }) {
           });
         });
 
-        // Load mediasoup device
-        const device = new Device();
+        // Load mediasoup device — must specify ReactNative handler since
+        // detectDevice() can't auto-detect from navigator.userAgent in RN
+        const device = new Device({ handlerName: 'ReactNative106' });
         await device.load({ routerRtpCapabilities: joinResponse.rtpCapabilities });
         deviceRef.current = device;
 
@@ -521,8 +544,13 @@ export function VoiceRoomProvider({ children }: { children: ReactNode }) {
           }).catch(() => {});
         }
       } catch (err: any) {
-        setError(err.message || 'Failed to join voice room');
+        console.error('[Voice] doJoin failed:', err.message);
+        // IMPORTANT: cleanup() must run BEFORE setError() because cleanup(true)
+        // calls setError(null). React batches both updates — the last setError wins.
         cleanup();
+        const errorMsg = err.message || 'Failed to join voice room';
+        setError(errorMsg);
+        Alert.alert('Voice Room Error', errorMsg);
       } finally {
         setIsConnecting(false);
         pendingJoinRef.current = null;
@@ -534,7 +562,11 @@ export function VoiceRoomProvider({ children }: { children: ReactNode }) {
   // Public join
   const join = useCallback(
     async (newMarketId: string, newMarketAddress: string, newMarketName: string, newWalletAddress: string, newFounderWallet: string | null) => {
-      if (isConnecting) return;
+      console.log('[Voice] join() called:', { newMarketId, wallet: newWalletAddress, isFounder: newWalletAddress === newFounderWallet });
+      if (isConnecting) {
+        console.log('[Voice] join() early return: already connecting');
+        return;
+      }
 
       // Already in a voice room — ask user to switch
       if (isConnected && marketId && marketId !== newMarketId) {

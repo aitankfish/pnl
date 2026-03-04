@@ -1,4 +1,5 @@
 import { View, Text, StyleSheet, ScrollView } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import type { VoiceParticipant } from '../../providers/VoiceRoomProvider';
 import { colors, spacing, typography, borderRadius } from '../../theme';
 
@@ -13,7 +14,9 @@ export function VoiceListenersList({ participants }: VoiceListenersListProps) {
 
   return (
     <View style={styles.container}>
-      <Text style={styles.title}>Listeners ({listeners.length})</Text>
+      <Text style={styles.title}>
+        <Ionicons name="people" size={12} color={colors.textMuted} /> Listeners ({listeners.length})
+      </Text>
       <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.list}>
         {listeners.map((p) => {
           const name = p.displayName || p.peerId.slice(0, 6) + '...';
@@ -35,6 +38,9 @@ export function VoiceListenersList({ participants }: VoiceListenersListProps) {
 const styles = StyleSheet.create({
   container: {
     gap: spacing.sm,
+    paddingTop: spacing.md,
+    borderTopWidth: 1,
+    borderTopColor: 'rgba(255,255,255,0.05)',
   },
   title: {
     ...typography.captionBold,

@@ -26,6 +26,7 @@ export interface Market {
   status: string;
   metadataUri?: string;
   projectImageUrl?: string;
+  galleryImageUrls?: string[];
   pitchVideoUrl?: string;
   yesPercentage?: number;
   noPercentage?: number;
@@ -43,6 +44,7 @@ export interface Market {
   isStale?: boolean;
   syncStatus?: string;
   totalParticipants?: number;
+  favoriteCount?: number;
   createdAt?: string;
 }
 
@@ -78,7 +80,7 @@ export function useMarkets(category?: string, status?: string) {
   );
 
   // Socket.IO for real-time updates
-  const { marketUpdates, activeVoiceRooms, isConnected: socketConnected } = useAllMarketsSocket();
+  const { marketUpdates, activeVoiceRooms, newMarkets, clearNewMarkets, isConnected: socketConnected } = useAllMarketsSocket();
 
   // Merge socket updates with SWR data
   const markets = data?.data?.markets?.map((market) => {
@@ -104,6 +106,8 @@ export function useMarkets(category?: string, status?: string) {
     allMarkets: markets,
     syncHealth: data?.data?.syncHealth || null,
     activeVoiceRooms,
+    newMarkets,
+    clearNewMarkets,
     isLoading,
     error: error || (data?.success === false ? data.error : null),
     refresh,

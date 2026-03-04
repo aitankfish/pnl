@@ -13,16 +13,22 @@ import {
   FlatList,
   RefreshControl,
   Pressable,
-  ScrollView,
   ActivityIndicator,
 } from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
-import { LinearGradient } from 'expo-linear-gradient';
 import { router } from 'expo-router';
+import { Gesture, GestureDetector } from 'react-native-gesture-handler';
+import Reanimated, {
+  useSharedValue,
+  useAnimatedStyle,
+  withSpring,
+  runOnJS,
+  interpolate,
+} from 'react-native-reanimated';
 import { apiUrl } from '@pnl/shared/utils';
 import { useAuth } from '../../src/providers/AuthProvider';
-import { PressableScale, ScreenHeader } from '../../src/components';
+import { ScreenHeader, StatusTabs } from '../../src/components';
+import type { StatusTab } from '../../src/components/StatusTabs';
 import { colors, spacing, borderRadius } from '../../src/theme';
 
 /* ── Types ── */
@@ -101,21 +107,8 @@ const priorityConfig: Record<string, { label: string; bg: string; color: string 
   low: { label: 'Low', bg: 'rgba(107, 114, 128, 0.15)', color: '#6b7280' },
 };
 
-/* ── Action button config ── */
-function getActionConfig(type: string): { label: string; colors: [string, string] } {
-  switch (type) {
-    case 'claim_ready':
-      return { label: 'Claim Rewards', colors: ['#10b981', '#059669'] };
-    case 'token_launched':
-      return { label: 'View Token', colors: ['#6366f1', '#8b5cf6'] };
-    case 'pool_complete':
-      return { label: 'View Market', colors: ['#06b6d4', '#0891b2'] };
-    case 'founder_voice_live':
-      return { label: 'Join Voice', colors: ['#ef4444', '#dc2626'] };
-    default:
-      return { label: 'View', colors: ['#06b6d4', '#3b82f6'] };
-  }
-}
+/* ── Swipe-to-delete threshold ── */
+const DELETE_THRESHOLD = 80;
 
 /* ── Single notification row ── */
 function NotificationRow({
@@ -129,85 +122,109 @@ function NotificationRow({
 }) {
   const icon = typeIcons[item.type] || defaultIcon;
   const priority = priorityConfig[item.priority];
-  const action = getActionConfig(item.type);
+  const translateX = useSharedValue(0);
+  const startX = useSharedValue(0);
 
   const handlePress = useCallback(() => {
     if (!item.isRead) onMarkRead(item.id);
     if (item.actionUrl) router.push(item.actionUrl as any);
   }, [item, onMarkRead]);
 
+  const handleDelete = useCallback(() => {
+    onDelete(item.id);
+  }, [item.id, onDelete]);
+
+  const panGesture = Gesture.Pan()
+    .activeOffsetX([-15, 15])
+    .failOffsetY([-20, 20])
+    .onStart(() => {
+      startX.value = translateX.value;
+    })
+    .onUpdate((e) => {
+      const newX = startX.value + e.translationX;
+      translateX.value = Math.max(Math.min(newX, 0), -DELETE_THRESHOLD - 20);
+    })
+    .onEnd((e) => {
+      if (translateX.value < -DELETE_THRESHOLD / 2 || e.velocityX < -500) {
+        translateX.value = withSpring(-DELETE_THRESHOLD, { damping: 20, stiffness: 200 });
+      } else {
+        translateX.value = withSpring(0, { damping: 20, stiffness: 200 });
+      }
+    });
+
+  const tapGesture = Gesture.Tap().onEnd(() => {
+    if (translateX.value < -10) {
+      translateX.value = withSpring(0, { damping: 20, stiffness: 200 });
+    } else {
+      runOnJS(handlePress)();
+    }
+  });
+
+  const composedGesture = Gesture.Exclusive(panGesture, tapGesture);
+
+  const rowAnimStyle = useAnimatedStyle(() => ({
+    transform: [{ translateX: translateX.value }],
+  }));
+
+  const deleteOpacity = useAnimatedStyle(() => ({
+    opacity: interpolate(translateX.value, [0, -DELETE_THRESHOLD], [0, 1]),
+  }));
+
   return (
-    <Pressable
-      style={[styles.row, !item.isRead && styles.rowUnread]}
-      onPress={handlePress}
-    >
-      <View style={[styles.iconCircle, { backgroundColor: `${icon.color}20` }]}>
-        <Ionicons name={icon.name} size={20} color={icon.color} />
-      </View>
+    <View style={styles.swipeContainer}>
+      {/* Delete action behind row */}
+      <Reanimated.View style={[styles.deleteAction, deleteOpacity]}>
+        <Pressable style={styles.deleteActionBtn} onPress={handleDelete}>
+          <Ionicons name="trash-outline" size={20} color="#fff" />
+          <Text style={styles.deleteActionText}>Delete</Text>
+        </Pressable>
+      </Reanimated.View>
 
-      <View style={styles.rowContent}>
-        {/* Title row: title + priority badge + unread dot */}
-        <View style={styles.rowHeader}>
-          <Text style={[styles.rowTitle, !item.isRead && styles.rowTitleUnread]} numberOfLines={1}>
-            {item.title}
-          </Text>
-          {priority && (
-            <View style={[styles.priorityBadge, { backgroundColor: priority.bg }]}>
-              <Text style={[styles.priorityText, { color: priority.color }]}>
-                {priority.label}
-              </Text>
+      <GestureDetector gesture={composedGesture}>
+        <Reanimated.View style={[styles.rowSlider, rowAnimStyle]}>
+          <View style={[styles.row, !item.isRead && styles.rowUnread]}>
+            <View style={[styles.iconCircle, { backgroundColor: `${icon.color}20` }]}>
+              <Ionicons name={icon.name} size={20} color={icon.color} />
             </View>
-          )}
-          {!item.isRead && <View style={styles.unreadDot} />}
-        </View>
 
-        {/* Message */}
-        <Text style={styles.rowMessage} numberOfLines={2}>{item.message}</Text>
+            <View style={styles.rowContent}>
+              <View style={styles.rowHeader}>
+                <Text style={[styles.rowTitle, !item.isRead && styles.rowTitleUnread]} numberOfLines={1}>
+                  {item.title}
+                </Text>
+                {priority && (
+                  <View style={[styles.priorityBadge, { backgroundColor: priority.bg }]}>
+                    <Text style={[styles.priorityText, { color: priority.color }]}>
+                      {priority.label}
+                    </Text>
+                  </View>
+                )}
+                {!item.isRead && <View style={styles.unreadDot} />}
+              </View>
 
-        {/* Project pill */}
-        {item.project && (
-          <View style={styles.projectPill}>
-            {item.project.category ? (
-              <Text style={styles.projectCategory}>{item.project.category}</Text>
-            ) : null}
-            <Text style={styles.projectName} numberOfLines={1}>{item.project.name}</Text>
-            <Text style={styles.projectSymbol}>${item.project.symbol}</Text>
+              <Text style={styles.rowMessage} numberOfLines={2}>{item.message}</Text>
+
+              {item.project && (
+                <View style={styles.projectPill}>
+                  {item.project.category ? (
+                    <Text style={styles.projectCategory}>{item.project.category}</Text>
+                  ) : null}
+                  <Text style={styles.projectName} numberOfLines={1}>{item.project.name}</Text>
+                  <Text style={styles.projectSymbol}>${item.project.symbol}</Text>
+                </View>
+              )}
+
+              <Text style={styles.rowTimestamp}>{item.timestamp}</Text>
+            </View>
           </View>
-        )}
-
-        {/* Meta row: timestamp + action button */}
-        <View style={styles.rowMeta}>
-          <Text style={styles.rowTimestamp}>{item.timestamp}</Text>
-          {item.actionUrl && (
-            <PressableScale
-              onPress={handlePress}
-              scaleDown={0.95}
-              style={styles.actionBtnWrap}
-            >
-              <LinearGradient
-                colors={action.colors}
-                start={{ x: 0, y: 0 }}
-                end={{ x: 1, y: 0 }}
-                style={styles.actionBtn}
-              >
-                <Text style={styles.actionBtnText}>{action.label}</Text>
-                <Ionicons name="chevron-forward" size={12} color="#fff" />
-              </LinearGradient>
-            </PressableScale>
-          )}
-        </View>
-      </View>
-
-      <Pressable style={styles.deleteBtn} onPress={() => onDelete(item.id)} hitSlop={8}>
-        <Ionicons name="close" size={16} color={colors.textMuted} />
-      </Pressable>
-    </Pressable>
+        </Reanimated.View>
+      </GestureDetector>
+    </View>
   );
 }
 
 /* ── Main screen ── */
 export default function NotificationsScreen() {
-  const insets = useSafeAreaInsets();
   const { isAuthenticated, walletAddress } = useAuth();
 
   const [notifications, setNotifications] = useState<Notification[]>([]);
@@ -347,39 +364,17 @@ export default function NotificationsScreen() {
       />
 
       {/* Filter tabs */}
-      <ScrollView
-        horizontal
-        showsHorizontalScrollIndicator={false}
-        contentContainerStyle={styles.filterRow}
-      >
-        {FILTER_TABS.map((tab) => {
-          const isActive = activeFilter === tab.key;
-          // Count per filter
+      <StatusTabs
+        tabs={FILTER_TABS.map((tab): StatusTab => {
           let count = 0;
           if (tab.key === 'all') count = notifications.length;
           else if (tab.key === 'market_resolved') count = notifications.filter(n => n.type === 'market_resolved' || n.type === 'claim_ready').length;
           else if (tab.key === 'token_launched') count = notifications.filter(n => n.type === 'token_launched').length;
-
-          return (
-            <PressableScale
-              key={tab.key}
-              onPress={() => setActiveFilter(tab.key)}
-              style={[styles.filterTab, isActive && styles.filterTabActive]}
-            >
-              <Text style={[styles.filterTabText, isActive && styles.filterTabTextActive]}>
-                {tab.label}
-              </Text>
-              {count > 0 && (
-                <View style={[styles.filterCount, isActive && styles.filterCountActive]}>
-                  <Text style={[styles.filterCountText, isActive && styles.filterCountTextActive]}>
-                    {count}
-                  </Text>
-                </View>
-              )}
-            </PressableScale>
-          );
+          return { value: tab.key, label: count > 0 ? `${tab.label} (${count})` : tab.label };
         })}
-      </ScrollView>
+        selectedTab={activeFilter}
+        onTabChange={(v) => setActiveFilter(v as FilterKey)}
+      />
 
       {/* List */}
       {filteredNotifications.length === 0 ? (
@@ -428,54 +423,21 @@ const styles = StyleSheet.create({
   headerBadgeText: { color: '#fff', fontSize: 11, fontWeight: '700' },
   markAllText: { color: colors.primary, fontSize: 13, fontWeight: '600' },
 
-  // Filter tabs
-  filterRow: {
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.sm,
-    gap: 8,
-  },
-  filterTab: {
-    flexDirection: 'row',
+  // Swipe-to-delete
+  swipeContainer: { overflow: 'hidden' },
+  deleteAction: {
+    position: 'absolute',
+    top: 0,
+    bottom: 0,
+    right: 0,
+    width: DELETE_THRESHOLD,
+    justifyContent: 'center',
     alignItems: 'center',
-    gap: 6,
-    paddingHorizontal: 14,
-    paddingVertical: 7,
-    borderRadius: borderRadius.full,
-    backgroundColor: colors.surfaceElevated,
-    borderWidth: 1,
-    borderColor: colors.border,
+    backgroundColor: '#ef4444',
   },
-  filterTabActive: {
-    backgroundColor: 'rgba(129, 140, 248, 0.15)',
-    borderColor: 'rgba(129, 140, 248, 0.5)',
-  },
-  filterTabText: {
-    fontSize: 13,
-    fontWeight: '600',
-    color: colors.textSecondary,
-  },
-  filterTabTextActive: {
-    color: '#c4b5fd',
-  },
-  filterCount: {
-    backgroundColor: 'rgba(255,255,255,0.1)',
-    borderRadius: 8,
-    paddingHorizontal: 5,
-    paddingVertical: 1,
-    minWidth: 18,
-    alignItems: 'center',
-  },
-  filterCountActive: {
-    backgroundColor: 'rgba(129, 140, 248, 0.25)',
-  },
-  filterCountText: {
-    fontSize: 10,
-    fontWeight: '700',
-    color: colors.textMuted,
-  },
-  filterCountTextActive: {
-    color: '#c4b5fd',
-  },
+  deleteActionBtn: { alignItems: 'center', justifyContent: 'center', gap: 2 },
+  deleteActionText: { fontSize: 10, fontWeight: '700', color: '#fff' },
+  rowSlider: { backgroundColor: '#0d0d14' },
 
   // Row
   row: {
@@ -541,32 +503,7 @@ const styles = StyleSheet.create({
     fontFamily: 'monospace' as any,
   },
 
-  // Meta row
-  rowMeta: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginTop: 6,
-  },
-  rowTimestamp: { fontSize: 11, color: colors.textMuted },
-
-  // Action button
-  actionBtnWrap: {},
-  actionBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    paddingHorizontal: 10,
-    paddingVertical: 5,
-    borderRadius: 8,
-  },
-  actionBtnText: {
-    fontSize: 11,
-    fontWeight: '700',
-    color: '#fff',
-  },
-
-  deleteBtn: { padding: 4, marginTop: 2 },
+  rowTimestamp: { fontSize: 11, color: colors.textMuted, marginTop: 6 },
   separator: { height: 1, backgroundColor: colors.glassBorder, marginLeft: 68 },
 
   emptyTitle: { fontSize: 16, fontWeight: '600', color: colors.textSecondary, marginTop: 12 },

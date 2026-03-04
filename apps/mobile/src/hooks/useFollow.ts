@@ -16,14 +16,15 @@ export interface FollowUser {
 }
 
 export function useFollowers(wallet: string | null) {
-  const { data, error, isLoading, mutate } = useSWR<ApiResponse<FollowUser[]>>(
+  const { data, error, isLoading, mutate } = useSWR<ApiResponse<{ followers: FollowUser[]; total: number }>>(
     wallet ? `/api/profile/${wallet}/followers` : null,
     fetcher,
     { dedupingInterval: 10_000 },
   );
 
   return {
-    followers: data?.data ?? [],
+    followers: data?.data?.followers ?? [],
+    total: data?.data?.total ?? 0,
     isLoading,
     error,
     refresh: mutate,
@@ -31,14 +32,15 @@ export function useFollowers(wallet: string | null) {
 }
 
 export function useFollowing(wallet: string | null) {
-  const { data, error, isLoading, mutate } = useSWR<ApiResponse<FollowUser[]>>(
+  const { data, error, isLoading, mutate } = useSWR<ApiResponse<{ following: FollowUser[]; total: number }>>(
     wallet ? `/api/profile/${wallet}/following` : null,
     fetcher,
     { dedupingInterval: 10_000 },
   );
 
   return {
-    following: data?.data ?? [],
+    following: data?.data?.following ?? [],
+    total: data?.data?.total ?? 0,
     isLoading,
     error,
     refresh: mutate,
@@ -54,10 +56,14 @@ export function useToggleFollow(myWallet: string | null) {
       setIsToggling(true);
 
       try {
-        const res = await fetch(apiUrl(`/api/profile/${targetWallet}/follow`), {
-          method: isCurrentlyFollowing ? 'DELETE' : 'POST',
+        const method = isCurrentlyFollowing ? 'DELETE' : 'POST';
+        const url = isCurrentlyFollowing
+          ? apiUrl(`/api/profile/${targetWallet}/follow?followerWallet=${myWallet}`)
+          : apiUrl(`/api/profile/${targetWallet}/follow`);
+        const res = await fetch(url, {
+          method,
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ walletAddress: myWallet }),
+          ...(method === 'POST' ? { body: JSON.stringify({ followerWallet: myWallet }) } : {}),
         });
         const data = await res.json();
         return data.success ?? false;

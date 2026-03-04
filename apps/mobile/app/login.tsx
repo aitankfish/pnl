@@ -21,7 +21,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { colors, spacing, typography, borderRadius } from '../src/theme';
 import { useAuth } from '../src/providers/AuthProvider';
-import { PressableScale, OTPInput } from '../src/components';
+import { PressableScale, OTPInput, StarField } from '../src/components';
 
 type LoginStep = 'choose' | 'email' | 'otp';
 
@@ -187,6 +187,7 @@ export default function LoginScreen() {
   });
 
   return (
+    <StarField>
     <KeyboardAvoidingView
       style={styles.container}
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
@@ -336,6 +337,7 @@ export default function LoginScreen() {
         )}
       </RNAnimated.View>
     </KeyboardAvoidingView>
+    </StarField>
   );
 }
 

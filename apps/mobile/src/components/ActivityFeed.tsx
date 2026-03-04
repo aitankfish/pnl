@@ -44,7 +44,8 @@ export function ActivityFeed({ marketId }: ActivityFeedProps) {
         const res = await fetch(apiUrl(`/api/markets/${marketId}/activity?network=${network}`));
         const data = await res.json();
         if (mounted && data.success) {
-          setTrades(data.data?.trades ?? data.data ?? []);
+          const raw = data.data?.trades ?? data.data;
+          setTrades(Array.isArray(raw) ? raw : []);
         }
       } catch {
         // silently fail

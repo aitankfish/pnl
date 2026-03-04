@@ -3,15 +3,15 @@
  * Export private key, display full wallet address
  */
 
-import React, { forwardRef, useState, useCallback } from 'react';
-import { View, Text, StyleSheet, Alert } from 'react-native';
+import React, { forwardRef, useCallback } from 'react';
+import { View, Text, StyleSheet, Alert, Linking } from 'react-native';
 import GorhomBottomSheet from '@gorhom/bottom-sheet';
 import { Ionicons } from '@expo/vector-icons';
 import * as Clipboard from 'expo-clipboard';
 import * as Haptics from 'expo-haptics';
+import * as WebBrowser from 'expo-web-browser';
 import { BottomSheet } from '../BottomSheet';
 import { PressableScale } from '../PressableScale';
-import { useAuth } from '../../providers/AuthProvider';
 import { colors, spacing, typography, borderRadius } from '../../theme';
 
 interface SecuritySheetProps {
@@ -21,9 +21,6 @@ interface SecuritySheetProps {
 
 export const SecuritySheet = forwardRef<GorhomBottomSheet, SecuritySheetProps>(
   ({ walletAddress, onClose }, ref) => {
-    const { solanaWallet } = useAuth();
-    const [isExporting, setIsExporting] = useState(false);
-
     const handleCopyAddress = useCallback(async () => {
       await Clipboard.setStringAsync(walletAddress);
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
@@ -32,40 +29,25 @@ export const SecuritySheet = forwardRef<GorhomBottomSheet, SecuritySheetProps>(
     const handleExportKey = useCallback(async () => {
       Alert.alert(
         'Export Private Key',
-        'Your private key gives full access to your wallet. Never share it with anyone. Are you sure you want to export?',
+        'For security, private key export opens in a browser where Privy can securely display your key. You\'ll need to log in on the web to view it.',
         [
           { text: 'Cancel', style: 'cancel' },
           {
-            text: 'Export',
-            style: 'destructive',
+            text: 'Open in Browser',
             onPress: async () => {
-              if (solanaWallet.status !== 'connected' || !solanaWallet.wallets?.[0]) {
-                Alert.alert('Error', 'Wallet not connected');
-                return;
-              }
-              setIsExporting(true);
               try {
-                // Privy expo SDK supports exportWallet on the wallet object
-                const wallet = solanaWallet.wallets[0];
-                if ('exportWallet' in wallet && typeof wallet.exportWallet === 'function') {
-                  await (wallet as any).exportWallet();
-                } else {
-                  Alert.alert(
-                    'Not Available',
-                    'Private key export is only available for Privy embedded wallets.',
-                  );
-                }
-              } catch (err: any) {
-                console.error('Export wallet error:', err);
-                Alert.alert('Error', err.message || 'Failed to export wallet');
-              } finally {
-                setIsExporting(false);
+                await WebBrowser.openBrowserAsync('https://pnl.market/wallet', {
+                  presentationStyle: WebBrowser.WebBrowserPresentationStyle.FULL_SCREEN,
+                });
+              } catch {
+                // Fallback to external browser
+                Linking.openURL('https://pnl.market/wallet');
               }
             },
           },
         ],
       );
-    }, [solanaWallet]);
+    }, []);
 
     return (
       <BottomSheet ref={ref} snapPoints={['55%']} onClose={onClose}>
@@ -101,13 +83,10 @@ export const SecuritySheet = forwardRef<GorhomBottomSheet, SecuritySheetProps>(
             </View>
             <PressableScale
               onPress={handleExportKey}
-              disabled={isExporting}
               style={styles.exportButton}
             >
-              <Ionicons name="download-outline" size={18} color={colors.danger} />
-              <Text style={styles.exportText}>
-                {isExporting ? 'Exporting...' : 'Export Private Key'}
-              </Text>
+              <Ionicons name="open-outline" size={18} color={colors.danger} />
+              <Text style={styles.exportText}>Export Private Key</Text>
             </PressableScale>
           </View>
         </View>

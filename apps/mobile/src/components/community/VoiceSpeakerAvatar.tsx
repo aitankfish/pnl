@@ -39,10 +39,11 @@ export function VoiceSpeakerAvatar({
   const ringScale = useSharedValue(1);
   const ringOpacity = useSharedValue(0);
 
+  const isSelf = participant.displayName === 'You';
   const isFounder = participant.peerId === founderWallet;
   const isCoHost = coHosts.includes(participant.peerId);
   const displayName = participant.displayName || participant.peerId.slice(0, 6) + '...';
-  const initials = displayName.slice(0, 2).toUpperCase();
+  const initials = isSelf ? 'ME' : displayName.slice(0, 2).toUpperCase();
 
   useEffect(() => {
     if (participant.isSpeaking) {
@@ -64,7 +65,7 @@ export function VoiceSpeakerAvatar({
   }));
 
   const handleLongPress = useCallback(() => {
-    if (!isCurrentUserHost) return;
+    if (!isCurrentUserHost || isSelf) return;
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
 
     const options: string[] = [];
@@ -132,11 +133,12 @@ export function VoiceSpeakerAvatar({
       );
     }
   }, [
-    isCurrentUserHost, isCurrentUserFounder, participant, displayName, isCoHost,
+    isCurrentUserHost, isCurrentUserFounder, isSelf, participant, displayName, isCoHost,
     onMute, onKick, onApproveHand, onPromote, onDemote, onAddCoHost, onRemoveCoHost,
   ]);
 
   const getBorderColor = () => {
+    if (isSelf) return '#818cf8'; // cyan-purple like web
     if (isFounder) return colors.warning;
     if (isCoHost) return colors.accent;
     return colors.border;
@@ -183,9 +185,16 @@ export function VoiceSpeakerAvatar({
       )}
 
       {/* Name */}
-      <Text style={styles.name} numberOfLines={1}>
+      <Text style={[styles.name, isSelf && styles.nameSelf]} numberOfLines={1}>
         {displayName}
       </Text>
+
+      {/* Role label */}
+      {(isFounder || isCoHost) && (
+        <Text style={styles.roleLabel}>
+          {isFounder ? 'Host' : 'Co-host'}
+        </Text>
+      )}
     </Pressable>
   );
 }
@@ -201,6 +210,7 @@ const styles = StyleSheet.create({
   speakingRing: {
     position: 'absolute',
     top: -3,
+    left: (76 - (AVATAR_SIZE + 6)) / 2, // center within 76px container
     width: AVATAR_SIZE + 6,
     height: AVATAR_SIZE + 6,
     borderRadius: (AVATAR_SIZE + 6) / 2,
@@ -268,5 +278,14 @@ const styles = StyleSheet.create({
     color: colors.textSecondary,
     textAlign: 'center',
     width: '100%',
+  },
+  nameSelf: {
+    color: '#fff',
+    fontWeight: '600',
+  },
+  roleLabel: {
+    fontSize: 9,
+    color: colors.textMuted,
+    textAlign: 'center',
   },
 });

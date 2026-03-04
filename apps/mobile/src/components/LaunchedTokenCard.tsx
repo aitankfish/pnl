@@ -3,10 +3,12 @@
  * Matches the web's lg:hidden card layout
  */
 
-import React, { useCallback } from 'react';
+import React, { useCallback, useState } from 'react';
 import { View, Text, StyleSheet, Linking } from 'react-native';
+import Animated, { useAnimatedStyle, withTiming, withSequence } from 'react-native-reanimated';
 import { Image } from 'expo-image';
 import { Ionicons } from '@expo/vector-icons';
+import { router } from 'expo-router';
 import * as Clipboard from 'expo-clipboard';
 import * as Haptics from 'expo-haptics';
 import { PressableScale } from './PressableScale';
@@ -145,21 +147,29 @@ export function LaunchedTokenCard({ token, index, stats }: LaunchedTokenCardProp
   const priceChange = stats?.priceChange24h ?? null;
   const isPositive = priceChange !== null && priceChange >= 0;
 
+  const [showCopied, setShowCopied] = useState(false);
+
   const handleCopy = useCallback(async () => {
     await Clipboard.setStringAsync(token.tokenAddress);
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    setShowCopied(true);
+    setTimeout(() => setShowCopied(false), 1500);
   }, [token.tokenAddress]);
 
   const handleLink = useCallback((url: string) => {
     Linking.openURL(url);
   }, []);
 
+  const handleCardPress = useCallback(() => {
+    router.push(`/market/${token.id}` as any);
+  }, [token.id]);
+
   const stageKey = token.stage?.toLowerCase() ?? '';
   const typeKey = token.projectType?.toLowerCase() ?? '';
   const links = getExternalLinks(token);
 
   return (
-    <View style={styles.card}>
+    <PressableScale onPress={handleCardPress} scaleDown={0.98} style={styles.card}>
       {/* Header row */}
       <View style={styles.header}>
         <View style={styles.headerLeft}>
@@ -246,8 +256,13 @@ export function LaunchedTokenCard({ token, index, stats }: LaunchedTokenCardProp
           <Text style={styles.addressLabel}>CA:</Text>
           <Text style={styles.address}>{truncateAddress(token.tokenAddress)}</Text>
           <PressableScale onPress={handleCopy} style={styles.copyButton} scaleDown={0.9}>
-            <Ionicons name="copy-outline" size={13} color={colors.textSecondary} />
+            <Ionicons name={showCopied ? 'checkmark' : 'copy-outline'} size={13} color={showCopied ? '#10b981' : colors.textSecondary} />
           </PressableScale>
+          {showCopied && (
+            <View style={styles.copiedToast}>
+              <Text style={styles.copiedText}>Copied!</Text>
+            </View>
+          )}
         </View>
         <Text style={styles.age}>{formatAge(token.launchDate)}</Text>
       </View>
@@ -266,7 +281,7 @@ export function LaunchedTokenCard({ token, index, stats }: LaunchedTokenCardProp
           </PressableScale>
         ))}
       </View>
-    </View>
+    </PressableScale>
   );
 }
 
@@ -421,6 +436,17 @@ const styles = StyleSheet.create({
   },
   copyButton: {
     padding: 4,
+  },
+  copiedToast: {
+    backgroundColor: 'rgba(16, 185, 129, 0.2)',
+    borderRadius: 4,
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+  },
+  copiedText: {
+    fontSize: 10,
+    fontWeight: '700',
+    color: '#10b981',
   },
   age: {
     fontSize: 11,

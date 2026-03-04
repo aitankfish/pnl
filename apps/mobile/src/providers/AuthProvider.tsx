@@ -26,6 +26,8 @@ interface AuthContextType {
   oauthState: OAuthFlowState;
   // Solana wallet
   solanaWallet: ReturnType<typeof useEmbeddedSolanaWallet>;
+  // Auth token
+  getAccessToken: () => Promise<string | null>;
   // Logout
   logout: () => Promise<void>;
 }
@@ -33,7 +35,7 @@ interface AuthContextType {
 const AuthContext = createContext<AuthContextType | null>(null);
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
-  const { user, isReady, logout } = usePrivy();
+  const { user, isReady, logout, getAccessToken } = usePrivy();
 
   const {
     sendCode,
@@ -84,6 +86,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     loginWithOAuth,
     oauthState,
     solanaWallet,
+    getAccessToken,
     logout,
   };
 

@@ -4,27 +4,26 @@ import { PressableScale } from '../PressableScale';
 import { colors, spacing, typography, borderRadius } from '../../theme';
 
 interface VoiceJoinScreenProps {
-  hasPosition: boolean;
-  isFounder: boolean;
   isConnecting: boolean;
   error: string | null;
   onJoin: () => void;
+  walletAddress?: string | null;
 }
 
-export function VoiceJoinScreen({ hasPosition, isFounder, isConnecting, error, onJoin }: VoiceJoinScreenProps) {
-  const canJoin = hasPosition || isFounder;
+export function VoiceJoinScreen({ isConnecting, error, onJoin, walletAddress }: VoiceJoinScreenProps) {
+  const hasWallet = !!walletAddress;
 
   return (
     <View style={styles.container}>
       <View style={styles.iconContainer}>
-        <Ionicons name="mic" size={40} color={canJoin ? colors.primary : colors.textMuted} />
+        <Ionicons name="mic" size={40} color={hasWallet ? colors.primary : colors.textMuted} />
       </View>
 
       <Text style={styles.title}>Voice Room</Text>
       <Text style={styles.subtitle}>
-        {canJoin
+        {hasWallet
           ? 'Join the live conversation with other community members'
-          : 'Vote YES or NO to join the voice room'}
+          : 'Sign in to join the voice room'}
       </Text>
 
       {error && (
@@ -36,8 +35,8 @@ export function VoiceJoinScreen({ hasPosition, isFounder, isConnecting, error, o
 
       <PressableScale
         onPress={onJoin}
-        disabled={!canJoin || isConnecting}
-        style={[styles.joinButton, (!canJoin || isConnecting) && styles.joinButtonDisabled]}
+        disabled={!hasWallet || isConnecting}
+        style={[styles.joinButton, (!hasWallet || isConnecting) && styles.joinButtonDisabled]}
       >
         {isConnecting ? (
           <ActivityIndicator size="small" color="#fff" />
@@ -49,10 +48,10 @@ export function VoiceJoinScreen({ hasPosition, isFounder, isConnecting, error, o
         )}
       </PressableScale>
 
-      {!canJoin && (
+      {!hasWallet && (
         <View style={styles.lockRow}>
           <Ionicons name="lock-closed" size={14} color={colors.textMuted} />
-          <Text style={styles.lockText}>Position required to join</Text>
+          <Text style={styles.lockText}>Sign in required</Text>
         </View>
       )}
     </View>

@@ -6,6 +6,7 @@ import { colors, typography } from '../theme';
 interface TimeCountdownProps {
   endTime: string | Date;
   style?: ViewStyle;
+  size?: 'default' | 'small';
 }
 
 function getTimeLeft(end: Date) {
@@ -20,7 +21,7 @@ function getTimeLeft(end: Date) {
   return { text: `${h}h ${m}m`, hours: h };
 }
 
-export function TimeCountdown({ endTime, style }: TimeCountdownProps) {
+export function TimeCountdown({ endTime, style, size = 'default' }: TimeCountdownProps) {
   const end = new Date(endTime);
   const [left, setLeft] = useState(() => getTimeLeft(end));
   const pulse = useSharedValue(1);
@@ -44,8 +45,8 @@ export function TimeCountdown({ endTime, style }: TimeCountdownProps) {
     left.hours < 1 ? colors.urgentRed : left.hours < 6 ? colors.warning : colors.textSecondary;
 
   return (
-    <Animated.View style={[styles.container, pulseStyle, style]}>
-      <Text style={[styles.text, { color }]}>{left.text}</Text>
+    <Animated.View style={[styles.container, size === 'small' && styles.containerSmall, pulseStyle, style]}>
+      <Text style={[styles.text, { color }, size === 'small' && styles.textSmall]}>{left.text}</Text>
     </Animated.View>
   );
 }
@@ -54,8 +55,23 @@ const styles = StyleSheet.create({
   container: {
     flexDirection: 'row',
     alignItems: 'center',
+    backgroundColor: 'rgba(10, 14, 26, 0.75)',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.1)',
   },
   text: {
     ...typography.captionBold,
+  },
+  containerSmall: {
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 6,
+  },
+  textSmall: {
+    fontSize: 11,
+    lineHeight: 14,
   },
 });

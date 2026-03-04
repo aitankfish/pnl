@@ -18,6 +18,8 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as Clipboard from 'expo-clipboard';
 import * as Haptics from 'expo-haptics';
 import { apiUrl } from '@pnl/shared/utils';
+import { useAuth } from '../../src/providers/AuthProvider';
+import { useToggleFollow } from '../../src/hooks/useFollow';
 import {
   ScreenHeader,
   PressableScale,
@@ -45,10 +47,18 @@ function truncateAddress(addr: string) {
 export default function PublicProfileScreen() {
   const { wallet } = useLocalSearchParams<{ wallet: string }>();
   const insets = useSafeAreaInsets();
+  const { isAuthenticated, walletAddress: myWallet } = useAuth();
+  const { toggleFollow, isToggling } = useToggleFollow(myWallet);
+
   const [profile, setProfile] = useState<ProfileData | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(false);
+  const [isFollowing, setIsFollowing] = useState(false);
+  const [followerCount, setFollowerCount] = useState(0);
 
+  const isOwnProfile = myWallet && wallet && myWallet === wallet;
+
+  // Fetch profile
   useEffect(() => {
     if (!wallet) return;
     let mounted = true;
@@ -61,6 +71,7 @@ export default function PublicProfileScreen() {
         const data = await res.json();
         if (mounted && data.success) {
           setProfile(data.data);
+          setFollowerCount(data.data.followerCount ?? 0);
         } else if (mounted) {
           setError(true);
         }
@@ -75,11 +86,42 @@ export default function PublicProfileScreen() {
     return () => { mounted = false; };
   }, [wallet]);
 
+  // Fetch follow status
+  useEffect(() => {
+    if (!wallet || !myWallet || wallet === myWallet) return;
+    let mounted = true;
+
+    const checkFollowStatus = async () => {
+      try {
+        const res = await fetch(apiUrl(`/api/profile/${wallet}/follow-status?viewer=${myWallet}`));
+        const data = await res.json();
+        if (mounted && data.success) {
+          setIsFollowing(data.data.isFollowing);
+        }
+      } catch {
+        // ignore
+      }
+    };
+
+    checkFollowStatus();
+    return () => { mounted = false; };
+  }, [wallet, myWallet]);
+
   const handleCopyAddress = useCallback(async () => {
     if (!wallet) return;
     await Clipboard.setStringAsync(wallet);
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
   }, [wallet]);
+
+  const handleToggleFollow = useCallback(async () => {
+    if (!wallet) return;
+    const success = await toggleFollow(wallet, isFollowing);
+    if (success) {
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      setIsFollowing(!isFollowing);
+      setFollowerCount((c) => isFollowing ? c - 1 : c + 1);
+    }
+  }, [wallet, isFollowing, toggleFollow]);
 
   if (isLoading) {
     return (
@@ -154,6 +196,30 @@ export default function PublicProfileScreen() {
             <Ionicons name="copy-outline" size={14} color={colors.textMuted} />
           </PressableScale>
 
+          {/* Follow button */}
+          {isAuthenticated && !isOwnProfile && (
+            <PressableScale
+              onPress={handleToggleFollow}
+              disabled={isToggling}
+              style={[styles.followBtn, isFollowing && styles.followBtnFollowing]}
+            >
+              {isToggling ? (
+                <ActivityIndicator size={14} color={isFollowing ? colors.textSecondary : '#fff'} />
+              ) : (
+                <>
+                  <Ionicons
+                    name={isFollowing ? 'checkmark' : 'person-add-outline'}
+                    size={16}
+                    color={isFollowing ? colors.textSecondary : '#fff'}
+                  />
+                  <Text style={[styles.followBtnText, isFollowing && styles.followBtnTextFollowing]}>
+                    {isFollowing ? 'Following' : 'Follow'}
+                  </Text>
+                </>
+              )}
+            </PressableScale>
+          )}
+
           {profile.bio ? (
             <Text style={styles.bio}>{profile.bio}</Text>
           ) : null}
@@ -168,14 +234,24 @@ export default function PublicProfileScreen() {
 
         {/* Stats grid */}
         <View style={styles.statsGrid}>
-          <GlassCard style={styles.statCard}>
-            <Text style={styles.statValue}>{profile.followerCount}</Text>
-            <Text style={styles.statLabel}>Followers</Text>
-          </GlassCard>
-          <GlassCard style={styles.statCard}>
-            <Text style={styles.statValue}>{profile.followingCount}</Text>
-            <Text style={styles.statLabel}>Following</Text>
-          </GlassCard>
+          <PressableScale
+            style={{ flex: 1, minWidth: '45%' }}
+            onPress={() => router.push({ pathname: '/followers', params: { type: 'followers', wallet: wallet! } })}
+          >
+            <GlassCard style={styles.statCard}>
+              <Text style={styles.statValue}>{followerCount}</Text>
+              <Text style={styles.statLabel}>Followers</Text>
+            </GlassCard>
+          </PressableScale>
+          <PressableScale
+            style={{ flex: 1, minWidth: '45%' }}
+            onPress={() => router.push({ pathname: '/followers', params: { type: 'following', wallet: wallet! } })}
+          >
+            <GlassCard style={styles.statCard}>
+              <Text style={styles.statValue}>{profile.followingCount}</Text>
+              <Text style={styles.statLabel}>Following</Text>
+            </GlassCard>
+          </PressableScale>
           <GlassCard style={styles.statCard}>
             <Text style={styles.statValue}>{profile.totalPredictions}</Text>
             <Text style={styles.statLabel}>Predictions</Text>
@@ -246,6 +322,30 @@ const styles = StyleSheet.create({
     ...typography.caption,
     color: colors.textMuted,
     fontFamily: 'Courier',
+  },
+  followBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    backgroundColor: colors.primary,
+    paddingHorizontal: spacing.lg,
+    paddingVertical: 10,
+    borderRadius: borderRadius.full,
+    marginBottom: spacing.md,
+    minWidth: 120,
+    justifyContent: 'center',
+  },
+  followBtnFollowing: {
+    backgroundColor: 'transparent',
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  followBtnText: {
+    ...typography.captionBold,
+    color: '#fff',
+  },
+  followBtnTextFollowing: {
+    color: colors.textSecondary,
   },
   bio: {
     ...typography.body,

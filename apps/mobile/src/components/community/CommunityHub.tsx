@@ -1,5 +1,7 @@
-import { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, Pressable, Animated } from 'react-native';
+import { useState, useEffect, useCallback } from 'react';
+import { View, Text, StyleSheet, Pressable } from 'react-native';
+import { Gesture, GestureDetector } from 'react-native-gesture-handler';
+import ReAnimated, { useSharedValue, useAnimatedStyle, withSpring, runOnJS } from 'react-native-reanimated';
 import { useVoiceRoomContextSafe } from '../../providers/VoiceRoomProvider';
 import { VOICE_SERVER_URL } from '../../config/init';
 import { ChatRoom } from './ChatRoom';
@@ -15,6 +17,12 @@ interface CommunityHubProps {
   walletAddress?: string | null;
   founderWallet?: string | null;
   hasPosition: boolean;
+  /** Called when user swipes left to dismiss the Community tab */
+  onDismiss?: () => void;
+  /** Privy access token getter for authenticated API calls */
+  getAccessToken?: () => Promise<string | null>;
+  /** Open directly on the Voice sub-tab */
+  initialSubTab?: 'Chat' | 'Voice';
 }
 
 export function CommunityHub({
@@ -24,10 +32,79 @@ export function CommunityHub({
   walletAddress,
   founderWallet,
   hasPosition,
+  onDismiss,
+  getAccessToken,
+  initialSubTab,
 }: CommunityHubProps) {
-  const [activeTab, setActiveTab] = useState<SubTab>('Chat');
   const voice = useVoiceRoomContextSafe();
   const isConnectedToThisRoom = voice?.isConnected && voice.marketAddress === marketAddress;
+  const [activeTab, setActiveTab] = useState<SubTab>(
+    initialSubTab || (isConnectedToThisRoom ? 'Voice' : 'Chat'),
+  );
+
+  // Swipe right or swipe down to minimize/dismiss
+  const translateX = useSharedValue(0);
+  const translateY = useSharedValue(0);
+  const gestureDirection = useSharedValue<'none' | 'horizontal' | 'vertical'>('none');
+
+  const handleDismiss = useCallback(() => {
+    onDismiss?.();
+  }, [onDismiss]);
+
+  const dismissWithMinimize = useCallback(() => {
+    if (isConnectedToThisRoom && voice) {
+      voice.setMinimized(true);
+    }
+    handleDismiss();
+  }, [isConnectedToThisRoom, voice, handleDismiss]);
+
+  const DISMISS_THRESHOLD = 120;
+
+  const panGesture = Gesture.Pan()
+    .activeOffsetX([-20, 20])
+    .activeOffsetY([-20, 20])
+    .onUpdate((e) => {
+      // Lock direction on first significant movement
+      if (gestureDirection.value === 'none') {
+        if (Math.abs(e.translationX) > Math.abs(e.translationY)) {
+          gestureDirection.value = 'horizontal';
+        } else {
+          gestureDirection.value = 'vertical';
+        }
+      }
+
+      if (gestureDirection.value === 'horizontal' && e.translationX > 0) {
+        translateX.value = e.translationX;
+      } else if (gestureDirection.value === 'vertical' && e.translationY > 0) {
+        translateY.value = e.translationY;
+      }
+    })
+    .onEnd((e) => {
+      if (gestureDirection.value === 'horizontal' && e.translationX > DISMISS_THRESHOLD) {
+        translateX.value = withSpring(400, { damping: 20 });
+        runOnJS(dismissWithMinimize)();
+      } else if (gestureDirection.value === 'vertical' && e.translationY > DISMISS_THRESHOLD) {
+        translateY.value = withSpring(800, { damping: 20 });
+        runOnJS(dismissWithMinimize)();
+      } else {
+        translateX.value = withSpring(0, { damping: 20, stiffness: 200 });
+        translateY.value = withSpring(0, { damping: 20, stiffness: 200 });
+      }
+      gestureDirection.value = 'none';
+    });
+
+  const animatedStyle = useAnimatedStyle(() => {
+    const progress = Math.max(translateX.value / 500, translateY.value / 600);
+    return {
+      transform: [
+        { translateX: translateX.value },
+        { translateY: translateY.value },
+        // Scale down slightly on swipe-down for a minimize feel
+        { scale: 1 - translateY.value / 2000 },
+      ],
+      opacity: 1 - progress,
+    };
+  });
 
   // Voice room status polling for non-connected users (matches web CommunityHub)
   const [voiceRoomActive, setVoiceRoomActive] = useState(false);
@@ -70,52 +147,55 @@ export function CommunityHub({
   const showLiveIndicator = voiceRoomActive;
 
   return (
-    <View style={styles.container}>
-      {/* Sub-tab switcher */}
-      <View style={styles.tabBar}>
-        <Pressable
-          onPress={() => setActiveTab('Chat')}
-          style={[styles.tab, activeTab === 'Chat' && styles.tabActive]}
-        >
-          <Text style={[styles.tabText, activeTab === 'Chat' && styles.tabTextActive]}>Chat</Text>
-        </Pressable>
-        <Pressable
-          onPress={() => setActiveTab('Voice')}
-          style={[styles.tab, activeTab === 'Voice' && styles.tabActive, showLiveIndicator && styles.tabVoiceLive]}
-        >
-          <View style={styles.voiceTabContent}>
-            <Text style={[styles.tabText, activeTab === 'Voice' && styles.tabTextActive, showLiveIndicator && styles.tabTextLive]}>Voice</Text>
-            {showLiveIndicator && (
-              <>
-                <View style={styles.liveDot} />
-                {voiceParticipantCount > 0 && (
-                  <Text style={styles.liveCount}>({voiceParticipantCount})</Text>
-                )}
-              </>
-            )}
-          </View>
-        </Pressable>
-      </View>
+    <GestureDetector gesture={panGesture}>
+      <ReAnimated.View style={[styles.container, animatedStyle]}>
+        {/* Sub-tab switcher */}
+        <View style={styles.tabBar}>
+          <Pressable
+            onPress={() => setActiveTab('Chat')}
+            style={[styles.tab, activeTab === 'Chat' && styles.tabActive]}
+          >
+            <Text style={[styles.tabText, activeTab === 'Chat' && styles.tabTextActive]}>Chat</Text>
+          </Pressable>
+          <Pressable
+            onPress={() => setActiveTab('Voice')}
+            style={[styles.tab, activeTab === 'Voice' && styles.tabActive, showLiveIndicator && styles.tabVoiceLive]}
+          >
+            <View style={styles.voiceTabContent}>
+              <Text style={[styles.tabText, activeTab === 'Voice' && styles.tabTextActive, showLiveIndicator && styles.tabTextLive]}>Voice</Text>
+              {showLiveIndicator && (
+                <>
+                  <View style={styles.liveDot} />
+                  {voiceParticipantCount > 0 && (
+                    <Text style={styles.liveCount}>({voiceParticipantCount})</Text>
+                  )}
+                </>
+              )}
+            </View>
+          </Pressable>
+        </View>
 
-      {/* Content */}
-      {activeTab === 'Chat' ? (
-        <ChatRoom
-          marketAddress={marketAddress}
-          walletAddress={walletAddress}
-          founderWallet={founderWallet}
-          hasPosition={hasPosition}
-        />
-      ) : (
-        <VoiceRoom
-          marketId={marketId}
-          marketAddress={marketAddress}
-          marketName={marketName}
-          walletAddress={walletAddress}
-          founderWallet={founderWallet}
-          hasPosition={hasPosition}
-        />
-      )}
-    </View>
+        {/* Content */}
+        {activeTab === 'Chat' ? (
+          <ChatRoom
+            marketAddress={marketAddress}
+            walletAddress={walletAddress}
+            founderWallet={founderWallet}
+            hasPosition={hasPosition}
+            getAccessToken={getAccessToken}
+          />
+        ) : (
+          <VoiceRoom
+            marketId={marketId}
+            marketAddress={marketAddress}
+            marketName={marketName}
+            walletAddress={walletAddress}
+            founderWallet={founderWallet}
+            hasPosition={hasPosition}
+          />
+        )}
+      </ReAnimated.View>
+    </GestureDetector>
   );
 }
 

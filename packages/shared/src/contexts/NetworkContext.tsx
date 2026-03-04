@@ -4,6 +4,7 @@
  */
 
 import React, { createContext, useContext, useState } from 'react';
+import { getEnvConfig, isEnvConfigInitialized } from '../config';
 
 export type SolanaNetwork = 'devnet' | 'mainnet-beta';
 
@@ -21,6 +22,11 @@ export function NetworkProvider({ children }: { children: React.ReactNode }) {
   const isDevelopment = typeof process !== 'undefined' && process.env?.NODE_ENV === 'development';
 
   const getInitialNetwork = (): SolanaNetwork => {
+    // Prefer explicit config from setEnvConfig() (mobile sets this in init.ts)
+    if (isEnvConfigInitialized()) {
+      return getEnvConfig().SOLANA_NETWORK;
+    }
+    // Fallback for web dev (before env config auto-inits from process.env)
     if (!isDevelopment) return 'mainnet-beta';
     return 'devnet';
   };

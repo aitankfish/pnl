@@ -1,5 +1,6 @@
 /**
  * FavoriteButton — Heart toggle with count
+ * Variants: 'header' (pill), 'floating' (minimal — used on detail page & feed)
  */
 
 import React, { useState, useEffect, useCallback } from 'react';
@@ -76,21 +77,40 @@ export function FavoriteButton({ marketId, walletAddress, initialCount = 0, vari
     }
   }, [walletAddress, marketId, isFavorite, isLoading]);
 
-  const isFloating = variant === 'floating';
+  if (variant === 'floating') {
+    return (
+      <PressableScale
+        onPress={toggleFavorite}
+        style={styles.floatingWrapper}
+        disabled={!walletAddress}
+      >
+        <View style={[styles.floatingCircle, isFavorite && styles.floatingCircleActive]}>
+          <Ionicons
+            name={isFavorite ? 'heart' : 'heart-outline'}
+            size={20}
+            color={isFavorite ? '#ff4d6a' : 'rgba(255,255,255,0.85)'}
+          />
+        </View>
+        {count > 0 && (
+          <Text style={styles.floatingCount}>{count}</Text>
+        )}
+      </PressableScale>
+    );
+  }
 
   return (
     <PressableScale
       onPress={toggleFavorite}
-      style={isFloating ? styles.floatingContainer : styles.container}
+      style={styles.container}
       disabled={!walletAddress}
     >
       <Ionicons
         name={isFavorite ? 'heart' : 'heart-outline'}
-        size={isFloating ? 22 : 20}
+        size={20}
         color={isFavorite ? colors.danger : 'rgba(255,255,255,0.85)'}
       />
       {count > 0 && (
-        <Text style={isFloating ? styles.floatingCount : styles.count}>{count}</Text>
+        <Text style={styles.count}>{count}</Text>
       )}
     </PressableScale>
   );
@@ -107,18 +127,34 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     gap: 2,
   },
-  floatingContainer: {
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
   count: {
     ...typography.micro,
     color: '#fff',
   },
+  floatingWrapper: {
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  floatingCircle: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: 'rgba(255, 255, 255, 0.15)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  floatingCircleActive: {
+    backgroundColor: 'rgba(255, 77, 106, 0.2)',
+    shadowColor: '#ff4d6a',
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.4,
+    shadowRadius: 8,
+    elevation: 4,
+  },
   floatingCount: {
-    ...typography.micro,
-    color: 'rgba(255,255,255,0.6)',
-    fontSize: 10,
-    marginTop: 1,
+    color: 'rgba(255,255,255,0.7)',
+    fontSize: 11,
+    fontWeight: '600',
+    marginTop: 3,
   },
 });

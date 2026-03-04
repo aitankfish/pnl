@@ -129,10 +129,7 @@ export default function TabLayout() {
         options={{
           title: 'Predict',
           tabBarIcon: ({ color, focused }) => (
-            <View style={styles.iconContainer}>
-              <RingsIcon color={color} focused={focused} />
-              {focused && <View style={styles.activeIndicator} />}
-            </View>
+            <TabBarIcon name="pulse-outline" focusedName="pulse" color={color} focused={focused} />
           ),
         }}
       />
@@ -150,7 +147,7 @@ export default function TabLayout() {
         options={{
           title: 'Launched',
           tabBarIcon: ({ color, focused }) => (
-            <TabBarIcon name="sparkles-outline" focusedName="sparkles" color={color} focused={focused} />
+            <TabBarIcon name="diamond-outline" focusedName="diamond" color={color} focused={focused} />
           ),
         }}
       />

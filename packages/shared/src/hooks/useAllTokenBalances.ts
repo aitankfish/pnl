@@ -156,8 +156,8 @@ export function useAllTokenBalances(walletAddress: string | null | undefined) {
 
     fetchTokenBalances();
 
-    // Refresh every 30 seconds
-    const interval = setInterval(fetchTokenBalances, 30000);
+    // Refresh every 60 seconds (avoid RPC rate limits)
+    const interval = setInterval(fetchTokenBalances, 60_000);
 
     return () => {
       isMounted = false;

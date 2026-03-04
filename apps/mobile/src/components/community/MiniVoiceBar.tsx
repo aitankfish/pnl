@@ -1,131 +1,192 @@
-import { View, Text, StyleSheet, Pressable } from 'react-native';
+import { useEffect } from 'react';
+import { View, Text, StyleSheet } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
+import Animated, {
+  useSharedValue,
+  useAnimatedStyle,
+  withRepeat,
+  withTiming,
+  withDelay,
+  withSequence,
+  Easing,
+  cancelAnimation,
+} from 'react-native-reanimated';
 import { useVoiceRoomContextSafe } from '../../providers/VoiceRoomProvider';
 import { PressableScale } from '../PressableScale';
-import { colors, spacing, typography, borderRadius } from '../../theme';
 
 interface MiniVoiceBarProps {
-  /** The market ID of the currently viewed market page (if any) */
   currentMarketId?: string | null;
+  onExpand?: () => void;
 }
 
-export function MiniVoiceBar({ currentMarketId }: MiniVoiceBarProps) {
+/** Animated sound wave bars */
+function SoundWave({ active }: { active: boolean }) {
+  const bar1 = useSharedValue(0.3);
+  const bar2 = useSharedValue(0.3);
+  const bar3 = useSharedValue(0.3);
+
+  useEffect(() => {
+    if (active) {
+      bar1.value = withRepeat(
+        withSequence(
+          withTiming(1, { duration: 300, easing: Easing.inOut(Easing.ease) }),
+          withTiming(0.25, { duration: 400, easing: Easing.inOut(Easing.ease) }),
+        ),
+        -1,
+        true,
+      );
+      bar2.value = withRepeat(
+        withDelay(
+          100,
+          withSequence(
+            withTiming(0.85, { duration: 350, easing: Easing.inOut(Easing.ease) }),
+            withTiming(0.2, { duration: 300, easing: Easing.inOut(Easing.ease) }),
+          ),
+        ),
+        -1,
+        true,
+      );
+      bar3.value = withRepeat(
+        withDelay(
+          200,
+          withSequence(
+            withTiming(0.95, { duration: 280, easing: Easing.inOut(Easing.ease) }),
+            withTiming(0.3, { duration: 360, easing: Easing.inOut(Easing.ease) }),
+          ),
+        ),
+        -1,
+        true,
+      );
+    } else {
+      cancelAnimation(bar1);
+      cancelAnimation(bar2);
+      cancelAnimation(bar3);
+      bar1.value = withTiming(0.3, { duration: 200 });
+      bar2.value = withTiming(0.3, { duration: 200 });
+      bar3.value = withTiming(0.3, { duration: 200 });
+    }
+  }, [active, bar1, bar2, bar3]);
+
+  const style1 = useAnimatedStyle(() => ({ transform: [{ scaleY: bar1.value }] }));
+  const style2 = useAnimatedStyle(() => ({ transform: [{ scaleY: bar2.value }] }));
+  const style3 = useAnimatedStyle(() => ({ transform: [{ scaleY: bar3.value }] }));
+
+  return (
+    <View style={waveStyles.container}>
+      <Animated.View style={[waveStyles.bar, style1]} />
+      <Animated.View style={[waveStyles.bar, waveStyles.barTall, style2]} />
+      <Animated.View style={[waveStyles.bar, style3]} />
+    </View>
+  );
+}
+
+const waveStyles = StyleSheet.create({
+  container: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 1.5,
+    height: 12,
+  },
+  bar: {
+    width: 2,
+    height: 10,
+    borderRadius: 1,
+    backgroundColor: '#4ade80',
+  },
+  barTall: {
+    height: 12,
+  },
+});
+
+/**
+ * Small floating pill centered at the top of the screen.
+ * Shows animated sound wave when someone speaks + room name + count.
+ */
+export function MiniVoiceBar({ currentMarketId, onExpand }: MiniVoiceBarProps) {
   const voice = useVoiceRoomContextSafe();
   const insets = useSafeAreaInsets();
 
   if (!voice?.isConnected) return null;
-  // Don't show when on the same market page (CommunityHub shows full voice UI there)
-  if (currentMarketId && voice.marketId === currentMarketId) return null;
+  if (currentMarketId && voice.marketId === currentMarketId && !voice.isMinimized) return null;
 
-  const participantCount = voice.participants.length + 1; // +1 for self
+  const participantCount = voice.participants.length + 1;
   const roomLabel = voice.roomTitle || voice.marketName || 'Voice Room';
+  const anyoneSpeaking =
+    voice.isSpeaking || voice.participants.some((p) => p.isSpeaking);
 
-  const handleTapToReturn = () => {
+  const handleTap = () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    if (voice.marketId) {
+    if (currentMarketId && voice.marketId === currentMarketId) {
+      voice.setMinimized(false);
+      onExpand?.();
+    } else if (voice.marketId) {
+      voice.setMinimized(false);
       router.push(`/market/${voice.marketId}` as any);
     }
   };
 
-  const handleMuteToggle = () => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-    voice.toggleMute();
-  };
-
-  const handleLeave = () => {
-    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
-    voice.leave();
-  };
-
   return (
-    <Pressable onPress={handleTapToReturn} style={[styles.container, { bottom: 80 + insets.bottom }]}>
-      <View style={styles.content}>
-        {/* Live indicator */}
-        <View style={styles.liveDot} />
-
-        {/* Room info */}
-        <View style={styles.info}>
-          <Text style={styles.roomName} numberOfLines={1}>{roomLabel}</Text>
-          <Text style={styles.tapHint}>
-            {participantCount} in room · Tap to return
-          </Text>
+    <View style={[styles.wrapper, { top: insets.top + 4 }]} pointerEvents="box-none">
+      <PressableScale onPress={handleTap} style={styles.pill}>
+        <SoundWave active={anyoneSpeaking} />
+        <Text style={styles.label} numberOfLines={1}>
+          {roomLabel}
+        </Text>
+        <View style={styles.countBadge}>
+          <Ionicons name="people" size={9} color="#4ade80" />
+          <Text style={styles.count}>{participantCount}</Text>
         </View>
-
-        {/* Quick controls */}
-        <View style={styles.controls}>
-          {voice.isSpeaker && (
-            <PressableScale onPress={handleMuteToggle} style={styles.controlBtn}>
-              <Ionicons
-                name={voice.isMuted ? 'mic-off' : 'mic'}
-                size={18}
-                color={voice.isMuted ? colors.danger : colors.textPrimary}
-              />
-            </PressableScale>
-          )}
-          <PressableScale onPress={handleLeave} style={[styles.controlBtn, styles.leaveBtn]}>
-            <Ionicons name="call" size={16} color="#fff" style={{ transform: [{ rotate: '135deg' }] }} />
-          </PressableScale>
-        </View>
-      </View>
-    </Pressable>
+      </PressableScale>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
+  wrapper: {
     position: 'absolute',
-    left: spacing.md,
-    right: spacing.md,
-    borderRadius: borderRadius.lg,
-    backgroundColor: colors.surface,
+    left: 0,
+    right: 0,
+    alignItems: 'center',
+    zIndex: 100,
+  },
+  pill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 16,
+    backgroundColor: 'rgba(0, 0, 0, 0.8)',
     borderWidth: 1,
-    borderColor: colors.border,
+    borderColor: 'rgba(74, 222, 128, 0.25)',
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.4,
+    shadowRadius: 6,
     elevation: 8,
+    maxWidth: 220,
   },
-  content: {
+  label: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: '#e2e8f0',
+    flexShrink: 1,
+  },
+  countBadge: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: spacing.sm,
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.sm,
+    gap: 3,
+    backgroundColor: 'rgba(74, 222, 128, 0.12)',
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 8,
   },
-  liveDot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-    backgroundColor: colors.livePulse,
-  },
-  info: {
-    flex: 1,
-  },
-  roomName: {
-    ...typography.captionBold,
-    color: colors.textPrimary,
-  },
-  tapHint: {
-    ...typography.micro,
-    color: colors.textMuted,
-  },
-  controls: {
-    flexDirection: 'row',
-    gap: spacing.sm,
-  },
-  controlBtn: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: 'rgba(255,255,255,0.06)',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  leaveBtn: {
-    backgroundColor: colors.danger,
+  count: {
+    fontSize: 10,
+    fontWeight: '700',
+    color: '#4ade80',
   },
 });

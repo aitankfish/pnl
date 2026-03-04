@@ -34,6 +34,17 @@ export async function POST(request: NextRequest) {
         logger.info('📊 API: Image file found, size:', imageFile.size);
       }
 
+      // Handle gallery image uploads (up to 3 extra images for Meme projects)
+      const galleryImageFiles: File[] = [];
+      for (let i = 0; i < 3; i++) {
+        const gf = formData.get(`galleryImage${i}`) as File;
+        if (gf && gf.size > 0) galleryImageFiles.push(gf);
+      }
+      if (galleryImageFiles.length > 0) {
+        body.galleryImageFiles = galleryImageFiles;
+        logger.info('API: Gallery image files found, count:', galleryImageFiles.length);
+      }
+
       // Handle pitch video upload
       const pitchVideoFile = formData.get('pitchVideo') as File;
       if (pitchVideoFile && pitchVideoFile.size > 0) {
@@ -96,6 +107,7 @@ export async function POST(request: NextRequest) {
     let imageUri: string | undefined;
     let documentUri: string | undefined;
     let pitchVideoUri: string | undefined;
+    let galleryImageUris: string[] = [];
 
     if (body.metadataUri) {
       // Metadata already uploaded by client
@@ -114,6 +126,14 @@ export async function POST(request: NextRequest) {
       if (body.projectDocument) {
         logger.info('Uploading project document to IPFS');
         documentUri = await ipfsUtils.uploadDocument(body.projectDocument);
+      }
+
+      // Upload gallery images to IPFS if provided
+      if (body.galleryImageFiles && body.galleryImageFiles.length > 0) {
+        logger.info('Uploading gallery images to IPFS', { count: body.galleryImageFiles.length });
+        galleryImageUris = await Promise.all(
+          body.galleryImageFiles.map((file: File) => ipfsUtils.uploadImage(file))
+        );
       }
 
       // Upload pitch video to IPFS if provided as file
@@ -200,6 +220,7 @@ export async function POST(request: NextRequest) {
       tokenSymbol: body.tokenSymbol,
       socialLinks: body.socialLinks || {},
       projectImageUrl: imageUri,
+      galleryImageUrls: galleryImageUris,
       pitchVideoUrl: pitchVideoUri,
       documentUrls: documentUri ? [documentUri] : [],
       status: 'active',

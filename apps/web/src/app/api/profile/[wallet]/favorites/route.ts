@@ -1,11 +1,85 @@
 /**
- * POST /api/profile/[wallet]/favorites
- * Toggle a market as favorite/watchlist for a user
+ * GET  /api/profile/[wallet]/favorites — fetch full market data for user's favorites
+ * POST /api/profile/[wallet]/favorites — toggle a market as favorite/watchlist
  */
 
 import { NextRequest, NextResponse } from 'next/server';
 import { connectToDatabase, getDatabase } from '@/lib/database/index';
 import { COLLECTIONS, UserProfile, PredictionMarket } from '@/lib/database/models';
+
+export async function GET(
+  _request: NextRequest,
+  { params }: { params: Promise<{ wallet: string }> }
+) {
+  try {
+    const { wallet } = await params;
+
+    if (!wallet) {
+      return NextResponse.json(
+        { success: false, error: 'Wallet address is required' },
+        { status: 400 }
+      );
+    }
+
+    await connectToDatabase();
+    const db = getDatabase();
+    const profilesCollection = db.collection<UserProfile>(COLLECTIONS.USER_PROFILES);
+    const marketsCollection = db.collection<PredictionMarket>(COLLECTIONS.PREDICTION_MARKETS);
+
+    const profile = await profilesCollection.findOne({ walletAddress: wallet });
+    const favoriteIds = profile?.favoriteMarkets ?? [];
+
+    if (favoriteIds.length === 0) {
+      return NextResponse.json({
+        success: true,
+        data: { favorites: [], total: 0 },
+      });
+    }
+
+    // Fetch full market data for each favorited market
+    const { ObjectId } = await import('mongodb');
+    const objectIds = favoriteIds
+      .map((id: string) => { try { return new ObjectId(id); } catch { return null; } })
+      .filter(Boolean);
+
+    const markets = await marketsCollection.aggregate([
+      { $match: { _id: { $in: objectIds } } },
+      {
+        $lookup: {
+          from: 'projects',
+          localField: 'projectId',
+          foreignField: '_id',
+          as: 'project',
+        },
+      },
+      { $unwind: { path: '$project', preserveNullAndEmptyArrays: true } },
+    ]).toArray();
+
+    const favorites = markets.map((m: any) => ({
+      id: m._id.toString(),
+      title: m.project?.name || 'Unknown',
+      tokenSymbol: m.project?.tokenSymbol,
+      status: m.marketState === 0 ? 'active' : 'resolved',
+      displayStatus: m.resolution === 'Unresolved' ? 'Active' : m.resolution,
+      projectImageUrl: m.project?.projectImageUrl,
+      poolBalance: parseFloat(m.poolBalance || '0') / 1e9,
+      targetPool: (m.targetPool || 0) / 1e9,
+      totalParticipants: (m.yesVoteCount || 0) + (m.noVoteCount || 0),
+      endTime: m.expiryTime,
+    }));
+
+    return NextResponse.json({
+      success: true,
+      data: { favorites, total: favorites.length },
+    });
+  } catch (error: any) {
+    console.error('Error fetching favorites:', error);
+    return NextResponse.json(
+      { success: false, error: error.message || 'Failed to fetch favorites' },
+      { status: 500 }
+    );
+  }
+}
 
 export async function POST(
   request: NextRequest,

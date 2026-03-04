@@ -1,5 +1,7 @@
 import { View, Text, StyleSheet } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import type { VoiceParticipant } from '../../providers/VoiceRoomProvider';
+import { MAX_SPEAKERS } from '../../providers/VoiceRoomProvider';
 import { VoiceSpeakerAvatar } from './VoiceSpeakerAvatar';
 import { colors, spacing, typography } from '../../theme';
 
@@ -37,7 +39,9 @@ export function VoiceSpeakersGrid({
 
   return (
     <View style={styles.container}>
-      <Text style={styles.sectionTitle}>Speakers ({speakers.length})</Text>
+      <Text style={styles.sectionTitle}>
+        <Ionicons name="mic" size={12} color={colors.textMuted} /> Speakers ({speakers.length}/{MAX_SPEAKERS})
+      </Text>
       <View style={styles.grid}>
         {speakers.map((p) => (
           <VoiceSpeakerAvatar

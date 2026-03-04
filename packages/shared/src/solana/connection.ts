@@ -41,6 +41,8 @@ class SolanaConnectionManager {
   private connections: Map<string, Connection> = new Map();
   private currentEndpoint: string = '';
   private network: 'devnet' | 'mainnet-beta' = 'devnet';
+  private verifiedEndpoints: Map<string, number> = new Map(); // endpoint → timestamp of last successful verify
+  private static VERIFY_INTERVAL_MS = 60_000; // re-verify every 60s, not on every call
 
   constructor() {
     try {
@@ -62,6 +64,7 @@ class SolanaConnectionManager {
       logger.info(`Switching network from ${this.network} to ${network}`);
       this.network = network;
       this.connections.clear();
+      this.verifiedEndpoints.clear();
       this.currentEndpoint = '';
     }
   }
@@ -71,18 +74,38 @@ class SolanaConnectionManager {
   }
 
   public async getConnection(network?: 'devnet' | 'mainnet-beta'): Promise<Connection> {
+    // Lazy sync: if no explicit network passed, re-check env config
+    // in case it was set after the singleton was created
+    if (!network) {
+      try {
+        const envNetwork = getEnvConfig().SOLANA_NETWORK;
+        if (envNetwork !== this.network) {
+          this.setNetwork(envNetwork);
+        }
+      } catch { /* config not yet initialized, use current */ }
+    }
     const targetNetwork = network || this.network;
     if (network && network !== this.network) {
       this.setNetwork(network);
     }
 
     const endpoints = getRpcEndpoints(targetNetwork);
+    const now = Date.now();
 
     for (const endpoint of endpoints) {
       try {
         if (this.connections.has(endpoint)) {
           const connection = this.connections.get(endpoint)!;
+          const lastVerified = this.verifiedEndpoints.get(endpoint) ?? 0;
+
+          // Skip getVersion() health check if recently verified
+          if (now - lastVerified < SolanaConnectionManager.VERIFY_INTERVAL_MS) {
+            this.currentEndpoint = endpoint;
+            return connection;
+          }
+
           await connection.getVersion();
+          this.verifiedEndpoints.set(endpoint, now);
           this.currentEndpoint = endpoint;
           return connection;
         }
@@ -90,11 +113,13 @@ class SolanaConnectionManager {
         const connection = new Connection(endpoint, 'confirmed');
         await connection.getVersion();
         this.connections.set(endpoint, connection);
+        this.verifiedEndpoints.set(endpoint, now);
         this.currentEndpoint = endpoint;
         logger.info(`Connected to: ${redactApiKey(endpoint)}`);
         return connection;
       } catch (error) {
         logger.warn(`Failed to connect to ${redactApiKey(endpoint)}: ${error}`);
+        this.verifiedEndpoints.delete(endpoint);
         continue;
       }
     }
