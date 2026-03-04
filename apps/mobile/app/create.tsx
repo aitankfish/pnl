@@ -2,13 +2,15 @@
  * Create Market Screen — 5-step wizard for launching a prediction market
  */
 
-import { useCallback } from 'react';
+import { useCallback, useEffect, useRef } from 'react';
 import {
   View,
   Text,
   StyleSheet,
   KeyboardAvoidingView,
   Platform,
+  Animated,
+  Alert,
 } from 'react-native';
 import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
@@ -45,14 +47,42 @@ export default function CreateScreen() {
     removeGalleryImage,
     setPitchVideo,
     clearPitchVideo,
+    hasDraft,
     nextStep,
     prevStep,
     submit,
     reset,
+    clearDraft,
   } = useCreateMarket();
 
   const isSubmitting = submissionStep !== 'idle' && submissionStep !== 'success' && submissionStep !== 'error';
   const showOverlay = isSubmitting;
+
+  // Draft-restored toast
+  const toastOpacity = useRef(new Animated.Value(0)).current;
+  const toastShown = useRef(false);
+
+  useEffect(() => {
+    if (hasDraft && !toastShown.current) {
+      toastShown.current = true;
+      Animated.sequence([
+        Animated.timing(toastOpacity, { toValue: 1, duration: 300, useNativeDriver: true }),
+        Animated.delay(2000),
+        Animated.timing(toastOpacity, { toValue: 0, duration: 400, useNativeDriver: true }),
+      ]).start();
+    }
+  }, [hasDraft, toastOpacity]);
+
+  const handleClearDraft = useCallback(() => {
+    Alert.alert('Clear Draft', 'Discard your saved progress and start fresh?', [
+      { text: 'Cancel', style: 'cancel' },
+      {
+        text: 'Clear',
+        style: 'destructive',
+        onPress: () => { reset(); },
+      },
+    ]);
+  }, [reset]);
 
   const handleBack = useCallback(() => {
     if (currentStep > 0) {
@@ -143,7 +173,13 @@ export default function CreateScreen() {
           />
         </PressableScale>
         <Text style={styles.headerTitle}>Create Market</Text>
-        <View style={styles.headerSpacer} />
+        {hasDraft ? (
+          <PressableScale onPress={handleClearDraft} style={styles.backButton}>
+            <Ionicons name="trash-outline" size={20} color={colors.textSecondary} />
+          </PressableScale>
+        ) : (
+          <View style={styles.headerSpacer} />
+        )}
       </View>
 
       {/* Step indicator */}
@@ -182,6 +218,12 @@ export default function CreateScreen() {
           </PressableScale>
         </View>
       )}
+
+      {/* Draft restored toast */}
+      <Animated.View style={[styles.draftToast, { opacity: toastOpacity }]} pointerEvents="none">
+        <Ionicons name="document-text-outline" size={14} color={colors.accent} />
+        <Text style={styles.draftToastText}>Draft restored</Text>
+      </Animated.View>
 
       {/* Submission overlay */}
       <SubmissionOverlay step={submissionStep} visible={showOverlay} />
@@ -254,5 +296,24 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontSize: 15,
     fontWeight: '700',
+  },
+  draftToast: {
+    position: 'absolute',
+    top: 100,
+    alignSelf: 'center',
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    backgroundColor: 'rgba(30, 35, 55, 0.95)',
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  draftToastText: {
+    color: colors.accent,
+    fontSize: 13,
+    fontWeight: '600',
   },
 });

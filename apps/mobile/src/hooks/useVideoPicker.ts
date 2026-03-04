@@ -1,11 +1,11 @@
 /**
  * useVideoPicker — expo-image-picker integration for video recording & selection
- * Lazy-loads the native module so it doesn't crash if unavailable in the current build.
  * Returns { uri, name, type } compatible with React Native FormData.
  */
 
 import { useCallback } from 'react';
 import { Alert } from 'react-native';
+import * as ImagePicker from 'expo-image-picker';
 
 export interface VideoResult {
   uri: string;
@@ -15,18 +15,6 @@ export interface VideoResult {
 
 const MAX_VIDEO_SIZE_MB = 50;
 const MAX_DURATION_SECONDS = 120;
-
-function getImagePicker(): typeof import('expo-image-picker') | null {
-  try {
-    return require('expo-image-picker');
-  } catch {
-    Alert.alert(
-      'Not Available',
-      'Video picker requires a native build. Please rebuild the app with expo-image-picker included.',
-    );
-    return null;
-  }
-}
 
 function assetToVideoResult(asset: { uri: string; fileSize?: number | null }): VideoResult | null {
   // Validate file size
@@ -45,9 +33,7 @@ function assetToVideoResult(asset: { uri: string; fileSize?: number | null }): V
 
 export function useVideoPicker() {
   const pickVideo = useCallback(async (): Promise<VideoResult | null> => {
-    const ImagePicker = getImagePicker();
-    if (!ImagePicker) return null;
-
+    try {
     const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (status !== 'granted') {
       Alert.alert(
@@ -65,39 +51,63 @@ export function useVideoPicker() {
 
     if (result.canceled || !result.assets?.[0]) return null;
     return assetToVideoResult(result.assets[0]);
+    } catch (err) {
+      console.warn('Video picker error:', err);
+      Alert.alert('Error', 'Failed to open video picker. Please try again.');
+      return null;
+    }
   }, []);
 
   const recordVideo = useCallback(async (): Promise<VideoResult | null> => {
-    const ImagePicker = getImagePicker();
-    if (!ImagePicker) return null;
+    try {
+      // Check camera availability first (simulators don't have cameras)
+      const available = await ImagePicker.getCameraPermissionsAsync();
+      if (available.status === 'undetermined') {
+        const req = await ImagePicker.requestCameraPermissionsAsync();
+        if (req.status !== 'granted') {
+          Alert.alert(
+            'Permission Needed',
+            'Please allow camera access in Settings to record videos.',
+          );
+          return null;
+        }
+      } else if (available.status !== 'granted') {
+        Alert.alert(
+          'Permission Needed',
+          'Please allow camera access in Settings to record videos.',
+        );
+        return null;
+      }
 
-    const cameraPermission = await ImagePicker.requestCameraPermissionsAsync();
-    if (cameraPermission.status !== 'granted') {
-      Alert.alert(
-        'Permission Needed',
-        'Please allow camera access in Settings to record videos.',
-      );
+      const mediaPermission = await ImagePicker.requestMediaLibraryPermissionsAsync();
+      if (mediaPermission.status !== 'granted') {
+        Alert.alert(
+          'Permission Needed',
+          'Please allow photo library access in Settings to save recorded videos.',
+        );
+        return null;
+      }
+
+      const result = await ImagePicker.launchCameraAsync({
+        mediaTypes: ['videos'],
+        videoMaxDuration: MAX_DURATION_SECONDS,
+        cameraType: ImagePicker.CameraType.Front,
+        quality: 0.8,
+      });
+
+      if (result.canceled || !result.assets?.[0]) return null;
+      return assetToVideoResult(result.assets[0]);
+    } catch (err: any) {
+      const msg = err?.message || '';
+      if (msg.includes('simulator') || msg.includes('not available')) {
+        console.warn('Camera not available (simulator):', msg);
+        Alert.alert('Camera Unavailable', 'Camera is not available on the simulator. Please test on a physical device, or use "Choose from Library" instead.');
+      } else {
+        console.warn('Video recorder error:', err);
+        Alert.alert('Error', 'Failed to open camera. Please try again.');
+      }
       return null;
     }
-
-    const mediaPermission = await ImagePicker.requestMediaLibraryPermissionsAsync();
-    if (mediaPermission.status !== 'granted') {
-      Alert.alert(
-        'Permission Needed',
-        'Please allow photo library access in Settings to save recorded videos.',
-      );
-      return null;
-    }
-
-    const result = await ImagePicker.launchCameraAsync({
-      mediaTypes: ['videos'],
-      videoMaxDuration: MAX_DURATION_SECONDS,
-      cameraType: ImagePicker.CameraType.Front,
-      quality: 0.8,
-    });
-
-    if (result.canceled || !result.assets?.[0]) return null;
-    return assetToVideoResult(result.assets[0]);
   }, []);
 
   return { pickVideo, recordVideo };

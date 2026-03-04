@@ -3,13 +3,16 @@
  * Manages form data, per-step validation, and on-chain market creation.
  */
 
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect, useRef } from 'react';
 import { Alert } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { VersionedTransaction } from '@solana/web3.js';
 import { getSolanaConnection } from '@pnl/shared/solana';
 import { apiUrl } from '@pnl/shared/utils';
 import { useNetwork } from '@pnl/shared/hooks';
 import { useAuth } from '../providers/AuthProvider';
+
+const DRAFT_KEY = 'pnl:create-market-draft';
 
 // ── Types ──────────────────────────────────────────────────────────────
 
@@ -97,6 +100,17 @@ const INITIAL_SOCIAL: SocialLinks = {
   linkedin: '',
 };
 
+// ── Draft Persistence ─────────────────────────────────────────────────
+
+interface Draft {
+  form: CreateMarketForm;
+  projectImage: ProjectImage | null;
+  galleryImages: ProjectImage[];
+  pitchVideo: VideoFile | null;
+  currentStep: number;
+  savedAt: number;
+}
+
 // ── Validation Helpers ─────────────────────────────────────────────────
 
 function validateStep1(form: CreateMarketForm): FormErrors {
@@ -146,6 +160,65 @@ export function useCreateMarket() {
 
   const { walletAddress, solanaWallet } = useAuth();
   const { network } = useNetwork();
+
+  const [hasDraft, setHasDraft] = useState(false);
+  const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const draftLoaded = useRef(false);
+
+  // ── Draft: Load on mount ──────────────────────────────────────────────
+
+  useEffect(() => {
+    AsyncStorage.getItem(DRAFT_KEY).then((raw) => {
+      if (!raw) { draftLoaded.current = true; return; }
+      try {
+        const draft: Draft = JSON.parse(raw);
+        setForm(draft.form);
+        setProjectImageState(draft.projectImage);
+        setGalleryImages(draft.galleryImages);
+        setPitchVideoState(draft.pitchVideo);
+        setCurrentStep(draft.currentStep);
+        setHasDraft(true);
+        draftLoaded.current = true;
+      } catch {
+        AsyncStorage.removeItem(DRAFT_KEY);
+        draftLoaded.current = true;
+      }
+    });
+  }, []);
+
+  // ── Draft: Auto-save on changes (debounced 500ms) ─────────────────────
+
+  useEffect(() => {
+    if (!draftLoaded.current) return; // don't save before initial load
+    if (saveTimer.current) clearTimeout(saveTimer.current);
+    saveTimer.current = setTimeout(() => {
+      const isEmpty =
+        !form.name && !form.description && !form.tokenSymbol && !projectImage;
+      if (isEmpty) {
+        AsyncStorage.removeItem(DRAFT_KEY);
+        setHasDraft(false);
+        return;
+      }
+      const draft: Draft = {
+        form,
+        projectImage,
+        galleryImages,
+        pitchVideo,
+        currentStep,
+        savedAt: Date.now(),
+      };
+      AsyncStorage.setItem(DRAFT_KEY, JSON.stringify(draft));
+      setHasDraft(true);
+    }, 500);
+    return () => { if (saveTimer.current) clearTimeout(saveTimer.current); };
+  }, [form, projectImage, galleryImages, pitchVideo, currentStep]);
+
+  // ── Draft: Clear helper ───────────────────────────────────────────────
+
+  const clearDraft = useCallback(() => {
+    AsyncStorage.removeItem(DRAFT_KEY);
+    setHasDraft(false);
+  }, []);
 
   // ── Field Updaters ───────────────────────────────────────────────────
 
@@ -350,6 +423,7 @@ export function useCreateMarket() {
 
       setCreatedMarketId(completeData.data?.marketId ?? projectId);
       setSubmissionStep('success');
+      clearDraft();
       return true;
     } catch (err: any) {
       console.error('Market creation failed:', err);
@@ -372,7 +446,8 @@ export function useCreateMarket() {
     setCurrentStep(0);
     setSubmissionStep('idle');
     setCreatedMarketId(null);
-  }, []);
+    clearDraft();
+  }, [clearDraft]);
 
   return {
     form,
@@ -383,6 +458,7 @@ export function useCreateMarket() {
     currentStep,
     submissionStep,
     createdMarketId,
+    hasDraft,
     updateField,
     updateSocialLink,
     setProjectImage,
@@ -395,5 +471,6 @@ export function useCreateMarket() {
     prevStep,
     submit,
     reset,
+    clearDraft,
   };
 }

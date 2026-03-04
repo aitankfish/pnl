@@ -6,11 +6,12 @@
 
 import { useCallback, useEffect, useState } from 'react';
 import { Tabs, router } from 'expo-router';
-import { Platform, StyleSheet, View, Text } from 'react-native';
+import { Platform, StyleSheet, View, Text, Image } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { apiUrl } from '@pnl/shared/utils';
 import { useAuth } from '../../src/providers/AuthProvider';
+import { useProfile, resolveAvatarUrl } from '../../src/hooks/useProfile';
 import { WelcomeCard } from '../../src/components';
 import { colors } from '../../src/theme';
 
@@ -64,6 +65,10 @@ export default function TabLayout() {
   const insets = useSafeAreaInsets();
   const tabBarHeight = 60 + (Platform.OS === 'ios' ? insets.bottom : 8);
   const { isAuthenticated, walletAddress } = useAuth();
+  const { profile } = useProfile(walletAddress);
+  const profileAvatarUrl = profile?.profilePhotoUrl
+    ? resolveAvatarUrl(profile.profilePhotoUrl)
+    : null;
   const [unreadCount, setUnreadCount] = useState(0);
   // Show welcome every time user is not logged in; dismiss lets them browse
   const [welcomeDismissed, setWelcomeDismissed] = useState(false);
@@ -170,9 +175,25 @@ export default function TabLayout() {
         name="profile"
         options={{
           title: 'Profile',
-          tabBarIcon: ({ color, focused }) => (
-            <TabBarIcon name="person-outline" focusedName="person" color={color} focused={focused} />
-          ),
+          tabBarIcon: ({ color, focused }) =>
+            profileAvatarUrl ? (
+              <View style={styles.iconContainer}>
+                <View
+                  style={[
+                    styles.profileAvatarRing,
+                    focused && { borderColor: colors.primary },
+                  ]}
+                >
+                  <Image
+                    source={{ uri: profileAvatarUrl }}
+                    style={styles.profileAvatar}
+                  />
+                </View>
+                {focused && <View style={styles.activeIndicator} />}
+              </View>
+            ) : (
+              <TabBarIcon name="person-outline" focusedName="person" color={color} focused={focused} />
+            ),
         }}
       />
     </Tabs>
@@ -253,5 +274,20 @@ const styles = StyleSheet.create({
     fontSize: 10,
     fontWeight: '800',
     lineHeight: 12,
+  },
+  profileAvatarRing: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    borderWidth: 2,
+    borderColor: 'rgba(148, 163, 184, 0.4)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    overflow: 'hidden',
+  },
+  profileAvatar: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
   },
 });

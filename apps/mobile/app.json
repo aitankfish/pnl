@@ -27,7 +27,9 @@
         "NSAppTransportSecurity": {
           "NSAllowsLocalNetworking": true
         },
+        "NSCameraUsageDescription": "PNL needs camera access to record pitch videos",
         "NSMicrophoneUsageDescription": "PNL needs microphone access to join voice rooms",
+        "NSPhotoLibraryUsageDescription": "PNL needs photo library access to upload project images and avatars",
         "UIBackgroundModes": ["audio"],
         "NSSupportsLiveActivities": true,
         "NSSupportsLiveActivitiesFrequentUpdates": true
@@ -41,7 +43,11 @@
       "package": "com.pnl.app",
       "permissions": [
         "RECORD_AUDIO",
-        "MODIFY_AUDIO_SETTINGS"
+        "MODIFY_AUDIO_SETTINGS",
+        "CAMERA",
+        "READ_EXTERNAL_STORAGE",
+        "WRITE_EXTERNAL_STORAGE",
+        "READ_MEDIA_IMAGES"
       ]
     },
     "web": {
@@ -54,6 +60,13 @@
       "expo-secure-store",
       "expo-font",
       "expo-web-browser",
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "PNL needs photo library access to upload project images and avatars",
+          "cameraPermission": "PNL needs camera access to record pitch videos"
+        }
+      ],
       "./plugins/withLiveActivity"
     ],
     "experiments": {
