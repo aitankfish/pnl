@@ -48,7 +48,7 @@ export const VoteBottomSheet = forwardRef<GorhomBottomSheet, VoteBottomSheetProp
     const label = isYes ? 'YES' : 'NO';
 
     return (
-      <BottomSheet ref={ref} snapPoints={['65%']} onClose={onClose}>
+      <BottomSheet ref={ref} snapPoints={['80%']} onClose={onClose}>
         <View style={styles.container}>
           <View style={[styles.directionBadge, { backgroundColor: isYes ? colors.successLight : colors.dangerLight }]}>
             <Text style={[styles.directionText, { color }]}>Vote {label}</Text>
@@ -138,7 +138,7 @@ export const VoteBottomSheet = forwardRef<GorhomBottomSheet, VoteBottomSheetProp
 
 const styles = StyleSheet.create({
   container: {
-    gap: spacing.md,
+    gap: spacing.sm,
   },
   directionBadge: {
     alignSelf: 'center',
@@ -158,9 +158,9 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
-    backgroundColor: 'rgba(255,255,255,0.05)',
+    backgroundColor: 'rgba(255,255,255,0.04)',
     borderWidth: 1,
-    borderColor: colors.border,
+    borderColor: colors.glassBorder,
     borderRadius: borderRadius.md,
     paddingHorizontal: spacing.sm,
     paddingVertical: spacing.xs + 2,
@@ -183,15 +183,15 @@ const styles = StyleSheet.create({
     color: colors.textMuted,
   },
   input: {
-    borderWidth: 2,
-    borderColor: colors.border,
+    borderWidth: 1.5,
+    borderColor: colors.glassBorder,
     borderRadius: borderRadius.md,
     padding: spacing.md,
     color: colors.textPrimary,
     fontSize: 24,
     fontWeight: '700',
     textAlign: 'center',
-    backgroundColor: colors.surface,
+    backgroundColor: 'rgba(17, 24, 39, 0.6)',
   },
   chipRow: {
     flexDirection: 'row',
@@ -202,21 +202,21 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.md,
     paddingVertical: spacing.sm,
     borderRadius: borderRadius.full,
-    borderWidth: 1.5,
-    borderColor: colors.border,
-    backgroundColor: colors.surface,
+    borderWidth: 1,
+    borderColor: colors.glassBorder,
+    backgroundColor: 'rgba(17, 24, 39, 0.5)',
   },
   chipText: {
     ...typography.captionBold,
     color: colors.textPrimary,
   },
   tradeSummary: {
-    backgroundColor: colors.surface,
+    backgroundColor: 'rgba(17, 24, 39, 0.5)',
     borderRadius: borderRadius.md,
     padding: spacing.sm + 2,
     gap: spacing.xs + 2,
     borderWidth: 1,
-    borderColor: colors.border,
+    borderColor: colors.glassBorder,
   },
   summaryRow: {
     flexDirection: 'row',
@@ -246,10 +246,10 @@ const styles = StyleSheet.create({
     color: colors.textPrimary,
   },
   confirmButton: {
-    paddingVertical: 16,
+    paddingVertical: 14,
     borderRadius: borderRadius.lg,
     alignItems: 'center',
-    marginTop: spacing.sm,
+    marginTop: spacing.xs,
   },
   confirmText: {
     fontSize: 16,

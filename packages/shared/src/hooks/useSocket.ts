@@ -39,8 +39,8 @@ export function useSocket(config?: SocketConfig) {
       transports: ['websocket', 'polling'],
       reconnection: true,
       reconnectionDelay: 1000,
-      reconnectionDelayMax: 5000,
-      reconnectionAttempts: 3,
+      reconnectionDelayMax: 10000,
+      reconnectionAttempts: 10,
     });
 
     socketRef.current = socket;

@@ -37,7 +37,7 @@ const API_BASE_URL = __DEV__
 
 // DEV OVERRIDE: Use production API when local server isn't running.
 // Comment this out when running pnpm dev:unified locally.
-const USE_PROD_API = true;
+const USE_PROD_API = false;
 const RESOLVED_API_BASE_URL = __DEV__ && USE_PROD_API ? 'https://pnl.market' : API_BASE_URL;
 
 // Voice server URL (separate from the main API)
@@ -46,7 +46,7 @@ const RESOLVED_API_BASE_URL = __DEV__ && USE_PROD_API ? 'https://pnl.market' : A
 export const VOICE_SERVER_URL = 'https://voice.pnl.market';
 
 setEnvConfig({
-  SOLANA_NETWORK: 'mainnet-beta',
+  SOLANA_NETWORK: 'devnet',
   PLP_PROGRAM_ID_DEVNET: '2CjwEvY3gkErkEmM5wnLpRv9fq3msHjnPDVPQmaWhF3G',
   PLP_PROGRAM_ID_MAINNET: 'C5mVE2BwSehWJNkNvhpsoepyKwZkvSLZx29bi4MzVj86',
   HELIUS_MAINNET_RPC: 'https://mainnet.helius-rpc.com/?api-key=8f773bda-b37a-42ec-989c-b2318c1772d7',
@@ -61,4 +61,4 @@ setEnvConfig({
 
 // Explicitly sync the Solana connection manager — its singleton may have been
 // created before setEnvConfig ran (module evaluation race condition).
-setSolanaNetwork('mainnet-beta');
+setSolanaNetwork('devnet');

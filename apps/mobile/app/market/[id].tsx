@@ -10,7 +10,7 @@
  * - Favorite button, creator badge, social links, on-chain info
  */
 
-import { useState, useRef, useCallback, useEffect, useMemo } from 'react';
+import React, { useState, useRef, useCallback, useEffect, useMemo } from 'react';
 import {
   View,
   Text,
@@ -33,7 +33,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as Haptics from 'expo-haptics';
 import * as Clipboard from 'expo-clipboard';
-import Animated, { useAnimatedStyle, useSharedValue, interpolate, Extrapolation } from 'react-native-reanimated';
+import Animated, { useAnimatedStyle, useSharedValue, withTiming, interpolate, Extrapolation } from 'react-native-reanimated';
 import GorhomBottomSheet from '@gorhom/bottom-sheet';
 import useSWR from 'swr';
 import { useMarket, useNetwork } from '@pnl/shared/hooks';
@@ -44,6 +44,7 @@ import { useWalletBalance } from '../../src/hooks/useWalletBalance';
 import { useVote } from '../../src/hooks/useVote';
 import { useVoiceRoomContextSafe } from '../../src/providers/VoiceRoomProvider';
 import { useTokenStats } from '../../src/hooks/useTokenStats';
+import { usePitchVideo } from '../../src/hooks/usePitchVideo';
 import { useToggleFollow } from '../../src/hooks/useFollow';
 import {
   ScreenHeader,
@@ -492,11 +493,14 @@ export default function MarketDetailScreen() {
                 {market.category && <CategoryPill label={formatLabel(market.category)} variant="tag" />}
                 {market.displayStatus && <CategoryPill label={market.displayStatus} variant="tag" />}
                 {(market as any).projectAge && <CategoryPill label={(market as any).projectAge} variant="tag" />}
-                <View style={styles.poolInlineBadge}>
-                  <Text style={styles.poolInlineText}>
-                    {(market.poolBalance ? Number(market.poolBalance) / 1e9 : 0).toFixed(2)}/{parseFloat(String(market.targetPool)) || '?'} SOL
-                  </Text>
-                </View>
+                {!isResolved && (
+                  <View style={styles.participantInlineBadge}>
+                    <Ionicons name="people-outline" size={10} color={colors.textSecondary} />
+                    <Text style={styles.participantInlineText}>
+                      {totalParticipants}
+                    </Text>
+                  </View>
+                )}
               </View>
             )}
 
@@ -563,19 +567,12 @@ export default function MarketDetailScreen() {
 
           </View>
 
-          {/* Community validation — vote gauge + pool progress */}
+          {/* Community validation — vote gauge or pool progress */}
           <View style={styles.section}>
             {isResolved ? (
               <VoteGauge yesPercent={yesPercent} noPercent={noPercent} yesCount={market.yesVotes} noCount={market.noVotes} variant="detailed" />
             ) : (
-              <View style={styles.antiBandwagon}>
-                <View style={styles.antiBandwagonBar}>
-                  <View style={[styles.antiBandwagonFill, { flex: 1, backgroundColor: colors.surface }]} />
-                </View>
-                <Text style={styles.antiBandwagonText}>
-                  {totalParticipants} participant{totalParticipants !== 1 ? 's' : ''} voted
-                </Text>
-              </View>
+              <AnimatedPoolBar market={market} />
             )}
           </View>
 
@@ -813,6 +810,206 @@ export default function MarketDetailScreen() {
 
 // ── Overview Tab ────────────────────────────────────────────────────────────
 
+// ── Animated Pool Progress Bar ─────────────────────────────────────────────
+
+function AnimatedPoolBar({ market }: { market: any }) {
+  const poolBalance = market.poolBalance ? Number(market.poolBalance) / 1e9 : 0;
+  const target = parseFloat(String(market.targetPool)) || 1;
+  const pct = Math.min((poolBalance / target) * 100, 100);
+
+  const animatedWidth = useSharedValue(0);
+
+  React.useEffect(() => {
+    animatedWidth.value = withTiming(pct, { duration: 600 });
+  }, [pct, animatedWidth]);
+
+  const barStyle = useAnimatedStyle(() => ({
+    width: `${animatedWidth.value}%`,
+  }));
+
+  return (
+    <View style={styles.poolProgressRow}>
+      <View style={styles.poolProgressBarBg}>
+        <Animated.View style={[styles.poolProgressBarFill, barStyle]} />
+      </View>
+      <Text style={styles.poolProgressText}>
+        {poolBalance.toFixed(2)}/{parseFloat(String(market.targetPool)) || '?'} SOL
+      </Text>
+    </View>
+  );
+}
+
+// ── Overview Tab ────────────────────────────────────────────────────────────
+
+// ── Founder Pitch Video Management ────────────────────────────────────────
+function FounderPitchVideoSection({
+  projectId,
+  walletAddress,
+  hasPitchVideo,
+  onSuccess,
+}: {
+  projectId: string;
+  walletAddress: string;
+  hasPitchVideo: boolean;
+  onSuccess: () => void;
+}) {
+  const { status, isLoading, handleRecord, handlePick, handleDelete } = usePitchVideo({
+    projectId,
+    walletAddress,
+    onSuccess,
+  });
+
+  return (
+    <View style={pvStyles.container}>
+      <View style={pvStyles.header}>
+        <Ionicons name="videocam-outline" size={16} color={colors.primary} />
+        <Text style={pvStyles.title}>Pitch Video</Text>
+      </View>
+
+      {hasPitchVideo ? (
+        /* ── Has video — show status + replace/delete ── */
+        <View style={pvStyles.hasVideoRow}>
+          <View style={pvStyles.statusBadge}>
+            <Ionicons name="checkmark-circle" size={14} color={colors.success} />
+            <Text style={pvStyles.statusText}>Video live on feed</Text>
+          </View>
+          <View style={pvStyles.actions}>
+            <PressableScale
+              onPress={handlePick}
+              disabled={isLoading}
+              style={pvStyles.actionBtn}
+            >
+              {status === 'uploading' ? (
+                <ActivityIndicator size={12} color={colors.primary} />
+              ) : (
+                <Ionicons name="swap-horizontal-outline" size={14} color={colors.primary} />
+              )}
+              <Text style={pvStyles.actionText}>Replace</Text>
+            </PressableScale>
+            <PressableScale
+              onPress={handleDelete}
+              disabled={isLoading}
+              style={pvStyles.actionBtn}
+            >
+              {status === 'deleting' ? (
+                <ActivityIndicator size={12} color={colors.danger} />
+              ) : (
+                <Ionicons name="trash-outline" size={14} color={colors.danger} />
+              )}
+              <Text style={[pvStyles.actionText, { color: colors.danger }]}>Delete</Text>
+            </PressableScale>
+          </View>
+        </View>
+      ) : (
+        /* ── No video — show add options ── */
+        <View style={pvStyles.addRow}>
+          <PressableScale
+            onPress={handleRecord}
+            disabled={isLoading}
+            style={pvStyles.addBtn}
+          >
+            <Ionicons name="videocam" size={18} color={colors.primary} />
+            <Text style={pvStyles.addBtnText}>Record</Text>
+          </PressableScale>
+          <PressableScale
+            onPress={handlePick}
+            disabled={isLoading}
+            style={pvStyles.addBtn}
+          >
+            {status === 'uploading' ? (
+              <ActivityIndicator size={16} color={colors.primary} />
+            ) : (
+              <Ionicons name="cloud-upload-outline" size={18} color={colors.primary} />
+            )}
+            <Text style={pvStyles.addBtnText}>Upload</Text>
+          </PressableScale>
+        </View>
+      )}
+
+      <Text style={pvStyles.hint}>
+        {hasPitchVideo
+          ? 'Your pitch video appears in the feed for all users.'
+          : 'Add a pitch video to stand out in the feed.'}
+      </Text>
+    </View>
+  );
+}
+
+const pvStyles = StyleSheet.create({
+  container: {
+    backgroundColor: 'rgba(99, 102, 241, 0.06)',
+    borderWidth: 1,
+    borderColor: colors.glassBorder,
+    borderRadius: borderRadius.lg,
+    padding: spacing.md,
+    gap: spacing.sm,
+  },
+  header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  title: {
+    ...typography.captionBold,
+    color: colors.textPrimary,
+  },
+  hasVideoRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  statusBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+  },
+  statusText: {
+    ...typography.caption,
+    color: colors.success,
+  },
+  actions: {
+    flexDirection: 'row',
+    gap: spacing.md,
+  },
+  actionBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingVertical: 4,
+    paddingHorizontal: 8,
+  },
+  actionText: {
+    ...typography.caption,
+    color: colors.primary,
+    fontWeight: '600',
+  },
+  addRow: {
+    flexDirection: 'row',
+    gap: spacing.sm,
+  },
+  addBtn: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    paddingVertical: spacing.sm,
+    backgroundColor: 'rgba(99, 102, 241, 0.08)',
+    borderRadius: borderRadius.md,
+    borderWidth: 1,
+    borderColor: colors.glassBorder,
+  },
+  addBtnText: {
+    ...typography.captionBold,
+    color: colors.primary,
+  },
+  hint: {
+    ...typography.micro,
+    color: colors.textMuted,
+    fontStyle: 'italic',
+  },
+});
+
 function OverviewTab({ market, network, onCopyAddress, positionData, vestingData, walletAddress, solanaWallet, onRefresh, tokenMintAddr }: {
   market: any;
   network: string;
@@ -839,48 +1036,31 @@ function OverviewTab({ market, network, onCopyAddress, positionData, vestingData
         </GlassCard>
       )}
 
-      {/* Market Status Card */}
-      <MarketStatusCard
-        market={market}
-        positionData={positionData}
-        vestingData={vestingData}
-        walletAddress={walletAddress ?? null}
-        solanaWallet={solanaWallet}
-        network={network}
-        onRefresh={onRefresh}
-      />
+      {/* Market Status Card — hide for plain active markets (redundant with ACTIVE pill) */}
+      {!(market.resolution === 'Unresolved' && market.phase !== 'Funding' && !(market.poolProgressPercentage >= 100) && !(market.expiryTime && new Date(market.expiryTime).getTime() < Date.now())) && (
+        <MarketStatusCard
+          market={market}
+          positionData={positionData}
+          vestingData={vestingData}
+          walletAddress={walletAddress ?? null}
+          solanaWallet={solanaWallet}
+          network={network}
+          onRefresh={onRefresh}
+        />
+      )}
 
       {/* Full description */}
       {market.description ? <Text style={ov.description}>{market.description}</Text> : null}
 
-      {/* Inline video embed for YouTube/Vimeo links */}
-      {metadata?.videoUrl && !isDirectVideoUrl(metadata.videoUrl) ? (() => {
-        const ytId = extractYouTubeId(metadata.videoUrl);
-        if (ytId) {
-          return (
-            <View style={ov.videoEmbed}>
-              <WebView
-                source={{ uri: `https://www.youtube-nocookie.com/embed/${ytId}?playsinline=1&controls=1&modestbranding=1&rel=0&origin=https://pnl.market` }}
-                style={ov.videoWebView}
-                allowsInlineMediaPlayback
-                allowsFullscreenVideo
-                mediaPlaybackRequiresUserAction={false}
-                javaScriptEnabled
-                scrollEnabled={false}
-                originWhitelist={['*']}
-                userAgent="Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Mobile/15E148 Safari/604.1"
-              />
-            </View>
-          );
-        }
-        return (
-          <PressableScale onPress={() => Linking.openURL(metadata.videoUrl)} style={ov.videoLink}>
-            <Ionicons name="play-circle-outline" size={20} color={colors.primary} />
-            <Text style={ov.videoLinkText}>Watch Project Video</Text>
-            <Ionicons name="open-outline" size={14} color={colors.textMuted} />
-          </PressableScale>
-        );
-      })() : null}
+      {/* Founder: Pitch Video management */}
+      {walletAddress && market.founderWallet === walletAddress && (
+        <FounderPitchVideoSection
+          projectId={market.id}
+          walletAddress={walletAddress}
+          hasPitchVideo={!!market.pitchVideoUrl}
+          onSuccess={onRefresh}
+        />
+      )}
 
       {/* Additional notes */}
       {metadata?.additionalNotes ? (
@@ -1011,22 +1191,6 @@ const ov = StyleSheet.create({
   countdownRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
   countdownLabel: { ...typography.caption, color: colors.textSecondary, flex: 1 },
   description: { ...typography.caption, color: colors.textSecondary, lineHeight: 20, textAlign: 'center' },
-  videoEmbed: {
-    borderRadius: borderRadius.md,
-    overflow: 'hidden',
-    height: 200,
-    backgroundColor: '#000',
-  },
-  videoWebView: {
-    flex: 1,
-    backgroundColor: '#000',
-  },
-  videoLink: {
-    flexDirection: 'row', alignItems: 'center', gap: spacing.sm,
-    backgroundColor: 'rgba(129,140,248,0.1)', borderRadius: borderRadius.md, padding: spacing.sm,
-    borderWidth: 1, borderColor: 'rgba(129,140,248,0.2)',
-  },
-  videoLinkText: { ...typography.captionBold, color: colors.primary, flex: 1 },
   notesCard: { padding: spacing.sm, gap: spacing.xs },
   notesTitle: { ...typography.captionBold, color: '#22d3ee', fontSize: 11 },
   notesText: { ...typography.caption, color: colors.textSecondary, lineHeight: 20, fontSize: 12 },
@@ -1114,12 +1278,21 @@ const styles = StyleSheet.create({
   scrollContent: {},
   infoSection: { paddingLeft: spacing.md, paddingRight: 62, marginTop: -spacing.xl, marginBottom: spacing.sm },
   pillRow: { flexDirection: 'row', alignItems: 'center', marginBottom: spacing.xs, gap: spacing.xs, flexWrap: 'wrap' },
-  poolInlineBadge: {
-    flexShrink: 0, borderWidth: 1, borderColor: colors.success, borderRadius: borderRadius.full,
+  participantInlineBadge: {
+    flexShrink: 0, flexDirection: 'row', alignItems: 'center', gap: 3,
+    borderWidth: 1, borderColor: 'rgba(255,255,255,0.15)', borderRadius: borderRadius.full,
     paddingHorizontal: 6, paddingVertical: 3,
-    backgroundColor: 'rgba(16, 185, 129, 0.08)',
+    backgroundColor: 'rgba(255,255,255,0.05)',
   },
-  poolInlineText: { fontSize: 10, fontWeight: '700', color: colors.success },
+  participantInlineText: { fontSize: 10, fontWeight: '700', color: colors.textSecondary },
+  poolProgressRow: { gap: 6 },
+  poolProgressBarBg: {
+    height: 6, borderRadius: 3, backgroundColor: 'rgba(255,255,255,0.08)', overflow: 'hidden',
+  },
+  poolProgressBarFill: {
+    height: '100%', borderRadius: 3, backgroundColor: colors.success,
+  },
+  poolProgressText: { fontSize: 11, fontWeight: '600', color: colors.textSecondary, textAlign: 'center' },
   title: { ...typography.display, color: colors.textPrimary, marginBottom: 2 },
   tokenIdentityBar: {
     flexDirection: 'row', alignItems: 'center', gap: 10,

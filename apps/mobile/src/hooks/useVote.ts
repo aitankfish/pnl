@@ -54,7 +54,7 @@ export function useVote(options?: UseVoteOptions) {
           transaction = Transaction.from(txBytes);
         }
         const provider = await solanaWallet.wallets![0].getProvider();
-        const connection = await getSolanaConnection();
+        const connection = await getSolanaConnection(network);
         const { signature } = await (provider as any).request({
           method: 'signAndSendTransaction',
           params: { transaction, connection },

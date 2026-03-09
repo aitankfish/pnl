@@ -384,7 +384,7 @@ export function useCreateMarket() {
       if (!prepareData.success)
         throw new Error(prepareData.error || 'Failed to prepare transaction');
 
-      const { serializedTransaction, marketPda, ipfsCid, expiryTime } = prepareData;
+      const { serializedTransaction, marketPda, ipfsCid, expiryTime } = prepareData.data;
 
       // ── Step 3: Sign & send transaction ────────────────────────────
       setSubmissionStep('signing');
@@ -393,7 +393,8 @@ export function useCreateMarket() {
       const transaction = VersionedTransaction.deserialize(txBytes);
 
       const provider = await solanaWallet.wallets[0].getProvider();
-      const connection = await getSolanaConnection();
+      const connection = await getSolanaConnection(network);
+      console.log('[CreateMarket] Signing with network:', network, 'RPC:', connection.rpcEndpoint);
       const { signature } = await (provider as any).request({
         method: 'signAndSendTransaction',
         params: { transaction, connection },
@@ -407,15 +408,15 @@ export function useCreateMarket() {
       // ── Step 5: Save to backend ────────────────────────────────────
       setSubmissionStep('completing');
 
-      const completeRes = await fetch(apiUrl('/api/projects/complete-market'), {
+      const completeRes = await fetch(apiUrl('/api/markets/complete'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           projectId,
           marketAddress: marketPda,
-          transactionSignature: signature,
-          metadataUri,
+          signature,
           ipfsCid,
+          metadataUri,
           targetPool: targetPoolLamports,
           expiryTime,
           marketDuration: durationDays,
