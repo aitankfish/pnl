@@ -10,7 +10,10 @@ import {
   View,
   StyleSheet,
   FlatList,
+  ScrollView,
   Dimensions,
+  NativeSyntheticEvent,
+  NativeScrollEvent,
   RefreshControl,
   ActivityIndicator,
   Text,
@@ -28,7 +31,6 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as Haptics from 'expo-haptics';
 import GorhomBottomSheet from '@gorhom/bottom-sheet';
 import { Ionicons } from '@expo/vector-icons';
-import PagerView from 'react-native-pager-view';
 import { useMarkets } from '@pnl/shared/hooks';
 import type { Market } from '@pnl/shared/hooks';
 import { useAuth } from '../../src/providers/AuthProvider';
@@ -432,7 +434,7 @@ export default function FeedScreen() {
   const pillTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Refs
-  const pagerRef = useRef<PagerView>(null);
+  const pagerRef = useRef<ScrollView>(null);
   const feedListRef = useRef<FlatList>(null);
   const forYouListRef = useRef<FlatList>(null);
 
@@ -497,13 +499,18 @@ export default function FeedScreen() {
     return applySortOption(result, preferences.sortBy);
   }, [sortedMarkets, preferences]);
 
-  const handlePageSelected = useCallback((e: any) => {
-    setActivePage(e.nativeEvent.position);
-  }, []);
+  const handlePageScroll = useCallback(
+    (e: NativeSyntheticEvent<NativeScrollEvent>) => {
+      const offsetX = e.nativeEvent.contentOffset.x;
+      const page = Math.round(offsetX / WINDOW_WIDTH);
+      if (page !== activePage) setActivePage(page);
+    },
+    [activePage],
+  );
 
   const handleTabPress = useCallback(
     (index: number) => {
-      pagerRef.current?.setPage(index);
+      pagerRef.current?.scrollTo({ x: index * WINDOW_WIDTH, animated: true });
       setActivePage(index);
     },
     [],
@@ -751,15 +758,18 @@ export default function FeedScreen() {
         top={pillTop}
       />
 
-      {/* PagerView — horizontal swipe between Feed / For You */}
-      <PagerView
+      {/* Horizontal paging ScrollView — swipe between Feed / For You */}
+      <ScrollView
         ref={pagerRef}
+        horizontal
+        pagingEnabled
+        showsHorizontalScrollIndicator={false}
+        onMomentumScrollEnd={handlePageScroll}
+        scrollEventThrottle={16}
         style={styles.pager}
-        initialPage={0}
-        onPageSelected={handlePageSelected}
       >
         {/* Page 0: Feed — all markets */}
-        <View key="feed" style={styles.page}>
+        <View style={[styles.page, { width: WINDOW_WIDTH }]}>
           <FlatList
             ref={feedListRef}
             data={feedPageMarkets}
@@ -791,7 +801,7 @@ export default function FeedScreen() {
         </View>
 
         {/* Page 1: For You — curated markets */}
-        <View key="foryou" style={styles.page}>
+        <View style={[styles.page, { width: WINDOW_WIDTH }]}>
           {forYouMarkets.length === 0 ? (
             <View style={[styles.emptyForYou, { paddingTop: tabBarTop + 60 }]}>
               <EmptyState
@@ -831,7 +841,7 @@ export default function FeedScreen() {
             />
           )}
         </View>
-      </PagerView>
+      </ScrollView>
 
       {/* Curate bottom sheet (gear → opens this) */}
       <GorhomBottomSheet
