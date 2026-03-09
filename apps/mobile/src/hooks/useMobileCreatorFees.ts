@@ -100,7 +100,10 @@ export function useMobileCreatorFees(walletAddress: string | null) {
       const transaction = new VersionedTransaction(message);
 
       const provider = await solanaWallet.wallets[0].getProvider();
-      const { signature } = await provider.signAndSendTransaction(transaction);
+      const { signature } = await (provider as any).request({
+        method: 'signAndSendTransaction',
+        params: { transaction, connection },
+      });
 
       await connection.confirmTransaction(signature, 'confirmed');
       await mutate();

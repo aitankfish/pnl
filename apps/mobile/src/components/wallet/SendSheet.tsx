@@ -32,6 +32,7 @@ import {
   TOKEN_2022_PROGRAM_ID,
 } from '@solana/spl-token';
 import { getSolanaConnection } from '@pnl/shared/solana';
+import { parseError } from '@pnl/shared/utils';
 import type { TokenBalance } from '@pnl/shared/hooks';
 import { BottomSheet } from '../BottomSheet';
 import { PressableScale } from '../PressableScale';
@@ -205,7 +206,10 @@ export const SendSheet = forwardRef<GorhomBottomSheet, SendSheetProps>(
 
         // Sign & send via Privy embedded wallet
         const provider = await solanaWallet.wallets[0].getProvider();
-        const { signature } = await provider.signAndSendTransaction(transaction);
+        const { signature } = await (provider as any).request({
+          method: 'signAndSendTransaction',
+          params: { transaction, connection },
+        });
 
         await connection.confirmTransaction(signature, 'confirmed');
 
@@ -215,7 +219,8 @@ export const SendSheet = forwardRef<GorhomBottomSheet, SendSheetProps>(
         onSuccess?.(signature);
       } catch (err: any) {
         console.error('Send failed:', err);
-        setErrorMsg(err.message || 'Transaction failed');
+        const parsed = parseError(err);
+        setErrorMsg(parsed.message);
         setStep('error');
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
       }

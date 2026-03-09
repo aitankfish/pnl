@@ -39,9 +39,9 @@ import useSWR from 'swr';
 import { useMarket, useNetwork } from '@pnl/shared/hooks';
 import { fetcher } from '@pnl/shared/services';
 import { apiUrl } from '@pnl/shared/utils';
-import { Transaction } from '@solana/web3.js';
-import { getSolanaConnection } from '@pnl/shared/solana';
 import { useAuth } from '../../src/providers/AuthProvider';
+import { useWalletBalance } from '../../src/hooks/useWalletBalance';
+import { useVote } from '../../src/hooks/useVote';
 import { useVoiceRoomContextSafe } from '../../src/providers/VoiceRoomProvider';
 import { useTokenStats } from '../../src/hooks/useTokenStats';
 import { useToggleFollow } from '../../src/hooks/useFollow';
@@ -49,7 +49,6 @@ import {
   ScreenHeader,
   PressableScale,
   VoteGauge,
-  PoolProgress,
   TimeCountdown,
   CategoryPill,
   GlassCard,
@@ -58,8 +57,6 @@ import {
   GrokAnalysis,
   ActivityFeed,
   MarketHolders,
-  LockedCard,
-  UserPosition,
   MarketStatusCard,
   FavoriteButton,
   BirdeyeChart,
@@ -86,6 +83,7 @@ function truncateAddress(addr?: string): string {
   if (!addr || addr.length < 12) return addr || '';
   return `${addr.slice(0, 6)}...${addr.slice(-4)}`;
 }
+
 
 function getExplorerUrl(address: string, network: string): string {
   const cluster = network === 'mainnet-beta' ? '' : `?cluster=${network}`;
@@ -124,7 +122,10 @@ export default function MarketDetailScreen() {
   const { market, isLoading, error, refresh: refreshMarket } = useMarket(id ?? null);
   const { isAuthenticated, walletAddress, getAccessToken, solanaWallet } = useAuth();
   const { network } = useNetwork();
-  const [isVoting, setIsVoting] = useState(false);
+  const { solBalance } = useWalletBalance(walletAddress);
+  const { submitVote, isVoting } = useVote({
+    onSuccess: () => { refetchPosition(); refreshMarket(); },
+  });
 
   // ── Creator follow ──
   const founderWallet = (market as any)?.founderWallet;
@@ -154,6 +155,7 @@ export default function MarketDetailScreen() {
     tab === 'community' ? 'Community' : 'Overview',
   );
   const prevTabRef = useRef<TabName>('Overview');
+  const voice = useVoiceRoomContextSafe();
 
   const handleSetActiveTab = useCallback((tab: TabName) => {
     if (tab === 'Community') {
@@ -169,7 +171,6 @@ export default function MarketDetailScreen() {
   }, []);
 
   // ── Voice room: auto-switch to Community tab when returning via MiniVoiceBar ──
-  const voice = useVoiceRoomContextSafe();
   const wasMinimized = useRef(voice?.isMinimized ?? false);
   const hasAutoSwitched = useRef(false);
 
@@ -332,7 +333,7 @@ export default function MarketDetailScreen() {
   const isExpired = market?.expiryTime ? new Date(market.expiryTime) < new Date() : false;
   const yesDisabled = !market?.isYesVoteEnabled || isExpired;
   const noDisabled = !market?.isNoVoteEnabled || isExpired;
-  const totalParticipants = (market?.yesVotes ?? 0) + (market?.noVotes ?? 0);
+  const totalParticipants = market?.totalParticipants ?? 0;
   const yesPercent = market?.yesPercentage ?? 50;
   const noPercent = market?.noPercentage ?? 50;
 
@@ -372,63 +373,24 @@ export default function MarketDetailScreen() {
         if (market?.noVoteDisabledReason) Alert.alert('Cannot Vote', market.noVoteDisabledReason);
         return;
       }
+      // Check if user already has a position on the opposite side
+      if (positionData?.hasPosition && positionData.side !== direction) {
+        Alert.alert('Cannot Vote', `You already voted ${positionData.side.toUpperCase()} — can't switch sides.`);
+        return;
+      }
       setVoteDirection(direction);
       sheetRef.current?.snapToIndex(0);
     },
-    [isAuthenticated, yesDisabled, noDisabled, market],
+    [isAuthenticated, yesDisabled, noDisabled, market, positionData],
   );
 
   const handleVoteConfirm = useCallback(
     async (direction: VoteDirection, amount: number) => {
-      if (!market || !walletAddress || !solanaWallet) return;
+      if (!market) return;
       sheetRef.current?.close();
-      setIsVoting(true);
-      try {
-        // Step 1: Prepare transaction on server
-        const prepareRes = await fetch(apiUrl('/api/markets/vote/prepare'), {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ marketAddress: market.marketAddress, voteType: direction, amount, userWallet: walletAddress, network }),
-        });
-        const prepareData = await prepareRes.json();
-        if (!prepareData.success) throw new Error(prepareData.error || 'Failed to prepare vote transaction');
-
-        // Step 2: Sign & send with Privy embedded wallet
-        const txBytes = Buffer.from(prepareData.data.serializedTransaction, 'base64');
-        const transaction = Transaction.from(txBytes);
-        const provider = await solanaWallet.wallets![0].getProvider();
-        const { signature } = await (provider as any).signAndSendTransaction(transaction);
-
-        // Step 3: Wait for confirmation
-        const connection = await getSolanaConnection();
-        await connection.confirmTransaction(signature, 'confirmed');
-
-        // Step 4: Record in database
-        await fetch(apiUrl('/api/markets/vote/complete'), {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            marketId: market.id,
-            voteType: direction,
-            amount,
-            signature,
-            traderWallet: walletAddress,
-          }),
-        });
-
-        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-        Alert.alert('Vote Confirmed', `Your ${direction.toUpperCase()} vote of ${amount} SOL was confirmed on-chain.`);
-        refetchPosition();
-        refreshMarket();
-      } catch (err: any) {
-        console.error('Vote error:', err);
-        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
-        Alert.alert('Vote Failed', err.message || 'Something went wrong');
-      } finally {
-        setIsVoting(false);
-      }
+      await submitVote(market.marketAddress, market.id, direction, amount);
     },
-    [market, walletAddress, solanaWallet, network, refetchPosition, refreshMarket],
+    [market, submitVote],
   );
 
   const handleShare = useCallback(async () => {
@@ -530,6 +492,11 @@ export default function MarketDetailScreen() {
                 {market.category && <CategoryPill label={formatLabel(market.category)} variant="tag" />}
                 {market.displayStatus && <CategoryPill label={market.displayStatus} variant="tag" />}
                 {(market as any).projectAge && <CategoryPill label={(market as any).projectAge} variant="tag" />}
+                <View style={styles.poolInlineBadge}>
+                  <Text style={styles.poolInlineText}>
+                    {(market.poolBalance ? Number(market.poolBalance) / 1e9 : 0).toFixed(2)}/{parseFloat(String(market.targetPool)) || '?'} SOL
+                  </Text>
+                </View>
               </View>
             )}
 
@@ -610,14 +577,6 @@ export default function MarketDetailScreen() {
                 </Text>
               </View>
             )}
-          </View>
-
-          <View style={styles.section}>
-            <PoolProgress
-              current={market.poolBalance ? Number(market.poolBalance) / 1e9 : 0}
-              target={market.targetPool ? Number(market.targetPool) : 0}
-              variant="card"
-            />
           </View>
 
           {/* Chart + live stats — only for launched tokens, placed after community data */}
@@ -832,6 +791,8 @@ export default function MarketDetailScreen() {
         ref={sheetRef}
         direction={voteDirection}
         marketTitle={market.name}
+        solBalance={solBalance}
+        positionData={positionData}
         onConfirm={handleVoteConfirm}
         onClose={() => setVoteDirection(null)}
       />
@@ -888,9 +849,6 @@ function OverviewTab({ market, network, onCopyAddress, positionData, vestingData
         network={network}
         onRefresh={onRefresh}
       />
-
-      {/* User position */}
-      {positionData && <UserPosition positionData={positionData} />}
 
       {/* Full description */}
       {market.description ? <Text style={ov.description}>{market.description}</Text> : null}
@@ -1155,7 +1113,13 @@ const styles = StyleSheet.create({
   },
   scrollContent: {},
   infoSection: { paddingLeft: spacing.md, paddingRight: 62, marginTop: -spacing.xl, marginBottom: spacing.sm },
-  pillRow: { flexDirection: 'row', gap: spacing.sm, marginBottom: spacing.xs, flexWrap: 'wrap' },
+  pillRow: { flexDirection: 'row', alignItems: 'center', marginBottom: spacing.xs, gap: spacing.xs, flexWrap: 'wrap' },
+  poolInlineBadge: {
+    flexShrink: 0, borderWidth: 1, borderColor: colors.success, borderRadius: borderRadius.full,
+    paddingHorizontal: 6, paddingVertical: 3,
+    backgroundColor: 'rgba(16, 185, 129, 0.08)',
+  },
+  poolInlineText: { fontSize: 10, fontWeight: '700', color: colors.success },
   title: { ...typography.display, color: colors.textPrimary, marginBottom: 2 },
   tokenIdentityBar: {
     flexDirection: 'row', alignItems: 'center', gap: 10,

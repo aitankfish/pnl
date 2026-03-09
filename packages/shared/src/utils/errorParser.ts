@@ -94,6 +94,22 @@ export function parseError(error: unknown): ParsedError {
     return { title: 'Transaction Expired', message: 'The transaction expired before it could be confirmed. Please try again.', details: 'Blockhash expired' };
   }
 
+  if (errorString.includes('Simulation failed') || errorString.includes('simulation failed') || errorString.includes('SimulationError')) {
+    return { title: 'Insufficient Funds', message: 'You don\'t have enough SOL in your wallet for this transaction (amount + network fees). Please add more SOL and try again.', details: 'Transaction simulation failed' };
+  }
+
+  if (errorString.includes('insufficient lamports')) {
+    const needMatch = errorString.match(/need\s+([\d,]+)/);
+    const needSol = needMatch ? (parseInt(needMatch[1].replace(/,/g, '')) / 1e9).toFixed(4) : null;
+    return {
+      title: 'Insufficient Funds',
+      message: needSol
+        ? `You need at least ${needSol} SOL (including fees) to complete this transaction.`
+        : 'You don\'t have enough SOL in your wallet for this transaction.',
+      details: 'Insufficient lamports',
+    };
+  }
+
   return defaultError;
 }
 

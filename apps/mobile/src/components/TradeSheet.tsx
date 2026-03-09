@@ -9,14 +9,14 @@ import {
   View,
   Text,
   StyleSheet,
-  TextInput,
   ActivityIndicator,
   Alert,
 } from 'react-native';
-import GorhomBottomSheet from '@gorhom/bottom-sheet';
+import GorhomBottomSheet, { BottomSheetTextInput } from '@gorhom/bottom-sheet';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { PublicKey, VersionedTransaction } from '@solana/web3.js';
+import { parseError } from '@pnl/shared/utils';
 import { useAuth } from '../providers/AuthProvider';
 import { useNetwork } from '@pnl/shared/hooks';
 import { getSolanaConnection } from '@pnl/shared/solana';
@@ -184,9 +184,11 @@ export const TradeSheet = forwardRef<GorhomBottomSheet, TradeSheetProps>(
         const transaction = VersionedTransaction.deserialize(txBytes);
 
         const provider = await solanaWallet.wallets![0].getProvider();
-        const { signature } = await (provider as any).signAndSendTransaction(transaction);
-
         const connection = await getSolanaConnection();
+        const { signature } = await (provider as any).request({
+          method: 'signAndSendTransaction',
+          params: { transaction, connection },
+        });
         await connection.confirmTransaction(signature, 'confirmed');
 
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
@@ -199,7 +201,8 @@ export const TradeSheet = forwardRef<GorhomBottomSheet, TradeSheetProps>(
       } catch (err: any) {
         console.error('Swap error:', err);
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
-        setError(err.message || 'Swap failed');
+        const parsed = parseError(err);
+        setError(parsed.message);
       } finally {
         setIsSwapping(false);
       }
@@ -274,7 +277,7 @@ export const TradeSheet = forwardRef<GorhomBottomSheet, TradeSheetProps>(
 
           {/* Large amount display */}
           <View style={styles.amountDisplay}>
-            <TextInput
+            <BottomSheetTextInput
               style={styles.amountInput}
               value={inputAmount}
               onChangeText={setInputAmount}

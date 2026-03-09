@@ -42,8 +42,8 @@ export function CategoryPill({
 
 const styles = StyleSheet.create({
   pill: {
-    paddingHorizontal: 10,
-    paddingVertical: 5,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
     borderRadius: 8,
     backgroundColor: 'rgba(10, 14, 26, 0.75)',
     borderWidth: 1,
@@ -62,9 +62,9 @@ const styles = StyleSheet.create({
     borderColor: 'rgba(139, 92, 246, 0.6)',
   },
   label: {
-    fontSize: 10,
+    fontSize: 9,
     fontWeight: '700',
-    letterSpacing: 1.2,
+    letterSpacing: 0.8,
     color: '#c4b5fd',
   },
   filterLabel: {

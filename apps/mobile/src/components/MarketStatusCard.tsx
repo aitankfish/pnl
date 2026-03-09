@@ -11,7 +11,7 @@ import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { Transaction, VersionedTransaction } from '@solana/web3.js';
 import { getSolanaConnection } from '@pnl/shared/solana';
-import { apiUrl } from '@pnl/shared/utils';
+import { apiUrl, parseError } from '@pnl/shared/utils';
 import { colors, spacing, borderRadius, typography } from '../theme';
 import { GlassCard } from './GlassCard';
 import { PressableScale } from './PressableScale';
@@ -248,7 +248,7 @@ function ClaimSection({
       setTimeout(onRefresh, 500);
     } catch (err: any) {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
-      Alert.alert('Claim Failed', err.message);
+      { const p = parseError(err); Alert.alert(p.title, p.message); }
     } finally {
       setIsClaiming(false);
     }
@@ -346,7 +346,7 @@ function FounderActions({
               setTimeout(onRefresh, 500);
             } catch (err: any) {
               Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
-              Alert.alert('Error', err.message);
+              { const p = parseError(err); Alert.alert(p.title, p.message); }
             } finally {
               setIsResolving(false);
             }
@@ -397,7 +397,7 @@ function FounderActions({
               setTimeout(onRefresh, 500);
             } catch (err: any) {
               Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
-              Alert.alert('Error', err.message);
+              { const p = parseError(err); Alert.alert(p.title, p.message); }
             } finally {
               setIsExtending(false);
             }
@@ -447,7 +447,7 @@ function FounderActions({
               setTimeout(onRefresh, 500);
             } catch (err: any) {
               Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
-              Alert.alert('Error', err.message);
+              { const p = parseError(err); Alert.alert(p.title, p.message); }
             } finally {
               setIsResolving(false);
             }
@@ -485,7 +485,7 @@ function FounderActions({
             setTimeout(onRefresh, 500);
           } catch (err: any) {
             Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
-            Alert.alert('Error', err.message);
+            { const p = parseError(err); Alert.alert(p.title, p.message); }
           } finally {
             setIsResolving(false);
           }
@@ -574,7 +574,7 @@ function TeamVestingSection({
                 setTimeout(onRefresh, 500);
               } catch (err: any) {
                 Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
-                Alert.alert('Error', err.message);
+                { const p = parseError(err); Alert.alert(p.title, p.message); }
               } finally {
                 setIsClaiming(false);
               }
@@ -619,7 +619,7 @@ function TeamVestingSection({
               setTimeout(onRefresh, 500);
             } catch (err: any) {
               Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
-              Alert.alert('Error', err.message);
+              { const p = parseError(err); Alert.alert(p.title, p.message); }
             } finally {
               setIsInitializing(false);
             }
@@ -703,7 +703,7 @@ function FounderSolVestingSection({
               setTimeout(onRefresh, 500);
             } catch (err: any) {
               Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
-              Alert.alert('Error', err.message);
+              { const p = parseError(err); Alert.alert(p.title, p.message); }
             } finally {
               setIsClaiming(false);
             }
@@ -745,7 +745,7 @@ function FounderSolVestingSection({
             setTimeout(onRefresh, 500);
           } catch (err: any) {
             Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
-            Alert.alert('Error', err.message);
+            { const p = parseError(err); Alert.alert(p.title, p.message); }
           } finally {
             setIsInitializing(false);
           }
@@ -801,7 +801,7 @@ function CloseMarketSection({
             setTimeout(onRefresh, 500);
           } catch (err: any) {
             Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
-            Alert.alert('Error', err.message);
+            { const p = parseError(err); Alert.alert(p.title, p.message); }
           } finally {
             setIsClosing(false);
           }

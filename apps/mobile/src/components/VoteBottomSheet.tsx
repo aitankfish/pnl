@@ -1,6 +1,7 @@
 import React, { forwardRef, useCallback, useState } from 'react';
-import { View, Text, TextInput, StyleSheet } from 'react-native';
-import GorhomBottomSheet from '@gorhom/bottom-sheet';
+import { View, Text, StyleSheet } from 'react-native';
+import GorhomBottomSheet, { BottomSheetTextInput } from '@gorhom/bottom-sheet';
+import { Ionicons } from '@expo/vector-icons';
 import { BottomSheet } from './BottomSheet';
 import { PressableScale } from './PressableScale';
 import { colors, typography, spacing, borderRadius } from '../theme';
@@ -9,15 +10,23 @@ import * as Haptics from 'expo-haptics';
 type Direction = 'yes' | 'no';
 const QUICK_AMOUNTS = [0.1, 0.5, 1, 5];
 
+interface PositionData {
+  hasPosition: boolean;
+  side: 'yes' | 'no' | null;
+  totalAmount: number;
+}
+
 interface VoteBottomSheetProps {
   direction: Direction | null;
   marketTitle: string;
+  solBalance?: number;
+  positionData?: PositionData | null;
   onConfirm: (direction: Direction, amount: number) => void;
   onClose: () => void;
 }
 
 export const VoteBottomSheet = forwardRef<GorhomBottomSheet, VoteBottomSheetProps>(
-  ({ direction, marketTitle, onConfirm, onClose }, ref) => {
+  ({ direction, marketTitle, solBalance, positionData, onConfirm, onClose }, ref) => {
     const [amount, setAmount] = useState('');
 
     const handleQuickAmount = useCallback((val: number) => {
@@ -49,8 +58,22 @@ export const VoteBottomSheet = forwardRef<GorhomBottomSheet, VoteBottomSheetProp
             {marketTitle}
           </Text>
 
-          <Text style={styles.label}>Amount (SOL)</Text>
-          <TextInput
+          {positionData?.hasPosition && (
+            <View style={styles.positionBanner}>
+              <Ionicons name="wallet-outline" size={14} color={positionData.side === 'yes' ? colors.success : colors.danger} />
+              <Text style={styles.positionText}>
+                Your position: <Text style={{ color: positionData.side === 'yes' ? colors.success : colors.danger, fontWeight: '700' }}>{positionData.side?.toUpperCase()}</Text> — {positionData.totalAmount.toFixed(4)} SOL
+              </Text>
+            </View>
+          )}
+
+          <View style={styles.labelRow}>
+            <Text style={styles.label}>Amount (SOL)</Text>
+            {solBalance != null && (
+              <Text style={styles.balanceText}>Balance: {solBalance.toFixed(4)} SOL</Text>
+            )}
+          </View>
+          <BottomSheetTextInput
             style={styles.input}
             value={amount}
             onChangeText={setAmount}
@@ -131,9 +154,33 @@ const styles = StyleSheet.create({
     color: colors.textPrimary,
     textAlign: 'center',
   },
+  positionBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    backgroundColor: 'rgba(255,255,255,0.05)',
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: borderRadius.md,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: spacing.xs + 2,
+  },
+  positionText: {
+    ...typography.caption,
+    color: colors.textSecondary,
+  },
+  labelRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
   label: {
     ...typography.captionBold,
     color: colors.textSecondary,
+  },
+  balanceText: {
+    ...typography.caption,
+    color: colors.textMuted,
   },
   input: {
     borderWidth: 2,

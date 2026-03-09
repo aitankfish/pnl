@@ -31,9 +31,12 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as Haptics from 'expo-haptics';
 import GorhomBottomSheet from '@gorhom/bottom-sheet';
 import { Ionicons } from '@expo/vector-icons';
-import { useMarkets } from '@pnl/shared/hooks';
+import { useMarkets, useNetwork } from '@pnl/shared/hooks';
 import type { Market } from '@pnl/shared/hooks';
+import { apiUrl } from '@pnl/shared/utils';
 import { useAuth } from '../../src/providers/AuthProvider';
+import { useWalletBalance } from '../../src/hooks/useWalletBalance';
+import { useVote } from '../../src/hooks/useVote';
 import { useVoiceRoomContextSafe } from '../../src/providers/VoiceRoomProvider';
 import {
   FeedCard,
@@ -420,6 +423,9 @@ export default function FeedScreen() {
   const { markets, isLoading, error, refresh, activeVoiceRooms, newMarkets, clearNewMarkets } =
     useMarkets();
   const { isAuthenticated, walletAddress } = useAuth();
+  const { network } = useNetwork();
+  const { solBalance } = useWalletBalance(walletAddress);
+  const { submitVote } = useVote({ onSuccess: refresh });
   const voiceRoom = useVoiceRoomContextSafe();
   const { preferences, updatePreferences, resetToDefaults } = useCuratePreferences();
 
@@ -442,6 +448,7 @@ export default function FeedScreen() {
   const sheetRef = useRef<GorhomBottomSheet>(null);
   const [voteDirection, setVoteDirection] = useState<VoteDirection | null>(null);
   const [voteMarket, setVoteMarket] = useState<Market | null>(null);
+  const [votePositionData, setVotePositionData] = useState<any>(null);
 
   // Curate sheet
   const curateSheetRef = useRef<GorhomBottomSheet>(null);
@@ -544,7 +551,7 @@ export default function FeedScreen() {
   }, [newMarkets, clearNewMarkets, refresh, activePage]);
 
   const handleVote = useCallback(
-    (market: Market, direction: VoteDirection) => {
+    async (market: Market, direction: VoteDirection) => {
       if (!isAuthenticated) {
         router.push('/login');
         return;
@@ -552,18 +559,27 @@ export default function FeedScreen() {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
       setVoteMarket(market);
       setVoteDirection(direction);
+      setVotePositionData(null);
       sheetRef.current?.snapToIndex(0);
+      // Fetch position in background
+      if (walletAddress) {
+        try {
+          const res = await fetch(apiUrl(`/api/markets/${market.id}/position?wallet=${walletAddress}&network=${network}`));
+          const data = await res.json();
+          if (data?.success && data.data) setVotePositionData(data.data);
+        } catch {}
+      }
     },
-    [isAuthenticated],
+    [isAuthenticated, walletAddress, network],
   );
 
   const handleVoteConfirm = useCallback(
-    (direction: VoteDirection, amount: number) => {
-      console.log('Vote confirmed:', direction, amount, voteMarket?.id);
+    async (direction: VoteDirection, amount: number) => {
+      if (!voteMarket) return;
       sheetRef.current?.close();
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      await submitVote(voteMarket.marketAddress, voteMarket.id, direction, amount);
     },
-    [voteMarket],
+    [voteMarket, submitVote],
   );
 
   const onFeedViewableItemsChanged = useCallback(
@@ -865,10 +881,13 @@ export default function FeedScreen() {
         ref={sheetRef}
         direction={voteDirection}
         marketTitle={voteMarket?.name ?? ''}
+        solBalance={solBalance}
+        positionData={votePositionData}
         onConfirm={handleVoteConfirm}
         onClose={() => {
           setVoteDirection(null);
           setVoteMarket(null);
+          setVotePositionData(null);
         }}
       />
     </View>

@@ -8,7 +8,7 @@ import { Alert } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { VersionedTransaction } from '@solana/web3.js';
 import { getSolanaConnection } from '@pnl/shared/solana';
-import { apiUrl } from '@pnl/shared/utils';
+import { apiUrl, parseError } from '@pnl/shared/utils';
 import { useNetwork } from '@pnl/shared/hooks';
 import { useAuth } from '../providers/AuthProvider';
 
@@ -393,12 +393,15 @@ export function useCreateMarket() {
       const transaction = VersionedTransaction.deserialize(txBytes);
 
       const provider = await solanaWallet.wallets[0].getProvider();
-      const { signature } = await provider.signAndSendTransaction(transaction);
+      const connection = await getSolanaConnection();
+      const { signature } = await (provider as any).request({
+        method: 'signAndSendTransaction',
+        params: { transaction, connection },
+      });
 
       // ── Step 4: Confirm on-chain ───────────────────────────────────
       setSubmissionStep('confirming');
 
-      const connection = await getSolanaConnection();
       await connection.confirmTransaction(signature, 'confirmed');
 
       // ── Step 5: Save to backend ────────────────────────────────────
@@ -428,7 +431,8 @@ export function useCreateMarket() {
     } catch (err: any) {
       console.error('Market creation failed:', err);
       setSubmissionStep('error');
-      Alert.alert('Creation Failed', err.message || 'Something went wrong. Your data is preserved — please try again.');
+      const parsed = parseError(err);
+      Alert.alert(parsed.title, `${parsed.message}\n\nYour data is preserved — please try again.`);
       // Reset submission step so user can retry
       setTimeout(() => setSubmissionStep('idle'), 300);
       return false;

@@ -34,6 +34,9 @@ export const BottomSheet = forwardRef<GorhomBottomSheet, BottomSheetProps>(
         backdropComponent={renderBackdrop}
         backgroundStyle={styles.background}
         handleIndicatorStyle={styles.handle}
+        keyboardBehavior="interactive"
+        keyboardBlurBehavior="restore"
+        android_keyboardInputMode="adjustResize"
       >
         <BottomSheetView style={styles.content}>{children}</BottomSheetView>
       </GorhomBottomSheet>
