@@ -296,7 +296,7 @@ function PitchVideoCard({
         pointerEvents="none"
       />
 
-      <Pressable style={styles.muteIndicator} onPress={toggleMute} hitSlop={8}>
+      <Pressable style={[styles.muteIndicator, { top: 110 }]} onPress={toggleMute} hitSlop={8}>
         <Ionicons
           name={isMuted ? 'volume-mute' : 'volume-high'}
           size={18}
@@ -404,9 +404,6 @@ function PitchVideoCard({
             </>
           )}
 
-          <Pressable style={styles.detailBtn} onPress={onPress}>
-            <Ionicons name="arrow-forward" size={18} color="#fff" />
-          </Pressable>
         </View>
       </View>
     </View>
@@ -621,7 +618,7 @@ export default function FeedScreen() {
           onVoteYes={() => handleVote(item, 'yes')}
           onVoteNo={() => handleVote(item, 'no')}
           onPress={() =>
-            router.push({ pathname: `/market/${item.id}`, params: { tab: 'community' } })
+            router.push(`/market/${item.id}` as any)
           }
         />
       ) : (
@@ -974,8 +971,7 @@ const styles = StyleSheet.create({
   },
   muteIndicator: {
     position: 'absolute',
-    bottom: 180,
-    left: 16,
+    right: 16,
     backgroundColor: 'rgba(0,0,0,0.5)',
     borderRadius: 20,
     width: 36,

@@ -9,7 +9,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { connectToDatabase, PredictionMarket, PredictionParticipant } from '@/lib/mongodb';
 import { createClientLogger } from '@/lib/logger';
 import { calculateVoteCounts } from '@/lib/vote-counts';
-import { isMarketDataStale, formatProjectAge, truncateWallet } from '@/lib/api-utils';
+import { isMarketDataStale, formatProjectAge, truncateWallet, convertToGatewayUrl } from '@/lib/api-utils';
 
 // Disable Next.js caching for this route - market data changes frequently
 export const dynamic = 'force-dynamic';
@@ -364,6 +364,7 @@ export async function GET(
       status: market.marketState === 0 ? 'active' : 'resolved',
       metadataUri: market.metadataUri,
       projectImageUrl: imageUrl,
+      pitchVideoUrl: convertToGatewayUrl(project?.pitchVideoUrl) || null,
       documentUrls,
       metadata,
 

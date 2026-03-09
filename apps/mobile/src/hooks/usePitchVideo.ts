@@ -42,6 +42,7 @@ export function usePitchVideo({ projectId, walletAddress, onSuccess }: UsePitchV
         if (!data.success) throw new Error(data.error || 'Upload failed');
 
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+        Alert.alert('Pitch Video Uploaded', 'Your pitch video is now live on the feed!');
         onSuccess?.();
         return true;
       } catch (err: any) {
@@ -98,6 +99,7 @@ export function usePitchVideo({ projectId, walletAddress, onSuccess }: UsePitchV
               if (!data.success) throw new Error(data.error || 'Delete failed');
 
               Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+              Alert.alert('Video Removed', 'Your pitch video has been deleted.');
               onSuccess?.();
             } catch (err: any) {
               console.error('Pitch video delete error:', err);

@@ -16,6 +16,7 @@ import {
   Text,
   StyleSheet,
   ScrollView,
+  FlatList,
   ActivityIndicator,
   Share,
   NativeSyntheticEvent,
@@ -23,6 +24,7 @@ import {
   Linking,
   Alert,
   Pressable,
+  Dimensions,
 } from 'react-native';
 import { useLocalSearchParams, router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
@@ -67,6 +69,7 @@ import { CommunityHub } from '../../src/components/community';
 import { colors, spacing, typography, borderRadius } from '../../src/theme';
 
 const HERO_HEIGHT = 260;
+const SCREEN_WIDTH = Dimensions.get('window').width;
 const TABS = ['Overview', 'AI Analysis', 'Activity', 'Community'] as const;
 type TabName = (typeof TABS)[number];
 type VoteDirection = 'yes' | 'no';
@@ -234,6 +237,18 @@ export default function MarketDetailScreen() {
   const headerBgStyle = useAnimatedStyle(() => ({
     opacity: interpolate(scrollY.value, [HERO_HEIGHT - 120, HERO_HEIGHT - 60], [0, 1], Extrapolation.CLAMP),
   }));
+
+  // ── Hero carousel (image + pitch video) ──
+  const [heroPage, setHeroPage] = useState(0);
+  const hasPitchVideo = !!(market as any)?.pitchVideoUrl;
+  const pitchVideoRef = useRef<Video>(null);
+
+  const handleExpandPitchVideo = useCallback(async () => {
+    if (!pitchVideoRef.current) return;
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    await pitchVideoRef.current.setIsMutedAsync(false);
+    await pitchVideoRef.current.presentFullscreenPlayer();
+  }, []);
 
   // ── Hero video ──
   const videoRef = useRef<Video>(null);
@@ -480,9 +495,63 @@ export default function MarketDetailScreen() {
           scrollEventThrottle={16}
           contentContainerStyle={[styles.scrollContent, { paddingBottom: 100 + insets.bottom }]}
         >
-          {/* Parallax hero — always shows media; chart moved below for launched tokens */}
+          {/* Parallax hero — carousel if pitch video exists */}
           <Animated.View style={[styles.heroContainer, heroStyle]}>
-            {renderHeroMedia()}
+            {hasPitchVideo ? (
+              <>
+                <FlatList
+                  data={['image', 'pitchVideo']}
+                  horizontal
+                  pagingEnabled
+                  showsHorizontalScrollIndicator={false}
+                  keyExtractor={(item) => item}
+                  onMomentumScrollEnd={(e) => {
+                    const page = Math.round(e.nativeEvent.contentOffset.x / SCREEN_WIDTH);
+                    setHeroPage(page);
+                  }}
+                  renderItem={({ item }) => (
+                    <View style={{ width: SCREEN_WIDTH, height: HERO_HEIGHT }}>
+                      {item === 'image' ? (
+                        renderHeroMedia()
+                      ) : (
+                        <>
+                          <Video
+                            ref={pitchVideoRef}
+                            source={{ uri: (market as any).pitchVideoUrl }}
+                            style={StyleSheet.absoluteFill}
+                            resizeMode={ResizeMode.COVER}
+                            shouldPlay={heroPage === 1}
+                            isLooping
+                            isMuted
+                          />
+                          <Pressable
+                            style={styles.expandBtn}
+                            onPress={handleExpandPitchVideo}
+                            hitSlop={8}
+                          >
+                            <Ionicons name="expand-outline" size={20} color="#fff" />
+                          </Pressable>
+                        </>
+                      )}
+                    </View>
+                  )}
+                />
+                {/* Pagination dots */}
+                <View style={styles.heroDots}>
+                  {['image', 'pitchVideo'].map((_, i) => (
+                    <View
+                      key={i}
+                      style={[
+                        styles.heroDot,
+                        heroPage === i && styles.heroDotActive,
+                      ]}
+                    />
+                  ))}
+                </View>
+              </>
+            ) : (
+              renderHeroMedia()
+            )}
             <LinearGradient colors={['transparent', colors.background]} style={styles.heroScrim} />
           </Animated.View>
 
@@ -956,7 +1025,8 @@ const pvStyles = StyleSheet.create({
   hasVideoRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
+    flexWrap: 'wrap',
+    gap: spacing.sm,
   },
   statusBadge: {
     flexDirection: 'row',
@@ -1256,6 +1326,40 @@ const styles = StyleSheet.create({
   headerBg: { position: 'absolute', top: 0, left: 0, right: 0, backgroundColor: 'rgba(10,14,26,0.95)', zIndex: 9 },
   heroContainer: { height: HERO_HEIGHT, overflow: 'hidden' },
   heroScrim: { position: 'absolute', bottom: 0, left: 0, right: 0, height: 100 },
+  heroDots: {
+    position: 'absolute',
+    bottom: 40,
+    left: 0,
+    right: 0,
+    flexDirection: 'row',
+    justifyContent: 'center',
+    gap: 6,
+    zIndex: 10,
+  },
+  heroDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: 'rgba(255,255,255,0.3)',
+  },
+  heroDotActive: {
+    backgroundColor: '#fff',
+  },
+  expandBtn: {
+    position: 'absolute',
+    top: '50%',
+    left: '50%',
+    marginTop: -24,
+    marginLeft: -24,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    borderRadius: 24,
+    width: 48,
+    height: 48,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1.5,
+    borderColor: 'rgba(255,255,255,0.3)',
+  },
   videoPlayHint: {
     position: 'absolute', bottom: 12, left: 12,
   },

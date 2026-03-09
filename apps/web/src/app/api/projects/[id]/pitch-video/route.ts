@@ -2,19 +2,43 @@
  * POST /api/projects/[id]/pitch-video — Upload or replace pitch video
  * DELETE /api/projects/[id]/pitch-video — Remove pitch video
  *
+ * The [id] param can be either a Project _id OR a PredictionMarket _id.
  * Both endpoints verify the caller is the project founder.
  */
 
 import { NextRequest, NextResponse } from 'next/server';
 import { ipfsUtils } from '@/lib/ipfs';
-import { connectToDatabase, Project } from '@/lib/mongodb';
+import { connectToDatabase, Project, PredictionMarket } from '@/lib/mongodb';
+
+function isValidObjectId(id: string): boolean {
+  return /^[a-f\d]{24}$/i.test(id);
+}
+
+/**
+ * Resolve the Project document from an id that could be either a Project _id
+ * or a PredictionMarket _id (which is what the mobile app passes).
+ */
+async function resolveProject(id: string) {
+  if (!isValidObjectId(id)) return null;
+
+  // Try as Project _id first
+  let project = await Project.findById(id);
+  if (project) return project;
+
+  // Fall back: treat id as a PredictionMarket _id and follow its projectId
+  const market = await PredictionMarket.findById(id).select('projectId').lean();
+  if (market && (market as any).projectId) {
+    project = await Project.findById((market as any).projectId);
+  }
+  return project;
+}
 
 export async function POST(
   request: NextRequest,
   { params }: { params: { id: string } },
 ) {
   try {
-    const projectId = params.id;
+    const id = params.id;
 
     const formData = await request.formData();
     const walletAddress = formData.get('walletAddress') as string;
@@ -35,7 +59,7 @@ export async function POST(
 
     await connectToDatabase();
 
-    const project = await Project.findById(projectId);
+    const project = await resolveProject(id);
     if (!project) {
       return NextResponse.json(
         { success: false, error: 'Project not found' },
@@ -80,7 +104,7 @@ export async function DELETE(
   { params }: { params: { id: string } },
 ) {
   try {
-    const projectId = params.id;
+    const id = params.id;
     const { walletAddress } = await request.json();
 
     if (!walletAddress) {
@@ -92,7 +116,7 @@ export async function DELETE(
 
     await connectToDatabase();
 
-    const project = await Project.findById(projectId);
+    const project = await resolveProject(id);
     if (!project) {
       return NextResponse.json(
         { success: false, error: 'Project not found' },
