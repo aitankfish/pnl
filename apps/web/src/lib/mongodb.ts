@@ -143,6 +143,9 @@ const ProjectSchema = new mongoose.Schema({
   pitchVideoUrl: {
     type: String,
   },
+  pitchVideoStreamUid: {
+    type: String,
+  },
   documentUrls: {
     type: [String],
     default: [],

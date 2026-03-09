@@ -2,12 +2,13 @@
  * POST /api/projects/[id]/pitch-video — Upload or replace pitch video
  * DELETE /api/projects/[id]/pitch-video — Remove pitch video
  *
+ * Videos are uploaded to Cloudflare Stream for adaptive bitrate CDN delivery.
  * The [id] param can be either a Project _id OR a PredictionMarket _id.
  * Both endpoints verify the caller is the project founder.
  */
 
 import { NextRequest, NextResponse } from 'next/server';
-import { ipfsUtils } from '@/lib/ipfs';
+import { uploadToStream, deleteFromStream, isStreamUrl, extractStreamUid } from '@/lib/cloudflare-stream';
 import { connectToDatabase, Project, PredictionMarket } from '@/lib/mongodb';
 
 function isValidObjectId(id: string): boolean {
@@ -74,17 +75,30 @@ export async function POST(
       );
     }
 
-    // Upload new video to IPFS
-    const pitchVideoUrl = await ipfsUtils.uploadVideo(videoFile);
+    // Delete old video from Cloudflare Stream if replacing
+    if (project.pitchVideoUrl && isStreamUrl(project.pitchVideoUrl)) {
+      const oldUid = extractStreamUid(project.pitchVideoUrl);
+      if (oldUid) {
+        try {
+          await deleteFromStream(oldUid);
+        } catch (err) {
+          console.warn('Failed to delete old Stream video (continuing):', err);
+        }
+      }
+    }
+
+    // Upload new video to Cloudflare Stream
+    const { playbackUrl, uid } = await uploadToStream(videoFile);
 
     // Update project in database
-    project.pitchVideoUrl = pitchVideoUrl;
+    project.pitchVideoUrl = playbackUrl;
+    project.pitchVideoStreamUid = uid;
     project.updatedAt = new Date();
     await project.save();
 
     return NextResponse.json({
       success: true,
-      data: { pitchVideoUrl },
+      data: { pitchVideoUrl: playbackUrl },
     });
   } catch (error) {
     console.error('Failed to update pitch video:', error);
@@ -131,8 +145,21 @@ export async function DELETE(
       );
     }
 
+    // Delete from Cloudflare Stream
+    if (project.pitchVideoUrl && isStreamUrl(project.pitchVideoUrl)) {
+      const uid = extractStreamUid(project.pitchVideoUrl);
+      if (uid) {
+        try {
+          await deleteFromStream(uid);
+        } catch (err) {
+          console.warn('Failed to delete Stream video (continuing):', err);
+        }
+      }
+    }
+
     // Clear the pitch video URL
     project.pitchVideoUrl = undefined;
+    project.pitchVideoStreamUid = undefined;
     project.updatedAt = new Date();
     await project.save();
 

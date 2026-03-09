@@ -5,6 +5,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { Keypair } from '@solana/web3.js';
 import { ipfsUtils, ProjectMetadata } from '@/lib/ipfs';
+import { uploadToStream } from '@/lib/cloudflare-stream';
 import { createClientLogger } from '@/lib/logger';
 import { connectToDatabase, Project } from '@/lib/mongodb';
 
@@ -136,10 +137,11 @@ export async function POST(request: NextRequest) {
         );
       }
 
-      // Upload pitch video to IPFS if provided as file
+      // Upload pitch video to Cloudflare Stream (CDN with adaptive bitrate)
       if (body.pitchVideo) {
-        logger.info('Uploading pitch video to IPFS');
-        pitchVideoUri = await ipfsUtils.uploadVideo(body.pitchVideo);
+        logger.info('Uploading pitch video to Cloudflare Stream');
+        const { playbackUrl } = await uploadToStream(body.pitchVideo);
+        pitchVideoUri = playbackUrl;
       } else if (body.pitchVideoUrl) {
         // Use pre-uploaded video URL
         pitchVideoUri = body.pitchVideoUrl;

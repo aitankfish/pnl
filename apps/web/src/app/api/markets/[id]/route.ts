@@ -364,7 +364,10 @@ export async function GET(
       status: market.marketState === 0 ? 'active' : 'resolved',
       metadataUri: market.metadataUri,
       projectImageUrl: imageUrl,
-      pitchVideoUrl: convertToGatewayUrl(project?.pitchVideoUrl) || null,
+      // Stream URLs are already full CDN URLs; only convert legacy IPFS ones
+      pitchVideoUrl: project?.pitchVideoUrl?.startsWith('http')
+        ? project.pitchVideoUrl
+        : (convertToGatewayUrl(project?.pitchVideoUrl) || null),
       documentUrls,
       metadata,
 

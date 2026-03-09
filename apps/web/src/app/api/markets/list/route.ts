@@ -200,7 +200,9 @@ export async function GET(request: NextRequest) {
         metadataUri: market.metadataUri,
         projectImageUrl: convertToGatewayUrl(project?.projectImageUrl),
         galleryImageUrls: (project?.galleryImageUrls || []).map(convertToGatewayUrl).filter(Boolean),
-        pitchVideoUrl: convertToGatewayUrl(project?.pitchVideoUrl),
+        pitchVideoUrl: project?.pitchVideoUrl?.startsWith('http')
+          ? project.pitchVideoUrl
+          : convertToGatewayUrl(project?.pitchVideoUrl),
 
         // On-chain fields from blockchain sync
         // For resolved markets, use final values captured at resolution (before pool emptied by claims)
