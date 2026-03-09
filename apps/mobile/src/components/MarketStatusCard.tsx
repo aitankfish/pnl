@@ -9,7 +9,7 @@ import React, { useState, useCallback, useEffect } from 'react';
 import { View, Text, StyleSheet, ActivityIndicator, Alert } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
-import { Transaction } from '@solana/web3.js';
+import { Transaction, VersionedTransaction } from '@solana/web3.js';
 import { getSolanaConnection } from '@pnl/shared/solana';
 import { apiUrl } from '@pnl/shared/utils';
 import { colors, spacing, borderRadius, typography } from '../theme';
@@ -122,12 +122,22 @@ async function signAndSendPrepared(
   if (!serialized) throw new Error('No serialized transaction in response');
 
   const txBytes = Buffer.from(serialized, 'base64');
-  const transaction = Transaction.from(txBytes);
+  // Handle both legacy and versioned transactions
+  let transaction: Transaction | VersionedTransaction;
+  try {
+    transaction = VersionedTransaction.deserialize(txBytes);
+  } catch {
+    transaction = Transaction.from(txBytes);
+  }
+
+  const connection = await getSolanaConnection();
   const provider = await solanaWallet.wallets![0].getProvider();
-  const { signature } = await (provider as any).signAndSendTransaction(transaction);
+  const { signature } = await (provider as any).request({
+    method: 'signAndSendTransaction',
+    params: { transaction, connection },
+  });
 
   // Wait for on-chain confirmation
-  const connection = await getSolanaConnection();
   await connection.confirmTransaction(signature, 'confirmed');
 
   // Call complete endpoint if provided (non-fatal — on-chain tx already succeeded)
@@ -235,7 +245,7 @@ function ClaimSection({
 
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       Alert.alert('Success', 'Claim transaction confirmed!');
-      onRefresh();
+      setTimeout(onRefresh, 500);
     } catch (err: any) {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
       Alert.alert('Claim Failed', err.message);
@@ -324,17 +334,16 @@ function FounderActions({
             try {
               const data = await prepareTransaction('/api/markets/resolve/prepare', {
                 marketAddress: market.marketAddress,
-                userWallet: walletAddress,
+                callerWallet: walletAddress,
                 network,
                 needsTokenLaunch: false,
               });
               await signAndSendPrepared(solanaWallet, data, '/api/markets/resolve/complete', {
                 marketId: market.id,
-                userWallet: walletAddress,
               });
               Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
               Alert.alert('Success', 'Market resolved!');
-              onRefresh();
+              setTimeout(onRefresh, 500);
             } catch (err: any) {
               Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
               Alert.alert('Error', err.message);
@@ -377,16 +386,15 @@ function FounderActions({
             try {
               const data = await prepareTransaction('/api/markets/extend/prepare', {
                 marketAddress: market.marketAddress,
-                userWallet: walletAddress,
+                founderWallet: walletAddress,
                 network,
               });
               await signAndSendPrepared(solanaWallet, data, '/api/markets/extend/complete', {
                 marketId: market.id,
-                userWallet: walletAddress,
               });
               Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
               Alert.alert('Success', 'Market extended to Funding Phase!');
-              onRefresh();
+              setTimeout(onRefresh, 500);
             } catch (err: any) {
               Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
               Alert.alert('Error', err.message);
@@ -422,7 +430,7 @@ function FounderActions({
             try {
               const data = await prepareTransaction('/api/markets/resolve/prepare', {
                 marketAddress: market.marketAddress,
-                userWallet: walletAddress,
+                callerWallet: walletAddress,
                 network,
                 needsTokenLaunch: true,
                 tokenMetadata: {
@@ -433,11 +441,10 @@ function FounderActions({
               });
               await signAndSendPrepared(solanaWallet, data, '/api/markets/resolve/complete', {
                 marketId: market.id,
-                userWallet: walletAddress,
               });
               Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
               Alert.alert('Success', `$${market.tokenSymbol || 'TOKEN'} launched successfully!`);
-              onRefresh();
+              setTimeout(onRefresh, 500);
             } catch (err: any) {
               Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
               Alert.alert('Error', err.message);
@@ -466,17 +473,16 @@ function FounderActions({
           try {
             const data = await prepareTransaction('/api/markets/resolve/prepare', {
               marketAddress: market.marketAddress,
-              userWallet: walletAddress,
+              callerWallet: walletAddress,
               network,
               needsTokenLaunch: false,
             });
             await signAndSendPrepared(solanaWallet, data, '/api/markets/resolve/complete', {
               marketId: market.id,
-              userWallet: walletAddress,
             });
             Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
             Alert.alert('Success', 'Market resolved!');
-            onRefresh();
+            setTimeout(onRefresh, 500);
           } catch (err: any) {
             Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
             Alert.alert('Error', err.message);
@@ -559,12 +565,13 @@ function TeamVestingSection({
                 const data = await prepareTransaction('/api/markets/team-vesting/claim', {
                   marketAddress: market.marketAddress,
                   tokenMint: vestingData?.tokenMint,
-                  userWallet: walletAddress,
+                  teamWallet: walletAddress,
                   network,
                 });
                 await signAndSendPrepared(solanaWallet, data);
                 Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
                 Alert.alert('Success', 'Team tokens claimed!');
+                setTimeout(onRefresh, 500);
               } catch (err: any) {
                 Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
                 Alert.alert('Error', err.message);
@@ -603,12 +610,13 @@ function TeamVestingSection({
               const data = await prepareTransaction('/api/markets/team-vesting/init', {
                 marketAddress: market.marketAddress,
                 teamWallet: walletAddress,
-                userWallet: walletAddress,
+                callerWallet: walletAddress,
                 network,
               });
               await signAndSendPrepared(solanaWallet, data);
               Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
               Alert.alert('Success', 'Team vesting initialized!');
+              setTimeout(onRefresh, 500);
             } catch (err: any) {
               Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
               Alert.alert('Error', err.message);
@@ -686,12 +694,13 @@ function FounderSolVestingSection({
             try {
               const data = await prepareTransaction('/api/markets/founder-sol/claim', {
                 marketAddress: market.marketAddress,
-                userWallet: walletAddress,
+                founderWallet: walletAddress,
                 network,
               });
               await signAndSendPrepared(solanaWallet, data);
               Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
               Alert.alert('Success', 'SOL claimed!');
+              setTimeout(onRefresh, 500);
             } catch (err: any) {
               Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
               Alert.alert('Error', err.message);
@@ -727,12 +736,13 @@ function FounderSolVestingSection({
           try {
             const data = await prepareTransaction('/api/markets/founder-sol/init', {
               marketAddress: market.marketAddress,
-              userWallet: walletAddress,
+              founderWallet: walletAddress,
               network,
             });
             await signAndSendPrepared(solanaWallet, data);
             Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
             Alert.alert('Success', 'SOL vesting initialized!');
+            setTimeout(onRefresh, 500);
           } catch (err: any) {
             Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
             Alert.alert('Error', err.message);
@@ -782,12 +792,13 @@ function CloseMarketSection({
           try {
             const data = await prepareTransaction('/api/markets/close-market', {
               marketAddress: market.marketAddress,
-              userWallet: walletAddress,
+              founderWallet: walletAddress,
               network,
             });
             await signAndSendPrepared(solanaWallet, data);
             Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
             Alert.alert('Success', 'Market closed. Rent recovered!');
+            setTimeout(onRefresh, 500);
           } catch (err: any) {
             Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
             Alert.alert('Error', err.message);

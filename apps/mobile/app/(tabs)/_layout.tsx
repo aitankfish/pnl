@@ -6,13 +6,13 @@
 
 import { useCallback, useEffect, useState } from 'react';
 import { Tabs, router } from 'expo-router';
-import { Platform, StyleSheet, View, Text, Image } from 'react-native';
+import { Platform, StyleSheet, View, Text } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { apiUrl } from '@pnl/shared/utils';
 import { useAuth } from '../../src/providers/AuthProvider';
 import { useProfile, resolveAvatarUrl } from '../../src/hooks/useProfile';
-import { WelcomeCard } from '../../src/components';
+import { WelcomeCard, AvatarImage } from '../../src/components';
 import { colors } from '../../src/theme';
 
 const TAB_BAR_BG = 'transparent';
@@ -184,9 +184,9 @@ export default function TabLayout() {
                     focused && { borderColor: colors.primary },
                   ]}
                 >
-                  <Image
-                    source={{ uri: profileAvatarUrl }}
-                    style={styles.profileAvatar}
+                  <AvatarImage
+                    uri={profileAvatarUrl}
+                    size={24}
                   />
                 </View>
                 {focused && <View style={styles.activeIndicator} />}

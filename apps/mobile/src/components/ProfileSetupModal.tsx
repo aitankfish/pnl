@@ -11,7 +11,6 @@ import {
   Modal,
   TextInput,
   ScrollView,
-  Image,
   ActivityIndicator,
   KeyboardAvoidingView,
   Platform,
@@ -20,6 +19,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import * as Haptics from 'expo-haptics';
 import { PressableScale } from './PressableScale';
+import { AvatarImage } from './AvatarImage';
 import { colors, spacing, borderRadius, typography } from '../theme';
 import {
   COSMIC_AVATARS,
@@ -175,9 +175,9 @@ export function ProfileSetupModal({
                     isSelected && styles.avatarItemSelected,
                   ]}
                 >
-                  <Image
-                    source={{ uri: resolveAvatarUrl(avatar.path) }}
-                    style={styles.avatarImage}
+                  <AvatarImage
+                    uri={resolveAvatarUrl(avatar.path)}
+                    size={styles.avatarImage.width}
                   />
                   <Text
                     style={[

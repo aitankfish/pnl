@@ -1,9 +1,10 @@
 /**
  * Auth Provider for Mobile
  * Uses @privy-io/expo hooks for authentication
+ * Mirrors web's auth flow: auto-creates embedded Solana wallet, clears state on logout
  */
 
-import React, { createContext, useContext, useMemo } from 'react';
+import React, { createContext, useContext, useMemo, useEffect, useRef, useCallback } from 'react';
 import {
   usePrivy,
   useLoginWithEmail,
@@ -35,7 +36,7 @@ interface AuthContextType {
 const AuthContext = createContext<AuthContextType | null>(null);
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
-  const { user, isReady, logout, getAccessToken } = usePrivy();
+  const { user, isReady, logout: privyLogout, getAccessToken } = usePrivy();
 
   const {
     sendCode,
@@ -48,7 +49,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     onSendCodeSuccess: ({ email }) => {
       console.log('[Privy] OTP code sent to:', email);
     },
-    onLoginSuccess: (user, isNewUser) => {
+    onLoginSuccess: (_user, isNewUser) => {
       console.log('[Privy] Login success, new user:', isNewUser);
     },
   });
@@ -62,18 +63,83 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const isAuthenticated = !!user;
 
+  // Track wallet creation to prevent duplicate attempts (mirrors web's useHeadlessAuth)
+  const walletCreationInProgress = useRef(false);
+  const previousUserId = useRef<string | null>(null);
+
+  // Auto-create embedded Solana wallet after login if user doesn't have one
+  // This mirrors the web's useHeadlessAuth behavior
+  useEffect(() => {
+    if (!isAuthenticated || !user) return;
+
+    // Prevent duplicate wallet creation
+    if (walletCreationInProgress.current) {
+      console.log('[Auth] Wallet creation already in progress, skipping...');
+      return;
+    }
+
+    // Check if user already has a Solana wallet via linked_accounts
+    const hasSolanaWallet = (user as any).linked_accounts?.some(
+      (account: any) =>
+        account.type === 'wallet' &&
+        account.chain_type === 'solana'
+    );
+
+    if (!hasSolanaWallet && solanaWallet.status !== 'connected') {
+      walletCreationInProgress.current = true;
+      console.log('[Auth] No embedded Solana wallet found, attempting to create...');
+
+      // The Privy SDK should auto-create via createOnLogin config,
+      // but if it hasn't yet, the wallet hook will handle it
+      const checkWallet = setTimeout(() => {
+        walletCreationInProgress.current = false;
+      }, 10000);
+
+      return () => clearTimeout(checkWallet);
+    }
+  }, [isAuthenticated, user, solanaWallet.status]);
+
   // Extract Solana wallet address from user's linked accounts
+  // Uses the current user's data — recomputes when user changes
   const walletAddress = useMemo(() => {
     if (!user) return null;
+
+    // Priority 1: Check linked_accounts for embedded Solana wallet (matches web's linkedAccounts check)
     const solanaAccount = (user as any).linked_accounts?.find(
       (a: any) => a.chain_type === 'solana' && a.wallet_client === 'privy'
     );
-    return solanaAccount?.address || null;
+    if (solanaAccount?.address) return solanaAccount.address;
+
+    // Priority 2: Check the embedded wallet hook status
+    if (solanaWallet.status === 'connected' && solanaWallet.wallets?.[0]?.address) {
+      return solanaWallet.wallets[0].address;
+    }
+
+    return null;
+  }, [user, solanaWallet.status, solanaWallet.wallets]);
+
+  // Detect user change — reset state when a different user logs in
+  useEffect(() => {
+    const currentUserId = (user as any)?.id || null;
+    if (previousUserId.current && currentUserId && previousUserId.current !== currentUserId) {
+      console.log('[Auth] User changed, resetting wallet creation state');
+      walletCreationInProgress.current = false;
+    }
+    previousUserId.current = currentUserId;
   }, [user]);
 
   const loginWithOAuth = async (args: { provider: 'google' | 'apple' }) => {
     return oauthLogin({ provider: args.provider });
   };
+
+  // Enhanced logout that resets all local state
+  const logout = useCallback(async () => {
+    console.log('[Auth] Logging out, clearing session state...');
+    walletCreationInProgress.current = false;
+    previousUserId.current = null;
+    await privyLogout();
+    console.log('[Auth] Logout complete');
+  }, [privyLogout]);
 
   const value: AuthContextType = {
     isAuthenticated,

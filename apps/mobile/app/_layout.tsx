@@ -102,7 +102,17 @@ function AppContent() {
 export default function RootLayout() {
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
-      <PrivyProvider appId={PRIVY_APP_ID} clientId={PRIVY_CLIENT_ID}>
+      <PrivyProvider
+        appId={PRIVY_APP_ID}
+        clientId={PRIVY_CLIENT_ID}
+        config={{
+          embedded: {
+            solana: {
+              createOnLogin: 'all-users',
+            },
+          },
+        }}
+      >
         <PrivyElements />
         <SWRConfig value={swrConfig}>
           <NetworkProvider>

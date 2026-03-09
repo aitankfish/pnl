@@ -9,11 +9,9 @@ import {
   StyleSheet,
   ScrollView,
   ActivityIndicator,
-  Image,
 } from 'react-native';
 import { useLocalSearchParams, router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as Clipboard from 'expo-clipboard';
 import * as Haptics from 'expo-haptics';
@@ -25,6 +23,7 @@ import {
   PressableScale,
   GlassCard,
   EmptyState,
+  AvatarImage,
 } from '../../src/components';
 import { colors, spacing, typography, borderRadius } from '../../src/theme';
 
@@ -175,16 +174,7 @@ export default function PublicProfileScreen() {
         {/* Avatar + name */}
         <View style={styles.header}>
           <View style={styles.avatarContainer}>
-            {profile.profilePhotoUrl ? (
-              <Image source={{ uri: profile.profilePhotoUrl }} style={styles.avatar} />
-            ) : (
-              <LinearGradient
-                colors={['#8b5cf6', '#06b6d4']}
-                style={styles.avatar}
-              >
-                <Ionicons name="person" size={36} color="#fff" />
-              </LinearGradient>
-            )}
+            <AvatarImage uri={profile.profilePhotoUrl} size={80} fallbackIconSize={36} />
           </View>
 
           <Text style={styles.username}>

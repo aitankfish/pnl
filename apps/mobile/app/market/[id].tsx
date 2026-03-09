@@ -209,7 +209,7 @@ export default function MarketDetailScreen() {
   // ── Vesting data (founder-only, YesWins markets) ──
   const isFounder = !!walletAddress && !!market?.founderWallet && walletAddress === market.founderWallet;
   const isYesWins = market?.resolution === 'YesWins';
-  const { data: vestingResponse } = useSWR(
+  const { data: vestingResponse, mutate: refetchVesting } = useSWR(
     isYesWins && market?.marketAddress
       ? `/api/markets/${market.marketAddress}/vesting?network=${network}`
       : null,
@@ -713,7 +713,7 @@ export default function MarketDetailScreen() {
                 vestingData={vestingData}
                 walletAddress={walletAddress}
                 solanaWallet={solanaWallet}
-                onRefresh={() => { refreshMarket(); refetchPosition(); }}
+                onRefresh={() => { refreshMarket(); refetchPosition(); refetchVesting(); refetchActivity(); }}
                 tokenMintAddr={tokenMintAddress}
               />
             )}

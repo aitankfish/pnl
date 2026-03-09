@@ -4,10 +4,10 @@ import {
   Text,
   StyleSheet,
   ActivityIndicator,
-  Image,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { PressableScale } from './PressableScale';
+import { AvatarImage } from './AvatarImage';
 import { colors, spacing, borderRadius } from '../theme';
 import type {
   SearchResults,
@@ -74,14 +74,7 @@ export function SearchDropdown({
               style={styles.row}
             >
               <View style={styles.avatarUser}>
-                {user.profilePhotoUrl ? (
-                  <Image
-                    source={{ uri: user.profilePhotoUrl }}
-                    style={styles.avatarImage}
-                  />
-                ) : (
-                  <Ionicons name="person" size={16} color="#fff" />
-                )}
+                <AvatarImage uri={user.profilePhotoUrl} size={32} fallbackIconSize={16} />
               </View>
               <View style={styles.rowContent}>
                 <Text style={styles.rowTitle} numberOfLines={1}>
@@ -118,14 +111,7 @@ export function SearchDropdown({
               style={styles.row}
             >
               <View style={styles.avatarMarket}>
-                {market.projectImageUrl ? (
-                  <Image
-                    source={{ uri: market.projectImageUrl }}
-                    style={styles.avatarImage}
-                  />
-                ) : (
-                  <Ionicons name="stats-chart" size={16} color="#fff" />
-                )}
+                <AvatarImage uri={market.projectImageUrl} size={32} fallbackIconSize={16} />
               </View>
               <View style={styles.rowContent}>
                 <Text style={styles.rowTitle} numberOfLines={1}>

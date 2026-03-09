@@ -9,7 +9,6 @@ import {
   Text,
   StyleSheet,
   FlatList,
-  Image,
   ActivityIndicator,
 } from 'react-native';
 import { useLocalSearchParams, router } from 'expo-router';
@@ -18,6 +17,7 @@ import * as Haptics from 'expo-haptics';
 import { useAuth } from '../src/providers/AuthProvider';
 import { useFollowers, useFollowing, useToggleFollow, type FollowUser } from '../src/hooks/useFollow';
 import { resolveAvatarUrl } from '../src/hooks/useProfile';
+import { AvatarImage } from '../src/components';
 import { ScreenHeader, PressableScale } from '../src/components';
 import { colors, spacing, borderRadius, typography } from '../src/theme';
 
@@ -77,13 +77,7 @@ export default function FollowersScreen() {
             }
             style={styles.userInfo}
           >
-            {avatarUrl ? (
-              <Image source={{ uri: avatarUrl }} style={styles.avatar} />
-            ) : (
-              <View style={[styles.avatar, styles.avatarPlaceholder]}>
-                <Ionicons name="person" size={20} color={colors.textMuted} />
-              </View>
-            )}
+            <AvatarImage uri={avatarUrl} size={styles.avatar.width} fallbackIconSize={20} />
             <View style={styles.userText}>
               <Text style={styles.username} numberOfLines={1}>
                 {item.username ? `@${item.username}` : truncateAddr(item.walletAddress)}

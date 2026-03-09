@@ -40,6 +40,7 @@ import {
   GlassCard,
   SectionHeader,
   EmptyState,
+  AvatarImage,
 } from '../../src/components';
 import { ProfileSetupModal } from '../../src/components/ProfileSetupModal';
 import { PortfolioTabs } from '../../src/components/PortfolioTabs';
@@ -114,7 +115,6 @@ export default function ProfileScreen() {
 
   const [showSetupModal, setShowSetupModal] = useState(false);
   const [showMenu, setShowMenu] = useState(false);
-  const [avatarError, setAvatarError] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
   const [editBio, setEditBio] = useState('');
   const [refreshing, setRefreshing] = useState(false);
@@ -224,13 +224,6 @@ export default function ProfileScreen() {
     ? resolveAvatarUrl(profile.profilePhotoUrl)
     : null;
 
-  // Reset avatar error when URL changes (e.g. after uploading a new photo)
-  const prevAvatarUrl = useRef(avatarUrl);
-  if (prevAvatarUrl.current !== avatarUrl) {
-    prevAvatarUrl.current = avatarUrl;
-    if (avatarError) setAvatarError(false);
-  }
-
   return (
     <View style={styles.container}>
       {/* ─── Compact Header (replaces ScreenHeader) ─── */}
@@ -238,17 +231,11 @@ export default function ProfileScreen() {
         <View style={[styles.compactHeader, { paddingTop: insets.top + 8 }]}>
           <View style={styles.headerLeft}>
             <PressableScale onPress={handleAvatarPress} style={styles.headerAvatarWrap}>
-              {avatarUrl && !avatarError ? (
-                <Image
-                  source={{ uri: avatarUrl }}
-                  style={styles.headerAvatar}
-                  onError={() => setAvatarError(true)}
-                />
-              ) : (
-                <View style={[styles.headerAvatar, styles.headerAvatarPlaceholder]}>
-                  <Ionicons name="person" size={16} color={colors.textMuted} />
-                </View>
-              )}
+              <AvatarImage
+                uri={avatarUrl}
+                size={styles.headerAvatar.width}
+                fallbackIconSize={16}
+              />
               {isPhotoUploading && (
                 <ActivityIndicator size={10} color={colors.primary} style={{ position: 'absolute' }} />
               )}

@@ -1,6 +1,6 @@
 import { useEffect, useCallback } from 'react';
 import { View, Text, StyleSheet, Pressable, Alert, ActionSheetIOS, Platform } from 'react-native';
-import { Image } from 'expo-image';
+import { AvatarImage } from '../AvatarImage';
 import Animated, { useSharedValue, useAnimatedStyle, withRepeat, withTiming, Easing } from 'react-native-reanimated';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
@@ -152,7 +152,7 @@ export function VoiceSpeakerAvatar({
       {/* Avatar */}
       <View style={[styles.avatar, { borderColor: getBorderColor() }]}>
         {participant.profilePhotoUrl ? (
-          <Image source={{ uri: participant.profilePhotoUrl }} style={styles.avatarImage} />
+          <AvatarImage uri={participant.profilePhotoUrl} size={AVATAR_SIZE} />
         ) : (
           <Text style={styles.initials}>{initials}</Text>
         )}

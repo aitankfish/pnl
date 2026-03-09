@@ -1,3 +1,4 @@
+export { AvatarImage } from './AvatarImage';
 export { PressableScale } from './PressableScale';
 export { GlassCard } from './GlassCard';
 export { ScreenHeader } from './ScreenHeader';
