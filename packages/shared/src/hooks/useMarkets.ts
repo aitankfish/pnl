@@ -68,24 +68,33 @@ export function useMarkets(category?: string, status?: string) {
   // Build SWR key with status parameter for server-side filtering
   const swrKey = `/api/markets/list?status=${status || 'active'}`;
 
+  // Socket.IO for real-time updates
+  const { marketUpdates, activeVoiceRooms, newMarkets, clearNewMarkets, isConnected: socketConnected } = useAllMarketsSocket();
+
+  // Adaptive polling: reduce SWR frequency when Socket.IO is healthy
+  const refreshInterval = socketConnected ? 60000 : 15000;
+
   // Fetch markets via SWR
   const { data, error, isLoading, mutate } = useSWR<ApiResponse<MarketsResponse>>(
     swrKey,
     fetcher,
     {
       ...realtimeConfig,
-      // Refresh every 30 seconds as baseline
-      refreshInterval: 30000,
+      refreshInterval,
+      dedupingInterval: 5000,
     }
   );
-
-  // Socket.IO for real-time updates
-  const { marketUpdates, activeVoiceRooms, newMarkets, clearNewMarkets, isConnected: socketConnected } = useAllMarketsSocket();
 
   // Merge socket updates with SWR data
   const markets = data?.data?.markets?.map((market) => {
     const update = marketUpdates.get(market.marketAddress);
     if (update) {
+      // For resolved markets: preserve final pool values from SWR
+      const isResolved = market.resolution && market.resolution !== 'Unresolved';
+      if (isResolved) {
+        const { poolBalance, poolProgressPercentage, ...safeUpdate } = update as any;
+        return { ...market, ...safeUpdate };
+      }
       return { ...market, ...update };
     }
     return market;

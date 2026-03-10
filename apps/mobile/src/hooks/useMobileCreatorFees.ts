@@ -47,9 +47,9 @@ export function useMobileCreatorFees(walletAddress: string | null) {
     walletAddress ? apiUrl(`/api/user/${walletAddress}/creator-fees`) : null,
     fetcher,
     {
-      refreshInterval: 30000,
-      revalidateOnFocus: true,
-      dedupingInterval: 10000,
+      refreshInterval: 120_000,
+      revalidateOnFocus: false,
+      dedupingInterval: 15_000,
     },
   );
 

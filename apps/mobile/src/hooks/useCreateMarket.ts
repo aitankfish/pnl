@@ -5,14 +5,27 @@
 
 import { useState, useCallback, useEffect, useRef } from 'react';
 import { Alert } from 'react-native';
-import AsyncStorage from '@react-native-async-storage/async-storage';
+import * as SecureStore from 'expo-secure-store';
 import { VersionedTransaction } from '@solana/web3.js';
 import { getSolanaConnection } from '@pnl/shared/solana';
 import { apiUrl, parseError } from '@pnl/shared/utils';
 import { useNetwork } from '@pnl/shared/hooks';
 import { useAuth } from '../providers/AuthProvider';
 
-const DRAFT_KEY = 'pnl:create-market-draft';
+const DRAFT_KEY = 'pnl_create_market_draft';
+
+// SecureStore has a 2048-byte limit on iOS — wrap operations safely
+const storage = {
+  get(key: string): string | null {
+    try { return SecureStore.getItem(key); } catch { return null; }
+  },
+  set(key: string, value: string) {
+    try { SecureStore.setItem(key, value); } catch {}
+  },
+  remove(key: string) {
+    try { SecureStore.deleteItemAsync(key); } catch {}
+  },
+};
 
 // ── Types ──────────────────────────────────────────────────────────────
 
@@ -168,8 +181,8 @@ export function useCreateMarket() {
   // ── Draft: Load on mount ──────────────────────────────────────────────
 
   useEffect(() => {
-    AsyncStorage.getItem(DRAFT_KEY).then((raw) => {
-      if (!raw) { draftLoaded.current = true; return; }
+    const raw = storage.get(DRAFT_KEY);
+    if (raw) {
       try {
         const draft: Draft = JSON.parse(raw);
         setForm(draft.form);
@@ -178,12 +191,11 @@ export function useCreateMarket() {
         setPitchVideoState(draft.pitchVideo);
         setCurrentStep(draft.currentStep);
         setHasDraft(true);
-        draftLoaded.current = true;
       } catch {
-        AsyncStorage.removeItem(DRAFT_KEY);
-        draftLoaded.current = true;
+        storage.remove(DRAFT_KEY);
       }
-    });
+    }
+    draftLoaded.current = true;
   }, []);
 
   // ── Draft: Auto-save on changes (debounced 500ms) ─────────────────────
@@ -195,7 +207,7 @@ export function useCreateMarket() {
       const isEmpty =
         !form.name && !form.description && !form.tokenSymbol && !projectImage;
       if (isEmpty) {
-        AsyncStorage.removeItem(DRAFT_KEY);
+        storage.remove(DRAFT_KEY);
         setHasDraft(false);
         return;
       }
@@ -207,7 +219,7 @@ export function useCreateMarket() {
         currentStep,
         savedAt: Date.now(),
       };
-      AsyncStorage.setItem(DRAFT_KEY, JSON.stringify(draft));
+      storage.set(DRAFT_KEY, JSON.stringify(draft));
       setHasDraft(true);
     }, 500);
     return () => { if (saveTimer.current) clearTimeout(saveTimer.current); };
@@ -216,7 +228,7 @@ export function useCreateMarket() {
   // ── Draft: Clear helper ───────────────────────────────────────────────
 
   const clearDraft = useCallback(() => {
-    AsyncStorage.removeItem(DRAFT_KEY);
+    storage.remove(DRAFT_KEY);
     setHasDraft(false);
   }, []);
 

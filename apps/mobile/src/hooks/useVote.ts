@@ -13,9 +13,11 @@ import { getSolanaConnection } from '@pnl/shared/solana';
 import { useAuth } from '../providers/AuthProvider';
 
 type VoteDirection = 'yes' | 'no';
+type VoteStage = 'signing' | 'confirming' | 'success' | 'error';
 
 interface UseVoteOptions {
   onSuccess?: () => void;
+  onStageChange?: (stage: VoteStage, direction: VoteDirection, amount: number, marketName: string, message?: string) => void;
 }
 
 export function useVote(options?: UseVoteOptions) {
@@ -24,7 +26,7 @@ export function useVote(options?: UseVoteOptions) {
   const [isVoting, setIsVoting] = useState(false);
 
   const submitVote = useCallback(
-    async (marketAddress: string, marketId: string, direction: VoteDirection, amount: number) => {
+    async (marketAddress: string, marketId: string, direction: VoteDirection, amount: number, marketName?: string) => {
       if (!walletAddress || !solanaWallet) return false;
       setIsVoting(true);
       try {
@@ -46,6 +48,7 @@ export function useVote(options?: UseVoteOptions) {
         if (!prepareData.success) throw new Error(prepareData.error || 'Failed to prepare vote transaction');
 
         // Step 2: Sign & send with Privy embedded wallet
+        options?.onStageChange?.('signing', direction, amount, marketName || '');
         const txBytes = Buffer.from(prepareData.data.serializedTransaction, 'base64');
         let transaction: Transaction | VersionedTransaction;
         try {
@@ -61,6 +64,7 @@ export function useVote(options?: UseVoteOptions) {
         });
 
         // Step 3: Wait for confirmation
+        options?.onStageChange?.('confirming', direction, amount, marketName || '');
         await connection.confirmTransaction(signature, 'confirmed');
 
         // Step 4: Record in database
@@ -77,14 +81,14 @@ export function useVote(options?: UseVoteOptions) {
         });
 
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-        Alert.alert('Vote Confirmed', `Your ${direction.toUpperCase()} vote of ${amount} SOL was confirmed on-chain.`);
+        options?.onStageChange?.('success', direction, amount, marketName || '');
         options?.onSuccess?.();
         return true;
       } catch (err: any) {
         console.error('Vote error:', err);
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
         const parsed = parseError(err);
-        Alert.alert(parsed.title, parsed.message);
+        options?.onStageChange?.('error', direction, amount, marketName || '', parsed.message);
         return false;
       } finally {
         setIsVoting(false);

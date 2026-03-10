@@ -8,6 +8,7 @@ import { PoolProgress } from './PoolProgress';
 import { CategoryPill } from './CategoryPill';
 import { TimeCountdown } from './TimeCountdown';
 import { LiveDot } from './LiveDot';
+import { NewBadge } from './NewBadge';
 import { colors, typography, spacing, borderRadius } from '../theme';
 import { shadows } from '../theme/shadows';
 
@@ -43,12 +44,13 @@ interface MarketCardProps {
     noVoteDisabledReason?: string;
   };
   hasVideo?: boolean;
+  isNew?: boolean;
   votingState?: { voteType: 'yes' | 'no' } | null;
   onQuickVote?: (voteType: 'yes' | 'no') => void;
   onPress: () => void;
 }
 
-export function MarketCard({ market, hasVideo, votingState, onQuickVote, onPress }: MarketCardProps) {
+export function MarketCard({ market, hasVideo, isNew, votingState, onQuickVote, onPress }: MarketCardProps) {
   const isActionable = market.isYesVoteEnabled || market.isNoVoteEnabled;
   const isVotingYes = votingState?.voteType === 'yes';
   const isVotingNo = votingState?.voteType === 'no';
@@ -58,8 +60,9 @@ export function MarketCard({ market, hasVideo, votingState, onQuickVote, onPress
   return (
     <PressableScale
       onPress={onPress}
-      style={StyleSheet.flatten([styles.card, shadows.md, isEnded && styles.cardEnded])}
+      style={StyleSheet.flatten([styles.card, shadows.md, isEnded && styles.cardEnded, isNew && styles.cardNew])}
     >
+      {isNew && <NewBadge visible />}
       {market.projectImageUrl && (
         <View>
           <Image
@@ -195,6 +198,10 @@ const styles = StyleSheet.create({
   },
   cardEnded: {
     opacity: 0.65,
+  },
+  cardNew: {
+    borderColor: '#8b5cf6',
+    borderWidth: 1.5,
   },
   image: {
     width: '100%',

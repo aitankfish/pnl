@@ -9,7 +9,8 @@
     "android": "expo run:android",
     "ios": "expo run:ios",
     "lint": "eslint .",
-    "clean": "rm -rf .expo dist node_modules/.cache"
+    "clean": "rm -rf .expo dist node_modules/.cache",
+    "sim": "./start-sim.sh"
   },
   "dependencies": {
     "@coral-xyz/anchor": "^0.32.1",
@@ -42,6 +43,7 @@
     "expo-secure-store": "~15.0.8",
     "expo-splash-screen": "~31.0.13",
     "expo-status-bar": "~3.0.9",
+    "expo-video": "^3.0.16",
     "expo-web-browser": "~15.0.10",
     "mediasoup-client": "^3.7.16",
     "react": "19.1.0",

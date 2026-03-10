@@ -5,7 +5,7 @@
  * Uses mobile AuthProvider directly (shared useNotifications depends on web-only privy).
  */
 
-import { useCallback, useEffect, useState, useMemo } from 'react';
+import { useCallback, useEffect, useRef, useState, useMemo } from 'react';
 import {
   View,
   Text,
@@ -26,6 +26,7 @@ import Reanimated, {
   interpolate,
 } from 'react-native-reanimated';
 import { apiUrl } from '@pnl/shared/utils';
+import { useUserSocket } from '@pnl/shared/hooks';
 import { useAuth } from '../../src/providers/AuthProvider';
 import { ScreenHeader, StatusTabs } from '../../src/components';
 import type { StatusTab } from '../../src/components/StatusTabs';
@@ -232,6 +233,33 @@ export default function NotificationsScreen() {
   const [isLoading, setIsLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [activeFilter, setActiveFilter] = useState<FilterKey>('all');
+
+  // Real-time notifications via Socket.IO
+  const { notifications: socketNotifications } = useUserSocket(walletAddress);
+  const lastSocketCountRef = useRef(0);
+
+  useEffect(() => {
+    if (socketNotifications.length <= lastSocketCountRef.current) return;
+    // New notifications arrived via socket — prepend them
+    const newOnes = socketNotifications.slice(0, socketNotifications.length - lastSocketCountRef.current);
+    lastSocketCountRef.current = socketNotifications.length;
+
+    const transformed = newOnes
+      .map((raw: any) => {
+        try { return transform(raw); } catch { return null; }
+      })
+      .filter(Boolean) as Notification[];
+
+    if (transformed.length > 0) {
+      setNotifications((prev) => {
+        // Deduplicate by id
+        const existingIds = new Set(prev.map((n) => n.id));
+        const unique = transformed.filter((n) => !existingIds.has(n.id));
+        return [...unique, ...prev];
+      });
+      setUnreadCount((prev) => prev + transformed.length);
+    }
+  }, [socketNotifications]);
 
   const fetchNotifications = useCallback(async () => {
     if (!isAuthenticated || !walletAddress) {

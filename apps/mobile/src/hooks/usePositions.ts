@@ -39,9 +39,9 @@ export function usePositions(walletAddress: string | null) {
     walletAddress ? `/api/user/${walletAddress}/positions` : null,
     fetcher,
     {
-      refreshInterval: 30_000,
-      dedupingInterval: 5000,
-      revalidateOnFocus: true,
+      refreshInterval: 60_000,
+      dedupingInterval: 10_000,
+      revalidateOnFocus: false,
     },
   );
 

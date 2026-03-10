@@ -224,6 +224,18 @@ export default function ProfileScreen() {
     ? resolveAvatarUrl(profile.profilePhotoUrl)
     : null;
 
+  // Unified initial loading — show skeleton until core data is ready
+  const isInitialLoad = isAuthenticated && (profileLoading || balanceLoading) && !profile && solBalance === 0;
+
+  if (isInitialLoad) {
+    return (
+      <View style={[styles.container, styles.loadingContainer]}>
+        <ActivityIndicator size="large" color={colors.primary} />
+        <Text style={styles.loadingContainerText}>Loading profile...</Text>
+      </View>
+    );
+  }
+
   return (
     <View style={styles.container}>
       {/* ─── Compact Header (replaces ScreenHeader) ─── */}
@@ -320,7 +332,7 @@ export default function ProfileScreen() {
               <Text style={styles.heroUsd}>{formatUsd(totalPortfolioUsd)}</Text>
               <View style={styles.heroSolRow}>
                 <Text style={styles.heroSol}>
-                  {balanceLoading ? '...' : solBalance.toFixed(4)} SOL
+                  {solBalance.toFixed(4)} SOL
                 </Text>
                 {solPrice && (
                   <Text style={styles.heroSolHint}>@ {formatUsd(solPrice)}/SOL</Text>
@@ -727,6 +739,15 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: 'transparent',
+  },
+  loadingContainer: {
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  loadingContainerText: {
+    color: colors.textMuted,
+    marginTop: spacing.md,
+    fontSize: 16,
   },
   content: {
     paddingHorizontal: spacing.md,

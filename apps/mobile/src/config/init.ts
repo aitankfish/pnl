@@ -19,21 +19,39 @@ export const PRIVY_CLIENT_ID = 'client-WY6Rc7yvQxe6GD9R24eu4pyedJ8ofSba5Q7RwaRQJ
 // Constants.expoGoConfig?.debuggerHost gives "192.168.x.x:8081" on device, "localhost:8081" on sim
 import Constants from 'expo-constants';
 
+import { Platform } from 'react-native';
+
+function isSimulator(): boolean {
+  // In iOS simulator, the device name usually contains "Simulator" or we can check
+  // that the host is available on localhost. A reliable check: Constants.isDevice is
+  // false on simulators (Expo SDK 49+).
+  return Platform.OS === 'ios' && !Constants.isDevice;
+}
+
 function getDevHost(): string {
   const debuggerHost =
     Constants.expoGoConfig?.debuggerHost ??
     Constants.expoConfig?.hostUri ??
     null;
   if (debuggerHost) {
-    // Strip the Expo port (8081) and return just the IP/hostname
-    return debuggerHost.split(':')[0];
+    const host = debuggerHost.split(':')[0];
+    if (host && host !== 'localhost' && host !== '127.0.0.1') {
+      return host;
+    }
   }
-  return 'localhost';
+  // Simulator can reach localhost directly; physical devices need LAN IP
+  if (isSimulator()) {
+    return 'localhost';
+  }
+  // Fallback: LAN IP for physical devices (update if your IP changes)
+  return '10.0.0.72';
 }
 
 const API_BASE_URL = __DEV__
   ? `http://${getDevHost()}:3000`
   : 'https://pnl.market';
+
+console.log('[PNL Init] Dev host:', getDevHost(), '| API_BASE_URL:', API_BASE_URL);
 
 // DEV OVERRIDE: Use production API when local server isn't running.
 // Comment this out when running pnpm dev:unified locally.

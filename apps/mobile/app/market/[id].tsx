@@ -64,7 +64,9 @@ import {
   FavoriteButton,
   BirdeyeChart,
   TradeSheet,
+  VoteToast,
 } from '../../src/components';
+import type { VoteToastState } from '../../src/components';
 import { CommunityHub } from '../../src/components/community';
 import { colors, spacing, typography, borderRadius } from '../../src/theme';
 
@@ -123,12 +125,16 @@ function extractYouTubeId(url?: string): string | null {
 
 export default function MarketDetailScreen() {
   const { id, tab } = useLocalSearchParams<{ id: string; tab?: string }>();
-  const { market, isLoading, error, refresh: refreshMarket } = useMarket(id ?? null);
+  const { market, isLoading, error, refresh: refreshMarket, socketConnected } = useMarket(id ?? null);
   const { isAuthenticated, walletAddress, getAccessToken, solanaWallet } = useAuth();
   const { network } = useNetwork();
   const { solBalance } = useWalletBalance(walletAddress);
+  const [toastState, setToastState] = useState<VoteToastState>({ visible: false, stage: 'signing' });
   const { submitVote, isVoting } = useVote({
     onSuccess: () => { refetchPosition(); refreshMarket(); },
+    onStageChange: (stage, direction, amount, marketName, message) => {
+      setToastState({ visible: true, stage, direction, amount, marketName, message });
+    },
   });
 
   // ── Creator follow ──
@@ -203,11 +209,12 @@ export default function MarketDetailScreen() {
   );
   const positionData = (positionResponse as any)?.success ? (positionResponse as any).data : null;
 
-  // ── Activity + holders data (all markets, polls every 20s like web) ──
+  // ── Activity + holders data — adaptive polling (skip when socket handles updates) ──
+  const activityPollInterval = socketConnected ? 0 : 20000;
   const { data: activityResponse, mutate: refetchActivity } = useSWR(
     id ? `/api/markets/${id}/activity?network=${network}` : null,
     fetcher,
-    { refreshInterval: 20000, revalidateOnFocus: true, dedupingInterval: 10000, keepPreviousData: true },
+    { refreshInterval: activityPollInterval, revalidateOnFocus: true, dedupingInterval: 10000, keepPreviousData: true },
   );
   const holdersData = (activityResponse as any)?.success ? (activityResponse as any).data : null;
 
@@ -222,6 +229,22 @@ export default function MarketDetailScreen() {
     { dedupingInterval: 30000, shouldRetryOnError: false },
   );
   const vestingData = (vestingResponse as any)?.success ? (vestingResponse as any).data : null;
+
+  // ── Debounced refetch on socket updates (matches web behavior) ──
+  const prevMarketRef = useRef<string | null>(null);
+  useEffect(() => {
+    if (!market || !socketConnected) return;
+    // Build a fingerprint of frequently-changing fields
+    const fingerprint = `${market.yesVotes}-${market.noVotes}-${market.poolBalance}-${market.resolution}`;
+    if (prevMarketRef.current === fingerprint) return;
+    prevMarketRef.current = fingerprint;
+    // Debounce: wait 1s after last socket update before refetching activity/position
+    const timer = setTimeout(() => {
+      refetchActivity();
+      refetchPosition();
+    }, 1000);
+    return () => clearTimeout(timer);
+  }, [market?.yesVotes, market?.noVotes, market?.poolBalance, market?.resolution, socketConnected, refetchActivity, refetchPosition]);
 
   // ── Parallax scroll ──
   const scrollY = useSharedValue(0);
@@ -265,7 +288,6 @@ export default function MarketDetailScreen() {
   }, []);
 
   const handleFullscreenUpdate = useCallback(async (event: { fullscreenUpdate: number }) => {
-    // Re-mute when exiting fullscreen (3 = PLAYER_DID_DISMISS)
     if (event.fullscreenUpdate === 3 && videoRef.current) {
       await videoRef.current.setIsMutedAsync(true);
     }
@@ -404,7 +426,7 @@ export default function MarketDetailScreen() {
     async (direction: VoteDirection, amount: number) => {
       if (!market) return;
       sheetRef.current?.close();
-      await submitVote(market.marketAddress, market.id, direction, amount);
+      await submitVote(market.marketAddress, market.id, direction, amount, market.name);
     },
     [market, submitVote],
   );
@@ -459,6 +481,10 @@ export default function MarketDetailScreen() {
 
   return (
     <View style={styles.container}>
+      <VoteToast
+        state={toastState}
+        onDismiss={() => setToastState((s) => ({ ...s, visible: false }))}
+      />
       <ScreenHeader
         transparent
         left={

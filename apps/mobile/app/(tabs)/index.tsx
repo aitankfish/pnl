@@ -14,7 +14,6 @@ import {
   Dimensions,
   NativeSyntheticEvent,
   NativeScrollEvent,
-  RefreshControl,
   ActivityIndicator,
   Text,
   Platform,
@@ -48,7 +47,10 @@ import {
   NewProjectsPill,
   NewBadge,
   TimeCountdown,
+  PoolProgress,
+  VoteToast,
 } from '../../src/components';
+import type { VoteToastState } from '../../src/components';
 import { useCuratePreferences } from '../../src/hooks/useCuratePreferences';
 import type { CurateSortOption } from '../../src/hooks/useCuratePreferences';
 import { colors, spacing } from '../../src/theme';
@@ -352,6 +354,15 @@ function PitchVideoCard({
           ) : null}
         </Pressable>
 
+        {market.poolBalance != null && market.targetPool != null && (
+          <PoolProgress
+            current={Number(market.poolBalance) / 1e9}
+            target={Number(market.targetPool)}
+            tokenSymbol={market.tokenSymbol || 'SOL'}
+            variant="inline"
+          />
+        )}
+
         <View style={styles.voteRow}>
           {isActionable && (
             <>
@@ -422,11 +433,18 @@ export default function FeedScreen() {
   const { isAuthenticated, walletAddress } = useAuth();
   const { network } = useNetwork();
   const { solBalance } = useWalletBalance(walletAddress);
-  const { submitVote } = useVote({ onSuccess: refresh });
+
+  // Vote toast state
+  const [toastState, setToastState] = useState<VoteToastState>({ visible: false, stage: 'signing' });
+  const { submitVote } = useVote({
+    onSuccess: refresh,
+    onStageChange: (stage, direction, amount, marketName, message) => {
+      setToastState({ visible: true, stage, direction, amount, marketName, message });
+    },
+  });
   const voiceRoom = useVoiceRoomContextSafe();
   const { preferences, updatePreferences, resetToDefaults } = useCuratePreferences();
 
-  const [refreshing, setRefreshing] = useState(false);
   const [activePage, setActivePage] = useState(0); // 0=Feed, 1=For You
   const [feedActiveIndex, setFeedActiveIndex] = useState(0);
   const [forYouActiveIndex, setForYouActiveIndex] = useState(0);
@@ -520,12 +538,6 @@ export default function FeedScreen() {
     [],
   );
 
-  const onRefresh = useCallback(() => {
-    setRefreshing(true);
-    refresh();
-    setTimeout(() => setRefreshing(false), 1000);
-  }, [refresh]);
-
   const handleNewPillPress = useCallback(() => {
     setShowNewPill(false);
     // Mark current new market IDs for badge display
@@ -554,18 +566,21 @@ export default function FeedScreen() {
         return;
       }
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-      setVoteMarket(market);
-      setVoteDirection(direction);
-      setVotePositionData(null);
-      sheetRef.current?.snapToIndex(0);
-      // Fetch position in background
+
+      // Fetch position first, then open sheet with all data ready
+      let posData = null;
       if (walletAddress) {
         try {
           const res = await fetch(apiUrl(`/api/markets/${market.id}/position?wallet=${walletAddress}&network=${network}`));
           const data = await res.json();
-          if (data?.success && data.data) setVotePositionData(data.data);
+          if (data?.success && data.data) posData = data.data;
         } catch {}
       }
+
+      setVoteMarket(market);
+      setVoteDirection(direction);
+      setVotePositionData(posData);
+      sheetRef.current?.snapToIndex(0);
     },
     [isAuthenticated, walletAddress, network],
   );
@@ -574,7 +589,7 @@ export default function FeedScreen() {
     async (direction: VoteDirection, amount: number) => {
       if (!voteMarket) return;
       sheetRef.current?.close();
-      await submitVote(voteMarket.marketAddress, voteMarket.id, direction, amount);
+      await submitVote(voteMarket.marketAddress, voteMarket.id, direction, amount, voteMarket.name);
     },
     [voteMarket, submitVote],
   );
@@ -737,6 +752,12 @@ export default function FeedScreen() {
 
   return (
     <View style={styles.container}>
+      {/* Vote status toast */}
+      <VoteToast
+        state={toastState}
+        onDismiss={() => setToastState((s) => ({ ...s, visible: false }))}
+      />
+
       {/* Floating TikTok-style tabs */}
       <View style={[styles.floatingTabs, { top: tabBarTop }]}>
         <FeedTabs activeIndex={activePage} onTabPress={handleTabPress} />
@@ -797,14 +818,6 @@ export default function FeedScreen() {
             showsVerticalScrollIndicator={false}
             onViewableItemsChanged={onFeedViewableItemsChanged}
             viewabilityConfig={viewabilityConfig}
-            refreshControl={
-              <RefreshControl
-                refreshing={refreshing}
-                onRefresh={onRefresh}
-                tintColor={colors.primary}
-                progressViewOffset={insets.top}
-              />
-            }
             getItemLayout={(_, index) => ({
               length: cardHeight,
               offset: cardHeight * index,
@@ -838,14 +851,6 @@ export default function FeedScreen() {
               showsVerticalScrollIndicator={false}
               onViewableItemsChanged={onForYouViewableItemsChanged}
               viewabilityConfig={viewabilityConfig}
-              refreshControl={
-                <RefreshControl
-                  refreshing={refreshing}
-                  onRefresh={onRefresh}
-                  tintColor={colors.primary}
-                  progressViewOffset={insets.top}
-                />
-              }
               getItemLayout={(_, index) => ({
                 length: cardHeight,
                 offset: cardHeight * index,

@@ -2,7 +2,7 @@
  * Explore Screen — Traditional browsable list with search + filters
  */
 
-import { useState, useCallback, useMemo, useRef } from 'react';
+import { useState, useCallback, useMemo, useRef, useEffect } from 'react';
 import {
   View,
   Text,
@@ -20,11 +20,11 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as Haptics from 'expo-haptics';
 import { useMarkets, useNetwork } from '@pnl/shared/hooks';
-import { FEES } from '@pnl/shared/config';
+import type { Market } from '@pnl/shared/hooks';
 import { apiUrl } from '@pnl/shared/utils';
-import { Transaction } from '@solana/web3.js';
-import { getSolanaConnection } from '@pnl/shared/solana';
 import { useAuth } from '../../src/providers/AuthProvider';
+import { useVote } from '../../src/hooks/useVote';
+import { useWalletBalance } from '../../src/hooks/useWalletBalance';
 import {
   ScreenHeader,
   MarketCard,
@@ -36,7 +36,10 @@ import {
   CategoryChip,
   CategorySheet,
   SearchDropdown,
+  VoteToast,
+  VoteBottomSheet,
 } from '../../src/components';
+import type { VoteToastState } from '../../src/components';
 import { useSearch } from '../../src/hooks/useSearch';
 import { colors, spacing, borderRadius } from '../../src/theme';
 
@@ -56,27 +59,58 @@ const CATEGORIES = [
 const SORT_OPTIONS = ['Trending', 'Newest', 'Ending Soon'] as const;
 type SortOption = (typeof SORT_OPTIONS)[number];
 
-const QUICK_VOTE_AMOUNT = FEES.MINIMUM_INVESTMENT / 1_000_000_000; // 0.01 SOL
+type VoteDirection = 'yes' | 'no';
 
 export default function ExploreScreen() {
   const insets = useSafeAreaInsets();
   const listRef = useRef<FlatList>(null);
   const categorySheetRef = useRef<GorhomBottomSheet>(null);
+  const voteSheetRef = useRef<GorhomBottomSheet>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('All');
   const [selectedStatus, setSelectedStatus] = useState('active');
   const [refreshing, setRefreshing] = useState(false);
   const [sortBy, setSortBy] = useState<SortOption>('Trending');
-  const [votingState, setVotingState] = useState<{ marketId: string; voteType: 'yes' | 'no' } | null>(null);
   const [searchFocused, setSearchFocused] = useState(false);
-  const { isAuthenticated, walletAddress, solanaWallet } = useAuth();
+  const [toastState, setToastState] = useState<VoteToastState>({ visible: false, stage: 'signing' });
+  const { isAuthenticated, walletAddress } = useAuth();
   const { network } = useNetwork();
+  const { solBalance } = useWalletBalance(walletAddress);
   const { results: searchResults, isSearching } = useSearch(searchQuery);
 
-  const { markets, isLoading, error, refresh } = useMarkets(
+  // Vote sheet state
+  const [voteDirection, setVoteDirection] = useState<VoteDirection | null>(null);
+  const [voteMarket, setVoteMarket] = useState<Market | null>(null);
+  const [votePositionData, setVotePositionData] = useState<any>(null);
+
+  const { markets, newMarkets, isLoading, error, refresh } = useMarkets(
     selectedCategory !== 'All' ? selectedCategory : undefined,
     selectedStatus,
   );
+
+  // Track new market IDs for "NEW" badge animation
+  const [newMarketIds, setNewMarketIds] = useState<Set<string>>(new Set());
+  const prevNewMarketsCount = useRef(0);
+
+  useEffect(() => {
+    if (newMarkets.length > prevNewMarketsCount.current && selectedStatus === 'active') {
+      const fresh = newMarkets.slice(0, newMarkets.length - prevNewMarketsCount.current);
+      const freshIds = fresh.map((m: any) => m.marketAddress || m.id).filter(Boolean);
+      if (freshIds.length > 0) {
+        setNewMarketIds((prev) => new Set([...prev, ...freshIds]));
+        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+        // Clear "NEW" badges after 5 seconds
+        setTimeout(() => {
+          setNewMarketIds((prev) => {
+            const next = new Set(prev);
+            freshIds.forEach((id: string) => next.delete(id));
+            return next;
+          });
+        }, 5000);
+      }
+    }
+    prevNewMarketsCount.current = newMarkets.length;
+  }, [newMarkets, selectedStatus]);
 
   const handleStatusChange = useCallback((status: string) => {
     setSelectedStatus(status);
@@ -97,9 +131,16 @@ export default function ExploreScreen() {
     setTimeout(() => setRefreshing(false), 1000);
   }, [refresh]);
 
-  const handleQuickVote = useCallback(
-    async (market: (typeof markets)[number], voteType: 'yes' | 'no') => {
-      if (!isAuthenticated || !walletAddress || !solanaWallet) {
+  const { submitVote } = useVote({
+    onSuccess: refresh,
+    onStageChange: (stage, direction, amount, marketName, message) => {
+      setToastState({ visible: true, stage, direction, amount, marketName, message });
+    },
+  });
+
+  const handleVote = useCallback(
+    async (market: Market, voteType: VoteDirection) => {
+      if (!isAuthenticated || !walletAddress) {
         router.push('/login');
         return;
       }
@@ -114,62 +155,44 @@ export default function ExploreScreen() {
       }
 
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-      setVotingState({ marketId: market.id, voteType });
 
+      // Fetch position first, then open sheet with all data ready
+      let posData = null;
       try {
-        // Step 1: Prepare transaction
-        const prepareRes = await fetch(apiUrl('/api/markets/vote/prepare'), {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            marketAddress: market.marketAddress,
-            voteType,
-            amount: QUICK_VOTE_AMOUNT,
-            userWallet: walletAddress,
-            network,
-          }),
-        });
-        const prepareData = await prepareRes.json();
-        if (!prepareData.success) throw new Error(prepareData.error || 'Failed to prepare vote');
+        const res = await fetch(apiUrl(`/api/markets/${market.id}/position?wallet=${walletAddress}&network=${network}`));
+        const data = await res.json();
+        if (data?.success && data.data) posData = data.data;
+      } catch {}
 
-        // Step 2: Sign & send with Privy embedded wallet
-        const txBytes = Buffer.from(prepareData.data.serializedTransaction, 'base64');
-        const transaction = Transaction.from(txBytes);
-        const provider = await solanaWallet.wallets![0].getProvider();
-        const { signature } = await (provider as any).signAndSendTransaction(transaction);
-
-        // Step 3: Wait for confirmation
-        const connection = await getSolanaConnection();
-        await connection.confirmTransaction(signature, 'confirmed');
-
-        // Step 4: Record in database
-        await fetch(apiUrl('/api/markets/vote/complete'), {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            marketId: market.id,
-            voteType,
-            amount: QUICK_VOTE_AMOUNT,
-            signature,
-            traderWallet: walletAddress,
-          }),
-        });
-
-        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-        refresh();
-      } catch (err: any) {
-        console.error('Quick vote error:', err);
-        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
-        Alert.alert('Vote Failed', err.message || 'Something went wrong');
-      } finally {
-        setVotingState(null);
-      }
+      setVoteMarket(market);
+      setVoteDirection(voteType);
+      setVotePositionData(posData);
+      voteSheetRef.current?.snapToIndex(0);
     },
-    [isAuthenticated, walletAddress, solanaWallet, network, refresh],
+    [isAuthenticated, walletAddress, network],
+  );
+
+  const handleVoteConfirm = useCallback(
+    async (direction: VoteDirection, amount: number) => {
+      if (!voteMarket) return;
+      voteSheetRef.current?.close();
+      await submitVote(voteMarket.marketAddress, voteMarket.id, direction, amount, voteMarket.name);
+    },
+    [voteMarket, submitVote],
   );
 
   const filteredMarkets = useMemo(() => {
     let result = markets;
+
+    // Prepend new markets from socket that aren't already in the list
+    if (newMarkets.length > 0 && selectedStatus === 'active') {
+      const existingAddresses = new Set(result.map((m) => m.marketAddress));
+      const toAdd = newMarkets.filter((m: any) => !existingAddresses.has(m.marketAddress));
+      if (toAdd.length > 0) {
+        result = [...toAdd, ...result];
+      }
+    }
+
     if (searchQuery.trim()) {
       const q = searchQuery.toLowerCase();
       result = result.filter(
@@ -190,10 +213,14 @@ export default function ExploreScreen() {
       );
     }
     return result;
-  }, [markets, searchQuery, sortBy]);
+  }, [markets, newMarkets, selectedStatus, searchQuery, sortBy]);
 
   return (
     <View style={styles.container}>
+      <VoteToast
+        state={toastState}
+        onDismiss={() => setToastState((s) => ({ ...s, visible: false }))}
+      />
       <ScreenHeader title="Explore" />
 
       {/* Search bar + dropdown */}
@@ -270,31 +297,36 @@ export default function ExploreScreen() {
           ref={listRef}
           data={filteredMarkets}
           keyExtractor={(item) => item.id}
-          renderItem={({ item }) => (
-            <MarketCard
-              market={{
-                id: item.id,
-                title: item.name,
-                category: item.category,
-                projectImageUrl: item.projectImageUrl,
-                tokenSymbol: item.tokenSymbol,
-                totalParticipants: item.totalParticipants ?? ((item.yesVotes || 0) + (item.noVotes || 0)),
-                poolBalance: item.poolBalance ? Number(item.poolBalance) / 1e9 : undefined,
-                targetPool: item.targetPool ? Number(item.targetPool) : undefined,
-                endTime: item.expiryTime,
-                status: item.status,
-                displayStatus: item.displayStatus,
-                isYesVoteEnabled: item.isYesVoteEnabled,
-                isNoVoteEnabled: item.isNoVoteEnabled,
-                yesVoteDisabledReason: item.yesVoteDisabledReason,
-                noVoteDisabledReason: item.noVoteDisabledReason,
-              }}
-              hasVideo={!!item.metadataUri}
-              votingState={votingState?.marketId === item.id ? votingState : null}
-              onQuickVote={(voteType) => handleQuickVote(item, voteType)}
-              onPress={() => router.push(`/market/${item.id}`)}
-            />
-          )}
+          renderItem={({ item }) => {
+            const isNew = newMarketIds.has(item.marketAddress);
+            return (
+              <View style={isNew ? styles.newMarketGlow : undefined}>
+                <MarketCard
+                  market={{
+                    id: item.id,
+                    title: item.name,
+                    category: item.category,
+                    projectImageUrl: item.projectImageUrl,
+                    tokenSymbol: item.tokenSymbol,
+                    totalParticipants: item.totalParticipants ?? ((item.yesVotes || 0) + (item.noVotes || 0)),
+                    poolBalance: item.poolBalance ? Number(item.poolBalance) / 1e9 : undefined,
+                    targetPool: item.targetPool ? Number(item.targetPool) : undefined,
+                    endTime: item.expiryTime,
+                    status: item.status,
+                    displayStatus: item.displayStatus,
+                    isYesVoteEnabled: item.isYesVoteEnabled,
+                    isNoVoteEnabled: item.isNoVoteEnabled,
+                    yesVoteDisabledReason: item.yesVoteDisabledReason,
+                    noVoteDisabledReason: item.noVoteDisabledReason,
+                  }}
+                  hasVideo={!!item.metadataUri}
+                  isNew={isNew}
+                  onQuickVote={(voteType) => handleVote(item as Market, voteType)}
+                  onPress={() => router.push(`/market/${item.id}`)}
+                />
+              </View>
+            );
+          }}
           contentContainerStyle={styles.listContent}
           refreshControl={
             <RefreshControl
@@ -349,6 +381,21 @@ export default function ExploreScreen() {
         selected={selectedCategory}
         onSelect={handleCategoryChange}
       />
+
+      {/* Vote bottom sheet */}
+      <VoteBottomSheet
+        ref={voteSheetRef}
+        direction={voteDirection}
+        marketTitle={voteMarket?.name ?? ''}
+        solBalance={solBalance}
+        positionData={votePositionData}
+        onConfirm={handleVoteConfirm}
+        onClose={() => {
+          setVoteDirection(null);
+          setVoteMarket(null);
+          setVotePositionData(null);
+        }}
+      />
     </View>
   );
 }
@@ -391,6 +438,13 @@ const styles = StyleSheet.create({
   empty: {
     flex: 1,
     justifyContent: 'center',
+  },
+  newMarketGlow: {
+    shadowColor: '#8b5cf6',
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.5,
+    shadowRadius: 10,
+    elevation: 6,
   },
   fab: {
     position: 'absolute',

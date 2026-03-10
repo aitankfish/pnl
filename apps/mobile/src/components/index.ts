@@ -49,3 +49,5 @@ export { SubmissionOverlay } from './create/SubmissionOverlay';
 export { FeedTabs } from './FeedTabs';
 export { NewProjectsPill } from './NewProjectsPill';
 export { NewBadge } from './NewBadge';
+export { VoteToast } from './VoteToast';
+export type { VoteToastState } from './VoteToast';

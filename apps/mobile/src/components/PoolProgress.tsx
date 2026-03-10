@@ -38,8 +38,8 @@ export function PoolProgress({
   }));
 
   const amountText = hasTarget
-    ? `${Number.isFinite(current) ? current.toFixed(2) : '0.00'} / ${target.toFixed(2)} ${tokenSymbol}`
-    : `${Number.isFinite(current) ? current.toFixed(2) : '0.00'} ${tokenSymbol} raised`;
+    ? `${Number.isFinite(current) ? current.toFixed(2) : '0.00'} / ${target.toFixed(2)} SOL raised`
+    : `${Number.isFinite(current) ? current.toFixed(2) : '0.00'} SOL raised`;
 
   const content = (
     <>

@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
-import AsyncStorage from '@react-native-async-storage/async-storage';
+import * as SecureStore from 'expo-secure-store';
 
-const STORAGE_KEY = '@pnl/curate_preferences';
+const STORAGE_KEY = 'pnl_curate_preferences';
 
 export type CurateSortOption = 'most_active' | 'biggest_pools' | 'most_favorited' | 'newest' | 'ending_soonest';
 export type TimeRange = 'all' | '24h' | '7d' | '30d';
@@ -23,27 +23,26 @@ export function useCuratePreferences() {
   const [isLoaded, setIsLoaded] = useState(false);
 
   useEffect(() => {
-    AsyncStorage.getItem(STORAGE_KEY).then((raw) => {
+    try {
+      const raw = SecureStore.getItem(STORAGE_KEY);
       if (raw) {
-        try {
-          setPreferences({ ...DEFAULT_PREFERENCES, ...JSON.parse(raw) });
-        } catch {}
+        setPreferences({ ...DEFAULT_PREFERENCES, ...JSON.parse(raw) });
       }
-      setIsLoaded(true);
-    });
+    } catch {}
+    setIsLoaded(true);
   }, []);
 
   const updatePreferences = useCallback((partial: Partial<CuratePreferences>) => {
     setPreferences((prev) => {
       const next = { ...prev, ...partial };
-      AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(next));
+      try { SecureStore.setItem(STORAGE_KEY, JSON.stringify(next)); } catch {}
       return next;
     });
   }, []);
 
   const resetToDefaults = useCallback(() => {
     setPreferences(DEFAULT_PREFERENCES);
-    AsyncStorage.removeItem(STORAGE_KEY);
+    try { SecureStore.deleteItemAsync(STORAGE_KEY); } catch {}
   }, []);
 
   return { preferences, isLoaded, updatePreferences, resetToDefaults };

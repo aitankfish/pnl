@@ -1,8 +1,10 @@
 /**
  * Hook to fetch live token stats (price, mcap, holders, etc.)
+ * Uses SWR for smart caching and deduplication
  */
 
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useMemo } from 'react';
+import useSWR from 'swr';
 import { apiUrl } from '@pnl/shared/utils';
 
 export interface TokenStats {
@@ -16,59 +18,41 @@ export interface TokenStats {
   updatedAt: number;
 }
 
+async function fetchTokenStats(addresses: string[]): Promise<TokenStats[]> {
+  const res = await fetch(apiUrl('/api/tokens/stats'), {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ addresses }),
+  });
+  if (!res.ok) throw new Error('Failed to fetch token stats');
+  const json = await res.json();
+  if (!json.success) throw new Error(json.error || 'Stats fetch failed');
+  return json.data as TokenStats[];
+}
+
 export function useTokenStats(addresses: string[]) {
-  const [stats, setStats] = useState<Map<string, TokenStats>>(new Map());
-  const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [prevPrices, setPrevPrices] = useState<Map<string, number | null>>(new Map());
-  const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
-  const addressKey = addresses.sort().join(',');
+  const addressKey = useMemo(() => [...addresses].sort().join(','), [addresses]);
 
-  const fetchStats = useCallback(async () => {
-    if (addresses.length === 0) return;
+  const { data, error, isLoading, mutate } = useSWR(
+    addressKey ? `token-stats:${addressKey}` : null,
+    () => fetchTokenStats(addresses),
+    {
+      refreshInterval: 120_000,
+      dedupingInterval: 15_000,
+      revalidateOnFocus: false,
+      errorRetryCount: 2,
+    },
+  );
 
-    try {
-      setIsLoading(true);
-      setError(null);
-
-      const res = await fetch(apiUrl('/api/tokens/stats'), {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ addresses }),
-      });
-
-      if (!res.ok) throw new Error('Failed to fetch token stats');
-
-      const json = await res.json();
-      if (!json.success) throw new Error(json.error || 'Stats fetch failed');
-
-      const newStats = new Map<string, TokenStats>();
-      const newPrevPrices = new Map<string, number | null>();
-
-      for (const stat of json.data as TokenStats[]) {
-        newStats.set(stat.address, stat);
-        // Track previous price for flash detection
-        const old = stats.get(stat.address);
-        newPrevPrices.set(stat.address, old?.price ?? null);
+  const stats = useMemo(() => {
+    const map = new Map<string, TokenStats>();
+    if (data) {
+      for (const stat of data) {
+        map.set(stat.address, stat);
       }
-
-      setPrevPrices(newPrevPrices);
-      setStats(newStats);
-    } catch (err: any) {
-      setError(err.message || 'Failed to fetch stats');
-    } finally {
-      setIsLoading(false);
     }
-  }, [addressKey]);
+    return map;
+  }, [data]);
 
-  useEffect(() => {
-    fetchStats();
-
-    intervalRef.current = setInterval(fetchStats, 30_000);
-    return () => {
-      if (intervalRef.current) clearInterval(intervalRef.current);
-    };
-  }, [fetchStats]);
-
-  return { stats, prevPrices, isLoading, error, refresh: fetchStats };
+  return { stats, prevPrices: new Map<string, number | null>(), isLoading, error, refresh: mutate };
 }
