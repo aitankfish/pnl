@@ -1,0 +1,1243 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>PNL — Simple Pitch</title>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap');
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: 'Inter', sans-serif;
+      background: #0a0a0a;
+      color: #e2e8f0;
+      overflow: hidden;
+    }
+
+    /* Slide system */
+    .slide {
+      position: fixed;
+      top: 0; left: 0;
+      width: 100%; height: 100%;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      padding: 60px 80px;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.6s ease;
+      z-index: 10;
+    }
+    .slide.active { opacity: 1; pointer-events: all; }
+
+    .progress-bar {
+      position: fixed;
+      top: 0; left: 0;
+      height: 3px;
+      background: linear-gradient(90deg, #6ee7b7, #3b82f6, #a78bfa);
+      z-index: 100;
+      transition: width 0.4s ease;
+    }
+    .slide-counter {
+      position: fixed;
+      bottom: 25px; right: 35px;
+      font-size: 0.8rem;
+      color: #475569;
+      z-index: 100;
+      font-variant-numeric: tabular-nums;
+    }
+
+    /* Animations */
+    .slide.active .anim { animation: fadeUp 0.6s ease forwards; }
+    .anim { opacity: 0; transform: translateY(25px); }
+    .d1 { animation-delay: 0.1s !important; }
+    .d2 { animation-delay: 0.3s !important; }
+    .d3 { animation-delay: 0.5s !important; }
+    .d4 { animation-delay: 0.7s !important; }
+    .d5 { animation-delay: 0.9s !important; }
+    .d6 { animation-delay: 1.1s !important; }
+    .d7 { animation-delay: 1.3s !important; }
+    .d8 { animation-delay: 1.5s !important; }
+    .d9 { animation-delay: 1.7s !important; }
+    @keyframes fadeUp { to { opacity: 1; transform: translateY(0); } }
+
+    /* Title brand */
+    .brand {
+      font-size: 7rem;
+      font-weight: 900;
+      letter-spacing: -5px;
+      background: linear-gradient(90deg, #6ee7b7, #3b82f6, #a78bfa, #6ee7b7, #3b82f6, #a78bfa, #6ee7b7);
+      background-size: 300% 100%;
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+      line-height: 1;
+      animation: flowWater 4s ease-in-out infinite;
+    }
+    @keyframes flowWater {
+      0% { background-position: 0% 50%; }
+      50% { background-position: 100% 50%; }
+      100% { background-position: 0% 50%; }
+    }
+
+    /* Colors */
+    .green { color: #6ee7b7; }
+    .blue { color: #60a5fa; }
+    .red { color: #f87171; }
+    .yellow { color: #fde68a; }
+    .purple { color: #a78bfa; }
+    .dim { color: #64748b; }
+
+    /* Big statement */
+    .statement {
+      font-size: 2rem;
+      font-weight: 300;
+      line-height: 1.8;
+      text-align: center;
+      max-width: 820px;
+      color: #94a3b8;
+    }
+    .statement strong { color: #e2e8f0; font-weight: 600; }
+    .statement em { font-style: normal; font-weight: 600; }
+    .statement .green-em { color: #6ee7b7; font-weight: 600; font-style: normal; }
+    .statement .red-em { color: #f87171; font-weight: 600; font-style: normal; }
+    .statement .blue-em { color: #60a5fa; font-weight: 600; font-style: normal; }
+
+    /* Big number */
+    .big-num {
+      font-size: 4.5rem;
+      font-weight: 900;
+      letter-spacing: -3px;
+      line-height: 1;
+    }
+
+    /* Pieces grid */
+    .pieces-row {
+      display: flex;
+      gap: 20px;
+      max-width: 900px;
+      width: 100%;
+      justify-content: center;
+    }
+    .piece {
+      flex: 1;
+      text-align: center;
+      padding: 20px 16px;
+      background: rgba(255,255,255,0.03);
+      border: 1px solid rgba(255,255,255,0.06);
+      border-radius: 14px;
+    }
+    .piece h4 { font-size: 0.95rem; font-weight: 700; margin-bottom: 6px; }
+    .piece p { font-size: 0.78rem; color: #94a3b8; line-height: 1.5; }
+    .piece-icon { font-size: 1.6rem; margin-bottom: 8px; }
+
+    /* Flow animation */
+    .flow-row {
+      display: flex;
+      align-items: center;
+      gap: 0;
+      max-width: 900px;
+      width: 100%;
+    }
+    .flow-node {
+      flex: 1;
+      text-align: center;
+      opacity: 0;
+      transform: translateX(-20px);
+    }
+    .flow-node .icon {
+      width: 56px; height: 56px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin: 0 auto 8px;
+      font-size: 1.4rem;
+    }
+    .flow-node h4 { font-size: 0.9rem; font-weight: 700; margin-bottom: 3px; }
+    .flow-node p { font-size: 0.72rem; color: #94a3b8; line-height: 1.4; }
+    .flow-arrow {
+      font-size: 1.4rem;
+      color: rgba(110,231,183,0.3);
+      flex-shrink: 0;
+      opacity: 0;
+    }
+    .slide.active .flow-node { animation: flowIn 0.5s ease forwards; }
+    .slide.active .flow-arrow { animation: fadeUp 0.3s ease forwards; }
+    .slide.active .flow-node:nth-child(1) { animation-delay: 0.3s; }
+    .slide.active .flow-arrow:nth-child(2) { animation-delay: 0.6s; }
+    .slide.active .flow-node:nth-child(3) { animation-delay: 0.8s; }
+    .slide.active .flow-arrow:nth-child(4) { animation-delay: 1.1s; }
+    .slide.active .flow-node:nth-child(5) { animation-delay: 1.3s; }
+    .slide.active .flow-arrow:nth-child(6) { animation-delay: 1.6s; }
+    .slide.active .flow-node:nth-child(7) { animation-delay: 1.8s; }
+    .slide.active .flow-arrow:nth-child(8) { animation-delay: 2.1s; }
+    .slide.active .flow-node:nth-child(9) { animation-delay: 2.3s; }
+    @keyframes flowIn { to { opacity: 1; transform: translateX(0); } }
+
+    /* Revenue boxes */
+    .rev-row {
+      display: flex;
+      gap: 24px;
+      max-width: 750px;
+      width: 100%;
+    }
+    .rev-box {
+      flex: 1;
+      text-align: center;
+      padding: 28px 20px;
+      border-radius: 16px;
+    }
+    .rev-box h4 { font-size: 1rem; font-weight: 700; margin-bottom: 8px; }
+    .rev-box p { font-size: 0.85rem; line-height: 1.6; color: #94a3b8; }
+    .rev-num { font-size: 2.2rem; font-weight: 900; margin: 8px 0; }
+
+    /* Platform cards */
+    .platform-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr 1fr;
+      gap: 16px;
+      max-width: 800px;
+      width: 100%;
+    }
+    .platform-card {
+      background: rgba(255,255,255,0.03);
+      border: 1px solid rgba(255,255,255,0.06);
+      border-radius: 12px;
+      padding: 18px 16px;
+      text-align: center;
+    }
+    .platform-card .emoji { font-size: 1.6rem; margin-bottom: 6px; }
+    .platform-card h4 { font-size: 0.85rem; font-weight: 700; margin-bottom: 4px; }
+    .platform-card p { font-size: 0.72rem; color: #94a3b8; line-height: 1.4; }
+
+    /* Ask */
+    .ask-num {
+      font-size: 4.5rem;
+      font-weight: 900;
+      letter-spacing: -3px;
+      background: linear-gradient(135deg, #6ee7b7, #3b82f6);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+
+    /* Future timeline */
+    .future-row {
+      display: flex;
+      gap: 14px;
+      max-width: 850px;
+      width: 100%;
+    }
+    .future-item {
+      flex: 1;
+      text-align: center;
+      padding: 16px 12px;
+      background: rgba(255,255,255,0.02);
+      border-radius: 10px;
+      border: 1px solid rgba(255,255,255,0.05);
+    }
+    .future-item h4 { font-size: 0.85rem; font-weight: 700; margin-bottom: 4px; }
+    .future-item p { font-size: 0.68rem; color: #94a3b8; line-height: 1.4; }
+
+    /* Needs slide */
+    .need-card {
+      display: flex;
+      align-items: stretch;
+      gap: 0;
+      max-width: 880px;
+      width: 100%;
+      opacity: 0;
+      transform: translateX(-30px);
+    }
+    .slide.active .need-card { animation: slideRight 0.5s ease forwards; }
+    @keyframes slideRight { to { opacity: 1; transform: translateX(0); } }
+
+    .need-num {
+      width: 44px;
+      flex-shrink: 0;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      position: relative;
+    }
+    .need-num-circle {
+      width: 32px; height: 32px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 0.8rem;
+      font-weight: 800;
+      flex-shrink: 0;
+      z-index: 2;
+    }
+    .need-num-line {
+      width: 2px;
+      flex: 1;
+      margin-top: 4px;
+      opacity: 0.3;
+    }
+    .need-content {
+      flex: 1;
+      padding: 16px 22px;
+      border-radius: 12px;
+      background: rgba(255,255,255,0.02);
+      margin-bottom: 12px;
+    }
+    .need-content h4 { font-size: 0.95rem; margin-bottom: 5px; }
+    .need-content p { font-size: 0.82rem; color: #94a3b8; line-height: 1.55; }
+    .need-label { font-size: 0.7rem; font-weight: 700; text-transform: uppercase; letter-spacing: 1.5px; margin-bottom: 3px; }
+
+    .need-card.final .need-content {
+      background: rgba(110,231,183,0.04);
+      border: 1px solid rgba(110,231,183,0.2);
+      animation: pulseGlow 2.5s ease-in-out infinite;
+    }
+    @keyframes pulseGlow {
+      0%, 100% { box-shadow: 0 0 0px rgba(110,231,183,0); }
+      50% { box-shadow: 0 0 20px rgba(110,231,183,0.08); }
+    }
+
+    /* Third path comparison */
+    .compare-row {
+      display: flex;
+      gap: 20px;
+      max-width: 900px;
+      width: 100%;
+    }
+    .compare-box {
+      flex: 1;
+      padding: 28px 22px;
+      border-radius: 16px;
+      text-align: center;
+    }
+    .compare-box h3 { font-size: 1.2rem; font-weight: 800; margin-bottom: 16px; }
+    .compare-line {
+      display: flex;
+      justify-content: space-between;
+      padding: 7px 0;
+      font-size: 0.82rem;
+      color: #94a3b8;
+      border-bottom: 1px solid rgba(255,255,255,0.04);
+    }
+    .compare-line:last-child { border-bottom: none; }
+    .compare-line strong { font-weight: 700; }
+    .compare-verdict {
+      margin-top: 14px;
+      font-size: 0.85rem;
+      font-weight: 700;
+      padding: 6px 14px;
+      border-radius: 20px;
+      display: inline-block;
+    }
+
+    /* Revenue model */
+    .fee-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 14px;
+      max-width: 820px;
+      width: 100%;
+    }
+    .fee-card {
+      background: rgba(255,255,255,0.02);
+      border: 1px solid rgba(255,255,255,0.06);
+      border-radius: 12px;
+      padding: 16px 20px;
+    }
+    .fee-card-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 6px;
+    }
+    .fee-card-header h4 { font-size: 0.9rem; font-weight: 700; }
+    .fee-badge {
+      background: rgba(110,231,183,0.1);
+      border: 1px solid rgba(110,231,183,0.2);
+      border-radius: 6px;
+      padding: 2px 10px;
+      font-weight: 700;
+      font-size: 0.8rem;
+      color: #6ee7b7;
+    }
+    .fee-card p { font-size: 0.78rem; color: #94a3b8; line-height: 1.5; }
+
+    .proj-table {
+      width: 100%;
+      max-width: 820px;
+      border-collapse: collapse;
+      font-size: 0.82rem;
+    }
+    .proj-table th {
+      color: #64748b;
+      font-weight: 600;
+      text-align: left;
+      padding: 8px 12px;
+      border-bottom: 1px solid rgba(255,255,255,0.08);
+      font-size: 0.75rem;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+    }
+    .proj-table td {
+      padding: 10px 12px;
+      border-bottom: 1px solid rgba(255,255,255,0.04);
+      color: #94a3b8;
+    }
+    .proj-table tr:last-child td {
+      color: #6ee7b7;
+      font-weight: 700;
+      border-bottom: none;
+    }
+
+    /* Scenario matrix */
+    .scenario-matrix {
+      width: 100%;
+      border-collapse: separate;
+      border-spacing: 4px;
+      font-size: 0.82rem;
+    }
+    .scenario-matrix thead th {
+      padding: 10px 8px;
+      text-align: center;
+      font-weight: 700;
+      font-size: 0.78rem;
+      color: #94a3b8;
+      background: rgba(255,255,255,0.02);
+      border-radius: 8px;
+    }
+    .matrix-corner {
+      position: relative;
+      min-width: 90px;
+      min-height: 50px;
+      background: transparent !important;
+    }
+    .matrix-corner::after {
+      content: '';
+      position: absolute;
+      top: 8px; right: 8px;
+      bottom: 8px; left: 8px;
+      border-bottom: 1px solid rgba(255,255,255,0.06);
+      border-left: 1px solid rgba(255,255,255,0.06);
+      transform: skewX(-20deg);
+      opacity: 0.4;
+    }
+    .matrix-sub {
+      font-size: 0.62rem;
+      font-weight: 400;
+      color: #475569;
+      display: block;
+      margin-top: 2px;
+    }
+    .matrix-row-label {
+      text-align: center;
+      font-weight: 700;
+      color: #a78bfa;
+      padding: 10px 8px;
+      background: rgba(167,139,250,0.04);
+      border-radius: 8px;
+      border: 1px solid rgba(167,139,250,0.08);
+    }
+    .matrix-cell {
+      text-align: center;
+      padding: 12px 8px;
+      font-weight: 700;
+      border-radius: 8px;
+      color: #94a3b8;
+      background: rgba(255,255,255,0.015);
+      border: 1px solid rgba(255,255,255,0.04);
+      opacity: 0;
+      transform: scale(0.85);
+      transition: opacity 0.4s ease, transform 0.4s ease, background 0.4s ease, box-shadow 0.4s ease;
+    }
+    .slide.active .matrix-cell { opacity: 1; transform: scale(1); }
+    .slide.active .matrix-cell.c1 { transition-delay: 0.3s; }
+    .slide.active .matrix-cell.c2 { transition-delay: 0.5s; }
+    .slide.active .matrix-cell.c3 { transition-delay: 0.7s; }
+    .slide.active .matrix-cell.c4 { transition-delay: 0.9s; }
+    .slide.active .matrix-cell.c5 { transition-delay: 1.1s; }
+    .matrix-cell.hot {
+      color: #6ee7b7 !important;
+      background: rgba(110,231,183,0.06) !important;
+      border-color: rgba(110,231,183,0.2) !important;
+      box-shadow: 0 0 20px rgba(110,231,183,0.06);
+    }
+    .scenario-tag {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 8px 14px;
+      border-radius: 10px;
+    }
+
+    /* Download menu */
+    .dl-menu {
+      position: fixed;
+      bottom: 20px;
+      left: 20px;
+      z-index: 200;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      align-items: flex-start;
+    }
+    .dl-toggle {
+      width: 38px; height: 38px;
+      border-radius: 50%;
+      background: rgba(255,255,255,0.06);
+      border: 1px solid rgba(255,255,255,0.1);
+      color: #64748b;
+      font-size: 1rem;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: all 0.3s ease;
+    }
+    .dl-toggle:hover { background: rgba(255,255,255,0.1); color: #e2e8f0; }
+    .dl-options {
+      display: none;
+      flex-direction: column;
+      gap: 4px;
+    }
+    .dl-menu.open .dl-options { display: flex; }
+    .dl-btn {
+      padding: 8px 16px;
+      border-radius: 8px;
+      background: rgba(255,255,255,0.06);
+      border: 1px solid rgba(255,255,255,0.1);
+      color: #94a3b8;
+      font-size: 0.75rem;
+      font-weight: 600;
+      cursor: pointer;
+      font-family: 'Inter', sans-serif;
+      transition: all 0.2s ease;
+      white-space: nowrap;
+    }
+    .dl-btn:hover { background: rgba(110,231,183,0.1); border-color: rgba(110,231,183,0.3); color: #6ee7b7; }
+    .dl-btn:disabled { opacity: 0.4; cursor: wait; }
+    .dl-btn .spinner { display: none; }
+    .dl-btn:disabled .spinner { display: inline; }
+    .dl-btn:disabled .label { display: none; }
+
+    /* Subtle BG */
+    .bg {
+      position: fixed;
+      top: 0; left: 0;
+      width: 100%; height: 100%;
+      z-index: 0;
+      background:
+        radial-gradient(600px circle at 25% 35%, rgba(59,130,246,0.06), transparent),
+        radial-gradient(500px circle at 75% 65%, rgba(110,231,183,0.05), transparent),
+        radial-gradient(400px circle at 60% 20%, rgba(167,139,250,0.04), transparent);
+    }
+  </style>
+</head>
+<body>
+<div class="bg"></div>
+<div class="progress-bar" id="progress"></div>
+<div class="slide-counter" id="counter"></div>
+
+<!-- ============ SLIDE 0: THE MOMENT ============ -->
+<div class="slide" data-slide="0">
+  <div class="statement">
+    <p class="anim d1" style="margin-bottom: 22px;">We're living at a <strong>weird point in time</strong>.</p>
+    <p class="anim d2" style="margin-bottom: 22px;">Our generation graduated into a world where <span class="blue-em">AI is replacing jobs</span> faster than we can adapt.</p>
+    <p class="anim d3" style="margin-bottom: 22px;">This is just the beginning. Millions will be displaced.<br>And when people can't find work, they do the only thing left &mdash;</p>
+    <p class="anim d4" style="margin-bottom: 22px;">
+      <span style="color: #e2e8f0; font-size: 2.4rem; font-weight: 700;">They try to build something.</span>
+    </p>
+    <p class="anim d5">
+      <span class="dim" style="font-size: 1.3rem;">Maybe I'm just early. I'm already living this.</span>
+    </p>
+  </div>
+</div>
+
+<!-- ============ SLIDE 1: THE WALL ============ -->
+<div class="slide" data-slide="1">
+  <div class="statement">
+    <p class="anim d1" style="margin-bottom: 22px;">But every builder hits the same wall: <span class="red-em">funding.</span></p>
+    <p class="anim d2" style="margin-bottom: 22px; font-size: 1.4rem;">Less than <span class="red-em" style="font-size: 2.2rem;">1%</span> of startups get funded.<br>If you don't know the right people, your idea dies.</p>
+    <p class="anim d3" style="margin-bottom: 22px;">There is <strong>no open, permissionless way</strong> to fund ideas<br>at <span class="blue-em">global scale</span>. Anytime. From anywhere.</p>
+    <p class="anim d4" style="margin-bottom: 0;">
+      <span style="color: #e2e8f0; font-size: 1.8rem; font-weight: 700;">But the tools to build it?</span>
+    </p>
+  </div>
+</div>
+
+<!-- ============ SLIDE 2: THE PIECES ============ -->
+<div class="slide" data-slide="2">
+  <div class="anim d1" style="margin-bottom: 24px;">
+    <h2 style="font-size: 2rem; font-weight: 800; letter-spacing: -1px; text-align: center;">
+      We had <span class="blue">4 needs</span>. The tools <span class="green">already existed</span>.
+    </h2>
+  </div>
+
+  <!-- Need 1 -->
+  <div class="need-card" style="animation-delay: 0.3s;">
+    <div class="need-num">
+      <div class="need-num-circle" style="background: rgba(110,231,183,0.15); border: 2px solid #6ee7b7; color: #6ee7b7;">1</div>
+      <div class="need-num-line" style="background: linear-gradient(to bottom, #6ee7b7, #a78bfa);"></div>
+    </div>
+    <div class="need-content" style="border-left: 2px solid rgba(110,231,183,0.25);">
+      <div class="need-label green">Go global &mdash; equal access for everyone</div>
+      <h4>So we use <strong class="green">blockchain</strong></h4>
+      <p>Open 24/7, no banks, no borders. Money moves at the speed of light. A new financial rail already used by millions worldwide.</p>
+    </div>
+  </div>
+
+  <!-- Need 2 -->
+  <div class="need-card" style="animation-delay: 0.6s;">
+    <div class="need-num">
+      <div class="need-num-circle" style="background: rgba(167,139,250,0.15); border: 2px solid #a78bfa; color: #a78bfa;">2</div>
+      <div class="need-num-line" style="background: linear-gradient(to bottom, #a78bfa, #fde68a);"></div>
+    </div>
+    <div class="need-content" style="border-left: 2px solid rgba(167,139,250,0.25);">
+      <div class="need-label purple">Filter which ideas deserve funding</div>
+      <h4>So we use <strong class="purple">prediction markets</strong></h4>
+      <p>People vote with real money. Supporters get rewarded for backing winners. Critics get paid for calling out bad ideas. <span class="dim">Polymarket proved it: $3.3B in bets, more accurate than any poll.</span></p>
+    </div>
+  </div>
+
+  <!-- Need 3 -->
+  <div class="need-card" style="animation-delay: 0.9s;">
+    <div class="need-num">
+      <div class="need-num-circle" style="background: rgba(253,224,71,0.15); border: 2px solid #fde68a; color: #fde68a;">3</div>
+      <div class="need-num-line" style="background: linear-gradient(to bottom, #fde68a, #6ee7b7);"></div>
+    </div>
+    <div class="need-content" style="border-left: 2px solid rgba(253,224,71,0.25);">
+      <div class="need-label yellow">Sustainable revenue from day one</div>
+      <h4>So we use <strong class="yellow">trading fees</strong> on every launched project</h4>
+      <p>The model is proven &mdash; pump.fun generated <strong style="color: #fde68a;">$500M+ in revenue</strong> in one year. But 98.6% were scams. <strong style="color: #e2e8f0;">The demand is massive. It just needs a filter.</strong></p>
+    </div>
+  </div>
+
+  <!-- Need 4 (final) -->
+  <div class="need-card final" style="animation-delay: 1.2s;">
+    <div class="need-num">
+      <div class="need-num-circle" style="background: rgba(110,231,183,0.2); border: 2px solid #6ee7b7; color: #6ee7b7;">✦</div>
+    </div>
+    <div class="need-content">
+      <div class="need-label" style="color: #e2e8f0;">Bring it all together for real ideas</div>
+      <h4>These tools all work &mdash; but <strong style="color: #e2e8f0;">separately</strong></h4>
+      <p>Nobody combined prediction markets + tokenized ownership + global rails into one platform where <strong class="green">real-world ideas get funded</strong>.</p>
+    </div>
+  </div>
+
+  <div class="anim d8" style="margin-top: 20px;">
+    <p style="font-size: 1.4rem; text-align: center; color: #e2e8f0; font-weight: 600;">
+      Nobody combined them. <span class="green">Until now.</span>
+    </p>
+  </div>
+</div>
+
+<!-- ============ SLIDE 3: PNL REVEAL ============ -->
+<div class="slide" data-slide="3">
+  <div class="anim d1">
+    <div class="brand">PNL</div>
+  </div>
+  <div class="anim d2" style="margin-top: 16px;">
+    <p style="font-size: 1.3rem; color: #94a3b8;">Predict &amp; Launch &mdash; <span style="color: #e2e8f0; font-weight: 500;">where ideas construct realities.</span></p>
+  </div>
+  <div class="anim d3" style="margin-top: 16px;">
+    <p style="font-size: 1rem; color: #64748b;">Pitch your idea. Let the market decide. <span style="color: #94a3b8;">Build it with the world behind you.</span></p>
+  </div>
+  <!-- Founders (slower reveal) -->
+  <div class="anim d6" style="margin-top: 40px; display: flex; gap: 32px; align-items: center; justify-content: center;">
+    <div style="text-align: center;">
+      <div style="width: 52px; height: 52px; border-radius: 50%; background: linear-gradient(135deg, rgba(110,231,183,0.15), rgba(59,130,246,0.15)); border: 2px solid rgba(110,231,183,0.3); display: flex; align-items: center; justify-content: center; margin: 0 auto 8px; font-size: 1.2rem; font-weight: 700; color: #6ee7b7;">B</div>
+      <p style="font-size: 0.85rem; font-weight: 600; color: #e2e8f0;">Bishwanath Bastola</p>
+      <p style="font-size: 0.72rem; color: #6ee7b7;">Founder &amp; Lead Engineer</p>
+    </div>
+    <div style="text-align: center;">
+      <div style="width: 52px; height: 52px; border-radius: 50%; background: rgba(96,165,250,0.1); border: 2px solid rgba(96,165,250,0.25); display: flex; align-items: center; justify-content: center; margin: 0 auto 8px; font-size: 1.2rem; font-weight: 700; color: #60a5fa;">J</div>
+      <p style="font-size: 0.85rem; font-weight: 600; color: #e2e8f0;">Jagat Subedi</p>
+      <p style="font-size: 0.72rem; color: #60a5fa;">BS Computer Science</p>
+    </div>
+    <div style="text-align: center;">
+      <div style="width: 52px; height: 52px; border-radius: 50%; background: rgba(167,139,250,0.1); border: 2px solid rgba(167,139,250,0.25); display: flex; align-items: center; justify-content: center; margin: 0 auto 8px; font-size: 1.2rem; font-weight: 700; color: #a78bfa;">K</div>
+      <p style="font-size: 0.85rem; font-weight: 600; color: #e2e8f0;">Kritim Bastola</p>
+      <p style="font-size: 0.72rem; color: #a78bfa;">MS Computer Science</p>
+    </div>
+  </div>
+</div>
+
+<!-- ============ SLIDE 4: HOW IT WORKS ============ -->
+<div class="slide" data-slide="4">
+  <div class="anim d1" style="margin-bottom: 28px;">
+    <h2 style="font-size: 2.2rem; font-weight: 800; letter-spacing: -1px; text-align: center;">
+      How a founder goes from <span class="blue">idea</span> to <span class="green">income</span>
+    </h2>
+  </div>
+  <div class="flow-row">
+    <div class="flow-node">
+      <div class="icon" style="background: rgba(59,130,246,0.15); border: 2px solid #3b82f6;">💡</div>
+      <h4 class="blue">Post Your Idea</h4>
+      <p>Record a pitch video<br>Costs ~$2</p>
+    </div>
+    <div class="flow-arrow">→</div>
+    <div class="flow-node">
+      <div class="icon" style="background: rgba(167,139,250,0.15); border: 2px solid #8b5cf6;">🗳️</div>
+      <h4 class="purple">The World Votes</h4>
+      <p>YES or NO<br>with real money</p>
+    </div>
+    <div class="flow-arrow">→</div>
+    <div class="flow-node">
+      <div class="icon" style="background: rgba(110,231,183,0.15); border: 2px solid #10b981;">✅</div>
+      <h4 class="green">Crowd Says YES</h4>
+      <p>System decides<br>automatically</p>
+    </div>
+    <div class="flow-arrow">→</div>
+    <div class="flow-node">
+      <div class="icon" style="background: rgba(253,224,71,0.15); border: 2px solid #fbbf24;">🚀</div>
+      <h4 class="yellow">Project Launches</h4>
+      <p>Founder gets ownership<br>Supporters get shares</p>
+    </div>
+    <div class="flow-arrow">→</div>
+    <div class="flow-node">
+      <div class="icon" style="background: rgba(110,231,183,0.2); border: 2px solid #6ee7b7;">💰</div>
+      <h4 class="green">Earn Forever</h4>
+      <p>Keep building →<br>More traction → Income</p>
+    </div>
+  </div>
+  <div class="anim d7" style="margin-top: 28px; text-align: center;">
+    <p style="font-size: 1rem; color: #94a3b8;">
+      Think an idea is bad? Vote NO. If you're right, <strong style="color: #f87171;">you get paid.</strong> Skeptics are the quality filter.
+    </p>
+  </div>
+  <div class="anim d8" style="margin-top: 12px;">
+    <p style="font-size: 0.9rem; color: #64748b;">
+      Your family could be your first supporters. No gatekeepers. No permission needed. Global from day one.
+    </p>
+  </div>
+</div>
+
+<!-- ============ SLIDE 5: THE THIRD PATH ============ -->
+<div class="slide" data-slide="5">
+  <div class="anim d1" style="margin-bottom: 28px;">
+    <h2 style="font-size: 2.2rem; font-weight: 800; letter-spacing: -1px; text-align: center;">
+      Not gatekept. Not lawless. <span class="green">The third path.</span>
+    </h2>
+  </div>
+  <div class="compare-row anim d2">
+    <div class="compare-box" style="background: rgba(248,113,113,0.05); border: 1px solid rgba(248,113,113,0.15);">
+      <h3 class="red">Traditional Funding</h3>
+      <div class="compare-line">Access <strong class="red">Gatekept</strong></div>
+      <div class="compare-line">Who decides <strong>A few insiders</strong></div>
+      <div class="compare-line">Protection <strong>Investors only</strong></div>
+      <div class="compare-line">Speed <strong>Months to years</strong></div>
+      <div class="compare-verdict" style="background: rgba(248,113,113,0.1); color: #f87171;">99% of builders excluded</div>
+    </div>
+    <div class="compare-box" style="background: rgba(251,191,36,0.05); border: 1px solid rgba(251,191,36,0.15);">
+      <h3 class="yellow">Open Launchpads</h3>
+      <div class="compare-line">Access <strong class="green">Open</strong></div>
+      <div class="compare-line">Who decides <strong class="red">Nobody</strong></div>
+      <div class="compare-line">Protection <strong class="red">None</strong></div>
+      <div class="compare-line">Speed <strong>Instant</strong></div>
+      <div class="compare-verdict" style="background: rgba(251,191,36,0.1); color: #fde68a;">98.6% are scams</div>
+    </div>
+    <div class="compare-box" style="background: rgba(110,231,183,0.04); border: 1px solid rgba(110,231,183,0.2);">
+      <h3 class="green">PNL</h3>
+      <div class="compare-line">Access <strong class="green">Open</strong></div>
+      <div class="compare-line">Who decides <strong class="green">The crowd, with money</strong></div>
+      <div class="compare-line">Protection <strong class="green">For everyone</strong></div>
+      <div class="compare-line">Speed <strong class="green">Days, not months</strong></div>
+      <div class="compare-verdict" style="background: rgba(110,231,183,0.1); color: #6ee7b7;">Merit wins</div>
+    </div>
+  </div>
+  <div class="anim d3" style="margin-top: 24px; text-align: center;">
+    <p style="font-size: 1rem; color: #94a3b8;">
+      Think of it as <strong style="color: #e2e8f0;">Shark Tank, but the entire internet is the panel</strong> &mdash; and it runs on autopilot.
+    </p>
+  </div>
+</div>
+
+<!-- ============ SLIDE 6: HOW EVERYONE EARNS ============ -->
+<div class="slide" data-slide="6">
+  <div class="anim d1" style="margin-bottom: 28px;">
+    <h2 style="font-size: 2.2rem; font-weight: 800; letter-spacing: -1px; text-align: center;">
+      How <span class="green">everyone</span> makes money.
+    </h2>
+  </div>
+  <div class="rev-row anim d2">
+    <div class="rev-box" style="background: rgba(110,231,183,0.06); border: 1px solid rgba(110,231,183,0.15);">
+      <h4 class="green">Founders</h4>
+      <p>Get 33% ownership of their launched project. Every time it trades, they earn fees. Build more, earn more.</p>
+    </div>
+    <div class="rev-box" style="background: rgba(96,165,250,0.06); border: 1px solid rgba(96,165,250,0.15);">
+      <h4 class="blue">Supporters</h4>
+      <p>Vote YES on good ideas &rarr; get early shares. Vote NO on bad ideas &rarr; get paid for being right.</p>
+    </div>
+    <div class="rev-box" style="background: rgba(167,139,250,0.06); border: 1px solid rgba(167,139,250,0.15);">
+      <h4 class="purple">PNL (Us)</h4>
+      <p>Fees on every vote, every launch, and every trade. The more ideas flow through PNL, the more we earn.</p>
+    </div>
+  </div>
+  <div class="anim d3" style="margin-top: 28px; text-align: center;">
+    <p style="font-size: 1rem; color: #64748b;">
+      Everyone is aligned. Good ideas win. Bad ideas get filtered. <strong style="color: #94a3b8;">The entire system incentivizes quality.</strong>
+    </p>
+  </div>
+</div>
+
+<!-- ============ SLIDE 7: WHAT PNL BECOMES ============ -->
+<div class="slide" data-slide="7">
+  <div class="anim d1" style="margin-bottom: 20px;">
+    <h2 style="font-size: 2rem; font-weight: 800; letter-spacing: -1px; text-align: center;">
+      This isn't just a launchpad. <span class="green">It's where the world decides which ideas deserve to exist.</span>
+    </h2>
+  </div>
+  <div class="platform-grid anim d2">
+    <div class="platform-card">
+      <div class="emoji">🎵</div>
+      <h4>Music</h4>
+      <p>Crowd funds which artists get their shot</p>
+    </div>
+    <div class="platform-card">
+      <div class="emoji">🎬</div>
+      <h4>Film</h4>
+      <p>Crowd decides which stories get made</p>
+    </div>
+    <div class="platform-card">
+      <div class="emoji">🔬</div>
+      <h4>Research</h4>
+      <p>Crowd funds which studies get grants</p>
+    </div>
+    <div class="platform-card">
+      <div class="emoji">🎮</div>
+      <h4>Gaming</h4>
+      <p>Crowd backs which indie games launch</p>
+    </div>
+    <div class="platform-card">
+      <div class="emoji">🏗️</div>
+      <h4>Hardware</h4>
+      <p>Crowd funds real products from idea to market</p>
+    </div>
+    <div class="platform-card">
+      <div class="emoji">🤖</div>
+      <h4>AI Agents</h4>
+      <p>AI checks PNL to know which ideas are worth backing</p>
+    </div>
+  </div>
+  <div class="anim d3" style="margin-top: 20px; text-align: center;">
+    <p style="font-size: 1rem; color: #94a3b8;">
+      PNL becomes the <strong style="color: #e2e8f0;">global trust layer</strong> &mdash; the place where ideas get validated before money moves.
+    </p>
+  </div>
+</div>
+
+<!-- ============ SLIDE 8: REVENUE MODEL (INVESTOR) ============ -->
+<div class="slide" data-slide="8">
+  <div class="anim d1" style="margin-bottom: 18px;">
+    <h2 style="font-size: 2rem; font-weight: 800; letter-spacing: -1px; text-align: center;">
+      Follow the money through <span class="green">one project</span>.
+    </h2>
+    <p style="font-size: 0.9rem; color: #64748b; text-align: center; margin-top: 4px;">Example: a project with a $1,000 voting pool</p>
+  </div>
+
+  <!-- Visual money flow -->
+  <div class="anim d2" style="display: flex; align-items: center; gap: 0; max-width: 850px; width: 100%;">
+    <!-- Step 1: Create -->
+    <div style="flex: 1; text-align: center; padding: 14px 8px; background: rgba(59,130,246,0.05); border: 1px solid rgba(59,130,246,0.15); border-radius: 12px;">
+      <div style="font-size: 1.3rem; margin-bottom: 4px;">💡</div>
+      <div style="font-size: 0.7rem; color: #64748b; margin-bottom: 4px;">Founder posts idea</div>
+      <div style="font-size: 1.1rem; font-weight: 800; color: #60a5fa;">$2</div>
+      <div style="font-size: 0.65rem; color: #475569;">creation fee</div>
+    </div>
+    <div style="color: rgba(110,231,183,0.3); font-size: 1.2rem; padding: 0 4px;">→</div>
+    <!-- Step 2: Votes -->
+    <div style="flex: 1; text-align: center; padding: 14px 8px; background: rgba(167,139,250,0.05); border: 1px solid rgba(167,139,250,0.15); border-radius: 12px;">
+      <div style="font-size: 1.3rem; margin-bottom: 4px;">🗳️</div>
+      <div style="font-size: 0.7rem; color: #64748b; margin-bottom: 4px;">Crowd votes $1,000</div>
+      <div style="font-size: 1.1rem; font-weight: 800; color: #a78bfa;">$15</div>
+      <div style="font-size: 0.65rem; color: #475569;">1.5% voting fee</div>
+    </div>
+    <div style="color: rgba(110,231,183,0.3); font-size: 1.2rem; padding: 0 4px;">→</div>
+    <!-- Step 3: Resolves -->
+    <div style="flex: 1; text-align: center; padding: 14px 8px; background: rgba(253,224,71,0.05); border: 1px solid rgba(253,224,71,0.15); border-radius: 12px;">
+      <div style="font-size: 1.3rem; margin-bottom: 4px;">✅</div>
+      <div style="font-size: 0.7rem; color: #64748b; margin-bottom: 4px;">Market resolves</div>
+      <div style="font-size: 1.1rem; font-weight: 800; color: #fde68a;">$50</div>
+      <div style="font-size: 0.65rem; color: #475569;">5% completion fee</div>
+    </div>
+    <div style="color: rgba(110,231,183,0.3); font-size: 1.2rem; padding: 0 4px;">→</div>
+    <!-- Step 4: Launches -->
+    <div style="flex: 1; text-align: center; padding: 14px 8px; background: rgba(110,231,183,0.05); border: 1px solid rgba(110,231,183,0.15); border-radius: 12px;">
+      <div style="font-size: 1.3rem; margin-bottom: 4px;">🚀</div>
+      <div style="font-size: 0.7rem; color: #64748b; margin-bottom: 4px;">Token launches</div>
+      <div style="font-size: 1.1rem; font-weight: 800; color: #6ee7b7;">2%</div>
+      <div style="font-size: 0.65rem; color: #475569;">token supply to PNL</div>
+    </div>
+    <div style="color: rgba(110,231,183,0.3); font-size: 1.2rem; padding: 0 4px;">=</div>
+    <!-- Total -->
+    <div style="flex: 1; text-align: center; padding: 14px 8px; background: rgba(110,231,183,0.08); border: 2px solid rgba(110,231,183,0.25); border-radius: 12px;">
+      <div style="font-size: 0.7rem; color: #6ee7b7; font-weight: 700; margin-bottom: 6px;">PNL EARNS</div>
+      <div style="font-size: 1.5rem; font-weight: 900; color: #6ee7b7;">$67</div>
+      <div style="font-size: 0.65rem; color: #94a3b8;">+ tokens + trading</div>
+    </div>
+  </div>
+
+  <!-- Now multiply -->
+  <div class="anim d3" style="margin-top: 22px; margin-bottom: 14px;">
+    <p style="font-size: 1.1rem; text-align: center; color: #e2e8f0; font-weight: 600;">Now multiply.</p>
+  </div>
+
+  <div class="anim d4" style="display: flex; gap: 16px; max-width: 700px; width: 100%;">
+    <div style="flex: 1; text-align: center; padding: 18px 14px; border-radius: 12px; background: rgba(148,163,184,0.04); border: 1px solid rgba(148,163,184,0.1);">
+      <div style="font-size: 0.72rem; color: #64748b; margin-bottom: 6px;">100 projects/mo (~3/day)</div>
+      <div style="font-size: 1.6rem; font-weight: 900; color: #94a3b8;">$80K</div>
+      <div style="font-size: 0.7rem; color: #475569;">/year</div>
+    </div>
+    <div style="flex: 1; text-align: center; padding: 18px 14px; border-radius: 12px; background: rgba(96,165,250,0.04); border: 1px solid rgba(96,165,250,0.12);">
+      <div style="font-size: 0.72rem; color: #64748b; margin-bottom: 6px;">1,000 projects/mo (~1/hr)</div>
+      <div style="font-size: 1.6rem; font-weight: 900; color: #60a5fa;">$800K</div>
+      <div style="font-size: 0.7rem; color: #475569;">/year</div>
+    </div>
+    <div style="flex: 1; text-align: center; padding: 18px 14px; border-radius: 12px; background: rgba(110,231,183,0.04); border: 1px solid rgba(110,231,183,0.15);">
+      <div style="font-size: 0.72rem; color: #64748b; margin-bottom: 6px;">10,000 projects/mo (~14/hr)</div>
+      <div style="font-size: 1.6rem; font-weight: 900; color: #6ee7b7;">$8M+</div>
+      <div style="font-size: 0.7rem; color: #475569;">/year</div>
+    </div>
+  </div>
+
+  <!-- pump.fun context -->
+  <div class="anim d5" style="margin-top: 16px; max-width: 700px;">
+    <div style="background: rgba(251,191,36,0.04); border: 1px solid rgba(251,191,36,0.12); border-radius: 10px; padding: 10px 18px; text-align: center;">
+      <p style="font-size: 0.78rem; color: #94a3b8; line-height: 1.5;">
+        <strong style="color: #fde68a;">Context:</strong> pump.fun (no filter, 98.6% scams) generated <strong style="color: #fde68a;">$1B+ all-time</strong>. Peak: <strong style="color: #e2e8f0;">$138M/month</strong>, 70K launches/day. Our 10K/mo scenario is a <strong style="color: #e2e8f0;">tiny fraction</strong> of proven demand.
+      </p>
+    </div>
+  </div>
+</div>
+
+<!-- ============ SLIDE 9: REVENUE SCENARIOS ============ -->
+<div class="slide" data-slide="9">
+  <div class="anim d1" style="margin-bottom: 16px;">
+    <h2 style="font-size: 2rem; font-weight: 800; letter-spacing: -1px; text-align: center;">
+      Revenue scales <span class="green">two ways</span>: more ideas <span class="dim" style="font-weight: 400; font-size: 1.4rem;">×</span> bigger pools.
+    </h2>
+  </div>
+
+  <!-- Scenario matrix -->
+  <div class="anim d2" style="max-width: 880px; width: 100%;">
+    <table class="scenario-matrix">
+      <thead>
+        <tr>
+          <th class="matrix-corner">
+            <span style="position: absolute; bottom: 8px; right: 12px; font-size: 0.65rem; color: #6ee7b7;">Projects/mo →</span>
+            <span style="position: absolute; top: 8px; left: 8px; font-size: 0.65rem; color: #a78bfa;">↓ Avg Pool</span>
+          </th>
+          <th>100/mo<br><span class="matrix-sub">~3/day</span></th>
+          <th>500/mo<br><span class="matrix-sub">~17/day</span></th>
+          <th>1,000/mo<br><span class="matrix-sub">~1/hr</span></th>
+          <th>5,000/mo<br><span class="matrix-sub">~7/hr</span></th>
+          <th>10,000/mo<br><span class="matrix-sub">~14/hr</span></th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td class="matrix-row-label">$650<br><span class="matrix-sub">small pool</span></td>
+          <td class="matrix-cell c1" data-rev="$52K">$52K</td>
+          <td class="matrix-cell c2" data-rev="$260K">$260K</td>
+          <td class="matrix-cell c3" data-rev="$520K">$520K</td>
+          <td class="matrix-cell c4" data-rev="$2.6M">$2.6M</td>
+          <td class="matrix-cell c5" data-rev="$5.2M">$5.2M</td>
+        </tr>
+        <tr>
+          <td class="matrix-row-label">$1,950<br><span class="matrix-sub">mid pool</span></td>
+          <td class="matrix-cell c1" data-rev="$155K">$155K</td>
+          <td class="matrix-cell c2" data-rev="$775K">$775K</td>
+          <td class="matrix-cell c3" data-rev="$1.5M">$1.5M</td>
+          <td class="matrix-cell c4" data-rev="$7.8M">$7.8M</td>
+          <td class="matrix-cell c5 hot" data-rev="$15.5M">$15.5M</td>
+        </tr>
+        <tr>
+          <td class="matrix-row-label">$5,000<br><span class="matrix-sub">large pool</span></td>
+          <td class="matrix-cell c1" data-rev="$400K">$400K</td>
+          <td class="matrix-cell c2" data-rev="$2M">$2M</td>
+          <td class="matrix-cell c3" data-rev="$4M">$4M</td>
+          <td class="matrix-cell c4 hot" data-rev="$20M">$20M</td>
+          <td class="matrix-cell c5 hot" data-rev="$40M">$40M</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <!-- Animated highlight bar -->
+  <div class="anim d3" style="margin-top: 18px; display: flex; gap: 12px; align-items: center; justify-content: center; flex-wrap: wrap;">
+    <div class="scenario-tag" style="background: rgba(110,231,183,0.06); border: 1px solid rgba(110,231,183,0.2);">
+      <span style="color: #64748b; font-size: 0.72rem;">Year 1 target →</span>
+      <span style="color: #6ee7b7; font-weight: 800; font-size: 0.95rem;">100/mo × $650</span>
+      <span style="color: #94a3b8; font-size: 0.72rem;">= $52K/yr</span>
+    </div>
+    <div style="color: #334155;">→</div>
+    <div class="scenario-tag" style="background: rgba(96,165,250,0.06); border: 1px solid rgba(96,165,250,0.2);">
+      <span style="color: #64748b; font-size: 0.72rem;">Year 3 →</span>
+      <span style="color: #60a5fa; font-weight: 800; font-size: 0.95rem;">1K/mo × $1,950</span>
+      <span style="color: #94a3b8; font-size: 0.72rem;">= $1.5M/yr</span>
+    </div>
+    <div style="color: #334155;">→</div>
+    <div class="scenario-tag" style="background: rgba(253,224,71,0.06); border: 1px solid rgba(253,224,71,0.2);">
+      <span style="color: #64748b; font-size: 0.72rem;">Year 5 →</span>
+      <span style="color: #fde68a; font-weight: 800; font-size: 0.95rem;">10K/mo × $1,950</span>
+      <span style="color: #94a3b8; font-size: 0.72rem;">= $15.5M/yr</span>
+    </div>
+  </div>
+
+  <!-- pump.fun context -->
+  <div class="anim d4" style="margin-top: 16px; max-width: 880px;">
+    <div style="background: rgba(251,191,36,0.04); border: 1px solid rgba(251,191,36,0.12); border-radius: 10px; padding: 10px 18px; display: flex; align-items: center; gap: 14px; justify-content: center;">
+      <div style="font-size: 0.78rem; color: #94a3b8; line-height: 1.5; text-align: center;">
+        <strong style="color: #fde68a;">Reality check:</strong> pump.fun hit <strong style="color: #e2e8f0;">70,000 launches/day</strong> (2.1M/mo) with <strong style="color: #fde68a;">$1B+ revenue</strong>. Our 10K/mo is <strong style="color: #e2e8f0;">0.5%</strong> of their peak. <span style="color: #64748b;">These aren't dreams &mdash; they're conservative math.</span>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ============ SLIDE 10: ASK + ROADMAP ============ -->
+<div class="slide" data-slide="10">
+  <div class="anim d1" style="margin-bottom: 8px;">
+    <p style="font-size: 0.85rem; color: #6ee7b7; font-weight: 700; text-transform: uppercase; letter-spacing: 3px;">Already built & live</p>
+  </div>
+  <div class="anim d2" style="margin-bottom: 20px; display: flex; gap: 24px; flex-wrap: wrap; justify-content: center;">
+    <span style="font-size: 0.82rem; color: #94a3b8;">✅ Platform live</span>
+    <span style="font-size: 0.82rem; color: #94a3b8;">🌐 Web app</span>
+    <span style="font-size: 0.82rem; color: #94a3b8;">📱 Mobile in dev</span>
+    <span style="font-size: 0.82rem; color: #94a3b8;">🤖 AI analysis</span>
+    <span style="font-size: 0.82rem; color: #94a3b8;">🎙️ Voice rooms</span>
+    <span style="font-size: 0.82rem; color: #94a3b8;">🚀 Auto launch</span>
+  </div>
+  <div class="anim d3">
+    <div class="ask-num">$100K</div>
+  </div>
+  <div class="anim d4" style="margin-top: 6px; margin-bottom: 22px;">
+    <p style="font-size: 1.1rem; color: #94a3b8;">to bring the first wave of builders to the platform.</p>
+  </div>
+  <!-- Detailed roadmap -->
+  <div style="display: flex; gap: 16px; max-width: 900px; width: 100;" class="anim d5">
+    <div style="flex: 1; padding: 18px 16px; background: rgba(110,231,183,0.03); border: 1px solid rgba(110,231,183,0.15); border-radius: 12px;">
+      <h4 class="green" style="font-size: 0.95rem; margin-bottom: 8px;">2026 &mdash; Launch & Protect</h4>
+      <div style="font-size: 0.75rem; color: #94a3b8; line-height: 1.7;">
+        <div>&#x2022; Launchpad live on mainnet</div>
+        <div>&#x2022; Mobile app shipped</div>
+        <div>&#x2022; Scrollable pitch feed</div>
+        <div>&#x2022; Community voice rooms</div>
+        <div>&#x2022; Provisional patent filed</div>
+      </div>
+    </div>
+    <div style="flex: 1; padding: 18px 16px; background: rgba(96,165,250,0.03); border: 1px solid rgba(96,165,250,0.15); border-radius: 12px;">
+      <h4 class="blue" style="font-size: 0.95rem; margin-bottom: 8px;">2027 &mdash; Conviction & Privacy</h4>
+      <div style="font-size: 0.75rem; color: #94a3b8; line-height: 1.7;">
+        <div>&#x2022; Full utility patent</div>
+        <div>&#x2022; Conviction market layers</div>
+        <div>&#x2022; Token-backed reputation network</div>
+        <div>&#x2022; Privacy layers</div>
+        <div>&#x2022; AI researcher agents for pitches</div>
+      </div>
+    </div>
+    <div style="flex: 1; padding: 18px 16px; background: rgba(167,139,250,0.03); border: 1px solid rgba(167,139,250,0.15); border-radius: 12px;">
+      <h4 class="purple" style="font-size: 0.95rem; margin-bottom: 8px;">2028 &mdash; Protocol & Scale</h4>
+      <div style="font-size: 0.75rem; color: #94a3b8; line-height: 1.7;">
+        <div>&#x2022; Agentic access layer</div>
+        <div>&#x2022; Protocol licensing via token</div>
+        <div>&#x2022; Multi-vertical: music, film,</div>
+        <div>&nbsp;&nbsp;&nbsp;research, gaming, hardware</div>
+      </div>
+    </div>
+    <div style="flex: 1; padding: 18px 16px; background: rgba(253,224,71,0.03); border: 1px solid rgba(253,224,71,0.15); border-radius: 12px;">
+      <h4 class="yellow" style="font-size: 0.95rem; margin-bottom: 8px;">Beyond &mdash; The Oracle</h4>
+      <div style="font-size: 0.75rem; color: #94a3b8; line-height: 1.7;">
+        <div>&#x2022; Global trust layer for ideas</div>
+        <div>&#x2022; Every launchpad queries PNL</div>
+        <div>&#x2022; Every AI agent queries PNL</div>
+        <div>&#x2022; Infrastructure for all ideas</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ============ SLIDE 11: CLOSING ============ -->
+<div class="slide" data-slide="11">
+  <div class="anim d1" style="margin-bottom: 20px;">
+    <div class="brand" style="font-size: 5rem;">PNL</div>
+  </div>
+  <div class="anim d3" style="max-width: 700px; text-align: center;">
+    <p style="font-size: 1.6rem; color: #e2e8f0; line-height: 1.8; font-weight: 300;">
+      Ideas don't die.<br>
+      They get suppressed by the reality of life.<br><br>
+      <strong class="green" style="font-size: 1.8rem;">PNL makes sure every idea gets a fair shot.</strong>
+    </p>
+  </div>
+  <div class="anim d5" style="margin-top: 30px; display: flex; gap: 30px; align-items: center;">
+    <a href="https://pnl.market" style="color: #6ee7b7; text-decoration: none; font-weight: 600; font-size: 0.95rem;" target="_blank">pnl.market</a>
+    <a href="https://x.com/pnldotmarket" style="color: #60a5fa; text-decoration: none; font-weight: 600; font-size: 0.95rem;" target="_blank">@pnldotmarket</a>
+  </div>
+</div>
+
+<!-- Download menu -->
+<div class="dl-menu" id="dlMenu">
+  <div class="dl-options">
+    <button class="dl-btn" onclick="downloadPDF(this)"><span class="label">📄 Download PDF</span><span class="spinner">⏳ Generating...</span></button>
+    <button class="dl-btn" onclick="downloadPPTX(this)"><span class="label">📊 Download PPTX</span><span class="spinner">⏳ Generating...</span></button>
+  </div>
+  <div class="dl-toggle" onclick="document.getElementById('dlMenu').classList.toggle('open')" title="Download">⬇</div>
+</div>
+
+<!-- CDN libs for export -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/gh/gitbrent/PptxGenJS@3.12.0/dist/pptxgen.bundle.js"></script>
+
+<!-- ============ JAVASCRIPT ============ -->
+<script>
+  const slides = document.querySelectorAll('.slide');
+  const progress = document.getElementById('progress');
+  const counter = document.getElementById('counter');
+  let current = 0;
+  const total = slides.length;
+
+  function showSlide(n) {
+    if (n < 0 || n >= total) return;
+    slides[current].classList.remove('active');
+    current = n;
+    slides[current].classList.add('active');
+    progress.style.width = ((current / (total - 1)) * 100) + '%';
+    counter.textContent = (current + 1) + ' / ' + total;
+    // Reset matrix cells when leaving slide 9
+    const matrixCells = document.querySelectorAll('.matrix-cell');
+    if (current !== 9) {
+      matrixCells.forEach(c => { c.style.opacity = '0'; c.style.transform = 'scale(0.85)'; });
+    } else {
+      matrixCells.forEach(c => { c.style.opacity = ''; c.style.transform = ''; });
+    }
+  }
+
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'ArrowRight' || e.key === ' ' || e.key === 'ArrowDown') {
+      e.preventDefault();
+      showSlide(current + 1);
+    }
+    if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') {
+      e.preventDefault();
+      showSlide(current - 1);
+    }
+    const num = parseInt(e.key);
+    if (!isNaN(num) && num >= 0 && num < total) showSlide(num);
+  });
+
+  document.addEventListener('click', (e) => {
+    if (e.target.closest('a') || e.target.closest('.dl-menu')) return;
+    e.clientX > window.innerWidth * 0.5 ? showSlide(current + 1) : showSlide(current - 1);
+  });
+
+  let touchStartX = 0;
+  document.addEventListener('touchstart', (e) => { touchStartX = e.touches[0].clientX; });
+  document.addEventListener('touchend', (e) => {
+    const diff = touchStartX - e.changedTouches[0].clientX;
+    if (Math.abs(diff) > 50) diff > 0 ? showSlide(current + 1) : showSlide(current - 1);
+  });
+
+  showSlide(0);
+
+  // ========== EXPORT HELPERS ==========
+  function forceVisible() {
+    // Kill all animations and force everything visible
+    const style = document.createElement('style');
+    style.id = 'export-override';
+    style.textContent = `
+      .anim, .need-card, .matrix-cell, .flow-node {
+        opacity: 1 !important;
+        transform: none !important;
+        animation: none !important;
+        transition: none !important;
+      }
+      .slide {
+        animation: none !important;
+        transition: none !important;
+      }
+      .dl-menu, .progress-bar, .slide-counter { display: none !important; }
+    `;
+    document.head.appendChild(style);
+  }
+
+  function restoreAnimations() {
+    const style = document.getElementById('export-override');
+    if (style) style.remove();
+  }
+
+  async function captureAllSlides() {
+    const images = [];
+    forceVisible();
+
+    for (let i = 0; i < total; i++) {
+      // Show only this slide
+      slides.forEach(s => { s.classList.remove('active'); s.style.opacity = '0'; s.style.pointerEvents = 'none'; });
+      slides[i].classList.add('active');
+      slides[i].style.opacity = '1';
+      slides[i].style.pointerEvents = 'all';
+
+      // Let the DOM settle
+      await new Promise(r => setTimeout(r, 300));
+
+      const canvas = await html2canvas(slides[i], {
+        backgroundColor: '#0a0a0a',
+        width: window.innerWidth,
+        height: window.innerHeight,
+        scale: 2,
+        useCORS: true,
+        logging: false
+      });
+
+      images.push(canvas.toDataURL('image/png'));
+    }
+
+    // Clean up inline styles
+    slides.forEach(s => { s.style.opacity = ''; s.style.pointerEvents = ''; });
+    restoreAnimations();
+    return images;
+  }
+
+  // ========== PDF DOWNLOAD ==========
+  async function downloadPDF(btn) {
+    btn.disabled = true;
+    const savedSlide = current;
+    const { jsPDF } = window.jspdf;
+
+    const images = await captureAllSlides();
+    const pdf = new jsPDF({ orientation: 'landscape', unit: 'px', format: [1920, 1080] });
+
+    images.forEach((img, i) => {
+      if (i > 0) pdf.addPage([1920, 1080], 'landscape');
+      pdf.addImage(img, 'PNG', 0, 0, 1920, 1080);
+    });
+
+    pdf.save('PNL-Pitch-Deck.pdf');
+    showSlide(savedSlide);
+    btn.disabled = false;
+  }
+
+  // ========== PPTX DOWNLOAD ==========
+  async function downloadPPTX(btn) {
+    btn.disabled = true;
+    const savedSlide = current;
+    const pptx = new PptxGenJS();
+    pptx.defineLayout({ name: 'WIDE', width: 13.33, height: 7.5 });
+    pptx.layout = 'WIDE';
+
+    const images = await captureAllSlides();
+
+    images.forEach(img => {
+      const slide = pptx.addSlide();
+      slide.background = { color: '0a0a0a' };
+      slide.addImage({ data: img, x: 0, y: 0, w: 13.33, h: 7.5 });
+    });
+
+    await pptx.writeFile({ fileName: 'PNL-Pitch-Deck.pptx' });
+    showSlide(savedSlide);
+    btn.disabled = false;
+  }
+</script>
+</body>
+</html>
