@@ -804,8 +804,26 @@
   </div>
 </div>
 
-<!-- ============ SLIDE 4: WHO USES PNL ============ -->
+<!-- ============ SLIDE 4: PNL REVEAL ============ -->
 <div class="slide" data-slide="4">
+  <div class="anim d1">
+    <div class="brand">PNL</div>
+  </div>
+  <div class="anim d2" style="margin-top: 16px;">
+    <p style="font-size: 1.3rem; color: #94a3b8;">Predict &amp; Launch &mdash; <span style="color: #e2e8f0; font-weight: 500;">where ideas construct realities.</span></p>
+  </div>
+  <div class="anim d3" style="margin-top: 16px;">
+    <p style="font-size: 1rem; color: #64748b;">Pitch your idea. Let the market decide. <span style="color: #94a3b8;">Build it with the world behind you.</span></p>
+  </div>
+  <div class="anim d4" style="margin-top: 20px;">
+    <p style="font-size: 0.95rem; color: #94a3b8; letter-spacing: 0.5px;">
+      Not <span style="color: #f87171;">gatekept</span> like VCs. Not <span style="color: #fde68a;">lawless</span> like pump.fun. <strong style="color: #6ee7b7;">Merit wins.</strong>
+    </p>
+  </div>
+</div>
+
+<!-- ============ SLIDE 5: WHO USES PNL ============ -->
+<div class="slide" data-slide="5">
   <div class="anim d1" style="margin-bottom: 28px;">
     <h2 style="font-size: 2.2rem; font-weight: 800; letter-spacing: -1px; text-align: center;">
       Two sides. <span class="green">One platform.</span>
@@ -866,24 +884,6 @@
   <div class="anim d3" style="margin-top: 24px; text-align: center;">
     <p style="font-size: 1rem; color: #64748b;">
       Founders get funded. Traders get alpha. <strong style="color: #e2e8f0;">Both win when good ideas succeed.</strong>
-    </p>
-  </div>
-</div>
-
-<!-- ============ SLIDE 5: PNL REVEAL ============ -->
-<div class="slide" data-slide="5">
-  <div class="anim d1">
-    <div class="brand">PNL</div>
-  </div>
-  <div class="anim d2" style="margin-top: 16px;">
-    <p style="font-size: 1.3rem; color: #94a3b8;">Predict &amp; Launch &mdash; <span style="color: #e2e8f0; font-weight: 500;">where ideas construct realities.</span></p>
-  </div>
-  <div class="anim d3" style="margin-top: 16px;">
-    <p style="font-size: 1rem; color: #64748b;">Pitch your idea. Let the market decide. <span style="color: #94a3b8;">Build it with the world behind you.</span></p>
-  </div>
-  <div class="anim d4" style="margin-top: 20px;">
-    <p style="font-size: 0.95rem; color: #94a3b8; letter-spacing: 0.5px;">
-      Not <span style="color: #f87171;">gatekept</span> like VCs. Not <span style="color: #fde68a;">lawless</span> like pump.fun. <strong style="color: #6ee7b7;">Merit wins.</strong>
     </p>
   </div>
 </div>
@@ -1211,20 +1211,20 @@
         <div style="color: #334155; font-size: 1.2rem;">&rarr;</div>
         <!-- Company Value -->
         <div style="text-align: center;">
-          <div style="font-size: 0.65rem; color: #64748b; margin-bottom: 4px;">Company Value (10x)</div>
-          <div style="font-size: 1.4rem; font-weight: 900; color: #a78bfa;">$155M</div>
+          <div style="font-size: 0.65rem; color: #64748b; margin-bottom: 4px;">Company Value (6x)</div>
+          <div style="font-size: 1.4rem; font-weight: 900; color: #a78bfa;">$93M</div>
           <div style="font-size: 0.65rem; color: #64748b;">conservative multiple</div>
         </div>
         <div style="color: #334155; font-size: 1.2rem;">&rarr;</div>
         <!-- Your Return -->
         <div style="text-align: center;">
           <div style="font-size: 0.65rem; color: #64748b; margin-bottom: 4px;">Your 9.1% =</div>
-          <div style="font-size: 1.4rem; font-weight: 900; color: #6ee7b7;">$14.1M</div>
-          <div style="font-size: 0.65rem; color: #fde68a; font-weight: 700;">14.1x return</div>
+          <div style="font-size: 1.4rem; font-weight: 900; color: #6ee7b7;">$8.5M</div>
+          <div style="font-size: 0.65rem; color: #fde68a; font-weight: 700;">8.5x return</div>
         </div>
       </div>
       <div style="margin-top: 12px; text-align: center; font-size: 0.72rem; color: #94a3b8;">
-        <strong style="color: #6ee7b7;">~70% annualized ROI</strong> over 5 years &mdash; based on the same conservative math from our revenue slide.
+        <strong style="color: #6ee7b7;">~53% annualized ROI</strong> over 5 years &mdash; based on the same conservative math from our revenue slide.
       </div>
     </div>
   </div>
@@ -1550,6 +1550,22 @@
   });
 
   showSlide(0);
+
+  // ========== AUTO-FIT: scale everything to fit viewport ==========
+  // Designed at 1920×1080. Scale proportionally to actual screen.
+  (function autoFit() {
+    const DESIGN_W = 1440;
+    const DESIGN_H = 900;
+    function apply() {
+      const scaleX = window.innerWidth / DESIGN_W;
+      const scaleY = window.innerHeight / DESIGN_H;
+      const scale = Math.min(scaleX, scaleY);
+      // Use zoom (works in all modern browsers) for clean scaling
+      document.body.style.zoom = scale;
+    }
+    apply();
+    window.addEventListener('resize', apply);
+  })();
 
   // ========== EXPORT HELPERS ==========
   function forceVisible() {

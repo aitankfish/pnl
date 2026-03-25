@@ -46,19 +46,19 @@
 
 ---
 
-## Slide 5 — Two sides, one platform *(15 sec)*
-
-> PNL connects two sides. **Founders** — anyone with an idea, any country, post a pitch for two dollars. **Traders** — a global community that votes with real money and trades 24/7.
->
-> Founders get funded. Traders get opportunity. **Both win when good ideas succeed.**
-
----
-
-## Slide 6 — PNL Reveal *(10 sec)*
+## Slide 5 — PNL Reveal *(10 sec)*
 
 > **PNL — Predict and Launch.**
 >
 > Pitch your idea. Let the market decide. Not gatekept like VCs. Not lawless like scam launchpads. **Merit wins.**
+
+---
+
+## Slide 6 — Two sides, one platform *(15 sec)*
+
+> PNL connects two sides. **Founders** — anyone with an idea, any country, post a pitch for two dollars. **Traders** — a global community that votes with real money and trades 24/7.
+>
+> Founders get funded. Traders get opportunity. **Both win when good ideas succeed.**
 
 ---
 
@@ -102,7 +102,7 @@
 
 > This is already built and live. Platform on mainnet, web app, mobile in dev, AI analysis, voice rooms, auto-launch.
 >
-> We're raising **$1 million at a $10 million valuation**. $1M gets you 9.1%. Year 5 revenue at $15.5 million, 10x multiple — company worth $155 million. Your stake: **$14.1 million. A 14x return.**
+> We're raising **$1 million at a $10 million valuation**. $1M gets you 9.1%. Year 5 revenue at $15.5 million, 6x multiple — company worth $93 million. Your stake: **$8.5 million. An 8.5x return.**
 >
 > 2026 — launch, mobile, file patent. 2027 — AI agents and conviction markets. 2028 — multi-vertical expansion. Beyond — PNL becomes the oracle every launchpad and AI agent queries.
 
