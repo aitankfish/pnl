@@ -38,7 +38,7 @@
 >
 > **Blockchain** — global money rails. No banks, no borders, open 24/7.
 >
-> **Prediction markets** — people vote with real money, better than any expert. Polymarket proved it with $3.3 billion in bets.
+> **Conviction markets** — people put real money behind what they believe in. When money meets belief, truth emerges.
 >
 > **Token trading** — every trade generates fees. Pump.fun did $500 million in one year.
 >
@@ -102,7 +102,9 @@
 
 > This is already built and live. Platform on mainnet, web app, mobile in dev, AI analysis, voice rooms, auto-launch.
 >
-> We're raising **$1 million at a $10 million valuation**. $1M gets you 9.1%. Year 5 revenue at $15.5 million, 6x multiple — company worth $93 million. Your stake: **$8.5 million. An 8.5x return.**
+> We've spent roughly **$100K to get here** — developer time across three engineers, Solana infrastructure like Helius and QuickNode, hosting on Render and MongoDB Atlas, AI services, user onboarding through hackathons, mobile development, and patent prep. That's real spend, building a live product.
+>
+> In competitive markets, platforms like this trade at **10x what's been put in**. That gives us a **$10 million valuation**. We're raising **$1 million** — that's 9.1%. Year 5 revenue at $15.5 million, 6x multiple — company worth $93 million. Your stake: **$8.5 million. An 8.5x return.**
 >
 > 2026 — launch, mobile, file patent. 2027 — AI agents and conviction markets. 2028 — multi-vertical expansion. Beyond — PNL becomes the oracle every launchpad and AI agent queries.
 
@@ -129,3 +131,4 @@
 **Total: ~4:50 — leaves 10 sec buffer for pauses**
 
 *Let the slides breathe. Pause after big numbers. The visuals do half the work — you just connect the dots.*
+i

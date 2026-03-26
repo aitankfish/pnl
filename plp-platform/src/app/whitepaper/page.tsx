@@ -16,7 +16,7 @@ export const metadata: Metadata = {
   description: 'PNL (Prediction & Launch) - Tokenizing ideas to fund builders and dreamers worldwide',
   openGraph: {
     title: 'PNL Whitepaper',
-    description: 'Idea Tokenization: Where Dreamers Meet Believers. Learn how PNL revolutionizes fundraising with prediction markets.',
+    description: 'Idea Tokenization: Where Dreamers Meet Believers. Learn how PNL revolutionizes fundraising with conviction markets.',
     url: `${BASE_URL}/whitepaper`,
     siteName: 'PNL',
     images: [
@@ -32,7 +32,7 @@ export const metadata: Metadata = {
   twitter: {
     card: 'summary_large_image',
     title: 'PNL Whitepaper',
-    description: 'Idea Tokenization: Where Dreamers Meet Believers. Learn how PNL revolutionizes fundraising with prediction markets.',
+    description: 'Idea Tokenization: Where Dreamers Meet Believers. Learn how PNL revolutionizes fundraising with conviction markets.',
     images: [`${BASE_URL}/api/og?title=PNL%20Whitepaper&description=Idea%20Tokenization%3A%20Where%20Dreamers%20Meet%20Believers`],
   },
 };
@@ -77,7 +77,7 @@ export default function WhitepaperPage() {
           <section id="abstract" className="mb-12 bg-gradient-to-br from-blue-500/10 to-purple-500/10 backdrop-blur-xl rounded-lg p-8 border border-blue-400/30 scroll-mt-28">
             <h2 className="text-3xl font-bold text-white mb-4">Abstract</h2>
             <p className="text-gray-300 text-lg leading-relaxed">
-              <strong className="text-white">VC funding isn&apos;t accessible to everyone.</strong> The traditional
+              <strong className="text-white">Traditional funding isn&apos;t accessible to everyone.</strong> The traditional
               path to capital requires connections, geography, and credentials that most brilliant minds simply
               don&apos;t have. Every day, world-changing ideas die—not because they lack merit, but because their
               creators lack access.
@@ -89,15 +89,15 @@ export default function WhitepaperPage() {
               Builders get the capital they need to keep building. <strong className="text-white">Everyone wins.</strong>
             </p>
             <p className="text-gray-300 text-lg leading-relaxed mt-4">
-              The community validates through prediction markets—ensuring only ideas with real believers get funded.
-              No gatekeepers. No VC rejections. No knowing the right people. <strong className="text-white">Just
+              The community validates through conviction markets—ensuring only ideas with real believers get funded.
+              No gatekeepers. No rejections. No knowing the right people. <strong className="text-white">Just
               merit, vision, and a global crowd ready to believe in the next big thing.</strong>
             </p>
 
             <div className="mt-6 space-y-3">
-              <p className="text-green-400 text-base">✅ <strong>For Builders:</strong> Raise capital from believers worldwide—no VCs required</p>
+              <p className="text-green-400 text-base">✅ <strong>For Builders:</strong> Raise capital from believers worldwide—no gatekeepers required</p>
               <p className="text-green-400 text-base">✅ <strong>For Supporters:</strong> Fund ideas you believe in, receive tokens in return</p>
-              <p className="text-green-400 text-base">✅ <strong>Community Validated:</strong> Prediction markets filter quality, believers back winners</p>
+              <p className="text-green-400 text-base">✅ <strong>Community Validated:</strong> Conviction markets filter quality, believers back winners</p>
               <p className="text-green-400 text-base">✅ <strong>Global & Permissionless:</strong> From anywhere, for everyone—0.01 SOL minimum</p>
               <p className="text-green-400 text-base">✅ <strong>Discover Treasures:</strong> Find the next breakthrough before the world does</p>
             </div>
@@ -113,7 +113,7 @@ export default function WhitepaperPage() {
             </p>
 
             <p className="text-gray-300 text-lg leading-relaxed mb-6">
-              <strong className="text-red-400">VCs won&apos;t return your emails.</strong> They fund Stanford dropouts
+              <strong className="text-red-400">Gatekeepers won&apos;t return your emails.</strong> They fund Stanford dropouts
               and YC alumni—not dreamers in Lagos, Manila, or São Paulo. Less than 1% of startups get funded, and
               it&apos;s rarely about merit. It&apos;s about who you know, where you went to school, and which zip code
               you live in. <strong className="text-white">The system is broken.</strong>
@@ -121,7 +121,7 @@ export default function WhitepaperPage() {
 
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
               <div className="bg-red-500/10 rounded-lg p-4 border border-red-400/30">
-                <p className="text-red-400 font-bold text-lg mb-2">VC Gatekeeping</p>
+                <p className="text-red-400 font-bold text-lg mb-2">Traditional Gatekeeping</p>
                 <p className="text-gray-400 text-sm">Connections over merit. Geography over vision. Credentials over capability.</p>
               </div>
               <div className="bg-red-500/10 rounded-lg p-4 border border-red-400/30">
@@ -153,8 +153,8 @@ export default function WhitepaperPage() {
             <div className="bg-gradient-to-br from-cyan-500/10 to-blue-500/10 backdrop-blur-xl border border-cyan-400/30 rounded-lg p-6 mb-6">
               <h3 className="text-2xl font-semibold text-cyan-400 mb-4">Core Insight</h3>
               <p className="text-gray-300 text-base">
-                Prediction markets are the most accurate forecasting tools ever created—outperforming polls,
-                analysts, and experts across every domain. <strong className="text-white">PNL harnesses this
+                Conviction markets let people put real money behind ideas they believe in—creating the most
+                powerful signal of genuine belief ever designed. <strong className="text-white">PNL harnesses this
                 collective intelligence to separate brilliant ideas from noise.</strong>
               </p>
               <p className="text-gray-300 text-base mt-3">
@@ -297,7 +297,7 @@ export default function WhitepaperPage() {
 
             {/* Token Distribution - Compact */}
             <p className="text-gray-400 text-sm mt-6 mb-3 text-center italic">
-              When the community says YES, tokens are distributed fairly—no insiders, no VCs, just believers.
+              When the community says YES, tokens are distributed fairly—no insiders, no gatekeepers, just believers.
             </p>
             <div className="bg-black/30 rounded-lg p-4 border border-gray-600/30">
               <p className="text-white font-semibold mb-3 text-center">Token Distribution</p>
@@ -366,20 +366,20 @@ export default function WhitepaperPage() {
             <h2 className="text-3xl font-bold text-white mb-6">Economics: Fair by Design</h2>
 
             <p className="text-gray-300 text-lg leading-relaxed mb-6">
-              Traditional fundraising is unfair. VCs get preferential terms, insider access, and early exits—while
+              Traditional fundraising is unfair. Insiders get preferential terms, insider access, and early exits—while
               everyday believers get nothing. <strong className="text-white">PNL flips this model entirely.</strong> Everyone
               plays by the same rules, and the supporters who backed the idea first get the biggest rewards.
             </p>
 
             {/* Token Distribution Comparison */}
             <div className="bg-gradient-to-br from-green-500/10 to-blue-500/10 backdrop-blur-xl border border-green-400/30 rounded-lg p-6 mb-6">
-              <h3 className="text-xl font-semibold text-green-400 mb-4">No VCs. No Insiders. Just Believers.</h3>
+              <h3 className="text-xl font-semibold text-green-400 mb-4">No Gatekeepers. No Insiders. Just Believers.</h3>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-4">
                 <div className="bg-black/30 rounded p-4 border border-red-400/20">
-                  <p className="text-red-400 font-semibold mb-2">❌ VC-Backed Projects</p>
+                  <p className="text-red-400 font-semibold mb-2">❌ Traditional Projects</p>
                   <ul className="text-gray-300 text-sm space-y-1">
-                    <li>• VCs: 50-70% at $0.001</li>
+                    <li>• Insiders: 50-70% at $0.001</li>
                     <li>• Team: 15-25% at $0.001</li>
                     <li>• Public: 5-10% at $0.10</li>
                     <li className="text-red-400">→ 100x price gap</li>
@@ -440,7 +440,7 @@ export default function WhitepaperPage() {
             {/* The Big Picture */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
               <div className="bg-gradient-to-br from-red-500/10 to-orange-500/10 backdrop-blur-xl rounded-lg p-5 border border-red-400/30">
-                <h3 className="text-lg font-semibold text-red-400 mb-3">Traditional VC: Broken</h3>
+                <h3 className="text-lg font-semibold text-red-400 mb-3">Traditional Funding: Broken</h3>
                 <p className="text-gray-300 text-sm mb-3">
                   Less than 1% of startups get funded. The other 99%? Rejected—often not because of merit,
                   but geography, network, or pedigree.
@@ -668,7 +668,7 @@ export default function WhitepaperPage() {
                   </div>
                   <p className="text-gray-400 text-sm">
                     This rewards <span className="text-green-400">early conviction</span> and discourages
-                    <span className="text-red-400"> bandwagon voting</span>—the core of prediction market accuracy.
+                    <span className="text-red-400"> bandwagon voting</span>—the core of conviction market accuracy.
                   </p>
                 </div>
               </div>
@@ -743,7 +743,7 @@ export default function WhitepaperPage() {
               </div>
               <div className="bg-black/30 rounded-lg p-4 border border-purple-400/20">
                 <p className="text-purple-400 font-bold text-lg mb-1">Proven</p>
-                <p className="text-gray-400 text-xs">Battle-tested AMM + prediction markets.</p>
+                <p className="text-gray-400 text-xs">Battle-tested AMM + conviction markets.</p>
               </div>
               <div className="bg-black/30 rounded-lg p-4 border border-yellow-400/20">
                 <p className="text-yellow-400 font-bold text-lg mb-1">Global</p>
@@ -806,7 +806,7 @@ export default function WhitepaperPage() {
               <p className="text-sm text-gray-400 leading-relaxed">
                 <strong className="text-yellow-400">Disclaimer:</strong> This whitepaper is for informational purposes only
                 and does not constitute financial, investment, or legal advice. Token launches involve substantial risk,
-                including potential total loss of investment. Prediction markets are not guarantees of project success.
+                including potential total loss of investment. Conviction markets are not guarantees of project success.
                 Always conduct your own research and consult with qualified professionals before participating. PNL makes
                 no representations or warranties regarding the accuracy of information presented, the success of any project,
                 or the value of any tokens. Cryptocurrency markets are highly volatile and speculative. Past performance

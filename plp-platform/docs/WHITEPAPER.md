@@ -1,4 +1,4 @@
-# PNL (Prediction & Launch) Platform Whitepaper
+# PNL (Conviction & Launch) Platform Whitepaper
 
 **A New Paradigm for Fair Token Launches and Web3 Funding**
 
@@ -14,10 +14,10 @@
 
 The cryptocurrency industry faces a critical trust crisis. Token launches are plagued by scams, rugpulls, and abandoned projects, while legitimate founders—especially those outside traditional tech hubs—struggle to access capital and build credibility.
 
-**PNL (Prediction & Launch Platform)** introduces a revolutionary solution: **prediction markets as a vetting mechanism for token launches**. By combining market-based validation with transparent token distribution and accountability mechanisms, PNL creates the world's first **community-validated token launch platform**.
+**PNL (Conviction & Launch Platform)** introduces a revolutionary solution: **conviction markets as a vetting mechanism for token launches**. By combining market-based validation with transparent token distribution and accountability mechanisms, PNL creates the world's first **community-validated token launch platform**.
 
 Key innovations:
-- ✅ **Market-Based Validation**: Community predicts and votes on project success before launch
+- ✅ **Conviction-Based Validation**: Community backs and votes on project success before launch
 - ✅ **Aligned Incentives**: Founders stake reputation, voters risk capital, both benefit from success
 - ✅ **Fair Distribution**: Transparent, on-chain token allocation to supporters
 - ✅ **Global Access**: Permissionless, no KYC barriers, low minimum investment
@@ -102,28 +102,28 @@ Current systems rely on:
 - Gatekeepers (centralized, biased)
 - Post-launch metrics (too late)
 
-**PNL solves this with prediction markets.**
+**PNL solves this with conviction markets.**
 
 ---
 
 ## The Solution: Let the Market Decide
 
-### Core Insight: Prediction Markets as Truth Machines
+### Core Insight: Conviction Markets as Truth Machines
 
-Prediction markets have proven to be exceptionally accurate forecasting tools:
+Conviction markets harness real economic stakes to surface truth:
 
 - **Elections**: Consistently outperform polls
 - **Sports**: Better than expert analysts
 - **Economics**: Predict trends before economists
 - **Why**: Markets aggregate diverse information and punish incorrect beliefs with real money
 
-**PNL's Innovation**: Apply prediction market mechanics to validate token launches.
+**PNL's Innovation**: Apply conviction market mechanics to validate token launches.
 
 ### The Mechanism
 
 Instead of trusting anonymous teams or centralized gatekeepers:
 
-1. **Founder creates prediction market**: "Will this project succeed?"
+1. **Founder creates conviction market**: "Will this project succeed?"
 2. **Community votes with real money**: YES (will succeed) or NO (will fail)
 3. **Market aggregates information**: Price reflects true probability based on collective intelligence
 4. **Token launches only if YES wins**: Community validation required for launch
@@ -135,13 +135,13 @@ Instead of trusting anonymous teams or centralized gatekeepers:
 
 #### Information Aggregation
 ```
-Traditional VC Due Diligence:
+Traditional Due Diligence:
 ├── 5-10 partners review pitch deck
 ├── Based on 2-3 hour presentation
 ├── Limited external validation
 └── Decision in closed room
 
-PNL Market Due Diligence:
+PNL Conviction Market:
 ├── Hundreds of voters analyze project
 ├── Weeks of public scrutiny
 ├── Diverse perspectives (developers, users, domain experts)
@@ -173,7 +173,7 @@ PNL Market Due Diligence:
 PHASE 1: MARKET CREATION (Day 0)
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 ┌─────────────────────────────────────┐
-│  Founder Creates Prediction Market  │
+│  Founder Creates Conviction Market  │
 │  ─────────────────────────────────  │
 │  • Project details & vision         │
 │  • Token economics                  │
@@ -304,7 +304,7 @@ KEY METRICS TRACKED
 
 #### Phase 1: Market Creation
 
-Founder creates a prediction market:
+Founder creates a conviction market:
 ```
 Market Parameters:
 ├── Project name and description
@@ -320,7 +320,7 @@ Market Parameters:
 
 #### Phase 2: Community Voting
 
-Voters analyze the project and make predictions:
+Voters analyze the project and back their convictions:
 ```
 Voting Process:
 ├── Review project materials (whitepaper, GitHub, social media)
@@ -411,7 +411,7 @@ If NO Wins:
 
 PNL creates **two interconnected markets** for each project:
 
-### Market 1: Prediction Market (YES vs NO)
+### Market 1: Conviction Market (YES vs NO)
 
 **Purpose**: Validate project legitimacy and potential
 **Duration**: Set by founder (typically 7-90 days)
@@ -438,7 +438,7 @@ PNL creates **two interconnected markets** for each project:
 ### The Connection
 
 ```
-Prediction Market              Token Market
+Conviction Market              Token Market
       ↓                              ↓
 Validates project           Discovers market price
       ↓                              ↓
@@ -453,7 +453,7 @@ Founder gets 33% (8%+25%)   May graduate to Raydium DEX
 Platform receives 2%        Trading fees go to founder
 ```
 
-**Key Insight**: Prediction market participants become token stakeholders, perfectly aligning incentives for long-term project success.
+**Key Insight**: Conviction market participants become token stakeholders, perfectly aligning incentives for long-term project success.
 
 ---
 
@@ -580,7 +580,7 @@ through transparent fees shared across participants.
 
 **Break Down Geographic Barriers**:
 ```
-Traditional VC:
+Traditional Funding:
 ├── Need to be in SF, NYC, or London
 ├── Require warm introductions
 ├── Must fit "pattern matching" (Stanford, YC, etc.)
@@ -670,7 +670,7 @@ PNL:
 ├── ALL YES voters: Same bonding curve price
 ├── No insider allocations (transparent on-chain)
 ├── Proportional distribution (fair share)
-└── Early access equals VC-level opportunity
+└── Early access equals insider-level opportunity
 ```
 
 ### 2. **Collective Intelligence Advantage**
@@ -763,7 +763,7 @@ When token launches, YES voters will be able to:
 
 Instructions:
 ├── initialize_treasury    // Set up platform treasury (one-time)
-├── create_market         // Founder creates prediction market
+├── create_market         // Founder creates conviction market
 ├── buy_yes               // Vote YES on project
 ├── buy_no                // Vote NO on project
 ├── resolve_market        // Settle market after expiry
@@ -916,7 +916,7 @@ PNL is more than a token launch platform. It's a **fundamental reimagining of ho
 
 **Anyone, Anywhere Can Launch**:
 ```
-Traditional VC:
+Traditional Gatekeepers:
 ├── Need warm intro → REJECTED
 ├── Need Stanford degree → REJECTED
 ├── Need to relocate to SF → REJECTED
@@ -936,7 +936,7 @@ PNL:
 
 **Africa**: 1.4 billion people, median age 19, mobile-first
 - Massive talent pool (developers, entrepreneurs)
-- Limited access to capital (few VC firms)
+- Limited access to capital (few traditional funding sources)
 - PNL enables: Direct access to global crypto investors
 
 **Latin America**: 650 million people, growing crypto adoption
@@ -951,22 +951,22 @@ PNL:
 
 **India**: 1.4 billion people, huge tech talent
 - World-class developers
-- Limited domestic VC, visa issues for US funding
+- Limited domestic funding, visa issues for US capital
 - PNL enables: Global reach from Bangalore
 
 ### Beyond Crypto Tokens
 
 **The Long-Term Vision**:
 
-PNL's prediction market model can extend beyond crypto to fund:
+PNL's conviction market model can extend beyond crypto to fund:
 
 **Real-World Startups**:
 - Tokenize equity (security tokens)
 - Market validates product-market fit
-- Global investors fund based on prediction market odds
+- Global investors fund based on conviction market odds
 
 **Creative Projects**:
-- Musicians fund albums via prediction markets
+- Musicians fund albums via conviction markets
 - Fans bet on success, receive NFT royalties
 - Artists connect directly with supporters
 
@@ -994,7 +994,7 @@ PNL's prediction market model can extend beyond crypto to fund:
 - Unlock $1T+ in untapped global talent
 - Reduce inequality (capital finds best ideas, not best networks)
 - Accelerate innovation (100x more experiments)
-- Create new asset class (prediction-validated projects)
+- Create new asset class (conviction-validated projects)
 
 ---
 
@@ -1004,12 +1004,12 @@ PNL's prediction market model can extend beyond crypto to fund:
 
 #### 1. **Perfect Timing**
 - Crypto scams at all-time high → Demand for accountability
-- Prediction markets proven accurate → Polymarket, sports betting
+- Conviction markets proven accurate → Polymarket, sports betting
 - Solana thriving → Pump.fun did billions in volume
 - Global talent seeking access → Billions locked out of traditional finance
 
 #### 2. **Unique Moat**
-- First mover: Prediction markets + token launches combined
+- First mover: Conviction markets + token launches combined
 - Network effects: More voters = better accuracy = more founders
 - Data moat: Historical accuracy, founder reputation tracking
 - Community moat: Engaged voters are platform advocates
@@ -1025,7 +1025,7 @@ Everyone: Benefits from quality projects succeeding
 #### 4. **Real-World Utility**
 - Solves actual pain point (scam prevention)
 - Provides real value (global capital access)
-- Built on proven primitives (prediction markets, bonding curves)
+- Built on proven primitives (conviction markets, bonding curves)
 - Transparent and verifiable (all on-chain)
 
 ### Call to Action
@@ -1091,11 +1091,11 @@ Everyone: Benefits from quality projects succeeding
 
 ---
 
-**Disclaimer**: This whitepaper is for informational purposes only and does not constitute financial, investment, or legal advice. Token launches involve substantial risk, including potential total loss of investment. Prediction markets are not guarantees of project success. Always conduct your own research and consult with qualified professionals before participating. PNL makes no representations or warranties regarding the accuracy of information presented, the success of any project, or the value of any tokens. Cryptocurrency markets are highly volatile and speculative. Past performance does not indicate future results.
+**Disclaimer**: This whitepaper is for informational purposes only and does not constitute financial, investment, or legal advice. Token launches involve substantial risk, including potential total loss of investment. Conviction markets are not guarantees of project success. Always conduct your own research and consult with qualified professionals before participating. PNL makes no representations or warranties regarding the accuracy of information presented, the success of any project, or the value of any tokens. Cryptocurrency markets are highly volatile and speculative. Past performance does not indicate future results.
 
 ---
 
-**Copyright © 2025 PNL (Prediction & Launch Platform). All rights reserved.**
+**Copyright © 2025 PNL (Conviction & Launch Platform). All rights reserved.**
 
 **License**: This whitepaper is released under Creative Commons Attribution 4.0 International (CC BY 4.0). You are free to share and adapt this material with appropriate attribution.
 
