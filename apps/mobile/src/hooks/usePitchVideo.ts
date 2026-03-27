@@ -3,10 +3,10 @@
  * Uses the existing useVideoPicker for camera/library selection.
  */
 
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useRef } from 'react';
 import { Alert } from 'react-native';
 import * as Haptics from 'expo-haptics';
-import { apiUrl, parseError } from '@pnl/shared/utils';
+import { apiUrl } from '@pnl/shared/utils';
 import { useVideoPicker, type VideoResult } from './useVideoPicker';
 
 type PitchVideoStatus = 'idle' | 'picking' | 'uploading' | 'deleting';
@@ -17,13 +17,52 @@ interface UsePitchVideoOptions {
   onSuccess?: () => void;
 }
 
+/** Upload with XMLHttpRequest for progress tracking. */
+function uploadWithProgress(
+  url: string,
+  formData: FormData,
+  onProgress: (pct: number) => void,
+): Promise<any> {
+  return new Promise((resolve, reject) => {
+    const xhr = new XMLHttpRequest();
+
+    xhr.upload.onprogress = (e) => {
+      if (e.lengthComputable) {
+        onProgress(Math.round((e.loaded / e.total) * 100));
+      }
+    };
+
+    xhr.onload = () => {
+      try {
+        const data = JSON.parse(xhr.responseText);
+        if (xhr.status >= 200 && xhr.status < 300) {
+          resolve(data);
+        } else {
+          reject(new Error(data.error || `Upload failed (${xhr.status})`));
+        }
+      } catch {
+        reject(new Error(`Upload failed (${xhr.status})`));
+      }
+    };
+
+    xhr.onerror = () => reject(new Error('Network error — check your connection and try again'));
+    xhr.ontimeout = () => reject(new Error('Upload timed out — try a smaller video or better connection'));
+
+    xhr.open('POST', url);
+    xhr.timeout = 120000; // 2 min timeout
+    xhr.send(formData);
+  });
+}
+
 export function usePitchVideo({ projectId, walletAddress, onSuccess }: UsePitchVideoOptions) {
   const { pickVideo, recordVideo } = useVideoPicker();
   const [status, setStatus] = useState<PitchVideoStatus>('idle');
+  const [uploadProgress, setUploadProgress] = useState(0);
 
   const uploadVideo = useCallback(
     async (video: VideoResult) => {
       setStatus('uploading');
+      setUploadProgress(0);
       try {
         const formData = new FormData();
         formData.append('walletAddress', walletAddress);
@@ -33,11 +72,11 @@ export function usePitchVideo({ projectId, walletAddress, onSuccess }: UsePitchV
           type: video.type,
         } as any);
 
-        const res = await fetch(apiUrl(`/api/projects/${projectId}/pitch-video`), {
-          method: 'POST',
-          body: formData,
-        });
-        const data = await res.json();
+        const data = await uploadWithProgress(
+          apiUrl(`/api/projects/${projectId}/pitch-video`),
+          formData,
+          setUploadProgress,
+        );
 
         if (!data.success) throw new Error(data.error || 'Upload failed');
 
@@ -48,11 +87,20 @@ export function usePitchVideo({ projectId, walletAddress, onSuccess }: UsePitchV
       } catch (err: any) {
         console.error('Pitch video upload error:', err);
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
-        const parsed = parseError(err);
-        Alert.alert(parsed.title, parsed.message);
+        const msg = err?.message || '';
+        if (msg.includes('Network error')) {
+          Alert.alert('No Connection', 'Check your internet connection and try again.');
+        } else if (msg.includes('timed out')) {
+          Alert.alert('Upload Timed Out', 'Try a shorter video or a stronger connection.');
+        } else if (msg.includes('413') || msg.toLowerCase().includes('too large')) {
+          Alert.alert('File Too Large', 'Your video exceeds the size limit. Try a shorter clip.');
+        } else {
+          Alert.alert('Upload Failed', msg || 'Something went wrong. Please try again.');
+        }
         return false;
       } finally {
         setStatus('idle');
+        setUploadProgress(0);
       }
     },
     [projectId, walletAddress, onSuccess],
@@ -118,6 +166,7 @@ export function usePitchVideo({ projectId, walletAddress, onSuccess }: UsePitchV
   return {
     status,
     isLoading: status === 'uploading' || status === 'deleting',
+    uploadProgress,
     handleRecord,
     handlePick,
     handleDelete,

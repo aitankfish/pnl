@@ -25,65 +25,115 @@ function ensureConfig() {
  * Cloudflare automatically transcodes the video into multiple quality levels.
  * The HLS URL adapts to the viewer's connection speed.
  */
-export async function uploadToStream(file: File): Promise<{ playbackUrl: string; uid: string }> {
+export async function uploadToStream(
+  file: File,
+  { maxRetries = 3, baseDelayMs = 1000 } = {},
+): Promise<{ playbackUrl: string; uid: string }> {
   ensureConfig();
 
   const formData = new FormData();
   formData.append('file', file);
 
-  const res = await fetch(BASE_URL, {
-    method: 'POST',
-    headers: {
-      Authorization: `Bearer ${API_TOKEN}`,
-    },
-    body: formData,
-  });
+  let lastError: Error | null = null;
 
-  if (!res.ok) {
-    const text = await res.text();
-    console.error('Cloudflare Stream upload failed:', res.status, text);
-    throw new Error(`Cloudflare Stream upload failed: ${res.status}`);
+  for (let attempt = 1; attempt <= maxRetries; attempt++) {
+    try {
+      const res = await fetch(BASE_URL, {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${API_TOKEN}`,
+        },
+        body: formData,
+      });
+
+      if (!res.ok) {
+        const text = await res.text();
+        // Don't retry client errors (4xx) except 429 (rate limit)
+        if (res.status >= 400 && res.status < 500 && res.status !== 429) {
+          console.error('Cloudflare Stream upload failed (non-retryable):', res.status, text);
+          throw new Error(`Cloudflare Stream upload failed: ${res.status}`);
+        }
+        throw new Error(`Cloudflare Stream upload failed: ${res.status} — ${text}`);
+      }
+
+      const data = await res.json();
+
+      if (!data.success || !data.result?.uid) {
+        console.error('Cloudflare Stream response error:', data);
+        throw new Error('Cloudflare Stream upload returned invalid response');
+      }
+
+      const uid = data.result.uid;
+
+      console.log(`[CloudflareStream] Uploaded video: uid=${uid} (attempt ${attempt})`);
+
+      return {
+        playbackUrl: data.result.playback?.hls || `https://cloudflarestream.com/${uid}/manifest/video.m3u8`,
+        uid,
+      };
+    } catch (err) {
+      lastError = err instanceof Error ? err : new Error(String(err));
+
+      // Don't retry non-retryable errors (re-thrown 4xx above)
+      if (lastError.message.includes('non-retryable')) throw lastError;
+
+      if (attempt < maxRetries) {
+        const delay = baseDelayMs * Math.pow(2, attempt - 1);
+        console.warn(`[CloudflareStream] Upload attempt ${attempt}/${maxRetries} failed, retrying in ${delay}ms...`, lastError.message);
+        await new Promise((r) => setTimeout(r, delay));
+      }
+    }
   }
 
-  const data = await res.json();
-
-  if (!data.success || !data.result?.uid) {
-    console.error('Cloudflare Stream response error:', data);
-    throw new Error('Cloudflare Stream upload returned invalid response');
-  }
-
-  const uid = data.result.uid;
-  const playbackUrl = data.result.playback?.hls
-    || `https://customer-${data.result.playback?.dash?.split('customer-')[1]?.split('/')[0] || ''}.cloudflarestream.com/${uid}/manifest/video.m3u8`;
-
-  console.log(`[CloudflareStream] Uploaded video: uid=${uid}`);
-
-  return {
-    playbackUrl: data.result.playback?.hls || `https://cloudflarestream.com/${uid}/manifest/video.m3u8`,
-    uid,
-  };
+  console.error(`[CloudflareStream] Upload failed after ${maxRetries} attempts`);
+  throw lastError!;
 }
 
 /**
  * Delete a video from Cloudflare Stream by its UID.
  */
-export async function deleteFromStream(uid: string): Promise<void> {
+export async function deleteFromStream(
+  uid: string,
+  { maxRetries = 3, baseDelayMs = 1000 } = {},
+): Promise<void> {
   ensureConfig();
 
-  const res = await fetch(`${BASE_URL}/${uid}`, {
-    method: 'DELETE',
-    headers: {
-      Authorization: `Bearer ${API_TOKEN}`,
-    },
-  });
+  let lastError: Error | null = null;
 
-  if (!res.ok) {
-    const text = await res.text();
-    console.error('Cloudflare Stream delete failed:', res.status, text);
-    throw new Error(`Cloudflare Stream delete failed: ${res.status}`);
+  for (let attempt = 1; attempt <= maxRetries; attempt++) {
+    try {
+      const res = await fetch(`${BASE_URL}/${uid}`, {
+        method: 'DELETE',
+        headers: {
+          Authorization: `Bearer ${API_TOKEN}`,
+        },
+      });
+
+      if (!res.ok) {
+        const text = await res.text();
+        if (res.status >= 400 && res.status < 500 && res.status !== 429) {
+          throw new Error(`Cloudflare Stream delete failed (non-retryable): ${res.status}`);
+        }
+        throw new Error(`Cloudflare Stream delete failed: ${res.status} — ${text}`);
+      }
+
+      console.log(`[CloudflareStream] Deleted video: uid=${uid} (attempt ${attempt})`);
+      return;
+    } catch (err) {
+      lastError = err instanceof Error ? err : new Error(String(err));
+
+      if (lastError.message.includes('non-retryable')) throw lastError;
+
+      if (attempt < maxRetries) {
+        const delay = baseDelayMs * Math.pow(2, attempt - 1);
+        console.warn(`[CloudflareStream] Delete attempt ${attempt}/${maxRetries} failed, retrying in ${delay}ms...`, lastError.message);
+        await new Promise((r) => setTimeout(r, delay));
+      }
+    }
   }
 
-  console.log(`[CloudflareStream] Deleted video: uid=${uid}`);
+  console.error(`[CloudflareStream] Delete failed after ${maxRetries} attempts`);
+  throw lastError!;
 }
 
 /**

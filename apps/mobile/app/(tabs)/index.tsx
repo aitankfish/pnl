@@ -248,6 +248,7 @@ function PitchVideoCard({
   const videoRef = useRef<Video>(null);
   const [isMuted, setIsMuted] = useState(true);
   const [isPaused, setIsPaused] = useState(false);
+  const [videoError, setVideoError] = useState(false);
 
   const handleVideoTap = useCallback(async () => {
     if (!videoRef.current) return;
@@ -266,6 +267,26 @@ function PitchVideoCard({
     await videoRef.current.setIsMutedAsync(newMuted);
   }, [isMuted]);
 
+  // If video fails to load, show project image instead
+  if (videoError) {
+    return (
+      <View style={[styles.videoCard, { height }]}>
+        <Pressable style={StyleSheet.absoluteFill} onPress={onPress}>
+          {market.projectImageUrl ? (
+            <Image source={{ uri: market.projectImageUrl }} style={StyleSheet.absoluteFill} contentFit="cover" />
+          ) : (
+            <View style={[StyleSheet.absoluteFill, { backgroundColor: '#1a1a2e' }]} />
+          )}
+        </Pressable>
+        <LinearGradient
+          colors={['transparent', 'rgba(0,0,0,0.7)', 'rgba(0,0,0,0.9)']}
+          style={styles.gradient}
+          pointerEvents="none"
+        />
+      </View>
+    );
+  }
+
   return (
     <View style={[styles.videoCard, { height }]}>
       <Pressable style={StyleSheet.absoluteFill} onPress={handleVideoTap}>
@@ -277,6 +298,7 @@ function PitchVideoCard({
           shouldPlay={isActive && !isPaused}
           isLooping
           isMuted={isMuted}
+          onError={() => setVideoError(true)}
         />
       </Pressable>
 

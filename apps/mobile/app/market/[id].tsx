@@ -948,7 +948,7 @@ function FounderPitchVideoSection({
   hasPitchVideo: boolean;
   onSuccess: () => void;
 }) {
-  const { status, isLoading, handleRecord, handlePick, handleDelete } = usePitchVideo({
+  const { status, isLoading, uploadProgress, handleRecord, handlePick, handleDelete } = usePitchVideo({
     projectId,
     walletAddress,
     onSuccess,
@@ -960,6 +960,15 @@ function FounderPitchVideoSection({
         <Ionicons name="videocam-outline" size={16} color={colors.primary} />
         <Text style={pvStyles.title}>Pitch Video</Text>
       </View>
+
+      {status === 'uploading' && (
+        <View style={pvStyles.progressContainer}>
+          <View style={pvStyles.progressBarBg}>
+            <View style={[pvStyles.progressBarFill, { width: `${uploadProgress}%` }]} />
+          </View>
+          <Text style={pvStyles.progressText}>Uploading {uploadProgress}%</Text>
+        </View>
+      )}
 
       {hasPitchVideo ? (
         /* ── Has video — show status + replace/delete ── */
@@ -1103,6 +1112,25 @@ const pvStyles = StyleSheet.create({
     ...typography.micro,
     color: colors.textMuted,
     fontStyle: 'italic',
+  },
+  progressContainer: {
+    gap: 4,
+  },
+  progressBarBg: {
+    height: 4,
+    backgroundColor: 'rgba(99, 102, 241, 0.15)',
+    borderRadius: 2,
+    overflow: 'hidden' as const,
+  },
+  progressBarFill: {
+    height: '100%' as any,
+    backgroundColor: colors.primary,
+    borderRadius: 2,
+  },
+  progressText: {
+    ...typography.micro,
+    color: colors.primary,
+    textAlign: 'center' as const,
   },
 });
 
