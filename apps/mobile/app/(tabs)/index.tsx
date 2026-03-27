@@ -228,6 +228,7 @@ interface PitchVideoCardProps {
   onVoteYes: () => void;
   onVoteNo: () => void;
   onPress: () => void;
+  onVoicePress: () => void;
 }
 
 function PitchVideoCard({
@@ -240,6 +241,7 @@ function PitchVideoCard({
   onVoteYes,
   onVoteNo,
   onPress,
+  onVoicePress,
 }: PitchVideoCardProps) {
   const isActionable = market.isYesVoteEnabled || market.isNoVoteEnabled;
   const isVotingYes = votingState?.voteType === 'yes';
@@ -340,7 +342,7 @@ function PitchVideoCard({
           initialCount={market.favoriteCount ?? 0}
           variant="floating"
         />
-        <VoiceLiveIndicator active={voiceActive} onPress={onPress} />
+        <VoiceLiveIndicator active={voiceActive} onPress={onVoicePress} />
         <Pressable
           style={styles.shareBtn}
           onPress={() => {
@@ -657,6 +659,9 @@ export default function FeedScreen() {
           onPress={() =>
             router.push(`/market/${item.id}` as any)
           }
+          onVoicePress={() =>
+            router.push({ pathname: '/voice-rooms', params: { marketAddress: item.marketAddress } } as any)
+          }
         />
       ) : (
         <View style={{ width: '100%', height: cardHeight }}>
@@ -693,7 +698,7 @@ export default function FeedScreen() {
             <VoiceLiveIndicator
               active={isVoiceActive}
               onPress={() =>
-                router.push({ pathname: `/market/${item.id}`, params: { tab: 'community' } })
+                router.push({ pathname: '/voice-rooms', params: { marketAddress: item.marketAddress } } as any)
               }
             />
             <Pressable

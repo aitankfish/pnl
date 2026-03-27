@@ -67,6 +67,7 @@ interface VoiceRoomState {
   error: string | null;
   isMinimized: boolean;
   showJoinChoice: boolean;
+  isSwitchingRoom: boolean;
   isHost: boolean;
   isFounder: boolean;
   isCoHost: boolean;
@@ -75,6 +76,7 @@ interface VoiceRoomState {
 
 interface VoiceRoomContextType extends VoiceRoomState {
   join: (marketId: string, marketAddress: string, marketName: string, walletAddress: string, founderWallet: string | null) => Promise<void>;
+  switchRoom: (newMarketId: string, newMarketAddress: string, newMarketName: string, newFounderWallet: string | null) => Promise<void>;
   joinAsSpeaker: () => void;
   joinAsListener: () => void;
   leave: () => void;
@@ -143,6 +145,7 @@ export function VoiceRoomProvider({ children }: { children: ReactNode }) {
   const [error, setError] = useState<string | null>(null);
   const [isMinimized, setIsMinimized] = useState(false);
   const [showJoinChoice, setShowJoinChoice] = useState(false);
+  const [isSwitchingRoom, setIsSwitchingRoom] = useState(false);
 
   // Pending join data
   const pendingJoinRef = useRef<{
@@ -559,6 +562,156 @@ export function VoiceRoomProvider({ children }: { children: ReactNode }) {
     [isConnected, isConnecting, cleanup, consumeProducer, reconnectAttempts, marketId, marketAddress, walletAddress, marketName, founderWallet, startActivity],
   );
 
+  // Fast room switch — keeps socket, device, and mic alive
+  const switchRoom = useCallback(
+    async (newMarketId: string, newMarketAddress: string, newMarketName: string, newFounderWallet: string | null) => {
+      const socket = socketRef.current;
+      const device = deviceRef.current;
+      const wallet = walletAddress;
+
+      if (!socket || !device || !wallet || !isConnected || isSwitchingRoom) return;
+      if (!marketAddress || marketAddress === newMarketAddress) return;
+
+      const fromRoom = marketAddress;
+      console.log(`[Voice] switchRoom: ${fromRoom} -> ${newMarketAddress}`);
+      setIsSwitchingRoom(true);
+
+      try {
+        // 1. Close old producer + consumers + transports (client side only)
+        producerRef.current?.close();
+        producerRef.current = null;
+
+        consumersRef.current.forEach((consumer) => consumer.close());
+        consumersRef.current.clear();
+
+        sendTransportRef.current?.close();
+        recvTransportRef.current?.close();
+        sendTransportRef.current = null;
+        recvTransportRef.current = null;
+
+        // 2. Clear old room state
+        setParticipants([]);
+        setCoHosts([]);
+        setRoomTitle('');
+        setHasRaisedHand(false);
+        setTempHostId(null);
+        setReactions([]);
+        reactionTimeoutsRef.current.forEach((t) => clearTimeout(t));
+        reactionTimeoutsRef.current.clear();
+
+        // 3. Emit switchRoom to server (socket stays alive)
+        const response = await new Promise<any>((resolve, reject) => {
+          const timeout = setTimeout(() => reject(new Error('switchRoom timed out')), 10000);
+          socket.emit('switchRoom', { fromRoom, toRoom: newMarketAddress, peerId: wallet }, (res: any) => {
+            clearTimeout(timeout);
+            if (res.error) reject(new Error(res.error));
+            else resolve(res);
+          });
+        });
+
+        // 4. Create new transports on new room's Router
+        const sendTransport = device.createSendTransport(response.sendTransportOptions);
+        sendTransportRef.current = sendTransport;
+
+        sendTransport.on('connect', ({ dtlsParameters }: any, callback: any, errback: any) => {
+          socket.emit('connectTransport', { transportId: sendTransport.id, dtlsParameters }, (res: any) => {
+            if (res.error) errback(new Error(res.error));
+            else callback();
+          });
+        });
+
+        sendTransport.on('produce', ({ kind, rtpParameters }: any, callback: any, errback: any) => {
+          socket.emit('produce', { kind, rtpParameters }, (res: any) => {
+            if (res.error) errback(new Error(res.error));
+            else callback({ id: res.id });
+          });
+        });
+
+        const recvTransport = device.createRecvTransport(response.recvTransportOptions);
+        recvTransportRef.current = recvTransport;
+
+        recvTransport.on('connect', ({ dtlsParameters }: any, callback: any, errback: any) => {
+          socket.emit('connectTransport', { transportId: recvTransport.id, dtlsParameters }, (res: any) => {
+            if (res.error) errback(new Error(res.error));
+            else callback();
+          });
+        });
+
+        // 5. Produce audio (reuse existing mic stream)
+        const track = localStreamRef.current?.getAudioTracks()[0];
+        if (!track) throw new Error('Mic track lost during switch');
+
+        const producer = await sendTransport.produce({
+          track,
+          codecOptions: { opusStereo: false, opusDtx: true, opusFec: true, opusMaxPlaybackRate: 48000 },
+          encodings: [{ maxBitrate: 64000 }],
+        });
+        producerRef.current = producer;
+
+        // 6. Consume existing producers in new room
+        socket.emit('getProducers', (res: any) => {
+          res.producers?.forEach((p: any) => consumeProducer(p.producerId, p.peerId));
+        });
+
+        // 7. Process peers
+        let currentSpeakerCount = 0;
+        response.peers?.forEach((peer: any) => {
+          const peerIsSpeaker = peer.isSpeaker !== false;
+          if (peerIsSpeaker) currentSpeakerCount++;
+          setParticipants((prev) => {
+            if (prev.find((p) => p.peerId === peer.id)) return prev;
+            return [...prev, { peerId: peer.id, isMuted: false, isSpeaking: false, hasRaisedHand: false, isSpeaker: peerIsSpeaker }];
+          });
+        });
+
+        const isNewFounder = wallet === newFounderWallet;
+        if (currentSpeakerCount === 0 && !isNewFounder) {
+          setTempHostId(wallet);
+        }
+
+        // 8. Update state
+        setMarketId(newMarketId);
+        setMarketAddress(newMarketAddress);
+        setMarketName(newMarketName);
+        setFounderWallet(newFounderWallet);
+        setIsSpeaker(true);
+        setSpeakerCount(currentSpeakerCount + 1);
+        setIsMuted(true);
+        setHasRaisedHand(false);
+
+        // Mute mic track after switch
+        localStreamRef.current?.getAudioTracks().forEach((t: any) => { t.enabled = false; });
+
+        // 9. Notify main socket
+        try { getMainSocket().emit('voice:left', { marketAddress: fromRoom }); } catch {}
+        try { getMainSocket().emit('voice:joined', { marketAddress: newMarketAddress }); } catch {}
+
+        // 10. Update Live Activity
+        const symbol = newMarketName.replace(/\s+/g, '').substring(0, 6).toUpperCase();
+        startActivity(newMarketAddress, newMarketName, symbol);
+
+        // Founder notification
+        if (isNewFounder) {
+          fetch(apiUrl('/api/voice/founder-joined'), {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ marketAddress: newMarketAddress, marketName: newMarketName, founderWallet: newFounderWallet, walletAddress: wallet }),
+          }).catch(() => {});
+        }
+
+        console.log(`[Voice] switchRoom complete: now in ${newMarketAddress}`);
+      } catch (err: any) {
+        console.error('[Voice] switchRoom failed, falling back to full rejoin:', err.message);
+        // Full cleanup and let user rejoin manually
+        cleanup();
+        setError(err.message || 'Failed to switch rooms');
+      } finally {
+        setIsSwitchingRoom(false);
+      }
+    },
+    [isConnected, isSwitchingRoom, marketAddress, walletAddress, cleanup, consumeProducer, getMainSocket, startActivity],
+  );
+
   // Public join
   const join = useCallback(
     async (newMarketId: string, newMarketAddress: string, newMarketName: string, newWalletAddress: string, newFounderWallet: string | null) => {
@@ -568,27 +721,9 @@ export function VoiceRoomProvider({ children }: { children: ReactNode }) {
         return;
       }
 
-      // Already in a voice room — ask user to switch
+      // Already in a voice room — fast switch
       if (isConnected && marketId && marketId !== newMarketId) {
-        const currentRoomName = marketName || 'another market';
-        Alert.alert(
-          'Already in a Voice Room',
-          `You're currently in "${currentRoomName}". Leave that room to join this one?`,
-          [
-            { text: 'Stay', style: 'cancel' },
-            {
-              text: 'Switch Room',
-              style: 'destructive',
-              onPress: () => {
-                cleanup();
-                // Re-trigger join after cleanup
-                setTimeout(() => {
-                  join(newMarketId, newMarketAddress, newMarketName, newWalletAddress, newFounderWallet);
-                }, 300);
-              },
-            },
-          ],
-        );
+        switchRoom(newMarketId, newMarketAddress, newMarketName, newFounderWallet);
         return;
       }
 
@@ -611,7 +746,7 @@ export function VoiceRoomProvider({ children }: { children: ReactNode }) {
 
       setShowJoinChoice(true);
     },
-    [isConnected, isConnecting, marketId, marketName, doJoin, cleanup],
+    [isConnected, isConnecting, marketId, doJoin, switchRoom],
   );
 
   const joinAsSpeaker = useCallback(() => doJoin(true), [doJoin]);
@@ -785,11 +920,13 @@ export function VoiceRoomProvider({ children }: { children: ReactNode }) {
     error,
     isMinimized,
     showJoinChoice,
+    isSwitchingRoom,
     isHost,
     isFounder,
     isCoHost,
     isTempHost,
     join,
+    switchRoom,
     joinAsSpeaker,
     joinAsListener,
     leave,

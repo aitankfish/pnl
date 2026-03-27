@@ -61,6 +61,7 @@ interface VoiceRoomState {
   error: string | null;
   isMinimized: boolean;
   showJoinChoice: boolean; // Show speaker/listener choice dialog
+  isSwitchingRoom: boolean;
 
   // Computed
   isHost: boolean;
@@ -72,6 +73,7 @@ interface VoiceRoomState {
 interface VoiceRoomContextType extends VoiceRoomState {
   // Actions
   join: (marketId: string, marketAddress: string, marketName: string, walletAddress: string, founderWallet: string | null) => Promise<void>;
+  switchRoom: (newMarketId: string, newMarketAddress: string, newMarketName: string, newFounderWallet: string | null) => Promise<void>;
   joinAsSpeaker: () => void;
   joinAsListener: () => void;
   leave: () => void;
@@ -144,6 +146,7 @@ export function VoiceRoomProvider({ children }: VoiceRoomProviderProps) {
   const [error, setError] = useState<string | null>(null);
   const [isMinimized, setIsMinimized] = useState(false);
   const [showJoinChoice, setShowJoinChoice] = useState(false);
+  const [isSwitchingRoom, setIsSwitchingRoom] = useState(false);
 
   // Pending join data (stored while showing choice dialog)
   const pendingJoinRef = useRef<{
@@ -604,6 +607,152 @@ export function VoiceRoomProvider({ children }: VoiceRoomProviderProps) {
     }
   }, [isConnected, isConnecting, cleanup, consumeProducer, VOICE_SERVER_URL, isMuted]);
 
+  // Fast room switch — keeps socket, device, and mic alive
+  const switchRoom = useCallback(async (
+    newMarketId: string,
+    newMarketAddress: string,
+    newMarketName: string,
+    newFounderWallet: string | null
+  ) => {
+    const socket = socketRef.current;
+    const device = deviceRef.current;
+    const wallet = walletAddress;
+
+    if (!socket || !device || !wallet || !isConnected || isSwitchingRoom) return;
+    if (!marketAddress || marketAddress === newMarketAddress) return;
+
+    const fromRoom = marketAddress;
+    console.log(`[Voice] switchRoom: ${fromRoom} -> ${newMarketAddress}`);
+    setIsSwitchingRoom(true);
+
+    try {
+      // 1. Close old producer + consumers + transports (client side only)
+      producerRef.current?.close();
+      producerRef.current = null;
+
+      consumersRef.current.forEach(consumer => consumer.close());
+      consumersRef.current.clear();
+
+      audioElementsRef.current.forEach(audio => { audio.pause(); audio.srcObject = null; });
+      audioElementsRef.current.clear();
+
+      sendTransportRef.current?.close();
+      recvTransportRef.current?.close();
+      sendTransportRef.current = null;
+      recvTransportRef.current = null;
+
+      // 2. Clear old room state (keep AudioContext/analyser alive — same mic stream)
+      setParticipants([]);
+      setCoHosts([]);
+      setRoomTitle('');
+      setHasRaisedHand(false);
+      setTempHostId(null);
+      setReactions([]);
+      reactionTimeoutsRef.current.forEach(t => clearTimeout(t));
+      reactionTimeoutsRef.current.clear();
+
+      // 3. Emit switchRoom to server (socket stays alive)
+      const response = await new Promise<any>((resolve, reject) => {
+        const timeout = setTimeout(() => reject(new Error('switchRoom timed out')), 10000);
+        socket.emit('switchRoom', { fromRoom, toRoom: newMarketAddress, peerId: wallet }, (res: any) => {
+          clearTimeout(timeout);
+          if (res.error) reject(new Error(res.error));
+          else resolve(res);
+        });
+      });
+
+      // 4. Create new transports on new room's Router
+      const sendTransport = device.createSendTransport(response.sendTransportOptions);
+      sendTransportRef.current = sendTransport;
+
+      sendTransport.on('connect', ({ dtlsParameters }, callback, errback) => {
+        socket.emit('connectTransport', { transportId: sendTransport.id, dtlsParameters }, (res: any) => {
+          if (res.error) errback(new Error(res.error));
+          else callback();
+        });
+      });
+
+      sendTransport.on('produce', ({ kind, rtpParameters }, callback, errback) => {
+        socket.emit('produce', { kind, rtpParameters }, (res: any) => {
+          if (res.error) errback(new Error(res.error));
+          else callback({ id: res.id });
+        });
+      });
+
+      const recvTransport = device.createRecvTransport(response.recvTransportOptions);
+      recvTransportRef.current = recvTransport;
+
+      recvTransport.on('connect', ({ dtlsParameters }, callback, errback) => {
+        socket.emit('connectTransport', { transportId: recvTransport.id, dtlsParameters }, (res: any) => {
+          if (res.error) errback(new Error(res.error));
+          else callback();
+        });
+      });
+
+      // 5. Produce audio (reuse existing mic stream)
+      const track = localStreamRef.current?.getAudioTracks()[0];
+      if (!track) throw new Error('Mic track lost during switch');
+
+      const producer = await sendTransport.produce({
+        track,
+        codecOptions: { opusStereo: false, opusDtx: true, opusFec: true, opusMaxPlaybackRate: 48000 },
+        encodings: [{ maxBitrate: 64000 }],
+      });
+      producerRef.current = producer;
+
+      // 6. Consume existing producers in new room
+      socket.emit('getProducers', (res: any) => {
+        res.producers?.forEach((p: any) => consumeProducer(p.producerId, p.peerId));
+      });
+
+      // 7. Process peers
+      let currentSpeakerCount = 0;
+      response.peers?.forEach((peer: any) => {
+        const peerIsSpeaker = peer.isSpeaker !== false;
+        if (peerIsSpeaker) currentSpeakerCount++;
+        setParticipants(prev => {
+          if (prev.find(p => p.peerId === peer.id)) return prev;
+          return [...prev, { peerId: peer.id, isMuted: false, isSpeaking: false, hasRaisedHand: false, isSpeaker: peerIsSpeaker }];
+        });
+      });
+
+      const isNewFounder = wallet === newFounderWallet;
+      if (currentSpeakerCount === 0 && !isNewFounder) {
+        setTempHostId(wallet);
+      }
+
+      // 8. Update state
+      setMarketId(newMarketId);
+      setMarketAddress(newMarketAddress);
+      setMarketName(newMarketName);
+      setFounderWallet(newFounderWallet);
+      setIsSpeaker(true);
+      setSpeakerCount(currentSpeakerCount + 1);
+      setIsMuted(true);
+      setHasRaisedHand(false);
+
+      // Mute mic track after switch
+      localStreamRef.current?.getAudioTracks().forEach(t => { t.enabled = false; });
+
+      // Founder notification
+      if (isNewFounder) {
+        fetch('/api/voice/founder-joined', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ marketAddress: newMarketAddress, marketName: newMarketName, founderWallet: newFounderWallet, walletAddress: wallet }),
+        }).catch(() => {});
+      }
+
+      console.log(`[Voice] switchRoom complete: now in ${newMarketAddress}`);
+    } catch (err: any) {
+      console.error('[Voice] switchRoom failed, falling back to full rejoin:', err.message);
+      cleanup();
+      setError(err.message || 'Failed to switch rooms');
+    } finally {
+      setIsSwitchingRoom(false);
+    }
+  }, [isConnected, isSwitchingRoom, marketAddress, walletAddress, cleanup, consumeProducer]);
+
   // Public join function - shows choice dialog or auto-joins
   const join = useCallback(async (
     newMarketId: string,
@@ -612,6 +761,12 @@ export function VoiceRoomProvider({ children }: VoiceRoomProviderProps) {
     newWalletAddress: string,
     newFounderWallet: string | null
   ) => {
+    // Already in a voice room — fast switch
+    if (isConnected && marketId && marketId !== newMarketId) {
+      switchRoom(newMarketId, newMarketAddress, newMarketName, newFounderWallet);
+      return;
+    }
+
     if (isConnected || isConnecting) return;
 
     // Store the URL ID for navigation/comparison
@@ -634,7 +789,7 @@ export function VoiceRoomProvider({ children }: VoiceRoomProviderProps) {
     // TODO: Get actual speaker count from server
     // For now, show choice dialog if potentially room for speakers
     setShowJoinChoice(true);
-  }, [isConnected, isConnecting, doJoin]);
+  }, [isConnected, isConnecting, marketId, doJoin, switchRoom]);
 
   const joinAsSpeaker = useCallback(() => {
     doJoin(true);
@@ -799,12 +954,14 @@ export function VoiceRoomProvider({ children }: VoiceRoomProviderProps) {
     error,
     isMinimized,
     showJoinChoice,
+    isSwitchingRoom,
     isHost,
     isFounder,
     isCoHost,
     isTempHost,
     // Actions
     join,
+    switchRoom,
     joinAsSpeaker,
     joinAsListener,
     leave,

@@ -315,8 +315,6 @@ export default function VoiceRoomsScreen() {
   const flatListRef = useRef<FlatList>(null);
 
   const lastAutoJoinedRef = useRef<string | null>(null);
-  // Pending room to join after leave completes
-  const pendingRoomRef = useRef<BrowsableRoom | null>(null);
   // Whether user has joined at least once (enables auto-switch on swipe)
   const hasJoinedOnceRef = useRef(false);
 
@@ -368,19 +366,17 @@ export default function VoiceRoomsScreen() {
     (room: BrowsableRoom) => {
       if (!walletAddress || !voice) return;
 
-      // If already connected to a different room, leave first
-      if (voice.isConnected && voice.marketAddress !== room.marketAddress) {
-        pendingRoomRef.current = room;
-        // Track whether to auto-pick speaker or listener
-        lastAutoJoinedRef.current = room.isActive ? null : room.marketAddress;
-        voice.leave();
-        return;
-      }
-
       // Already connected to this room — do nothing
       if (voice.isConnected && voice.marketAddress === room.marketAddress) return;
 
-      // Active room → listener, empty room → speaker
+      // Connected to a different room — fast switch (keeps socket alive)
+      if (voice.isConnected && voice.marketAddress !== room.marketAddress && !voice.isSwitchingRoom) {
+        hasJoinedOnceRef.current = true;
+        voice.switchRoom(room.marketId, room.marketAddress, room.marketName, room.founderWallet ?? null);
+        return;
+      }
+
+      // Not connected — normal join
       lastAutoJoinedRef.current = room.isActive ? null : room.marketAddress;
       hasJoinedOnceRef.current = true;
       voice.join(room.marketId, room.marketAddress, room.marketName, walletAddress, room.founderWallet ?? null);
@@ -413,13 +409,14 @@ export default function VoiceRoomsScreen() {
       if (viewableItems.length === 0) return;
       const item = viewableItems[0].item as BrowsableRoom;
 
-      // Auto-switch: if user already joined once and is connected to a different room, auto-join the new one
+      // Auto-switch: if user already joined once and is connected to a different room, fast-switch
       const v = voiceRef.current;
       if (
         hasJoinedOnceRef.current &&
         v?.isConnected &&
         v.marketAddress !== item.marketAddress &&
-        !v.isConnecting
+        !v.isConnecting &&
+        !v.isSwitchingRoom
       ) {
         Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
         joinRoomRef.current(item);
@@ -427,16 +424,6 @@ export default function VoiceRoomsScreen() {
     },
   ).current;
   const viewabilityConfig = useRef({ itemVisiblePercentThreshold: 60 }).current;
-
-  // ─── Join pending room after leave completes ───
-  useEffect(() => {
-    if (pendingRoomRef.current && voice && !voice.isConnected && !voice.isConnecting) {
-      const room = pendingRoomRef.current;
-      pendingRoomRef.current = null;
-      // lastAutoJoinedRef was already set when we stored the pending room
-      voice.join(room.marketId, room.marketAddress, room.marketName, walletAddress!, room.founderWallet ?? null);
-    }
-  }, [voice?.isConnected, voice?.isConnecting]);
 
   // Mark as joined if already connected when screen opens
   useEffect(() => {
@@ -477,8 +464,7 @@ export default function VoiceRoomsScreen() {
           keyExtractor={(item) => item.marketAddress}
           renderItem={({ item }) => {
             const isThisRoomActive = item.isConnected && voice?.isConnected;
-            const isJoiningThisRoom = voice?.isConnecting && pendingRoomRef.current?.marketAddress === item.marketAddress;
-            if (isThisRoomActive || isJoiningThisRoom) {
+            if (isThisRoomActive) {
               return <ConnectedRoomCard room={item} cardHeight={ITEM_HEIGHT} />;
             }
             return <PreviewCard room={item} cardHeight={ITEM_HEIGHT} onJoin={joinRoom} />;
@@ -498,10 +484,12 @@ export default function VoiceRoomsScreen() {
       )}
 
       {/* Subtle connecting indicator (not full-screen blocking) */}
-      {voice?.isConnecting && (
+      {(voice?.isConnecting || voice?.isSwitchingRoom) && (
         <View style={styles.connectingPill}>
           <ActivityIndicator size="small" color={colors.primary} />
-          <Text style={styles.connectingPillText}>Switching...</Text>
+          <Text style={styles.connectingPillText}>
+            {voice?.isSwitchingRoom ? 'Switching...' : 'Connecting...'}
+          </Text>
         </View>
       )}
     </View>
