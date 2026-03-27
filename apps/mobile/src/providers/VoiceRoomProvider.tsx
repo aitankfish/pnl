@@ -577,19 +577,29 @@ export function VoiceRoomProvider({ children }: { children: ReactNode }) {
       setIsSwitchingRoom(true);
 
       try {
-        // 1. Close old producer + consumers + transports (client side only)
-        producerRef.current?.close();
-        producerRef.current = null;
-
+        // 1. Close old consumers (safe, doesn't affect mic)
         consumersRef.current.forEach((consumer) => consumer.close());
         consumersRef.current.clear();
 
-        sendTransportRef.current?.close();
-        recvTransportRef.current?.close();
+        // 2. Detach old producer/transports without closing them
+        //    (closing kills the underlying mic track on RN)
+        producerRef.current = null;
         sendTransportRef.current = null;
         recvTransportRef.current = null;
 
-        // 2. Clear old room state
+        // 3. Ensure we have a live mic track (re-acquire if ended)
+        let audioTrack = localStreamRef.current?.getAudioTracks()[0];
+        if (!audioTrack || (audioTrack as any).readyState === 'ended') {
+          console.log('[Voice] Mic track ended, re-acquiring...');
+          const stream = await mediaDevices.getUserMedia({
+            audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true, sampleRate: 48000, channelCount: 1 },
+          });
+          localStreamRef.current = stream;
+          (stream as any).getAudioTracks().forEach((t: any) => { t.enabled = false; });
+          audioTrack = (stream as any).getAudioTracks()[0];
+        }
+
+        // 4. Clear old room state
         setParticipants([]);
         setCoHosts([]);
         setRoomTitle('');
@@ -637,12 +647,9 @@ export function VoiceRoomProvider({ children }: { children: ReactNode }) {
           });
         });
 
-        // 5. Produce audio (reuse existing mic stream)
-        const track = localStreamRef.current?.getAudioTracks()[0];
-        if (!track) throw new Error('Mic track lost during switch');
-
+        // 5. Produce audio (reuse mic track from step 3)
         const producer = await sendTransport.produce({
-          track,
+          track: audioTrack,
           codecOptions: { opusStereo: false, opusDtx: true, opusFec: true, opusMaxPlaybackRate: 48000 },
           encodings: [{ maxBitrate: 64000 }],
         });

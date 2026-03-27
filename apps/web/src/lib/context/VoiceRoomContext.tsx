@@ -626,22 +626,32 @@ export function VoiceRoomProvider({ children }: VoiceRoomProviderProps) {
     setIsSwitchingRoom(true);
 
     try {
-      // 1. Close old producer + consumers + transports (client side only)
-      producerRef.current?.close();
-      producerRef.current = null;
-
+      // 1. Close old consumers and audio elements (safe, doesn't affect mic)
       consumersRef.current.forEach(consumer => consumer.close());
       consumersRef.current.clear();
 
       audioElementsRef.current.forEach(audio => { audio.pause(); audio.srcObject = null; });
       audioElementsRef.current.clear();
 
-      sendTransportRef.current?.close();
-      recvTransportRef.current?.close();
+      // 2. Detach old producer/transports without closing
+      //    (closing kills the underlying mic track)
+      producerRef.current = null;
       sendTransportRef.current = null;
       recvTransportRef.current = null;
 
-      // 2. Clear old room state (keep AudioContext/analyser alive — same mic stream)
+      // 3. Ensure we have a live mic track (re-acquire if ended)
+      let audioTrack = localStreamRef.current?.getAudioTracks()[0];
+      if (!audioTrack || audioTrack.readyState === 'ended') {
+        console.log('[Voice] Mic track ended, re-acquiring...');
+        const stream = await navigator.mediaDevices.getUserMedia({
+          audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true, sampleRate: 48000, channelCount: 1 },
+        });
+        localStreamRef.current = stream;
+        stream.getAudioTracks().forEach(t => { t.enabled = false; });
+        audioTrack = stream.getAudioTracks()[0];
+      }
+
+      // 4. Clear old room state (keep AudioContext/analyser alive — same mic stream)
       setParticipants([]);
       setCoHosts([]);
       setRoomTitle('');
@@ -689,12 +699,9 @@ export function VoiceRoomProvider({ children }: VoiceRoomProviderProps) {
         });
       });
 
-      // 5. Produce audio (reuse existing mic stream)
-      const track = localStreamRef.current?.getAudioTracks()[0];
-      if (!track) throw new Error('Mic track lost during switch');
-
+      // 5. Produce audio (reuse mic track from step 3)
       const producer = await sendTransport.produce({
-        track,
+        track: audioTrack,
         codecOptions: { opusStereo: false, opusDtx: true, opusFec: true, opusMaxPlaybackRate: 48000 },
         encodings: [{ maxBitrate: 64000 }],
       });
