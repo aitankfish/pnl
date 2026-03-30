@@ -17,7 +17,7 @@ import { useVoiceRoomContextSafe } from '../../providers/VoiceRoomProvider';
 import { useAuth } from '../../providers/AuthProvider';
 import { BottomSheet } from '../BottomSheet';
 import { CommunityHub } from './CommunityHub';
-import { VoiceRoomBrowser } from './VoiceRoomBrowser';
+import { VoiceRoomSwiper } from './VoiceRoomSwiper';
 import type { Market } from '@pnl/shared/hooks';
 
 interface FloatingCommunitySheetProps {
@@ -40,7 +40,6 @@ export function FloatingCommunitySheet({ markets, activeVoiceRooms }: FloatingCo
     voice.marketAddress === market.marketAddress
   );
 
-  // All markets for browser (sorting handled inside VoiceRoomBrowser)
   const allMarkets = markets ?? [];
 
   // Open sheet when market changes
@@ -61,17 +60,10 @@ export function FloatingCommunitySheet({ markets, activeVoiceRooms }: FloatingCo
 
   const changeTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const handleChange = useCallback((index: number) => {
-    // Delay the content swap until the snap animation finishes to avoid glitch
     if (changeTimer.current) clearTimeout(changeTimer.current);
     changeTimer.current = setTimeout(() => {
       setIsFullScreen(index === 1);
     }, 200);
-  }, []);
-
-  const handleCollapse = useCallback(() => {
-    // Go back to single room mode
-    sheetRef.current?.snapToIndex(0);
-    setIsFullScreen(false);
   }, []);
 
   return (
@@ -83,10 +75,11 @@ export function FloatingCommunitySheet({ markets, activeVoiceRooms }: FloatingCo
       rawContent
     >
       {isFullScreen ? (
-        <VoiceRoomBrowser
+        <VoiceRoomSwiper
           markets={allMarkets}
           activeVoiceRooms={activeVoiceRooms}
-          onCollapse={handleCollapse}
+          initialMarketAddress={market?.marketAddress}
+          onClose={() => sheetRef.current?.snapToIndex(0)}
         />
       ) : market ? (
         <BottomSheetView style={localStyles.content}>

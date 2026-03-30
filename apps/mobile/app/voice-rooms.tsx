@@ -1,11 +1,8 @@
 /**
- * Voice Slide Room — Full-screen TikTok-style voice room browser.
+ * Voice Rooms — Full-screen horizontal swipeable voice room browser.
  *
- * - Each card shows a preview with a single "Join" button
- * - Active room (has speakers): joins as listener
- * - Empty room (no speakers): joins as speaker (muted)
- * - After joining, card transforms to ConnectedRoomCard with controls
- * - Swiping away from connected room shows floating pill
+ * Pitch-deck style: large speaker circles, listener dots, YES/NO vote buttons.
+ * Swipe left/right to browse rooms. Auto-switches on settle (500ms debounce).
  */
 
 import { useCallback, useEffect, useRef, useMemo, useState } from 'react';
@@ -15,15 +12,14 @@ import {
   StyleSheet,
   FlatList,
   Dimensions,
-  ViewToken,
-  Pressable,
   ActivityIndicator,
   ScrollView,
 } from 'react-native';
-import { router } from 'expo-router';
+import { useLocalSearchParams } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
+import GorhomBottomSheet from '@gorhom/bottom-sheet';
 import * as Haptics from 'expo-haptics';
 import { useMarkets } from '@pnl/shared/hooks';
 import type { Market } from '@pnl/shared/hooks';
@@ -31,13 +27,21 @@ import { useAuth } from '../src/providers/AuthProvider';
 import {
   useVoiceRoomContext,
   useVoiceRoomContextSafe,
-  REACTION_EMOJIS,
 } from '../src/providers/VoiceRoomProvider';
 import type { VoiceParticipant } from '../src/providers/VoiceRoomProvider';
+import { useVote } from '../src/hooks/useVote';
 import { PressableScale } from '../src/components/PressableScale';
-import { VoiceSpeakersGrid } from '../src/components/community/VoiceSpeakersGrid';
+import { VoteBottomSheet } from '../src/components/VoteBottomSheet';
+import { VoteToast } from '../src/components/VoteToast';
+import type { VoteToastState } from '../src/components/VoteToast';
+import { VoiceSpeakerCircle } from '../src/components/community/VoiceSpeakerCircle';
+import { VoiceListenerDots } from '../src/components/community/VoiceListenerDots';
+import { VoiceReactionBar } from '../src/components/community/VoiceReactionBar';
+import { VoiceRoomVoteButtons } from '../src/components/community/VoiceRoomVoteButtons';
 import { ListenerStars } from '../src/components/community/ListenerStars';
 import { FloatingReaction } from '../src/components/community/FloatingReaction';
+import { VoiceSettingsContent } from '../src/components/community/VoiceSettingsSheet';
+import { BottomSheet } from '../src/components/BottomSheet';
 import { useProfile, resolveAvatarUrl } from '../src/hooks/useProfile';
 import { colors, spacing } from '../src/theme';
 
@@ -55,13 +59,28 @@ interface BrowsableRoom {
 }
 
 /* ═══════════════════════════════════════════════════════════════════
- *  CONNECTED ROOM CARD — Inline voice room with speakers + controls
+ *  CONNECTED ROOM CARD — Pitch-deck style with circles + vote buttons
  * ═══════════════════════════════════════════════════════════════════ */
-function ConnectedRoomCard({ room, cardHeight }: { room: BrowsableRoom; cardHeight: number }) {
+function ConnectedRoomCard({
+  room,
+  cardHeight,
+  onVoteYes,
+  onVoteNo,
+  isVoting,
+  voteDirection,
+  onSettings,
+}: {
+  room: BrowsableRoom;
+  cardHeight: number;
+  onVoteYes: () => void;
+  onVoteNo: () => void;
+  isVoting: boolean;
+  voteDirection: 'yes' | 'no' | null;
+  onSettings: () => void;
+}) {
   const voice = useVoiceRoomContext();
   const { walletAddress } = useAuth();
   const { profile } = useProfile(walletAddress ?? null);
-  const [showReactionPicker, setShowReactionPicker] = useState(false);
 
   const allParticipants = useMemo(() => {
     if (!voice.isConnected || !voice.walletAddress) return voice.participants;
@@ -87,33 +106,29 @@ function ConnectedRoomCard({ room, cardHeight }: { room: BrowsableRoom; cardHeig
     voice.participants, profile,
   ]);
 
-  const listenerCount = allParticipants.filter((p) => !p.isSpeaker).length;
+  const speakers = allParticipants.filter((p) => p.isSpeaker);
+  const totalCount = allParticipants.length;
 
   return (
     <View style={[styles.card, { height: cardHeight }]}>
       <View style={StyleSheet.absoluteFill} pointerEvents="none">
-        <ListenerStars listenerCount={listenerCount} />
+        <ListenerStars listenerCount={totalCount} />
       </View>
 
-      {/* Header */}
+      {/* Header — room name + LIVE + settings */}
       <View style={styles.connectedHeader}>
-        <View style={styles.connectedHeaderLeft}>
-          <View style={styles.liveBadgeSmall}>
+        <View style={styles.headerInfo}>
+          <View style={styles.liveChip}>
             <View style={styles.liveDot} />
-            <Text style={styles.liveText}>LIVE</Text>
+            <Text style={styles.liveChipText}>LIVE</Text>
+            <Text style={styles.liveChipCount}>· {totalCount}</Text>
           </View>
           <Text style={styles.connectedRoomName} numberOfLines={1}>
             {room.marketName}
           </Text>
         </View>
-        <PressableScale
-          onPress={() => {
-            Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
-            voice.leave();
-          }}
-          style={styles.leaveBtn}
-        >
-          <Text style={styles.leaveBtnText}>Leave</Text>
+        <PressableScale onPress={onSettings} style={styles.settingsBtn}>
+          <Ionicons name="settings-outline" size={18} color={colors.textSecondary} />
         </PressableScale>
       </View>
 
@@ -126,123 +141,120 @@ function ConnectedRoomCard({ room, cardHeight }: { room: BrowsableRoom; cardHeig
         </View>
       )}
 
-      {/* Speakers grid */}
-      <ScrollView style={styles.speakersScroll} contentContainerStyle={styles.speakersScrollInner}>
-        <VoiceSpeakersGrid
-          participants={allParticipants}
-          founderWallet={voice.founderWallet}
-          coHosts={voice.coHosts}
-          isCurrentUserHost={voice.isHost}
-          isCurrentUserFounder={voice.isFounder}
-          onMute={voice.muteUser}
-          onKick={voice.kickUser}
-          onApproveHand={voice.approveHand}
-          onPromote={voice.promoteToSpeaker}
-          onDemote={voice.demoteToListener}
-          onAddCoHost={voice.addCoHost}
-          onRemoveCoHost={voice.removeCoHost}
-        />
-      </ScrollView>
+      {/* Main content — centered vertically */}
+      <View style={styles.mainContent}>
+        <ScrollView
+          style={styles.speakersScroll}
+          contentContainerStyle={styles.speakersScrollInner}
+          showsVerticalScrollIndicator={false}
+        >
+          <View style={styles.speakersGrid}>
+            {speakers.map((p, i) => (
+              <VoiceSpeakerCircle
+                key={p.peerId}
+                participant={p}
+                index={i}
+                founderWallet={voice.founderWallet}
+                coHosts={voice.coHosts}
+                isCurrentUserHost={voice.isHost}
+                isCurrentUserFounder={voice.isFounder}
+                onMute={voice.muteUser}
+                onKick={voice.kickUser}
+                onApproveHand={voice.approveHand}
+                onPromote={voice.promoteToSpeaker}
+                onDemote={voice.demoteToListener}
+                onAddCoHost={voice.addCoHost}
+                onRemoveCoHost={voice.removeCoHost}
+              />
+            ))}
+          </View>
 
-      {/* Floating reactions */}
-      <View style={styles.reactionsOverlay} pointerEvents="none">
-        {voice.reactions.map((r) => (
-          <FloatingReaction key={r.id} emoji={r.emoji} onFinish={() => {}} />
-        ))}
+          {/* Listeners — dots */}
+          <VoiceListenerDots participants={allParticipants} />
+        </ScrollView>
+
+        {/* Floating reactions */}
+        <View style={styles.reactionsOverlay} pointerEvents="none">
+          {voice.reactions.map((r) => (
+            <FloatingReaction key={r.id} emoji={r.emoji} onFinish={() => {}} />
+          ))}
+        </View>
       </View>
 
-      {showReactionPicker && (
-        <Pressable
-          style={StyleSheet.absoluteFill}
-          onPress={() => setShowReactionPicker(false)}
-        />
-      )}
+      {/* Bottom section — reactions + vote + controls */}
+      <View style={styles.bottomSection}>
+        <VoiceReactionBar onReaction={voice.sendReaction} />
 
-      {/* Bottom toolbar */}
-      <View style={styles.bottomToolbar}>
+        <VoiceRoomVoteButtons
+          onVoteYes={onVoteYes}
+          onVoteNo={onVoteNo}
+          isVoting={isVoting}
+          votingDirection={voteDirection}
+        />
+
+        <View style={styles.bottomToolbar}>
         {voice.isSpeaker ? (
-          <PressableScale onPress={voice.toggleMute} style={styles.micBtnWrap}>
-            <View style={[styles.micBtn, voice.isMuted && styles.micBtnMuted]}>
+          <PressableScale onPress={voice.toggleMute} style={styles.controlItem}>
+            <View style={[styles.controlCircle, voice.isMuted && styles.controlCircleMuted]}>
               <Ionicons
                 name={voice.isMuted ? 'mic-off' : 'mic'}
-                size={24}
+                size={22}
                 color={voice.isMuted ? '#ef4444' : colors.textPrimary}
               />
             </View>
-            <Text style={[styles.micBtnLabel, voice.isMuted && { color: '#ef4444' }]}>
+            <Text style={[styles.controlLabel, voice.isMuted && { color: '#ef4444' }]}>
               {voice.isMuted ? 'Unmute' : 'Mute'}
             </Text>
           </PressableScale>
         ) : (
-          <PressableScale onPress={voice.toggleHand} style={styles.micBtnWrap}>
-            <View style={[styles.micBtn, voice.hasRaisedHand && styles.micBtnRaised]}>
-              <Ionicons name="mic" size={24} color={colors.textMuted} />
+          <PressableScale onPress={voice.toggleHand} style={styles.controlItem}>
+            <View style={[styles.controlCircle, voice.hasRaisedHand && styles.controlCircleHand]}>
+              <Text style={{ fontSize: 20 }}>✋</Text>
             </View>
-            <Text style={styles.micBtnLabel}>
-              {voice.hasRaisedHand ? 'Requested' : 'Request'}
+            <Text style={[styles.controlLabel, voice.hasRaisedHand && { color: colors.warning }]}>
+              {voice.hasRaisedHand ? 'Lower' : 'Raise'}
             </Text>
           </PressableScale>
         )}
 
-        <View style={styles.toolbarCenter}>
-          {voice.isHost && (
-            <PressableScale onPress={voice.muteAll} style={styles.toolbarIcon}>
-              <Ionicons name="volume-mute-outline" size={22} color={colors.textSecondary} />
-            </PressableScale>
-          )}
-          <View>
-            <PressableScale
-              onPress={() => {
-                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                setShowReactionPicker((prev) => !prev);
-              }}
-              style={styles.toolbarIcon}
-            >
-              <Ionicons name="happy-outline" size={24} color={colors.textSecondary} />
-            </PressableScale>
+        {voice.isHost && (
+          <PressableScale onPress={voice.muteAll} style={styles.controlItem}>
+            <View style={styles.controlCircle}>
+              <Ionicons name="volume-mute-outline" size={20} color={colors.textSecondary} />
+            </View>
+            <Text style={styles.controlLabel}>Mute All</Text>
+          </PressableScale>
+        )}
 
-            {showReactionPicker && (
-              <View style={styles.reactionPopup}>
-                {REACTION_EMOJIS.map((emoji) => (
-                  <Pressable
-                    key={emoji}
-                    onPress={() => {
-                      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                      voice.sendReaction(emoji);
-                      setShowReactionPicker(false);
-                    }}
-                    style={({ pressed }) => [
-                      styles.reactionPopupBtn,
-                      pressed && styles.reactionPopupBtnPressed,
-                    ]}
-                  >
-                    <Text style={styles.reactionPopupEmoji}>{emoji}</Text>
-                  </Pressable>
-                ))}
-              </View>
-            )}
-          </View>
+        <View style={styles.swipeHintRow}>
+          <Ionicons name="swap-vertical" size={14} color={colors.textMuted} />
+          <Text style={styles.swipeHintText}>Swipe</Text>
         </View>
-
-        <View style={styles.swipeHint}>
-          <Ionicons name="chevron-up" size={14} color={colors.textMuted} />
-        </View>
+      </View>
       </View>
     </View>
   );
 }
 
 /* ═══════════════════════════════════════════════════════════════════
- *  PREVIEW CARD — Single "Join" button for both active & empty rooms
+ *  PREVIEW CARD — "Join" button for rooms user isn't in
  * ═══════════════════════════════════════════════════════════════════ */
 function PreviewCard({
   room,
   cardHeight,
   onJoin,
+  onVoteYes,
+  onVoteNo,
+  isVoting,
+  voteDirection,
 }: {
   room: BrowsableRoom;
   cardHeight: number;
   onJoin: (room: BrowsableRoom) => void;
+  onVoteYes: () => void;
+  onVoteNo: () => void;
+  isVoting: boolean;
+  voteDirection: 'yes' | 'no' | null;
 }) {
   return (
     <View style={[styles.card, { height: cardHeight }]}>
@@ -295,8 +307,16 @@ function PreviewCard({
           </LinearGradient>
         </PressableScale>
 
-        <View style={styles.swipeHint}>
-          <Ionicons name="chevron-up" size={14} color={colors.textMuted} />
+        {/* Vote buttons available even before joining */}
+        <VoiceRoomVoteButtons
+          onVoteYes={onVoteYes}
+          onVoteNo={onVoteNo}
+          isVoting={isVoting}
+          votingDirection={voteDirection}
+        />
+
+        <View style={styles.swipeHintRow}>
+          <Ionicons name="swap-vertical" size={14} color={colors.textMuted} />
           <Text style={styles.swipeHintText}>Swipe for more rooms</Text>
         </View>
       </View>
@@ -305,23 +325,42 @@ function PreviewCard({
 }
 
 /* ═══════════════════════════════════════════════════════════════════
- *  VOICE SLIDE ROOM SCREEN
+ *  VOICE ROOMS SCREEN — Horizontal swipeable pager
  * ═══════════════════════════════════════════════════════════════════ */
 export default function VoiceRoomsScreen() {
   const insets = useSafeAreaInsets();
+  const params = useLocalSearchParams<{ marketAddress?: string }>();
   const { walletAddress } = useAuth();
   const voice = useVoiceRoomContextSafe();
   const { markets, activeVoiceRooms } = useMarkets();
   const flatListRef = useRef<FlatList>(null);
+  const switchTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const currentIndexRef = useRef(0);
+  const [currentIndex, setCurrentIndex] = useState(0);
 
   const lastAutoJoinedRef = useRef<string | null>(null);
-  // Whether user has joined at least once (enables auto-switch on swipe)
   const hasJoinedOnceRef = useRef(false);
 
   const CARD_HEIGHT = SCREEN_HEIGHT - insets.top - insets.bottom;
-  const ITEM_HEIGHT = CARD_HEIGHT - 48;
 
-  // Build room list — sort once on mount, keep order stable while browsing
+  // Vote state
+  const voteSheetRef = useRef<GorhomBottomSheet>(null);
+  const [voteDirection, setVoteDirection] = useState<'yes' | 'no' | null>(null);
+  const [voteToastState, setVoteToastState] = useState<VoteToastState>({
+    visible: false,
+    stage: 'signing',
+  });
+
+  const { submitVote, isVoting } = useVote({
+    onStageChange: (stage, direction, amount, marketName, message) => {
+      setVoteToastState({ visible: true, stage, direction, amount, marketName, message });
+    },
+    onSuccess: () => {
+      voteSheetRef.current?.close();
+    },
+  });
+
+  // Build room list — stable order (no re-sorting on connect/switch)
   const sortedOrderRef = useRef<string[] | null>(null);
 
   const rooms = useMemo(() => {
@@ -342,7 +381,7 @@ export default function VoiceRoomsScreen() {
       };
     });
 
-    // Sort only on first render, then keep that order stable
+    // Sort only once on first render, then keep order stable
     if (!sortedOrderRef.current) {
       browsable.sort((a, b) => {
         if (a.isActive && !b.isActive) return -1;
@@ -353,30 +392,38 @@ export default function VoiceRoomsScreen() {
       sortedOrderRef.current = browsable.map((r) => r.marketAddress);
     }
 
-    // Re-order by frozen sort, update dynamic fields (isConnected, participantCount, isActive)
-    const order = sortedOrderRef.current;
+    // Maintain frozen order, update dynamic fields
     const byAddress = new Map(browsable.map((r) => [r.marketAddress, r]));
-    return order
+    return sortedOrderRef.current
       .map((addr) => byAddress.get(addr))
       .filter((r): r is BrowsableRoom => !!r);
   }, [markets, activeVoiceRooms, voice?.isConnected, voice?.marketAddress]);
+
+  // Scroll to initial market on mount
+  useEffect(() => {
+    if (!params.marketAddress || rooms.length === 0) return;
+    const idx = rooms.findIndex((r) => r.marketAddress === params.marketAddress);
+    if (idx > 0) {
+      setTimeout(() => {
+        flatListRef.current?.scrollToIndex({ index: idx, animated: false });
+        currentIndexRef.current = idx;
+        setCurrentIndex(idx);
+      }, 100);
+    }
+  }, [params.marketAddress, rooms.length]);
 
   // ─── Join helper ───
   const joinRoom = useCallback(
     (room: BrowsableRoom) => {
       if (!walletAddress || !voice) return;
-
-      // Already connected to this room — do nothing
       if (voice.isConnected && voice.marketAddress === room.marketAddress) return;
 
-      // Connected to a different room — fast switch (keeps socket alive)
       if (voice.isConnected && voice.marketAddress !== room.marketAddress && !voice.isSwitchingRoom) {
         hasJoinedOnceRef.current = true;
         voice.switchRoom(room.marketId, room.marketAddress, room.marketName, room.founderWallet ?? null);
         return;
       }
 
-      // Not connected — normal join
       lastAutoJoinedRef.current = room.isActive ? null : room.marketAddress;
       hasJoinedOnceRef.current = true;
       voice.join(room.marketId, room.marketAddress, room.marketName, walletAddress, room.founderWallet ?? null);
@@ -384,7 +431,6 @@ export default function VoiceRoomsScreen() {
     [walletAddress, voice],
   );
 
-  // Keep a ref to joinRoom so the viewability callback can access the latest version
   const joinRoomRef = useRef(joinRoom);
   joinRoomRef.current = joinRoom;
 
@@ -399,54 +445,76 @@ export default function VoiceRoomsScreen() {
     }
   }, [voice?.showJoinChoice]);
 
-  // Keep voice state in refs so the viewability callback can read them
   const voiceRef = useRef(voice);
   voiceRef.current = voice;
 
-  // Track visible card + auto-switch rooms on swipe
-  const onViewableItemsChanged = useRef(
-    ({ viewableItems }: { viewableItems: ViewToken[] }) => {
-      if (viewableItems.length === 0) return;
-      const item = viewableItems[0].item as BrowsableRoom;
+  // Debounced room switch on swipe settle
+  const handleMomentumEnd = useCallback(() => {
+    const room = rooms[currentIndexRef.current];
+    if (!room) return;
 
-      // Auto-switch: if user already joined once and is connected to a different room, fast-switch
-      const v = voiceRef.current;
-      if (
-        hasJoinedOnceRef.current &&
-        v?.isConnected &&
-        v.marketAddress !== item.marketAddress &&
-        !v.isConnecting &&
-        !v.isSwitchingRoom
-      ) {
-        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-        joinRoomRef.current(item);
-      }
+    const v = voiceRef.current;
+    if (!v || !hasJoinedOnceRef.current) return;
+    if (!v.isConnected) return;
+    if (v.marketAddress === room.marketAddress) return;
+    if (v.isConnecting || v.isSwitchingRoom) return;
+
+    if (switchTimerRef.current) clearTimeout(switchTimerRef.current);
+    switchTimerRef.current = setTimeout(() => {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+      joinRoomRef.current(room);
+    }, 500);
+  }, [rooms]);
+
+  const onViewableItemsChanged = useRef(
+    ({ viewableItems }: { viewableItems: Array<{ item: BrowsableRoom; index: number | null }> }) => {
+      if (viewableItems.length === 0) return;
+      const idx = viewableItems[0].index ?? 0;
+      currentIndexRef.current = idx;
+      setCurrentIndex(idx);
     },
   ).current;
+
   const viewabilityConfig = useRef({ itemVisiblePercentThreshold: 60 }).current;
 
-  // Mark as joined if already connected when screen opens
   useEffect(() => {
-    if (voice?.isConnected) {
-      hasJoinedOnceRef.current = true;
-    }
+    if (voice?.isConnected) hasJoinedOnceRef.current = true;
   }, [voice?.isConnected]);
+
+  // Settings sheet
+  const settingsSheetRef = useRef<GorhomBottomSheet>(null);
+  const handleOpenSettings = useCallback(() => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    settingsSheetRef.current?.snapToIndex(0);
+  }, []);
+
+  // Vote handlers
+  const handleVoteYes = useCallback(() => {
+    setVoteDirection('yes');
+    voteSheetRef.current?.snapToIndex(0);
+  }, []);
+
+  const handleVoteNo = useCallback(() => {
+    setVoteDirection('no');
+    voteSheetRef.current?.snapToIndex(0);
+  }, []);
+
+  const handleVoteConfirm = useCallback(
+    (direction: 'yes' | 'no', amount: number) => {
+      const room = rooms[currentIndexRef.current];
+      if (!room) return;
+      submitVote(room.marketAddress, room.marketId, direction, amount, room.marketName);
+    },
+    [rooms, submitVote],
+  );
+
+  const currentRoom = rooms[currentIndex];
 
   return (
     <View style={[styles.container, { paddingTop: insets.top }]}>
-      {/* Header */}
-      <View style={styles.header}>
-        <PressableScale onPress={() => router.back()} style={styles.headerBtn}>
-          <Ionicons name="chevron-back" size={24} color={colors.textPrimary} />
-        </PressableScale>
+      {/* Minimal top bar — swipe down to go back, no back button needed */}
 
-        <Text style={styles.headerTitle}>Voice Rooms</Text>
-
-        {/* Spacer to keep title centered */}
-        <View style={styles.headerBtn} />
-      </View>
-
-      {/* Room cards */}
+      {/* Room cards — HORIZONTAL swipe */}
       {rooms.length === 0 ? (
         <View style={styles.emptyContainer}>
           <View style={styles.emptyIcon}>
@@ -465,25 +533,70 @@ export default function VoiceRoomsScreen() {
           renderItem={({ item }) => {
             const isThisRoomActive = item.isConnected && voice?.isConnected;
             if (isThisRoomActive) {
-              return <ConnectedRoomCard room={item} cardHeight={ITEM_HEIGHT} />;
+              return (
+                <ConnectedRoomCard
+                  room={item}
+                  cardHeight={CARD_HEIGHT}
+                  onVoteYes={handleVoteYes}
+                  onVoteNo={handleVoteNo}
+                  isVoting={isVoting}
+                  voteDirection={voteDirection}
+                  onSettings={handleOpenSettings}
+                />
+              );
             }
-            return <PreviewCard room={item} cardHeight={ITEM_HEIGHT} onJoin={joinRoom} />;
+            return (
+              <PreviewCard
+                room={item}
+                cardHeight={CARD_HEIGHT}
+                onJoin={joinRoom}
+                onVoteYes={handleVoteYes}
+                onVoteNo={handleVoteNo}
+                isVoting={isVoting}
+                voteDirection={voteDirection}
+              />
+            );
           }}
           pagingEnabled
-          snapToInterval={ITEM_HEIGHT}
+          snapToInterval={CARD_HEIGHT}
           decelerationRate="fast"
           showsVerticalScrollIndicator={false}
-          getItemLayout={(_, index) => ({
-            length: ITEM_HEIGHT,
-            offset: ITEM_HEIGHT * index,
-            index,
-          })}
           onViewableItemsChanged={onViewableItemsChanged}
           viewabilityConfig={viewabilityConfig}
+          onMomentumScrollEnd={handleMomentumEnd}
+          getItemLayout={(_, index) => ({
+            length: CARD_HEIGHT,
+            offset: CARD_HEIGHT * index,
+            index,
+          })}
+          initialNumToRender={3}
+          maxToRenderPerBatch={3}
+          windowSize={5}
         />
       )}
 
-      {/* Subtle connecting indicator (not full-screen blocking) */}
+      {/* Vertical dot indicators — right edge */}
+      {rooms.length > 1 && (
+        <View style={styles.dotsStrip}>
+          {rooms.slice(0, 10).map((room, i) => {
+            const isActive = i === currentIndex;
+            const isConnected = voice?.isConnected && voice.marketAddress === room.marketAddress;
+            return (
+              <View
+                key={room.marketAddress}
+                style={[
+                  styles.dot,
+                  isActive && styles.dotActive,
+                  isConnected && styles.dotConnected,
+                ]}
+              />
+            );
+          })}
+          {rooms.length > 10 && <Text style={styles.dotMore}>+{rooms.length - 10}</Text>}
+        </View>
+      )}
+
+      {/* Connecting pill */}
       {(voice?.isConnecting || voice?.isSwitchingRoom) && (
         <View style={styles.connectingPill}>
           <ActivityIndicator size="small" color={colors.primary} />
@@ -491,6 +604,41 @@ export default function VoiceRoomsScreen() {
             {voice?.isSwitchingRoom ? 'Switching...' : 'Connecting...'}
           </Text>
         </View>
+      )}
+
+      {/* Vote bottom sheet */}
+      <VoteBottomSheet
+        ref={voteSheetRef}
+        direction={voteDirection}
+        marketTitle={currentRoom?.marketName || ''}
+        onConfirm={handleVoteConfirm}
+        onClose={() => {
+          setVoteDirection(null);
+          voteSheetRef.current?.close();
+        }}
+      />
+
+      {/* Vote toast */}
+      <VoteToast
+        state={voteToastState}
+        onDismiss={() => setVoteToastState((prev) => ({ ...prev, visible: false }))}
+      />
+
+      {/* Settings sheet */}
+      {voice?.isConnected && (
+        <BottomSheet ref={settingsSheetRef} snapPoints={['45%']} onClose={() => {}}>
+          <VoiceSettingsContent
+            isMuted={voice.isMuted}
+            isSpeaker={voice.isSpeaker}
+            isHost={voice.isHost}
+            participantCount={(voice.participants?.length || 0) + 1}
+            roomName={voice.marketName || ''}
+            onToggleMute={voice.toggleMute}
+            onMuteAll={voice.muteAll}
+            onLeave={voice.leave}
+            onClose={() => settingsSheetRef.current?.close()}
+          />
+        </BottomSheet>
       )}
     </View>
   );
@@ -502,34 +650,40 @@ const styles = StyleSheet.create({
     backgroundColor: colors.background,
   },
 
-  // ─── Header ───
-  header: {
-    flexDirection: 'row',
+  dotsStrip: {
+    position: 'absolute',
+    right: 8,
+    top: '30%',
     alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: spacing.md,
-    height: 48,
+    gap: 6,
+    zIndex: 50,
   },
-  headerBtn: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: 'rgba(255,255,255,0.08)',
-    alignItems: 'center',
-    justifyContent: 'center',
+  dot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: 'rgba(255,255,255,0.2)',
   },
-  headerTitle: {
-    fontSize: 17,
-    fontWeight: '700',
-    color: colors.textPrimary,
+  dotActive: {
+    height: 18,
+    borderRadius: 3,
+    backgroundColor: colors.primary,
+  },
+  dotConnected: {
+    backgroundColor: '#4ade80',
+  },
+  dotMore: {
+    fontSize: 8,
+    color: colors.textMuted,
+    marginTop: 2,
   },
 
   // ─── Card (shared) ───
   card: {
     justifyContent: 'space-between',
     paddingHorizontal: spacing.lg,
-    paddingTop: spacing.md,
-    paddingBottom: spacing.md,
+    paddingTop: spacing.sm,
+    paddingBottom: spacing.sm,
   },
   cardContent: {
     flex: 1,
@@ -550,20 +704,15 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: 'rgba(74,222,128,0.2)',
   },
-  liveBadgeSmall: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 5,
-    backgroundColor: 'rgba(74,222,128,0.12)',
-    paddingHorizontal: 10,
-    paddingVertical: 3,
-    borderRadius: 10,
-  },
   liveDot: {
     width: 7,
     height: 7,
     borderRadius: 4,
     backgroundColor: '#4ade80',
+    shadowColor: '#4ade80',
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.6,
+    shadowRadius: 4,
   },
   liveText: {
     fontSize: 11,
@@ -626,7 +775,7 @@ const styles = StyleSheet.create({
 
   // ─── Bottom actions (pre-join) ───
   cardBottom: {
-    gap: 12,
+    gap: 10,
     alignItems: 'center',
   },
   joinBtnWrap: {
@@ -645,45 +794,61 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     color: '#fff',
   },
-  swipeHint: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-  },
-  swipeHintText: {
-    fontSize: 12,
-    color: colors.textMuted,
-  },
 
   // ─── Connected card ───
   connectedHeader: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    marginBottom: spacing.sm,
+    marginBottom: spacing.xs,
   },
-  connectedHeaderLeft: {
+  headerInfo: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
+    gap: 6,
     flex: 1,
   },
+  settingsBtn: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: 'rgba(255,255,255,0.08)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   connectedRoomName: {
-    fontSize: 16,
+    fontSize: 15,
     fontWeight: '700',
     color: colors.textPrimary,
     flex: 1,
   },
+  liveChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: 'rgba(74,222,128,0.1)',
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 10,
+  },
+  liveChipText: {
+    fontSize: 10,
+    fontWeight: '800',
+    color: '#4ade80',
+    letterSpacing: 0.5,
+  },
+  liveChipCount: {
+    fontSize: 10,
+    fontWeight: '600',
+    color: '#4ade80',
+  },
   leaveBtn: {
-    paddingHorizontal: 14,
-    paddingVertical: 6,
+    width: 32,
+    height: 32,
     borderRadius: 16,
     backgroundColor: 'rgba(239,68,68,0.12)',
-  },
-  leaveBtnText: {
-    fontSize: 13,
-    fontWeight: '700',
-    color: '#ef4444',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   reconnectBanner: {
     flexDirection: 'row',
@@ -699,12 +864,24 @@ const styles = StyleSheet.create({
     fontSize: 11,
     color: colors.warning,
   },
+  mainContent: {
+    flex: 1,
+  },
   speakersScroll: {
     flex: 1,
   },
   speakersScrollInner: {
-    paddingVertical: spacing.sm,
+    flexGrow: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
     gap: spacing.md,
+    paddingVertical: spacing.md,
+  },
+  speakersGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    justifyContent: 'center',
+    gap: spacing.lg,
   },
   reactionsOverlay: {
     ...StyleSheet.absoluteFillObject,
@@ -713,92 +890,59 @@ const styles = StyleSheet.create({
     pointerEvents: 'none',
   },
 
-  // ─── Bottom toolbar (connected) ───
+  // ─── Bottom section ───
+  bottomSection: {
+    gap: spacing.sm,
+    paddingBottom: spacing.sm,
+  },
+
   bottomToolbar: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingVertical: 10,
-    paddingHorizontal: spacing.md,
+    justifyContent: 'center',
+    gap: spacing.lg,
+    paddingVertical: spacing.sm,
     borderTopWidth: 1,
     borderTopColor: 'rgba(255,255,255,0.06)',
   },
-  micBtnWrap: {
+  controlItem: {
     alignItems: 'center',
     gap: 3,
   },
-  micBtn: {
-    width: 52,
-    height: 52,
-    borderRadius: 26,
-    borderWidth: 2,
-    borderColor: 'rgba(255,255,255,0.15)',
+  controlCircle: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    borderWidth: 1.5,
+    borderColor: 'rgba(255,255,255,0.12)',
     backgroundColor: 'rgba(255,255,255,0.04)',
     alignItems: 'center',
     justifyContent: 'center',
   },
-  micBtnMuted: {
+  controlCircleMuted: {
     borderColor: 'rgba(239,68,68,0.3)',
     backgroundColor: 'rgba(239,68,68,0.08)',
   },
-  micBtnRaised: {
+  controlCircleHand: {
     borderColor: 'rgba(245,158,11,0.4)',
     backgroundColor: 'rgba(245,158,11,0.1)',
   },
-  micBtnLabel: {
+  controlLabel: {
     fontSize: 10,
     fontWeight: '600',
     color: colors.textMuted,
   },
-  toolbarCenter: {
+  swipeHintRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 16,
+    gap: 4,
   },
-  toolbarIcon: {
-    width: 40,
-    height: 40,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  reactionPopup: {
-    position: 'absolute',
-    bottom: 48,
-    left: '50%',
-    transform: [{ translateX: -90 }],
-    width: 180,
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    justifyContent: 'center',
-    gap: 6,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-    backgroundColor: 'rgba(20,26,46,0.95)',
-    borderRadius: 16,
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.1)',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: -4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 12,
-    elevation: 10,
-  },
-  reactionPopupBtn: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  reactionPopupBtnPressed: {
-    backgroundColor: 'rgba(255,255,255,0.1)',
-    transform: [{ scale: 1.2 }],
-  },
-  reactionPopupEmoji: {
-    fontSize: 26,
+  swipeHintText: {
+    fontSize: 11,
+    color: colors.textMuted,
   },
 
-  // ─── Connecting pill (subtle, non-blocking) ───
+  // ─── Connecting pill ───
   connectingPill: {
     position: 'absolute',
     top: 100,

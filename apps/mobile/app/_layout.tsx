@@ -33,6 +33,9 @@ function AppContent() {
     ? pathname.replace('/market/', '').split('/')[0] || null
     : null;
 
+  // Hide mini bar when on the voice-rooms screen (it has its own header)
+  const isOnVoiceRoomsScreen = pathname === '/voice-rooms';
+
   useEffect(() => {
     SplashScreen.hideAsync();
   }, []);
@@ -94,7 +97,7 @@ function AppContent() {
           }}
         />
       </Stack>
-      <MiniVoiceBar currentMarketId={currentMarketId} />
+      {!isOnVoiceRoomsScreen && <MiniVoiceBar currentMarketId={currentMarketId} />}
     </StarField>
   );
 }

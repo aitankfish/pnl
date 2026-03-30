@@ -4,8 +4,8 @@ import { Ionicons } from '@expo/vector-icons';
 import { useVoiceRoomContext, MAX_SPEAKERS } from '../../providers/VoiceRoomProvider';
 import type { VoiceParticipant } from '../../providers/VoiceRoomProvider';
 import { VoiceJoinScreen } from './VoiceJoinScreen';
-import { VoiceSpeakersGrid } from './VoiceSpeakersGrid';
-import { VoiceListenersList } from './VoiceListenersList';
+import { VoiceSpeakerCircle } from './VoiceSpeakerCircle';
+import { VoiceListenerDots } from './VoiceListenerDots';
 import { VoiceReactionBar } from './VoiceReactionBar';
 import { VoiceControls } from './VoiceControls';
 import { FloatingReaction } from './FloatingReaction';
@@ -174,24 +174,32 @@ export function VoiceRoom({
 
       {/* Scrollable content */}
       <ScrollView style={styles.scrollContent} contentContainerStyle={styles.scrollInner}>
-        {/* Speakers grid (includes self) */}
-        <VoiceSpeakersGrid
-          participants={allParticipants}
-          founderWallet={voice.founderWallet}
-          coHosts={voice.coHosts}
-          isCurrentUserHost={voice.isHost}
-          isCurrentUserFounder={voice.isFounder}
-          onMute={voice.muteUser}
-          onKick={voice.kickUser}
-          onApproveHand={voice.approveHand}
-          onPromote={voice.promoteToSpeaker}
-          onDemote={voice.demoteToListener}
-          onAddCoHost={voice.addCoHost}
-          onRemoveCoHost={voice.removeCoHost}
-        />
+        {/* Speakers — large circles (pitch-deck style) */}
+        <View style={styles.speakersSection}>
+          <View style={styles.speakersGrid}>
+            {allParticipants.filter((p) => p.isSpeaker).map((p, i) => (
+              <VoiceSpeakerCircle
+                key={p.peerId}
+                participant={p}
+                index={i}
+                founderWallet={voice.founderWallet}
+                coHosts={voice.coHosts}
+                isCurrentUserHost={voice.isHost}
+                isCurrentUserFounder={voice.isFounder}
+                onMute={voice.muteUser}
+                onKick={voice.kickUser}
+                onApproveHand={voice.approveHand}
+                onPromote={voice.promoteToSpeaker}
+                onDemote={voice.demoteToListener}
+                onAddCoHost={voice.addCoHost}
+                onRemoveCoHost={voice.removeCoHost}
+              />
+            ))}
+          </View>
+        </View>
 
-        {/* Listeners */}
-        <VoiceListenersList participants={allParticipants} />
+        {/* Listeners — dots */}
+        <VoiceListenerDots participants={allParticipants} />
       </ScrollView>
 
       {/* Floating reactions */}
@@ -356,6 +364,16 @@ const styles = StyleSheet.create({
   },
   scrollInner: {
     paddingVertical: spacing.md,
+    gap: spacing.md,
+  },
+  speakersSection: {
+    alignItems: 'center',
+    paddingHorizontal: spacing.md,
+  },
+  speakersGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    justifyContent: 'center',
     gap: spacing.lg,
   },
   // -- Overlays --
