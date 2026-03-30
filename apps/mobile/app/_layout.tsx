@@ -33,8 +33,8 @@ function AppContent() {
     ? pathname.replace('/market/', '').split('/')[0] || null
     : null;
 
-  // Hide mini bar when on the voice-rooms screen (it has its own header)
-  const isOnVoiceRoomsScreen = pathname === '/voice-rooms';
+  // Hide mini bar on voice-rooms and chat screens (they have their own headers)
+  const isOnVoiceRoomsScreen = pathname === '/voice-rooms' || pathname?.startsWith('/chat/');
 
   useEffect(() => {
     SplashScreen.hideAsync();

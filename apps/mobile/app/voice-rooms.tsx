@@ -15,13 +15,18 @@ import {
   ActivityIndicator,
   ScrollView,
 } from 'react-native';
-import { useLocalSearchParams } from 'expo-router';
+import { Gesture, GestureDetector } from 'react-native-gesture-handler';
+import Animated, { useSharedValue, useAnimatedStyle, withSpring, runOnJS } from 'react-native-reanimated';
+import { router, useLocalSearchParams } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import GorhomBottomSheet from '@gorhom/bottom-sheet';
 import * as Haptics from 'expo-haptics';
-import { useMarkets } from '@pnl/shared/hooks';
+import useSWR, { mutate } from 'swr';
+import { useMarkets, useNetwork } from '@pnl/shared/hooks';
+import { fetcher } from '@pnl/shared/services';
+import { apiUrl } from '@pnl/shared/utils';
 import type { Market } from '@pnl/shared/hooks';
 import { useAuth } from '../src/providers/AuthProvider';
 import {
@@ -69,6 +74,10 @@ function ConnectedRoomCard({
   isVoting,
   voteDirection,
   onSettings,
+  onOpenChat,
+  hasPosition,
+  positionSide,
+  chatUnlocked,
 }: {
   room: BrowsableRoom;
   cardHeight: number;
@@ -77,6 +86,10 @@ function ConnectedRoomCard({
   isVoting: boolean;
   voteDirection: 'yes' | 'no' | null;
   onSettings: () => void;
+  onOpenChat: () => void;
+  hasPosition: boolean;
+  positionSide: 'yes' | 'no' | null;
+  chatUnlocked: boolean;
 }) {
   const voice = useVoiceRoomContext();
   const { walletAddress } = useAuth();
@@ -109,8 +122,51 @@ function ConnectedRoomCard({
   const speakers = allParticipants.filter((p) => p.isSpeaker);
   const totalCount = allParticipants.length;
 
+  // Swipe-left gesture to enter chat
+  const translateX = useSharedValue(0);
+
+
+  const swipeToChat = Gesture.Pan()
+    .activeOffsetX([-20, 200]) // only activate on leftward swipe (negative X)
+    .failOffsetY([-15, 15]) // fail if vertical (let FlatList handle it)
+    .onUpdate((e) => {
+      // Only allow leftward drag
+      if (e.translationX < 0) {
+        translateX.value = e.translationX * 0.4; // dampen
+      }
+    })
+    .onEnd((e) => {
+      if (e.translationX < -80) {
+        // Threshold crossed — navigate to chat, then snap back
+        translateX.value = withSpring(-400, { damping: 20 }, () => {
+          translateX.value = 0; // reset for when user comes back
+        });
+        runOnJS(onOpenChat)();
+      } else {
+        translateX.value = withSpring(0, { damping: 20, stiffness: 200 });
+      }
+    });
+
+  const swipeStyle = useAnimatedStyle(() => ({
+    transform: [{ translateX: translateX.value }],
+  }));
+
+  // Chat peek hint (visible behind the card when swiping left)
+  const peekStyle = useAnimatedStyle(() => ({
+    opacity: Math.min(1, Math.abs(translateX.value) / 100),
+  }));
+
   return (
     <View style={[styles.card, { height: cardHeight }]}>
+      {/* Chat peek hint behind the card */}
+      <Animated.View style={[styles.chatPeek, peekStyle]}>
+        <Ionicons name="chatbubbles" size={28} color={colors.primary} />
+        <Text style={styles.chatPeekText}>Project Chat</Text>
+        <Text style={styles.chatPeekHint}>Release to enter</Text>
+      </Animated.View>
+
+      <GestureDetector gesture={swipeToChat}>
+      <Animated.View style={[{ flex: 1 }, swipeStyle]}>
       <View style={StyleSheet.absoluteFill} pointerEvents="none">
         <ListenerStars listenerCount={totalCount} />
       </View>
@@ -181,6 +237,13 @@ function ConnectedRoomCard({
         </View>
       </View>
 
+      {/* Chat unlocked celebration */}
+      {chatUnlocked && (
+        <View style={styles.celebrationBanner}>
+          <Text style={styles.celebrationText}>Chat unlocked — you're in the inner circle</Text>
+        </View>
+      )}
+
       {/* Bottom section — reactions + vote + controls */}
       <View style={styles.bottomSection}>
         <VoiceReactionBar onReaction={voice.sendReaction} />
@@ -190,48 +253,65 @@ function ConnectedRoomCard({
           onVoteNo={onVoteNo}
           isVoting={isVoting}
           votingDirection={voteDirection}
+          hasPosition={hasPosition}
+          positionSide={positionSide}
         />
 
         <View style={styles.bottomToolbar}>
-        {voice.isSpeaker ? (
-          <PressableScale onPress={voice.toggleMute} style={styles.controlItem}>
-            <View style={[styles.controlCircle, voice.isMuted && styles.controlCircleMuted]}>
-              <Ionicons
-                name={voice.isMuted ? 'mic-off' : 'mic'}
-                size={22}
-                color={voice.isMuted ? '#ef4444' : colors.textPrimary}
-              />
-            </View>
-            <Text style={[styles.controlLabel, voice.isMuted && { color: '#ef4444' }]}>
-              {voice.isMuted ? 'Unmute' : 'Mute'}
-            </Text>
-          </PressableScale>
-        ) : (
-          <PressableScale onPress={voice.toggleHand} style={styles.controlItem}>
-            <View style={[styles.controlCircle, voice.hasRaisedHand && styles.controlCircleHand]}>
-              <Text style={{ fontSize: 20 }}>✋</Text>
-            </View>
-            <Text style={[styles.controlLabel, voice.hasRaisedHand && { color: colors.warning }]}>
-              {voice.hasRaisedHand ? 'Lower' : 'Raise'}
-            </Text>
-          </PressableScale>
-        )}
+          {voice.isSpeaker ? (
+            <PressableScale onPress={voice.toggleMute} style={styles.controlItem}>
+              <View style={[styles.controlCircle, voice.isMuted && styles.controlCircleMuted]}>
+                <Ionicons
+                  name={voice.isMuted ? 'mic-off' : 'mic'}
+                  size={22}
+                  color={voice.isMuted ? '#ef4444' : colors.textPrimary}
+                />
+              </View>
+              <Text style={[styles.controlLabel, voice.isMuted && { color: '#ef4444' }]}>
+                {voice.isMuted ? 'Unmute' : 'Mute'}
+              </Text>
+            </PressableScale>
+          ) : (
+            <PressableScale onPress={voice.toggleHand} style={styles.controlItem}>
+              <View style={[styles.controlCircle, voice.hasRaisedHand && styles.controlCircleHand]}>
+                <Text style={{ fontSize: 20 }}>✋</Text>
+              </View>
+              <Text style={[styles.controlLabel, voice.hasRaisedHand && { color: colors.warning }]}>
+                {voice.hasRaisedHand ? 'Lower' : 'Raise'}
+              </Text>
+            </PressableScale>
+          )}
 
-        {voice.isHost && (
-          <PressableScale onPress={voice.muteAll} style={styles.controlItem}>
-            <View style={styles.controlCircle}>
-              <Ionicons name="volume-mute-outline" size={20} color={colors.textSecondary} />
-            </View>
-            <Text style={styles.controlLabel}>Mute All</Text>
-          </PressableScale>
-        )}
+          {/* Chat button — only visible after voting */}
+          {hasPosition && (
+            <PressableScale onPress={onOpenChat} style={styles.controlItem}>
+              <View style={[styles.controlCircle, styles.controlCircleChat]}>
+                <Ionicons name="chatbubbles" size={20} color={colors.primary} />
+              </View>
+              <Text style={[styles.controlLabel, { color: colors.primary }]}>Chat</Text>
+            </PressableScale>
+          )}
 
-        <View style={styles.swipeHintRow}>
-          <Ionicons name="swap-vertical" size={14} color={colors.textMuted} />
-          <Text style={styles.swipeHintText}>Swipe</Text>
+          {voice.isHost && (
+            <PressableScale onPress={voice.muteAll} style={styles.controlItem}>
+              <View style={styles.controlCircle}>
+                <Ionicons name="volume-mute-outline" size={20} color={colors.textSecondary} />
+              </View>
+              <Text style={styles.controlLabel}>Mute All</Text>
+            </PressableScale>
+          )}
+
+          <View style={styles.swipeHintRow}>
+            <Ionicons name="chevron-back" size={12} color={colors.textMuted} />
+            <Text style={styles.swipeHintText}>Chat</Text>
+            <Text style={styles.swipeHintDivider}>|</Text>
+            <Ionicons name="swap-vertical" size={12} color={colors.textMuted} />
+            <Text style={styles.swipeHintText}>Rooms</Text>
+          </View>
         </View>
       </View>
-      </View>
+      </Animated.View>
+      </GestureDetector>
     </View>
   );
 }
@@ -351,12 +431,24 @@ export default function VoiceRoomsScreen() {
     stage: 'signing',
   });
 
+  // Chat state
+  const [chatUnlocked, setChatUnlocked] = useState(false);
+  const { network } = useNetwork();
+
   const { submitVote, isVoting } = useVote({
     onStageChange: (stage, direction, amount, marketName, message) => {
       setVoteToastState({ visible: true, stage, direction, amount, marketName, message });
     },
     onSuccess: () => {
       voteSheetRef.current?.close();
+      // Show chat unlocked celebration
+      setChatUnlocked(true);
+      // Refetch position to unlock chat
+      const visibleRoom = rooms[currentIndexRef.current];
+      if (visibleRoom) {
+        mutate(apiUrl(`/api/markets/${visibleRoom.marketId}/position?wallet=${walletAddress}&network=${network}`));
+      }
+      setTimeout(() => setChatUnlocked(false), 3000);
     },
   });
 
@@ -398,6 +490,19 @@ export default function VoiceRoomsScreen() {
       .map((addr) => byAddress.get(addr))
       .filter((r): r is BrowsableRoom => !!r);
   }, [markets, activeVoiceRooms, voice?.isConnected, voice?.marketAddress]);
+
+  // Position data for current visible room (gates chat access)
+  const currentRoom = rooms[currentIndex];
+  const positionKey = currentRoom && walletAddress
+    ? apiUrl(`/api/markets/${currentRoom.marketId}/position?wallet=${walletAddress}&network=${network}`)
+    : null;
+  const { data: positionResponse } = useSWR(positionKey, fetcher, {
+    dedupingInterval: 10000,
+    revalidateOnFocus: false,
+  });
+  const positionData = (positionResponse as any)?.success ? (positionResponse as any).data : null;
+  const hasPosition = __DEV__ || !!positionData?.hasPosition;
+  const positionSide = positionData?.side as 'yes' | 'no' | null ?? null;
 
   // Scroll to initial market on mount
   useEffect(() => {
@@ -508,8 +613,6 @@ export default function VoiceRoomsScreen() {
     [rooms, submitVote],
   );
 
-  const currentRoom = rooms[currentIndex];
-
   return (
     <View style={[styles.container, { paddingTop: insets.top }]}>
       {/* Minimal top bar — swipe down to go back, no back button needed */}
@@ -542,6 +645,23 @@ export default function VoiceRoomsScreen() {
                   isVoting={isVoting}
                   voteDirection={voteDirection}
                   onSettings={handleOpenSettings}
+                  onOpenChat={() => {
+                    const room = rooms[currentIndexRef.current];
+                    if (room) {
+                      router.push({
+                        pathname: '/chat/[marketAddress]',
+                        params: {
+                          marketAddress: room.marketAddress,
+                          marketName: room.marketName,
+                          marketId: room.marketId,
+                          founderWallet: room.founderWallet || '',
+                        },
+                      } as any);
+                    }
+                  }}
+                  hasPosition={hasPosition}
+                  positionSide={positionSide}
+                  chatUnlocked={chatUnlocked}
                 />
               );
             }
@@ -640,6 +760,7 @@ export default function VoiceRoomsScreen() {
           />
         </BottomSheet>
       )}
+
     </View>
   );
 }
@@ -890,6 +1011,50 @@ const styles = StyleSheet.create({
     pointerEvents: 'none',
   },
 
+  // ─── Chat peek (behind card on swipe-left) ───
+  chatPeek: {
+    ...StyleSheet.absoluteFillObject,
+    justifyContent: 'center',
+    alignItems: 'flex-end',
+    paddingRight: 40,
+    gap: 8,
+  },
+  chatPeekText: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: colors.primary,
+  },
+  chatPeekHint: {
+    fontSize: 11,
+    color: colors.textMuted,
+  },
+  swipeHintDivider: {
+    fontSize: 11,
+    color: 'rgba(255,255,255,0.1)',
+    marginHorizontal: 2,
+  },
+
+  // ─── Celebration banner ───
+  celebrationBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    backgroundColor: 'rgba(129,140,248,0.12)',
+    borderWidth: 1,
+    borderColor: 'rgba(129,140,248,0.25)',
+    paddingVertical: 10,
+    paddingHorizontal: spacing.md,
+    marginHorizontal: spacing.lg,
+    borderRadius: 12,
+  },
+  celebrationText: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: colors.primary,
+    textAlign: 'center',
+  },
+
   // ─── Bottom section ───
   bottomSection: {
     gap: spacing.sm,
@@ -922,6 +1087,10 @@ const styles = StyleSheet.create({
   controlCircleMuted: {
     borderColor: 'rgba(239,68,68,0.3)',
     backgroundColor: 'rgba(239,68,68,0.08)',
+  },
+  controlCircleChat: {
+    borderColor: 'rgba(129,140,248,0.3)',
+    backgroundColor: 'rgba(129,140,248,0.1)',
   },
   controlCircleHand: {
     borderColor: 'rgba(245,158,11,0.4)',

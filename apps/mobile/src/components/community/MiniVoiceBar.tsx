@@ -122,9 +122,9 @@ export function MiniVoiceBar({ currentMarketId, onExpand }: MiniVoiceBarProps) {
     if (currentMarketId && voice.marketId === currentMarketId) {
       voice.setMinimized(false);
       onExpand?.();
-    } else if (voice.marketId) {
+    } else if (voice.marketAddress) {
       voice.setMinimized(false);
-      router.push(`/market/${voice.marketId}` as any);
+      router.push({ pathname: '/voice-rooms', params: { marketAddress: voice.marketAddress } } as any);
     }
   };
 
