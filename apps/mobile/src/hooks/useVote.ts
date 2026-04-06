@@ -63,9 +63,13 @@ export function useVote(options?: UseVoteOptions) {
           params: { transaction, connection },
         });
 
-        // Step 3: Wait for confirmation
+        // Step 3: Wait for confirmation (with 30s timeout to prevent stuck toast)
         options?.onStageChange?.('confirming', direction, amount, marketName || '');
-        await connection.confirmTransaction(signature, 'confirmed');
+        const confirmPromise = connection.confirmTransaction(signature, 'confirmed');
+        const timeoutPromise = new Promise<never>((_, reject) =>
+          setTimeout(() => reject(new Error('Transaction sent but confirmation timed out. Check your wallet.')), 30000),
+        );
+        await Promise.race([confirmPromise, timeoutPromise]);
 
         // Step 4: Record in database
         await fetch(apiUrl('/api/markets/vote/complete'), {
@@ -85,7 +89,6 @@ export function useVote(options?: UseVoteOptions) {
         options?.onSuccess?.();
         return true;
       } catch (err: any) {
-        console.error('Vote error:', err);
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
         const parsed = parseError(err);
         options?.onStageChange?.('error', direction, amount, marketName || '', parsed.message);

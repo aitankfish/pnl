@@ -139,13 +139,10 @@ export default function LoginScreen() {
     if (!email.trim()) return;
     setError(null);
     try {
-      console.log('[Login] Sending OTP to:', email.trim());
       const result = await sendCode({ email: email.trim() });
-      console.log('[Login] sendCode result:', JSON.stringify(result));
       setResendCountdown(60);
       transitionTo('otp');
     } catch (e: any) {
-      console.error('[Login] sendCode error:', e);
       setError(e?.message || 'Failed to send code');
     }
   };

@@ -406,7 +406,6 @@ export function useCreateMarket() {
 
       const provider = await solanaWallet.wallets[0].getProvider();
       const connection = await getSolanaConnection(network);
-      console.log('[CreateMarket] Signing with network:', network, 'RPC:', connection.rpcEndpoint);
       const { signature } = await (provider as any).request({
         method: 'signAndSendTransaction',
         params: { transaction, connection },

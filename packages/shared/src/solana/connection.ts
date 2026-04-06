@@ -118,7 +118,8 @@ class SolanaConnectionManager {
         logger.info(`Connected to: ${redactApiKey(endpoint)}`);
         return connection;
       } catch (error) {
-        logger.warn(`Failed to connect to ${redactApiKey(endpoint)}: ${error}`);
+        // Use debug level for RPC failures to avoid noisy LogBox banners on mobile
+        logger.debug(`RPC fallback from ${redactApiKey(endpoint)}: ${error}`);
         this.verifiedEndpoints.delete(endpoint);
         continue;
       }

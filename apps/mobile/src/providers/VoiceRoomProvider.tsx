@@ -76,6 +76,7 @@ interface VoiceRoomState {
 
 interface VoiceRoomContextType extends VoiceRoomState {
   join: (marketId: string, marketAddress: string, marketName: string, walletAddress: string, founderWallet: string | null) => Promise<void>;
+  joinSilent: (marketId: string, marketAddress: string, marketName: string, walletAddress: string, founderWallet: string | null) => Promise<void>;
   switchRoom: (newMarketId: string, newMarketAddress: string, newMarketName: string, newFounderWallet: string | null) => Promise<void>;
   joinAsSpeaker: () => void;
   joinAsListener: () => void;
@@ -763,6 +764,27 @@ export function VoiceRoomProvider({ children }: { children: ReactNode }) {
     pendingJoinRef.current = null;
   }, []);
 
+  // Silent join — auto-joins as listener without showing choice screen
+  const joinSilent = useCallback(
+    async (newMarketId: string, newMarketAddress: string, newMarketName: string, newWalletAddress: string, newFounderWallet: string | null) => {
+      if (isConnecting) return;
+      if (isConnected && marketId === newMarketId) return;
+      if (isConnected && marketId && marketId !== newMarketId) {
+        switchRoom(newMarketId, newMarketAddress, newMarketName, newFounderWallet);
+        return;
+      }
+      setMarketId(newMarketId);
+      pendingJoinRef.current = {
+        marketAddress: newMarketAddress,
+        marketName: newMarketName,
+        walletAddress: newWalletAddress,
+        founderWallet: newFounderWallet,
+      };
+      doJoin(newWalletAddress === newFounderWallet); // founder = speaker, else listener
+    },
+    [isConnected, isConnecting, marketId, doJoin, switchRoom],
+  );
+
   const leave = useCallback(() => cleanup(), [cleanup]);
 
   const toggleMute = useCallback(() => {
@@ -933,6 +955,7 @@ export function VoiceRoomProvider({ children }: { children: ReactNode }) {
     isCoHost,
     isTempHost,
     join,
+    joinSilent,
     switchRoom,
     joinAsSpeaker,
     joinAsListener,

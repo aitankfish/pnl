@@ -1,8 +1,9 @@
 import { useCallback, useMemo } from 'react';
-import { View, Text, StyleSheet, ActivityIndicator, ScrollView } from 'react-native';
+import { View, Text, Image, StyleSheet, ActivityIndicator, ScrollView } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useVoiceRoomContext, MAX_SPEAKERS } from '../../providers/VoiceRoomProvider';
 import type { VoiceParticipant } from '../../providers/VoiceRoomProvider';
+import { useProfile, resolveAvatarUrl } from '../../hooks/useProfile';
 import { VoiceJoinScreen } from './VoiceJoinScreen';
 import { VoiceSpeakerCircle } from './VoiceSpeakerCircle';
 import { VoiceListenerDots } from './VoiceListenerDots';
@@ -20,6 +21,10 @@ interface VoiceRoomProps {
   walletAddress?: string | null;
   founderWallet?: string | null;
   hasPosition: boolean;
+  tokenSymbol?: string;
+  projectImageUrl?: string;
+  poolBalance?: number;
+  targetPool?: number;
 }
 
 export function VoiceRoom({
@@ -29,8 +34,13 @@ export function VoiceRoom({
   walletAddress,
   founderWallet,
   hasPosition,
+  tokenSymbol,
+  projectImageUrl,
+  poolBalance,
+  targetPool,
 }: VoiceRoomProps) {
   const voice = useVoiceRoomContext();
+  const { profile } = useProfile(walletAddress ?? null);
 
   const handleJoin = useCallback(() => {
     if (!walletAddress) return;
@@ -43,9 +53,14 @@ export function VoiceRoom({
   const allParticipants = useMemo(() => {
     if (!voice.isConnected || !voice.walletAddress) return voice.participants;
 
+    const selfPhoto = profile?.profilePhotoUrl
+      ? resolveAvatarUrl(profile.profilePhotoUrl)
+      : undefined;
+
     const selfParticipant: VoiceParticipant = {
       peerId: voice.walletAddress,
-      displayName: 'You',
+      displayName: profile?.username || 'You',
+      profilePhotoUrl: selfPhoto,
       isMuted: voice.isMuted,
       isSpeaking: voice.isSpeaking,
       hasRaisedHand: voice.hasRaisedHand,
@@ -57,7 +72,7 @@ export function VoiceRoom({
   }, [
     voice.isConnected, voice.walletAddress, voice.isMuted,
     voice.isSpeaking, voice.hasRaisedHand, voice.isSpeaker,
-    voice.participants,
+    voice.participants, profile,
   ]);
 
   const totalCount = voice.participants.length + 1; // +1 for self
@@ -153,24 +168,45 @@ export function VoiceRoom({
         </View>
       )}
 
-      {/* Header: Live + participant count */}
+      {/* Header: project context + live indicator */}
       <View style={styles.header}>
         <View style={styles.headerLeft}>
-          <View style={styles.liveDot} />
-          <Text style={styles.liveLabel}>Live</Text>
-        </View>
-        <View style={styles.headerRight}>
-          <Ionicons name="people" size={14} color={colors.textMuted} />
-          <Text style={styles.headerCount}>{totalCount} listening</Text>
+          {projectImageUrl ? (
+            <Image source={{ uri: projectImageUrl }} style={styles.headerAvatar} />
+          ) : (
+            <View style={[styles.headerAvatar, styles.headerAvatarPlaceholder]}>
+              <Ionicons name="mic" size={14} color={colors.primary} />
+            </View>
+          )}
+          <View style={styles.headerInfo}>
+            <View style={styles.headerTitleRow}>
+              <Text style={styles.headerName} numberOfLines={1}>{marketName}</Text>
+              {tokenSymbol && <Text style={styles.headerToken}>${tokenSymbol}</Text>}
+            </View>
+            <View style={styles.headerMeta}>
+              <View style={styles.liveDot} />
+              <Text style={styles.liveLabel}>{totalCount} listening</Text>
+              {poolBalance != null && targetPool != null && (
+                <Text style={styles.headerPool}>
+                  · {(poolBalance / 1e9).toFixed(2)}/{targetPool} SOL
+                </Text>
+              )}
+            </View>
+          </View>
         </View>
       </View>
 
-      {/* Room title */}
-      {voice.roomTitle ? (
-        <View style={styles.titleContainer}>
-          <Text style={styles.roomTitle} numberOfLines={2}>{voice.roomTitle}</Text>
+      {/* Pool progress bar */}
+      {poolBalance != null && targetPool != null && targetPool > 0 && (
+        <View style={styles.progressBarWrap}>
+          <View
+            style={[
+              styles.progressBarFill,
+              { width: `${Math.min(100, ((poolBalance / 1e9) / targetPool) * 100)}%` },
+            ]}
+          />
         </View>
-      ) : null}
+      )}
 
       {/* Scrollable content */}
       <ScrollView style={styles.scrollContent} contentContainerStyle={styles.scrollInner}>
@@ -314,49 +350,81 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     marginTop: spacing.xs,
   },
-  // -- Connected header (matches web) --
+  // -- Connected header with project context --
   header: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
     paddingHorizontal: spacing.md,
-    paddingVertical: spacing.sm,
+    paddingVertical: spacing.sm + 2,
     borderBottomWidth: 1,
     borderBottomColor: 'rgba(255,255,255,0.05)',
   },
   headerLeft: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: spacing.xs,
+    gap: spacing.sm,
+    flex: 1,
   },
-  liveDot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-    backgroundColor: '#4ade80',
+  headerAvatar: {
+    width: 36,
+    height: 36,
+    borderRadius: 10,
   },
-  liveLabel: {
+  headerAvatarPlaceholder: {
+    backgroundColor: 'rgba(129,140,248,0.15)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.08)',
+  },
+  headerInfo: {
+    flex: 1,
+    gap: 2,
+  },
+  headerTitleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  headerName: {
     ...typography.captionBold,
     color: '#fff',
-    fontSize: 12,
+    fontSize: 14,
+    flexShrink: 1,
   },
-  headerRight: {
+  headerToken: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: '#22d3ee',
+    fontFamily: 'monospace' as any,
+  },
+  headerMeta: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 4,
   },
-  headerCount: {
+  liveDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: '#4ade80',
+  },
+  liveLabel: {
     ...typography.micro,
     color: colors.textMuted,
   },
-  titleContainer: {
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.sm,
+  headerPool: {
+    ...typography.micro,
+    color: colors.textMuted,
   },
-  roomTitle: {
-    ...typography.caption,
-    color: colors.textSecondary,
-    textAlign: 'center',
+  progressBarWrap: {
+    height: 3,
+    backgroundColor: 'rgba(255,255,255,0.06)',
+  },
+  progressBarFill: {
+    height: 3,
+    backgroundColor: '#10b981',
+    borderRadius: 1.5,
   },
   // -- Scrollable content --
   scrollContent: {

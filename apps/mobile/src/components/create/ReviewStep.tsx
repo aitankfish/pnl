@@ -108,18 +108,28 @@ export function ReviewStep({ form, projectImage, galleryImages, pitchVideo, isSu
         {galleryImages.length > 0 && (
           <>
             <View style={styles.divider} />
-            <Text style={styles.sectionTitle}>Gallery</Text>
-            <InfoRow label="Gallery Images" value={`${totalImages} image${totalImages !== 1 ? 's' : ''}`} />
+            <Text style={styles.sectionTitle}>Gallery ({galleryImages.length} image{galleryImages.length !== 1 ? 's' : ''})</Text>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.galleryRow}>
+              {galleryImages.map((img, i) => (
+                <Image key={i} source={{ uri: img.uri }} style={styles.galleryThumb} />
+              ))}
+            </ScrollView>
           </>
         )}
 
         <View style={styles.divider} />
 
         <Text style={styles.sectionTitle}>Pitch Video</Text>
-        <InfoRow
-          label="Video"
-          value={pitchVideo ? 'Included' : 'None'}
-        />
+        {pitchVideo ? (
+          <View style={styles.videoPreviewRow}>
+            <View style={styles.videoThumb}>
+              <Ionicons name="videocam" size={20} color={colors.primary} />
+            </View>
+            <Text style={styles.infoValue}>Video included</Text>
+          </View>
+        ) : (
+          <InfoRow label="Video" value="None" />
+        )}
 
         <View style={styles.divider} />
 
@@ -281,6 +291,32 @@ const styles = StyleSheet.create({
   notesText: {
     ...typography.caption,
     color: colors.textSecondary,
+  },
+  galleryRow: {
+    flexDirection: 'row',
+    marginBottom: spacing.sm,
+  },
+  galleryThumb: {
+    width: 64,
+    height: 64,
+    borderRadius: borderRadius.sm,
+    marginRight: spacing.sm,
+  },
+  videoPreviewRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.md,
+    marginBottom: spacing.sm,
+  },
+  videoThumb: {
+    width: 48,
+    height: 48,
+    borderRadius: borderRadius.sm,
+    backgroundColor: colors.glass,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: colors.border,
   },
   feeCard: {
     backgroundColor: colors.surfaceElevated,

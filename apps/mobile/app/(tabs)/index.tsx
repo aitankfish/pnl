@@ -19,7 +19,6 @@ import {
   Platform,
   ViewToken,
   Pressable,
-  Animated,
   Share,
 } from 'react-native';
 import { Video, ResizeMode } from 'expo-av';
@@ -36,6 +35,8 @@ import { apiUrl } from '@pnl/shared/utils';
 import { useAuth } from '../../src/providers/AuthProvider';
 import { useWalletBalance } from '../../src/hooks/useWalletBalance';
 import { useVote } from '../../src/hooks/useVote';
+import { VoiceRoom } from '../../src/components/community/VoiceRoom';
+import { VoiceRoomVoteButtons } from '../../src/components/community/VoiceRoomVoteButtons';
 import { useVoiceRoomContextSafe } from '../../src/providers/VoiceRoomProvider';
 import {
   FeedCard,
@@ -49,6 +50,7 @@ import {
   TimeCountdown,
   PoolProgress,
   VoteToast,
+  SkeletonCard,
 } from '../../src/components';
 import type { VoteToastState } from '../../src/components';
 import { useCuratePreferences } from '../../src/hooks/useCuratePreferences';
@@ -82,166 +84,30 @@ function applySortOption(list: Market[], sortBy: CurateSortOption): Market[] {
   }
 }
 
-/* ── Voice Live Indicator ────────────────────────────────── */
-
-interface VoiceLiveIndicatorProps {
-  active: boolean;
-  onPress: () => void;
-}
-
-function VoiceLiveIndicator({ active, onPress }: VoiceLiveIndicatorProps) {
-  const bar1 = useRef(new Animated.Value(0.4)).current;
-  const bar2 = useRef(new Animated.Value(0.6)).current;
-  const bar3 = useRef(new Animated.Value(0.4)).current;
-  const shake = useRef(new Animated.Value(0)).current;
-  const glow = useRef(new Animated.Value(0)).current;
-
-  useEffect(() => {
-    const bounce = (anim: Animated.Value, lo: number, hi: number, dur: number) =>
-      Animated.loop(
-        Animated.sequence([
-          Animated.timing(anim, { toValue: hi, duration: dur, useNativeDriver: true }),
-          Animated.timing(anim, { toValue: lo, duration: dur, useNativeDriver: true }),
-        ]),
-      );
-
-    if (active) {
-      const anim = Animated.parallel([
-        bounce(bar1, 0.3, 1, 340),
-        bounce(bar2, 0.35, 1, 260),
-        bounce(bar3, 0.25, 1, 400),
-        Animated.loop(
-          Animated.sequence([
-            Animated.timing(shake, { toValue: 1, duration: 80, useNativeDriver: true }),
-            Animated.timing(shake, { toValue: -1, duration: 80, useNativeDriver: true }),
-            Animated.timing(shake, { toValue: 0, duration: 80, useNativeDriver: true }),
-          ]),
-        ),
-        Animated.loop(
-          Animated.sequence([
-            Animated.timing(glow, { toValue: 1, duration: 1200, useNativeDriver: true }),
-            Animated.timing(glow, { toValue: 0, duration: 1200, useNativeDriver: true }),
-          ]),
-        ),
-      ]);
-      anim.start();
-      return () => anim.stop();
-    }
-
-    bar1.setValue(0.4);
-    bar3.setValue(0.4);
-    shake.setValue(0);
-    glow.setValue(0);
-    const idle = Animated.loop(
-      Animated.sequence([
-        Animated.timing(bar2, { toValue: 0.75, duration: 900, useNativeDriver: true }),
-        Animated.timing(bar2, { toValue: 0.5, duration: 900, useNativeDriver: true }),
-      ]),
-    );
-    idle.start();
-    return () => idle.stop();
-  }, [active, bar1, bar2, bar3, shake, glow]);
-
-  return (
-    <Pressable
-      style={styles.voiceIndicator}
-      onPress={(e) => {
-        e.stopPropagation?.();
-        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-        onPress();
-      }}
-      hitSlop={8}
-    >
-      {active && (
-        <Animated.View
-          style={[
-            styles.voiceGlowRing,
-            {
-              opacity: glow.interpolate({
-                inputRange: [0, 1],
-                outputRange: [0.3, 0.8],
-              }),
-              transform: [
-                {
-                  scale: glow.interpolate({
-                    inputRange: [0, 1],
-                    outputRange: [1, 1.4],
-                  }),
-                },
-              ],
-            },
-          ]}
-        />
-      )}
-      <Animated.View
-        style={[
-          styles.voiceCircle,
-          active && styles.voiceCircleActive,
-          {
-            transform: [
-              {
-                translateX: shake.interpolate({
-                  inputRange: [-1, 0, 1],
-                  outputRange: [-1.5, 0, 1.5],
-                }),
-              },
-            ],
-          },
-        ]}
-      >
-        <Animated.View
-          style={[
-            styles.soundBar,
-            active && styles.soundBarActive,
-            { transform: [{ scaleY: bar1 }] },
-          ]}
-        />
-        <Animated.View
-          style={[
-            styles.soundBar,
-            styles.soundBarTall,
-            active && styles.soundBarActiveCenter,
-            { transform: [{ scaleY: bar2 }] },
-          ]}
-        />
-        <Animated.View
-          style={[
-            styles.soundBar,
-            active && styles.soundBarActive,
-            { transform: [{ scaleY: bar3 }] },
-          ]}
-        />
-      </Animated.View>
-    </Pressable>
-  );
-}
-
 /* ── Pitch Video Card ─────────────────────────────────────── */
 
 interface PitchVideoCardProps {
   market: Market;
   height: number;
   isActive: boolean;
-  voiceActive: boolean;
   walletAddress: string | null;
+  isAuthenticated: boolean;
   votingState?: { voteType: 'yes' | 'no' } | null;
   onVoteYes: () => void;
   onVoteNo: () => void;
   onPress: () => void;
-  onVoicePress: () => void;
 }
 
 function PitchVideoCard({
   market,
   height,
   isActive,
-  voiceActive,
   walletAddress,
+  isAuthenticated,
   votingState,
   onVoteYes,
   onVoteNo,
   onPress,
-  onVoicePress,
 }: PitchVideoCardProps) {
   const isActionable = market.isYesVoteEnabled || market.isNoVoteEnabled;
   const isVotingYes = votingState?.voteType === 'yes';
@@ -281,10 +147,131 @@ function PitchVideoCard({
           )}
         </Pressable>
         <LinearGradient
+          colors={['rgba(0,0,0,0.5)', 'transparent']}
+          locations={[0, 0.4]}
+          style={styles.topGradient}
+          pointerEvents="none"
+        />
+        <LinearGradient
           colors={['transparent', 'rgba(0,0,0,0.7)', 'rgba(0,0,0,0.9)']}
           style={styles.gradient}
           pointerEvents="none"
         />
+
+        <View style={styles.rightActions}>
+          {market.projectImageUrl ? (
+            <Pressable onPress={onPress}>
+              <Image source={{ uri: market.projectImageUrl }} style={styles.projectAvatar} />
+            </Pressable>
+          ) : null}
+          <FavoriteButton
+            marketId={market.id}
+            walletAddress={walletAddress}
+            initialCount={market.favoriteCount ?? 0}
+            variant="floating"
+          />
+          <Pressable
+          style={styles.createBtn}
+          onPress={() => {
+            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+            router.push(isAuthenticated ? '/create' : '/login');
+          }}
+          hitSlop={8}
+        >
+          <Ionicons name="add-circle" size={26} color="rgba(255,255,255,0.9)" />
+        </Pressable>
+          <Pressable
+            style={styles.shareBtn}
+            onPress={() => {
+              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+              Share.share({
+                message: `${market.name} — check it out on PNL!\nhttps://pnl.market/market/${market.id}`,
+                url: `https://pnl.market/market/${market.id}`,
+              });
+            }}
+            hitSlop={8}
+          >
+            <Ionicons name="share-social-outline" size={24} color="rgba(255,255,255,0.9)" />
+          </Pressable>
+        </View>
+
+        <View style={styles.overlay}>
+          {market.category ? (
+            <View style={styles.categoryPill}>
+              <Text style={styles.categoryText}>{market.category.toUpperCase()}</Text>
+            </View>
+          ) : null}
+          <Pressable onPress={onPress}>
+            <Text style={styles.marketTitle} numberOfLines={2}>
+              {market.name}
+            </Text>
+            <Text style={styles.tokenSymbol}>${market.tokenSymbol}</Text>
+            {market.description ? (
+              <Text style={styles.marketDescription} numberOfLines={2}>
+                {market.description}
+              </Text>
+            ) : null}
+          </Pressable>
+          {market.poolBalance != null && market.targetPool != null && (
+            <PoolProgress
+              current={Number(market.poolBalance) / 1e9}
+              target={Number(market.targetPool)}
+              tokenSymbol={market.tokenSymbol || 'SOL'}
+              variant="inline"
+            />
+          )}
+          <View style={styles.voteRow}>
+            {isActionable && (
+              <>
+                <Pressable
+                  style={[styles.voteBtn, (!market.isYesVoteEnabled || isVoting) && styles.voteBtnDisabled]}
+                  disabled={isVoting || !market.isYesVoteEnabled}
+                  onPress={onVoteYes}
+                >
+                  <LinearGradient
+                    colors={['#10b981', '#059669']}
+                    start={{ x: 0, y: 0 }}
+                    end={{ x: 1, y: 0 }}
+                    style={[
+                      styles.voteBtnGradient,
+                      (!market.isYesVoteEnabled || isVoting) && styles.voteGradientDisabled,
+                    ]}
+                  >
+                    {isVotingYes ? (
+                      <ActivityIndicator size="small" color="#fff" />
+                    ) : (
+                      <>
+                        <Ionicons name="trending-up" size={16} color="#fff" />
+                        <Text style={styles.voteBtnText}>YES</Text>
+                      </>
+                    )}
+                  </LinearGradient>
+                </Pressable>
+                <Pressable
+                  style={[styles.voteBtn, (!market.isNoVoteEnabled || isVoting) && styles.voteBtnDisabled]}
+                  disabled={isVoting || !market.isNoVoteEnabled}
+                  onPress={onVoteNo}
+                >
+                  <View
+                    style={[
+                      styles.noBtnInner,
+                      (!market.isNoVoteEnabled || isVoting) && styles.noBtnDisabled,
+                    ]}
+                  >
+                    {isVotingNo ? (
+                      <ActivityIndicator size="small" color="#fff" />
+                    ) : (
+                      <>
+                        <Ionicons name="trending-down" size={16} color="#fff" />
+                        <Text style={styles.voteBtnText}>NO</Text>
+                      </>
+                    )}
+                  </View>
+                </Pressable>
+              </>
+            )}
+          </View>
+        </View>
       </View>
     );
   }
@@ -342,7 +329,16 @@ function PitchVideoCard({
           initialCount={market.favoriteCount ?? 0}
           variant="floating"
         />
-        <VoiceLiveIndicator active={voiceActive} onPress={onVoicePress} />
+        <Pressable
+          style={styles.createBtn}
+          onPress={() => {
+            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+            router.push(isAuthenticated ? '/create' : '/login');
+          }}
+          hitSlop={8}
+        >
+          <Ionicons name="add-circle" size={26} color="rgba(255,255,255,0.9)" />
+        </Pressable>
         <Pressable
           style={styles.shareBtn}
           onPress={() => {
@@ -452,7 +448,7 @@ export default function FeedScreen() {
   const tabBarHeight = Platform.OS === 'ios' ? 60 + insets.bottom : 68;
   const cardHeight = WINDOW_HEIGHT - tabBarHeight;
 
-  const { markets, isLoading, error, refresh, activeVoiceRooms, newMarkets, clearNewMarkets } =
+  const { markets, isLoading, error, refresh, newMarkets, clearNewMarkets } =
     useMarkets();
   const { isAuthenticated, walletAddress } = useAuth();
   const { network } = useNetwork();
@@ -466,12 +462,10 @@ export default function FeedScreen() {
       setToastState({ visible: true, stage, direction, amount, marketName, message });
     },
   });
-  const voiceRoom = useVoiceRoomContextSafe();
   const { preferences, updatePreferences, resetToDefaults } = useCuratePreferences();
 
-  const [activePage, setActivePage] = useState(0); // 0=Feed, 1=For You
+  const [activeTab, setActiveTab] = useState(0); // 0=Feed, 1=For You (tab tap only)
   const [feedActiveIndex, setFeedActiveIndex] = useState(0);
-  const [forYouActiveIndex, setForYouActiveIndex] = useState(0);
 
   // New projects notification
   const [showNewPill, setShowNewPill] = useState(false);
@@ -481,7 +475,6 @@ export default function FeedScreen() {
   // Refs
   const pagerRef = useRef<ScrollView>(null);
   const feedListRef = useRef<FlatList>(null);
-  const forYouListRef = useRef<FlatList>(null);
 
   // Vote sheet state
   const sheetRef = useRef<GorhomBottomSheet>(null);
@@ -545,19 +538,38 @@ export default function FeedScreen() {
     return applySortOption(result, preferences.sortBy);
   }, [sortedMarkets, preferences]);
 
+  // Active data source based on tab selection
+  const displayMarkets = activeTab === 0 ? feedPageMarkets : forYouMarkets;
+
+  const [pagerPage, setPagerPage] = useState(0); // 0=Feed, 1=Voice Room
+  const voiceRoom = useVoiceRoomContextSafe();
+
   const handlePageScroll = useCallback(
     (e: NativeSyntheticEvent<NativeScrollEvent>) => {
       const offsetX = e.nativeEvent.contentOffset.x;
       const page = Math.round(offsetX / WINDOW_WIDTH);
-      if (page !== activePage) setActivePage(page);
+      if (page !== pagerPage) {
+        setPagerPage(page);
+        if (page === 1 && walletAddress && voiceRoom) {
+          // Auto-join as listener when swiping to voice room
+          Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+          const market = displayMarkets[feedActiveIndex];
+          if (market) {
+            voiceRoom.joinSilent(market.id, market.marketAddress, market.name, walletAddress, null);
+          }
+        }
+      }
     },
-    [activePage],
+    [pagerPage, walletAddress, voiceRoom, displayMarkets, feedActiveIndex],
   );
 
+  // Tab press: switch data source (Feed vs For You) — no pager scroll
   const handleTabPress = useCallback(
     (index: number) => {
-      pagerRef.current?.scrollTo({ x: index * WINDOW_WIDTH, animated: true });
-      setActivePage(index);
+      setActiveTab(index);
+      setFeedActiveIndex(0);
+      feedListRef.current?.scrollToOffset({ offset: 0, animated: false });
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     },
     [],
   );
@@ -573,15 +585,9 @@ export default function FeedScreen() {
     }
     clearNewMarkets();
     refresh();
-    // Scroll active feed to top
-    if (activePage === 0) {
-      feedListRef.current?.scrollToOffset({ offset: 0, animated: true });
-      setFeedActiveIndex(0);
-    } else {
-      forYouListRef.current?.scrollToOffset({ offset: 0, animated: true });
-      setForYouActiveIndex(0);
-    }
-  }, [newMarkets, clearNewMarkets, refresh, activePage]);
+    feedListRef.current?.scrollToOffset({ offset: 0, animated: true });
+    setFeedActiveIndex(0);
+  }, [newMarkets, clearNewMarkets, refresh]);
 
   const handleVote = useCallback(
     async (market: Market, direction: VoteDirection) => {
@@ -627,24 +633,11 @@ export default function FeedScreen() {
     [],
   );
 
-  const onForYouViewableItemsChanged = useCallback(
-    ({ viewableItems }: { viewableItems: ViewToken[] }) => {
-      if (viewableItems.length > 0 && viewableItems[0].index != null) {
-        setForYouActiveIndex(viewableItems[0].index);
-      }
-    },
-    [],
-  );
-
   const viewabilityConfig = useRef({ itemVisiblePercentThreshold: 60 }).current;
 
   // Shared card renderer
   const renderCard = useCallback(
-    (item: Market, index: number, isCardActive: boolean) => {
-      const isVoiceActive = !!(
-        (voiceRoom?.isConnected && voiceRoom.marketAddress === item.marketAddress) ||
-        (activeVoiceRooms && activeVoiceRooms.get(item.marketAddress))
-      );
+    (item: Market, _index: number, isCardActive: boolean) => {
       const isNew = seenNewIds.has(item.id) || seenNewIds.has(item.marketAddress);
 
       const card = item.pitchVideoUrl ? (
@@ -652,15 +645,12 @@ export default function FeedScreen() {
           market={item}
           height={cardHeight}
           isActive={isCardActive}
-          voiceActive={isVoiceActive}
           walletAddress={walletAddress}
+          isAuthenticated={isAuthenticated}
           onVoteYes={() => handleVote(item, 'yes')}
           onVoteNo={() => handleVote(item, 'no')}
           onPress={() =>
             router.push(`/market/${item.id}` as any)
-          }
-          onVoicePress={() =>
-            router.push({ pathname: '/voice-rooms', params: { marketAddress: item.marketAddress } } as any)
           }
         />
       ) : (
@@ -695,12 +685,16 @@ export default function FeedScreen() {
               initialCount={item.favoriteCount ?? 0}
               variant="floating"
             />
-            <VoiceLiveIndicator
-              active={isVoiceActive}
-              onPress={() =>
-                router.push({ pathname: '/voice-rooms', params: { marketAddress: item.marketAddress } } as any)
-              }
-            />
+            <Pressable
+              style={styles.createBtn}
+              onPress={() => {
+                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                router.push(isAuthenticated ? '/create' : '/login');
+              }}
+              hitSlop={8}
+            >
+              <Ionicons name="add-circle" size={26} color="rgba(255,255,255,0.9)" />
+            </Pressable>
             <Pressable
               style={styles.shareBtn}
               onPress={() => {
@@ -725,15 +719,19 @@ export default function FeedScreen() {
         </View>
       );
     },
-    [cardHeight, voiceRoom, activeVoiceRooms, walletAddress, handleVote, seenNewIds],
+    [cardHeight, walletAddress, isAuthenticated, handleVote, seenNewIds],
   );
 
-  // Loading state
+  // Loading state — show skeleton feed cards instead of a spinner
   if (isLoading && !markets.length) {
     return (
-      <View style={[styles.container, styles.center]}>
-        <ActivityIndicator size="large" color={colors.primary} />
-        <Text style={styles.loadingText}>Loading markets...</Text>
+      <View style={styles.container}>
+        <View style={[styles.floatingTabs, { top: insets.top + 4 }]}>
+          <FeedTabs activeIndex={0} onTabPress={() => {}} />
+        </View>
+        {[0, 1].map((i) => (
+          <SkeletonCard key={i} fullScreen style={{ height: cardHeight, marginBottom: 0 }} />
+        ))}
       </View>
     );
   }
@@ -771,10 +769,7 @@ export default function FeedScreen() {
   const newCount = newMarkets?.length ?? 0;
 
   // Active market's expiry for the floating time pill
-  const activeMarket =
-    activePage === 0
-      ? feedPageMarkets[feedActiveIndex]
-      : forYouMarkets[forYouActiveIndex];
+  const activeMarket = displayMarkets[feedActiveIndex];
   const activeExpiry = activeMarket?.expiryTime;
 
   return (
@@ -787,11 +782,11 @@ export default function FeedScreen() {
 
       {/* Floating TikTok-style tabs */}
       <View style={[styles.floatingTabs, { top: tabBarTop }]}>
-        <FeedTabs activeIndex={activePage} onTabPress={handleTabPress} />
+        <FeedTabs activeIndex={activeTab} onTabPress={handleTabPress} />
       </View>
 
       {/* Gear icon — left side, only on For You page */}
-      {activePage === 1 && (
+      {activeTab === 1 && (
         <Pressable
           style={[styles.gearButton, { top: tabBarTop + 6 }]}
           onPress={() => {
@@ -804,12 +799,18 @@ export default function FeedScreen() {
         </Pressable>
       )}
 
-      {/* Time countdown — right side, aligned with tabs */}
-      {activeExpiry && (
+      {/* Time countdown — right side, aligned with tabs (hide if expired) */}
+      {activeExpiry && new Date(activeExpiry).getTime() > Date.now() && (
         <View style={[styles.timeRight, { top: tabBarTop + 8 }]}>
           <TimeCountdown endTime={activeExpiry} size="small" />
         </View>
       )}
+
+      {/* Voice room swipe hint — right edge */}
+      <View style={[styles.voiceHint, { top: cardHeight / 2 - 30 }]}>
+        <Ionicons name="mic-outline" size={14} color="rgba(139,92,246,0.4)" />
+        <Ionicons name="chevron-forward" size={12} color="rgba(139,92,246,0.3)" />
+      </View>
 
       {/* New projects pill */}
       <NewProjectsPill
@@ -829,33 +830,9 @@ export default function FeedScreen() {
         scrollEventThrottle={16}
         style={styles.pager}
       >
-        {/* Page 0: Feed — all markets */}
+        {/* Page 0: Feed / For You (single list, tab switches data) */}
         <View style={[styles.page, { width: WINDOW_WIDTH }]}>
-          <FlatList
-            ref={feedListRef}
-            data={feedPageMarkets}
-            keyExtractor={(item) => `feed-${item.id}`}
-            renderItem={({ item, index }) =>
-              renderCard(item, index, activePage === 0 && index === feedActiveIndex)
-            }
-            pagingEnabled
-            snapToInterval={cardHeight}
-            snapToAlignment="start"
-            decelerationRate="fast"
-            showsVerticalScrollIndicator={false}
-            onViewableItemsChanged={onFeedViewableItemsChanged}
-            viewabilityConfig={viewabilityConfig}
-            getItemLayout={(_, index) => ({
-              length: cardHeight,
-              offset: cardHeight * index,
-              index,
-            })}
-          />
-        </View>
-
-        {/* Page 1: For You — curated markets */}
-        <View style={[styles.page, { width: WINDOW_WIDTH }]}>
-          {forYouMarkets.length === 0 ? (
+          {displayMarkets.length === 0 && activeTab === 1 ? (
             <View style={[styles.emptyForYou, { paddingTop: tabBarTop + 60 }]}>
               <EmptyState
                 icon="compass-outline"
@@ -865,18 +842,18 @@ export default function FeedScreen() {
             </View>
           ) : (
             <FlatList
-              ref={forYouListRef}
-              data={forYouMarkets}
-              keyExtractor={(item) => `foryou-${item.id}`}
+              ref={feedListRef}
+              data={displayMarkets}
+              keyExtractor={(item) => `${activeTab}-${item.id}`}
               renderItem={({ item, index }) =>
-                renderCard(item, index, activePage === 1 && index === forYouActiveIndex)
+                renderCard(item, index, index === feedActiveIndex)
               }
               pagingEnabled
               snapToInterval={cardHeight}
               snapToAlignment="start"
               decelerationRate="fast"
               showsVerticalScrollIndicator={false}
-              onViewableItemsChanged={onForYouViewableItemsChanged}
+              onViewableItemsChanged={onFeedViewableItemsChanged}
               viewabilityConfig={viewabilityConfig}
               getItemLayout={(_, index) => ({
                 length: cardHeight,
@@ -885,6 +862,69 @@ export default function FeedScreen() {
               })}
             />
           )}
+        </View>
+
+        {/* Page 1: Voice Rooms — vertical swipe between project rooms */}
+        <View style={[styles.voiceRoomPage, { width: WINDOW_WIDTH }]}>
+          <FlatList
+            data={displayMarkets}
+            keyExtractor={(item) => `voice-${item.id}`}
+            pagingEnabled
+            snapToInterval={cardHeight}
+            snapToAlignment="start"
+            decelerationRate="fast"
+            showsVerticalScrollIndicator={false}
+            initialScrollIndex={feedActiveIndex}
+            getItemLayout={(_, index) => ({
+              length: cardHeight,
+              offset: cardHeight * index,
+              index,
+            })}
+            onViewableItemsChanged={({ viewableItems }) => {
+              if (viewableItems.length > 0 && viewableItems[0].index != null) {
+                const item = viewableItems[0].item as Market;
+                // Auto-switch room when swiping to a new project
+                if (walletAddress && voiceRoom && pagerPage === 1) {
+                  voiceRoom.joinSilent(item.id, item.marketAddress, item.name, walletAddress, null);
+                }
+              }
+            }}
+            viewabilityConfig={{ itemVisiblePercentThreshold: 60 }}
+            renderItem={({ item }) => (
+              <View style={{ height: cardHeight }}>
+                <VoiceRoom
+                  marketId={item.id}
+                  marketAddress={item.marketAddress}
+                  marketName={item.name}
+                  walletAddress={walletAddress}
+                  founderWallet={null}
+                  hasPosition={false}
+                  tokenSymbol={item.tokenSymbol}
+                  projectImageUrl={item.projectImageUrl}
+                  poolBalance={item.poolBalance as number}
+                  targetPool={Number(item.targetPool)}
+                />
+                {/* Vote overlay */}
+                {voiceRoom?.isConnected && (item.isYesVoteEnabled || item.isNoVoteEnabled) && (
+                  <View style={styles.voiceVoteOverlay}>
+                    <VoiceRoomVoteButtons
+                      onVoteYes={() => handleVote(item, 'yes')}
+                      onVoteNo={() => handleVote(item, 'no')}
+                      isVoting={false}
+                    />
+                  </View>
+                )}
+              </View>
+            )}
+          />
+          {/* Swipe hints */}
+          <View style={styles.voiceSwipeHint}>
+            <Ionicons name="chevron-back" size={12} color={colors.textMuted} />
+            <Text style={styles.voiceSwipeHintText}>Feed</Text>
+            <Text style={[styles.voiceSwipeHintText, { marginLeft: 8 }]}>·</Text>
+            <Ionicons name="swap-vertical" size={12} color={colors.textMuted} style={{ marginLeft: 8 }} />
+            <Text style={styles.voiceSwipeHintText}>Rooms</Text>
+          </View>
         </View>
       </ScrollView>
 
@@ -974,6 +1014,62 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
+  },
+  createBtn: {
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  voiceHint: {
+    position: 'absolute',
+    right: 0,
+    zIndex: 40,
+    backgroundColor: 'rgba(10, 14, 26, 0.6)',
+    paddingVertical: 10,
+    paddingHorizontal: 4,
+    paddingLeft: 6,
+    borderTopLeftRadius: 12,
+    borderBottomLeftRadius: 12,
+    alignItems: 'center',
+    gap: 2,
+  },
+  voiceRoomPage: {
+    backgroundColor: '#0a0e1a',
+    flex: 1,
+  },
+  voiceRoomEmpty: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+  },
+  voiceVoteOverlay: {
+    position: 'absolute',
+    bottom: 140,
+    left: spacing.md,
+    right: spacing.md,
+    zIndex: 20,
+  },
+  voiceSwipeHint: {
+    position: 'absolute',
+    bottom: 100,
+    alignSelf: 'center',
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    opacity: 0.4,
+  },
+  voiceSwipeHintText: {
+    color: colors.textMuted,
+    fontSize: 11,
+  },
+  voiceRoomHintTitle: {
+    color: 'rgba(255,255,255,0.4)',
+    fontSize: 18,
+    fontWeight: '600',
+  },
+  voiceRoomHintSub: {
+    color: 'rgba(255,255,255,0.25)',
+    fontSize: 13,
   },
 
   /* ── PitchVideoCard styles ── */
@@ -1121,52 +1217,6 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
 
-  /* ── Voice Live Indicator styles ── */
-  voiceIndicator: {
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  voiceCircle: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: 'rgba(255, 255, 255, 0.15)',
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 2.5,
-  },
-  voiceCircleActive: {
-    backgroundColor: 'rgba(139, 92, 246, 0.9)',
-    shadowColor: '#8b5cf6',
-    shadowOffset: { width: 0, height: 0 },
-    shadowOpacity: 0.6,
-    shadowRadius: 10,
-    elevation: 8,
-  },
-  voiceGlowRing: {
-    position: 'absolute',
-    width: 48,
-    height: 48,
-    borderRadius: 24,
-    borderWidth: 2,
-    borderColor: '#a78bfa',
-  },
-  soundBar: {
-    width: 3,
-    height: 10,
-    borderRadius: 1.5,
-    backgroundColor: 'rgba(255, 255, 255, 0.7)',
-  },
-  soundBarTall: {
-    height: 14,
-  },
-  soundBarActive: {
-    backgroundColor: '#c4b5fd',
-  },
-  soundBarActiveCenter: {
-    backgroundColor: '#22d3ee',
-  },
   shareBtn: {
     alignItems: 'center',
     justifyContent: 'center',

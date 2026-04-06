@@ -10,10 +10,16 @@ import { getSolanaConnection } from '@pnl/shared/solana';
 import { useSolPrice } from '@pnl/shared/hooks';
 
 async function fetchSolBalance(walletAddress: string): Promise<number> {
-  const connection = await getSolanaConnection();
-  const pubkey = new PublicKey(walletAddress);
-  const lamports = await connection.getBalance(pubkey);
-  return lamports / LAMPORTS_PER_SOL;
+  try {
+    const connection = await getSolanaConnection();
+    const pubkey = new PublicKey(walletAddress);
+    const lamports = await connection.getBalance(pubkey);
+    return lamports / LAMPORTS_PER_SOL;
+  } catch {
+    // Silently return cached/default value on RPC failures (429s, network errors)
+    // SWR will retry on the next interval
+    return undefined as any;
+  }
 }
 
 export function useWalletBalance(walletAddress: string | null) {

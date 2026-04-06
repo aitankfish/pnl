@@ -30,5 +30,17 @@ if (typeof process === 'undefined') {
   process.env = {};
 }
 
+// Suppress noisy RPC/network warnings from Expo's LogBox (distracting during demos)
+import { LogBox } from 'react-native';
+LogBox.ignoreLogs([
+  'Server responded with',
+  'Failed to connect to',
+  'max usage reached',
+  '429',
+  'Retrying after',
+  'Helius WebSocket closed',
+  '[PNL] Failed to connect',
+]);
+
 // Now load expo-router
 import 'expo-router/entry';
