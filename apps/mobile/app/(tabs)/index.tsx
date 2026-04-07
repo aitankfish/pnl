@@ -83,14 +83,21 @@ function getMarketAction(market: Market): {
   const tokenMint = (market as any)?.tokenMint || (market as any)?.pumpFunTokenAddress || null;
   const isTokenLaunched = isResolved && resolution === 'YesWins' && !!tokenMint;
 
+  // Determine action — order matters for real-time correctness:
+  // Socket updates `resolution` and `tokenMint` instantly, but `isYesVoteEnabled`
+  // only refreshes on SWR poll. So we check resolution FIRST to ensure
+  // buttons switch immediately when a market resolves/launches.
   let action: MarketAction = 'none';
   if (isTokenLaunched) {
     action = 'trade';
-  } else if (!isResolved && (market.isYesVoteEnabled || market.isNoVoteEnabled)) {
-    action = 'vote';
-  } else if (isResolved && !isTokenLaunched) {
-    // NoWins or Refund — claim happens in market detail, not feed
+  } else if (isResolved) {
+    // NoWins, Refund, or YesWins without token yet — claim in market detail
     action = 'none';
+  } else if (isExpired) {
+    // Expired but not yet resolved — no actions in feed
+    action = 'none';
+  } else if (market.isYesVoteEnabled || market.isNoVoteEnabled) {
+    action = 'vote';
   }
 
   return { action, isExpired, isResolved, isTokenLaunched, tokenMint, resolution };
