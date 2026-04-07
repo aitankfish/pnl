@@ -229,9 +229,29 @@ export default function ProfileScreen() {
 
   if (isInitialLoad) {
     return (
-      <View style={[styles.container, styles.loadingContainer]}>
-        <ActivityIndicator size="large" color={colors.primary} />
-        <Text style={styles.loadingContainerText}>Loading profile...</Text>
+      <View style={[styles.container, { paddingTop: insets.top + 16, paddingHorizontal: spacing.md }]}>
+        {/* Skeleton header */}
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: 24 }}>
+          <View style={{ width: 36, height: 36, borderRadius: 18, backgroundColor: colors.surfaceElevated }} />
+          <View style={{ flex: 1, gap: 6 }}>
+            <View style={{ width: '50%', height: 14, borderRadius: 4, backgroundColor: colors.surfaceElevated }} />
+            <View style={{ width: '30%', height: 10, borderRadius: 4, backgroundColor: colors.surfaceElevated }} />
+          </View>
+        </View>
+        {/* Skeleton balance */}
+        <View style={{ alignItems: 'center', gap: 8, marginBottom: 24 }}>
+          <View style={{ width: 120, height: 28, borderRadius: 6, backgroundColor: colors.surfaceElevated }} />
+          <View style={{ width: 80, height: 12, borderRadius: 4, backgroundColor: colors.surfaceElevated }} />
+        </View>
+        {/* Skeleton actions */}
+        <View style={{ flexDirection: 'row', justifyContent: 'space-around', marginBottom: 24 }}>
+          {[1, 2, 3, 4, 5].map(i => (
+            <View key={i} style={{ alignItems: 'center', gap: 6 }}>
+              <View style={{ width: 44, height: 44, borderRadius: 22, backgroundColor: colors.surfaceElevated }} />
+              <View style={{ width: 30, height: 8, borderRadius: 4, backgroundColor: colors.surfaceElevated }} />
+            </View>
+          ))}
+        </View>
       </View>
     );
   }
@@ -342,10 +362,10 @@ export default function ProfileScreen() {
 
             {/* ─── Action Buttons ─── */}
             <View style={styles.actionsRow}>
-              <ActionButton icon="card-outline" label="Buy" color={colors.success} onPress={handleBuySol} />
               <ActionButton icon="send-outline" label="Send" color={colors.primary} onPress={() => sendRef.current?.snapToIndex(0)} />
               <ActionButton icon="download-outline" label="Receive" color="#22d3ee" onPress={() => depositRef.current?.snapToIndex(0)} />
               <ActionButton icon="swap-horizontal-outline" label="Swap" color={colors.accent} onPress={() => tradeRef.current?.snapToIndex(0)} />
+              <ActionButton icon="card-outline" label="Buy" color={colors.success} onPress={handleBuySol} />
               <ActionButton icon="add-circle-outline" label="Create" color="#f59e0b" onPress={() => router.push('/create')} />
             </View>
 
@@ -362,10 +382,15 @@ export default function ProfileScreen() {
 
             {/* ─── Stats Cards ─── */}
             <View style={styles.statsCardRow}>
-              <GlassCard style={styles.statCard}>
-                <Text style={styles.statCardValue}>{profile?.totalPredictions ?? 0}</Text>
-                <Text style={styles.statCardLabel}>Predictions</Text>
-              </GlassCard>
+              <PressableScale
+                style={{ flex: 1 }}
+                onPress={() => scrollRef.current?.scrollToEnd({ animated: true })}
+              >
+                <GlassCard style={styles.statCard}>
+                  <Text style={styles.statCardValue}>{profile?.totalPredictions ?? 0}</Text>
+                  <Text style={styles.statCardLabel}>Predictions</Text>
+                </GlassCard>
+              </PressableScale>
               <PressableScale
                 style={{ flex: 1 }}
                 onPress={() => router.push({ pathname: '/followers', params: { type: 'followers', wallet: walletAddress! } })}
@@ -480,7 +505,19 @@ export default function ProfileScreen() {
                 return (
                   <PressableScale
                     key={token.mint}
-                    onPress={() => handleCopyMint(token.mint)}
+                    onPress={() => {
+                      // Navigate to trade if it's a PNL-launched token, otherwise copy mint
+                      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                      handleCopyMint(token.mint);
+                    }}
+                    onLongPress={() => {
+                      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+                      Alert.alert(token.symbol || 'Token', `${token.name || token.symbol}`, [
+                        { text: 'Copy Address', onPress: () => handleCopyMint(token.mint) },
+                        { text: 'View on Explorer', onPress: () => Linking.openURL(`https://orb.helius.dev/address/${token.mint}`) },
+                        { text: 'Cancel', style: 'cancel' },
+                      ]);
+                    }}
                     style={styles.tokenRow}
                   >
                     {token.logoURI ? (
