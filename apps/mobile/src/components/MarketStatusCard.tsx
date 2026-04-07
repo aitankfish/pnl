@@ -149,7 +149,7 @@ async function signAndSendPrepared(
         body: JSON.stringify({ ...completeBody, signature }),
       });
     } catch (e) {
-      console.warn('Complete endpoint failed (non-fatal):', e);
+      // Non-fatal: on-chain tx already succeeded, backend sync will catch up
     }
   }
 

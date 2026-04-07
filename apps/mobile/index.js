@@ -40,6 +40,9 @@ LogBox.ignoreLogs([
   'Retrying after',
   'Helius WebSocket closed',
   '[PNL] Failed to connect',
+  '[Voice]',
+  'expo-av',
+  'Attempted to import',
 ]);
 
 // Now load expo-router

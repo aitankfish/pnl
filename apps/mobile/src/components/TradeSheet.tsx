@@ -96,7 +96,7 @@ export const TradeSheet = forwardRef<GorhomBottomSheet, TradeSheetProps>(
           setTokenBalance(0);
         }
       } catch (err) {
-        console.error('Error fetching balances:', err);
+        // Silently handle balance fetch errors
       }
     }, [walletAddress, tokenMint]);
 
@@ -199,7 +199,6 @@ export const TradeSheet = forwardRef<GorhomBottomSheet, TradeSheetProps>(
         setQuote(null);
         fetchBalances();
       } catch (err: any) {
-        console.error('Swap error:', err);
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
         const parsed = parseError(err);
         setError(parsed.message);

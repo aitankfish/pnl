@@ -43,15 +43,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     loginWithCode,
     state: emailState,
   } = useLoginWithEmail({
-    onError: (error) => {
-      console.error('[Privy Email OTP Error]', error?.message || error);
-    },
-    onSendCodeSuccess: ({ email }) => {
-      console.log('[Privy] OTP code sent to:', email);
-    },
-    onLoginSuccess: (_user, isNewUser) => {
-      console.log('[Privy] Login success, new user:', isNewUser);
-    },
+    onError: () => {},
+    onSendCodeSuccess: () => {},
+    onLoginSuccess: () => {},
   });
 
   const {
@@ -74,7 +68,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     // Prevent duplicate wallet creation
     if (walletCreationInProgress.current) {
-      console.log('[Auth] Wallet creation already in progress, skipping...');
       return;
     }
 
@@ -87,7 +80,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     if (!hasSolanaWallet && solanaWallet.status !== 'connected') {
       walletCreationInProgress.current = true;
-      console.log('[Auth] No embedded Solana wallet found, attempting to create...');
+      // Privy SDK should auto-create via createOnLogin config
 
       // The Privy SDK should auto-create via createOnLogin config,
       // but if it hasn't yet, the wallet hook will handle it
@@ -122,7 +115,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     const currentUserId = (user as any)?.id || null;
     if (previousUserId.current && currentUserId && previousUserId.current !== currentUserId) {
-      console.log('[Auth] User changed, resetting wallet creation state');
       walletCreationInProgress.current = false;
     }
     previousUserId.current = currentUserId;
@@ -134,11 +126,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   // Enhanced logout that resets all local state
   const logout = useCallback(async () => {
-    console.log('[Auth] Logging out, clearing session state...');
     walletCreationInProgress.current = false;
     previousUserId.current = null;
     await privyLogout();
-    console.log('[Auth] Logout complete');
   }, [privyLogout]);
 
   const value: AuthContextType = {
