@@ -794,13 +794,15 @@ export default function FeedScreen() {
         onDismiss={() => setToastState((s) => ({ ...s, visible: false }))}
       />
 
-      {/* Floating TikTok-style tabs */}
-      <View style={[styles.floatingTabs, { top: tabBarTop }]}>
-        <FeedTabs activeIndex={activeTab} onTabPress={handleTabPress} />
-      </View>
+      {/* Floating TikTok-style tabs — only on Feed page */}
+      {pagerPage === 1 && (
+        <View style={[styles.floatingTabs, { top: tabBarTop }]}>
+          <FeedTabs activeIndex={activeTab} onTabPress={handleTabPress} />
+        </View>
+      )}
 
-      {/* Gear icon — left side, only on For You page */}
-      {activeTab === 1 && (
+      {/* Gear icon — left side, only on For You tab + Feed page */}
+      {pagerPage === 1 && activeTab === 1 && (
         <Pressable
           style={[styles.gearButton, { top: tabBarTop + 6 }]}
           onPress={() => {
@@ -813,8 +815,8 @@ export default function FeedScreen() {
         </Pressable>
       )}
 
-      {/* Time countdown — right side, aligned with tabs (hide if expired) */}
-      {activeExpiry && new Date(activeExpiry).getTime() > Date.now() && (
+      {/* Time countdown — only on Feed page */}
+      {pagerPage === 1 && activeExpiry && new Date(activeExpiry).getTime() > Date.now() && (
         <View style={[styles.timeRight, { top: tabBarTop + 8 }]}>
           <TimeCountdown endTime={activeExpiry} size="small" />
         </View>
@@ -837,7 +839,7 @@ export default function FeedScreen() {
       {/* New projects pill */}
       <NewProjectsPill
         count={newCount}
-        visible={showNewPill && newCount > 0}
+        visible={pagerPage === 1 && showNewPill && newCount > 0}
         onPress={handleNewPillPress}
         top={pillTop}
       />
@@ -876,24 +878,35 @@ export default function FeedScreen() {
             }}
             viewabilityConfig={viewabilityConfig}
             renderItem={({ item }) => (
-              <View style={[styles.chatPage, { height: cardHeight }]}>
+              <View style={[styles.chatPage, { height: cardHeight, paddingTop: insets.top }]}>
+                {/* Chat header with project context */}
                 <View style={styles.chatHeader}>
+                  <Pressable
+                    onPress={() => pagerRef.current?.scrollTo({ x: WINDOW_WIDTH, animated: true })}
+                    hitSlop={10}
+                    style={styles.chatBackBtn}
+                  >
+                    <Ionicons name="chevron-back" size={22} color={colors.textSecondary} />
+                  </Pressable>
                   {item.projectImageUrl ? (
                     <Image source={{ uri: item.projectImageUrl }} style={styles.chatHeaderAvatar} />
-                  ) : null}
+                  ) : (
+                    <View style={[styles.chatHeaderAvatar, { backgroundColor: 'rgba(139,92,246,0.15)', alignItems: 'center', justifyContent: 'center' }]}>
+                      <Ionicons name="chatbubbles" size={16} color={colors.primary} />
+                    </View>
+                  )}
                   <View style={styles.chatHeaderInfo}>
                     <Text style={styles.chatHeaderName} numberOfLines={1}>{item.name}</Text>
-                    <Text style={styles.chatHeaderToken}>${item.tokenSymbol}</Text>
+                    {item.tokenSymbol ? (
+                      <Text style={styles.chatHeaderToken}>${item.tokenSymbol}</Text>
+                    ) : null}
                   </View>
-                  <Pressable
-                    onPress={() => {
-                      pagerRef.current?.scrollTo({ x: WINDOW_WIDTH, animated: true });
-                    }}
-                    hitSlop={10}
-                  >
-                    <Ionicons name="chevron-forward" size={20} color={colors.textMuted} />
-                  </Pressable>
+                  <View style={styles.chatLiveBadge}>
+                    <Ionicons name="chatbubbles-outline" size={12} color={colors.primary} />
+                    <Text style={styles.chatLiveBadgeText}>Chat</Text>
+                  </View>
                 </View>
+                {/* Chat content */}
                 <ChatRoom
                   marketAddress={item.marketAddress}
                   walletAddress={walletAddress}
@@ -1139,11 +1152,17 @@ const styles = StyleSheet.create({
   chatHeader: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: spacing.md,
+    paddingHorizontal: spacing.sm,
     paddingVertical: spacing.sm,
     borderBottomWidth: 1,
     borderBottomColor: 'rgba(255,255,255,0.06)',
     gap: spacing.sm,
+  },
+  chatBackBtn: {
+    width: 32,
+    height: 32,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   chatHeaderAvatar: {
     width: 32,
@@ -1155,7 +1174,7 @@ const styles = StyleSheet.create({
   },
   chatHeaderName: {
     color: '#fff',
-    fontSize: 14,
+    fontSize: 15,
     fontWeight: '700',
   },
   chatHeaderToken: {
@@ -1163,6 +1182,22 @@ const styles = StyleSheet.create({
     fontSize: 11,
     fontWeight: '600',
     fontFamily: 'monospace' as any,
+  },
+  chatLiveBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: 'rgba(129,140,248,0.1)',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: 'rgba(129,140,248,0.2)',
+  },
+  chatLiveBadgeText: {
+    color: colors.primary,
+    fontSize: 11,
+    fontWeight: '600',
   },
   voiceRoomHintTitle: {
     color: 'rgba(255,255,255,0.4)',
