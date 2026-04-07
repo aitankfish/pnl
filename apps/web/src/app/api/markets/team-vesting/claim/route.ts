@@ -20,20 +20,22 @@ import {
 } from '@solana/spl-token';
 import { createClientLogger } from '@/lib/logger';
 import { getSolanaConnection } from '@/lib/solana';
+import { withAuth } from '@/lib/auth/require-wallet';
 
 const logger = createClientLogger();
 
-export async function POST(request: NextRequest) {
+export const POST = withAuth(async (request, authUser) => {
   try {
     const body = await request.json();
-    const { marketAddress, teamWallet, tokenMint, network } = body;
+    const { marketAddress, tokenMint, network } = body;
+    const teamWallet = authUser.walletAddress;
 
     // Validate inputs
-    if (!marketAddress || !teamWallet || !tokenMint) {
+    if (!marketAddress || !tokenMint) {
       return NextResponse.json(
         {
           success: false,
-          error: 'Missing required fields: marketAddress, teamWallet, tokenMint',
+          error: 'Missing required fields: marketAddress, tokenMint',
         },
         { status: 400 }
       );
@@ -182,4 +184,4 @@ export async function POST(request: NextRequest) {
       { status: 500 }
     );
   }
-}
+});

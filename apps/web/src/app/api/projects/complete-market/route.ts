@@ -6,6 +6,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createClientLogger } from '@/lib/logger';
 import { connectToDatabase, Project, PredictionMarket } from '@/lib/mongodb';
 import { fetchExternalData, formatExternalDataForPrompt } from '@/lib/external-data-fetcher';
+import { withAuth } from '@/lib/auth/require-wallet';
 
 const logger = createClientLogger();
 
@@ -172,7 +173,7 @@ Be entertaining but genuinely helpful. If the verification data shows problems, 
   }
 }
 
-export async function POST(request: NextRequest) {
+export const POST = withAuth(async (request, authUser) => {
   try {
     logger.info('🚀 API: Completing market creation after client-side signing');
     
@@ -287,4 +288,4 @@ export async function POST(request: NextRequest) {
       { status: 500 }
     );
   }
-}
+});

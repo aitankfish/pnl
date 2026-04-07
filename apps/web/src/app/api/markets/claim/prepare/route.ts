@@ -27,20 +27,22 @@ import {
 import { getProgram, getPositionPDA } from '@/lib/anchor-program';
 import { createClientLogger } from '@/lib/logger';
 import { getSolanaConnection } from '@/lib/solana';
+import { withWalletOwnership } from '@/lib/auth/require-wallet';
 
 const logger = createClientLogger();
 
-export async function POST(request: NextRequest) {
+export const POST = withWalletOwnership(async (request, authUser) => {
   try {
     const body = await request.json();
-    const { marketAddress, userWallet } = body;
+    const { marketAddress } = body;
+    const userWallet = authUser.walletAddress;
 
     // Validate inputs
-    if (!marketAddress || !userWallet) {
+    if (!marketAddress) {
       return NextResponse.json(
         {
           success: false,
-          error: 'Missing required fields: marketAddress, userWallet',
+          error: 'Missing required field: marketAddress',
         },
         { status: 400 }
       );
@@ -391,4 +393,4 @@ export async function POST(request: NextRequest) {
       { status: 500 }
     );
   }
-}
+}, 'userWallet');

@@ -13,24 +13,16 @@ import {
 import { getTreasuryPDA } from '@/lib/anchor-program';
 import { createClientLogger } from '@/lib/logger';
 import { getSolanaConnection } from '@/lib/solana';
+import { withAdmin } from '@/lib/auth/require-wallet';
 
 const logger = createClientLogger();
 
-export async function POST(request: NextRequest) {
+export const POST = withAdmin(async (request, adminUser) => {
   try {
     const body = await request.json();
-    const { callerWallet, network } = body;
+    const { network } = body;
 
-    // Validate inputs
-    if (!callerWallet) {
-      return NextResponse.json(
-        {
-          success: false,
-          error: 'Missing required field: callerWallet',
-        },
-        { status: 400 }
-      );
-    }
+    const callerWallet = adminUser.walletAddress;
 
     logger.info('Preparing treasury initialization', {
       callerWallet,
@@ -135,4 +127,4 @@ export async function POST(request: NextRequest) {
       { status: 500 }
     );
   }
-}
+});

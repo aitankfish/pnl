@@ -15,20 +15,22 @@ import {
 } from '@solana/web3.js';
 import { createClientLogger } from '@/lib/logger';
 import { getSolanaConnection } from '@/lib/solana';
+import { withAuth } from '@/lib/auth/require-wallet';
 
 const logger = createClientLogger();
 
-export async function POST(request: NextRequest) {
+export const POST = withAuth(async (request, authUser) => {
   try {
     const body = await request.json();
-    const { marketAddress, teamWallet, callerWallet, totalTokenSupply, network } = body;
+    const { marketAddress, teamWallet, totalTokenSupply, network } = body;
+    const callerWallet = authUser.walletAddress;
 
     // Validate inputs
-    if (!marketAddress || !teamWallet || !callerWallet || !totalTokenSupply) {
+    if (!marketAddress || !teamWallet || !totalTokenSupply) {
       return NextResponse.json(
         {
           success: false,
-          error: 'Missing required fields: marketAddress, teamWallet, callerWallet, totalTokenSupply',
+          error: 'Missing required fields: marketAddress, teamWallet, totalTokenSupply',
         },
         { status: 400 }
       );
@@ -146,4 +148,4 @@ export async function POST(request: NextRequest) {
       { status: 500 }
     );
   }
-}
+});

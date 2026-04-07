@@ -8,10 +8,11 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { connectToDatabase, PredictionMarket } from '@/lib/mongodb';
 import { createClientLogger } from '@/lib/logger';
+import { withAdmin } from '@/lib/auth/require-wallet';
 
 const logger = createClientLogger();
 
-export async function POST(request: NextRequest) {
+export const POST = withAdmin(async (request, adminUser) => {
   try {
     logger.info('🔧 Starting marketState fix...');
 
@@ -97,7 +98,7 @@ export async function POST(request: NextRequest) {
       { status: 500 }
     );
   }
-}
+});
 
 export async function GET() {
   return NextResponse.json({

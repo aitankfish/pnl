@@ -24,6 +24,7 @@ import { getTreasuryPDA, getMarketVaultPDA, getProgramIdForNetwork } from '@/lib
 import { derivePumpPDAs, PUMP_PROGRAM_ID } from '@/lib/pumpfun';
 import { createClientLogger } from '@/lib/logger';
 import { getSolanaConnection } from '@/lib/solana';
+import { withWalletOwnership } from '@/lib/auth/require-wallet';
 import {
   GLOBAL_VOLUME_ACCUMULATOR_PDA,
   PUMP_FEE_CONFIG_PDA,
@@ -39,17 +40,18 @@ const PUMP_FEE_RECIPIENT = new PublicKey('CebN5WGQ4jvEPvsVU4EoHEpgzq1VV7AbicfhtW
 
 const logger = createClientLogger();
 
-export async function POST(request: NextRequest) {
+export const POST = withWalletOwnership(async (request, authUser) => {
   try {
     const body = await request.json();
-    const { marketAddress, callerWallet, network } = body;
+    const { marketAddress, network } = body;
+    const callerWallet = authUser.walletAddress;
 
     // Validate inputs
-    if (!marketAddress || !callerWallet) {
+    if (!marketAddress) {
       return NextResponse.json(
         {
           success: false,
-          error: 'Missing required fields: marketAddress, callerWallet',
+          error: 'Missing required field: marketAddress',
         },
         { status: 400 }
       );
@@ -255,4 +257,4 @@ export async function POST(request: NextRequest) {
       { status: 500 }
     );
   }
-}
+}, 'callerWallet');

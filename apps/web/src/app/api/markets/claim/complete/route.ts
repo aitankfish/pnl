@@ -9,20 +9,22 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createClientLogger } from '@/lib/logger';
 import { connectToDatabase, PredictionParticipant } from '@/lib/mongodb';
 import { ObjectId } from 'mongodb';
+import { withWalletOwnership } from '@/lib/auth/require-wallet';
 
 const logger = createClientLogger();
 
-export async function POST(request: NextRequest) {
+export const POST = withWalletOwnership(async (request, authUser) => {
   try {
     const body = await request.json();
-    const { marketId, userWallet, signature, claimAmount } = body;
+    const { marketId, signature, claimAmount } = body;
+    const userWallet = authUser.walletAddress;
 
     // Validate inputs
-    if (!marketId || !userWallet || !signature) {
+    if (!marketId || !signature) {
       return NextResponse.json(
         {
           success: false,
-          error: 'Missing required fields: marketId, userWallet, signature',
+          error: 'Missing required fields: marketId, signature',
         },
         { status: 400 }
       );
@@ -88,4 +90,4 @@ export async function POST(request: NextRequest) {
       },
     });
   }
-}
+}, 'userWallet');

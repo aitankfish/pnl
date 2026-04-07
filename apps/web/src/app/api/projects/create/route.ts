@@ -3,15 +3,15 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
-import { Keypair } from '@solana/web3.js';
 import { ipfsUtils, ProjectMetadata } from '@/lib/ipfs';
 import { uploadToStream } from '@/lib/cloudflare-stream';
 import { createClientLogger } from '@/lib/logger';
 import { connectToDatabase, Project } from '@/lib/mongodb';
+import { withAuth } from '@/lib/auth/require-wallet';
 
 const logger = createClientLogger();
 
-export async function POST(request: NextRequest) {
+export const POST = withAuth(async (request, authUser) => {
   try {
     logger.info('🚀 API: Starting project creation request');
     
@@ -180,24 +180,9 @@ export async function POST(request: NextRequest) {
       metadataUri = await ipfsUtils.uploadProjectMetadata(metadata);
     }
 
-    // Use the provided creator wallet address from the user's connected wallet
-    let creatorWalletAddress: string;
-    let creatorKeypair: Keypair;
-    
-    if (body.creatorWalletAddress) {
-      creatorWalletAddress = body.creatorWalletAddress;
-      logger.info('Using provided creator wallet address:', creatorWalletAddress);
-      
-      // Generate a temporary keypair for server-side transaction signing
-      // In production, this should be handled client-side with wallet signing
-      creatorKeypair = Keypair.generate();
-      logger.warn('Note: Using generated keypair for server-side signing. In production, implement client-side wallet signing.');
-    } else {
-      // Fallback: generate a new keypair (old behavior)
-      creatorKeypair = Keypair.generate();
-      creatorWalletAddress = creatorKeypair.publicKey.toString();
-      logger.info('Generated new wallet address:', creatorWalletAddress);
-    }
+    // Use the authenticated user's wallet address
+    const creatorWalletAddress = authUser.walletAddress;
+    logger.info('Using authenticated creator wallet address:', creatorWalletAddress);
 
         // This endpoint only handles IPFS uploads and project creation
         // Market creation will be handled separately after client-side signing
@@ -276,7 +261,7 @@ export async function POST(request: NextRequest) {
       { status: 500 }
     );
   }
-}
+});
 
 export async function GET() {
   return NextResponse.json({

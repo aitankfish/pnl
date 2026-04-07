@@ -12,20 +12,23 @@ import {
 import { getTreasuryPDA } from '@/lib/anchor-program';
 import { createClientLogger } from '@/lib/logger';
 import { getSolanaConnection } from '@/lib/solana';
+import { withAdmin } from '@/lib/auth/require-wallet';
 
 const logger = createClientLogger();
 
-export async function POST(request: NextRequest) {
+export const POST = withAdmin(async (request, adminUser) => {
   try {
     const body = await request.json();
-    const { currentAdmin, newAdmin, network } = body;
+    const { newAdmin, network } = body;
+
+    const currentAdmin = adminUser.walletAddress;
 
     // Validate inputs
-    if (!currentAdmin || !newAdmin) {
+    if (!newAdmin) {
       return NextResponse.json(
         {
           success: false,
-          error: 'Missing required fields: currentAdmin, newAdmin',
+          error: 'Missing required field: newAdmin',
         },
         { status: 400 }
       );
@@ -127,4 +130,4 @@ export async function POST(request: NextRequest) {
       { status: 500 }
     );
   }
-}
+});

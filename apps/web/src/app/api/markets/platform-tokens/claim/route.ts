@@ -20,23 +20,25 @@ import {
 } from '@solana/spl-token';
 import { createClientLogger } from '@/lib/logger';
 import { getSolanaConnection } from '@/lib/solana';
+import { withAuth } from '@/lib/auth/require-wallet';
 
 const logger = createClientLogger();
 
 // P&L Platform wallet (from constants in program)
 const PNL_WALLET = '3MihVtsLsVuEccpmz4YG72Cr8CJWf1evRorTPdPiHeEQ';
 
-export async function POST(request: NextRequest) {
+export const POST = withAuth(async (request, authUser) => {
   try {
     const body = await request.json();
-    const { marketAddress, callerWallet, tokenMint, network } = body;
+    const { marketAddress, tokenMint, network } = body;
+    const callerWallet = authUser.walletAddress;
 
     // Validate inputs
-    if (!marketAddress || !callerWallet || !tokenMint) {
+    if (!marketAddress || !tokenMint) {
       return NextResponse.json(
         {
           success: false,
-          error: 'Missing required fields: marketAddress, callerWallet, tokenMint',
+          error: 'Missing required fields: marketAddress, tokenMint',
         },
         { status: 400 }
       );
@@ -175,4 +177,4 @@ export async function POST(request: NextRequest) {
       { status: 500 }
     );
   }
-}
+});

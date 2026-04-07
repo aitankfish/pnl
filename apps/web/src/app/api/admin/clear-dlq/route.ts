@@ -4,13 +4,14 @@
  * DELETE /api/admin/clear-dlq
  */
 
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { clearDLQ, getDLQ } from '@/lib/redis/queue';
 import { createClientLogger } from '@/lib/logger';
+import { withAdmin } from '@/lib/auth/require-wallet';
 
 const logger = createClientLogger();
 
-export async function DELETE() {
+export const DELETE = withAdmin(async (request, adminUser) => {
   try {
     // Get DLQ events before clearing (for logging)
     const events = await getDLQ(10);
@@ -42,7 +43,7 @@ export async function DELETE() {
       { status: 500 }
     );
   }
-}
+});
 
 export async function GET() {
   try {
