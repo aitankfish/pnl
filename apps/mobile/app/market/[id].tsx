@@ -701,6 +701,39 @@ export default function MarketDetailScreen() {
             </View>
           )}
 
+          {/* Description excerpt */}
+          {market.description && (
+            <View style={styles.descriptionExcerpt}>
+              <Text style={styles.descriptionText} numberOfLines={2}>
+                {market.description}
+              </Text>
+            </View>
+          )}
+
+          {/* Inline horizontal tabs */}
+          <View style={styles.inlineTabs}>
+            <FavoriteButton
+              marketId={market.id}
+              walletAddress={walletAddress}
+              initialCount={(market as any).favoriteCount ?? 0}
+              variant="floating"
+            />
+            {TABS.map(t => {
+              const active = activeTab === t;
+              const { outline, filled, shortLabel } = TAB_ICONS[t];
+              return (
+                <Pressable
+                  key={t}
+                  onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); handleSetActiveTab(t); }}
+                  style={[styles.inlineTab, active && styles.inlineTabActive]}
+                >
+                  <Ionicons name={active ? filled : outline} size={16} color={active ? colors.primary : colors.textMuted} />
+                  <Text style={[styles.inlineTabText, active && styles.inlineTabTextActive]}>{shortLabel}</Text>
+                </Pressable>
+              );
+            })}
+          </View>
+
           {/* Tab content */}
           <View style={styles.tabContent}>
             {activeTab === 'Overview' && (
@@ -739,42 +772,7 @@ export default function MarketDetailScreen() {
           </View>
         </ScrollView>
 
-      {/* Floating action bar — TikTok-style vertical stack */}
-      <View style={[styles.floatingTabs, { top: insets.top + 220 }]}>
-        {/* Favorite */}
-        <View style={styles.floatingTabItem}>
-          <View style={styles.floatingTabIcon}>
-            <FavoriteButton
-              marketId={market.id}
-              walletAddress={walletAddress}
-              initialCount={(market as any).favoriteCount ?? 0}
-              variant="floating"
-            />
-          </View>
-          <Text style={styles.floatingTabLabel}>Like</Text>
-        </View>
-
-        {/* Divider */}
-        <View style={styles.floatingDivider} />
-
-        {/* Tab navigation icons */}
-        {TABS.map(tab => {
-          const active = activeTab === tab;
-          const { outline, filled, shortLabel } = TAB_ICONS[tab];
-          return (
-            <PressableScale
-              key={tab}
-              onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); handleSetActiveTab(tab); }}
-              style={styles.floatingTabItem}
-            >
-              <View style={[styles.floatingTabIcon, active && styles.floatingTabIconActive]}>
-                <Ionicons name={active ? filled : outline} size={22} color={active ? colors.primary : 'rgba(255,255,255,0.85)'} />
-              </View>
-              <Text style={[styles.floatingTabLabel, active && styles.floatingTabLabelActive]}>{shortLabel}</Text>
-            </PressableScale>
-          );
-        })}
-      </View>
+      {/* Removed: floating right tab bar — tabs are now inline in scrollable content */}
 
       {/* Sticky bottom buttons — trade for launched, vote otherwise */}
       {isTokenLaunched ? (
@@ -794,6 +792,19 @@ export default function MarketDetailScreen() {
           </View>
         ) : (
           <>
+            {/* User position badge */}
+            {positionData?.hasPosition && (
+              <View style={styles.positionBadge}>
+                <Ionicons
+                  name={positionData.side === 'yes' ? 'trending-up' : 'trending-down'}
+                  size={14}
+                  color={positionData.side === 'yes' ? '#10b981' : '#ef4444'}
+                />
+                <Text style={[styles.positionBadgeText, { color: positionData.side === 'yes' ? '#10b981' : '#ef4444' }]}>
+                  You voted {positionData.side?.toUpperCase()} — {positionData.totalAmount?.toFixed(3)} SOL
+                </Text>
+              </View>
+            )}
             <View style={[styles.stickyVotes, { paddingBottom: insets.bottom || 16 }]}>
               <PressableScale
                 onPress={() => handleVote('yes')}
@@ -1092,6 +1103,7 @@ function OverviewTab({ market, network, onCopyAddress, positionData, vestingData
   tokenMintAddr: string | null;
 }) {
   const metadata = market.metadata;
+  const [showAdvanced, setShowAdvanced] = useState(false);
 
   return (
     <View style={ov.container}>
@@ -1161,7 +1173,16 @@ function OverviewTab({ market, network, onCopyAddress, positionData, vestingData
         {metadata?.socialLinks?.telegram ? <SocialLink icon="paper-plane-outline" label="TG" url={metadata.socialLinks.telegram} /> : null}
       </View>
 
-      {/* On-chain info — gradient card like web */}
+      {/* On-chain info — collapsible advanced section */}
+      <Pressable
+        style={ov.advancedToggle}
+        onPress={() => setShowAdvanced?.((p: boolean) => !p)}
+      >
+        <Ionicons name="code-slash-outline" size={14} color={colors.textMuted} />
+        <Text style={ov.advancedToggleText}>Advanced Details</Text>
+        <Ionicons name={showAdvanced ? 'chevron-up' : 'chevron-down'} size={16} color={colors.textMuted} />
+      </Pressable>
+      {showAdvanced && (<>
       <View style={ov.onchainCard}>
         <View style={ov.onchainHeader}>
           <Ionicons name="link-outline" size={14} color="#c084fc" />
@@ -1210,6 +1231,7 @@ function OverviewTab({ market, network, onCopyAddress, positionData, vestingData
           </View>
         </View>
       ) : null}
+      </>)}
     </View>
   );
 }
@@ -1257,6 +1279,18 @@ function AddressRow({ label, address, network, onCopy, noExplorer, color, explor
 
 const ov = StyleSheet.create({
   container: { gap: spacing.md },
+  advancedToggle: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingVertical: spacing.sm,
+    paddingHorizontal: spacing.xs,
+  },
+  advancedToggleText: {
+    ...typography.caption,
+    color: colors.textMuted,
+    flex: 1,
+  },
   countdownCard: { padding: spacing.sm },
   countdownRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
   countdownLabel: { ...typography.caption, color: colors.textSecondary, flex: 1 },
@@ -1380,7 +1414,7 @@ const styles = StyleSheet.create({
     borderWidth: 1.5, borderColor: 'rgba(255,255,255,0.2)',
   },
   scrollContent: {},
-  infoSection: { paddingLeft: spacing.md, paddingRight: 62, marginTop: -spacing.xl, marginBottom: spacing.sm },
+  infoSection: { paddingHorizontal: spacing.md, marginTop: -spacing.xl, marginBottom: spacing.sm },
   pillRow: { flexDirection: 'row', alignItems: 'center', marginBottom: spacing.xs, gap: spacing.xs, flexWrap: 'wrap' },
   participantInlineBadge: {
     flexShrink: 0, flexDirection: 'row', alignItems: 'center', gap: 3,
@@ -1435,10 +1469,41 @@ const styles = StyleSheet.create({
   },
   followBtnText: { fontSize: 10, fontWeight: '700', color: '#fff' },
   followBtnTextActive: { color: colors.textSecondary },
-  section: { paddingLeft: spacing.md, paddingRight: 62, marginBottom: spacing.sm },
+  section: { paddingHorizontal: spacing.md, marginBottom: spacing.sm },
   sectionFullWidth: { paddingHorizontal: spacing.md, marginBottom: spacing.sm },
-  tabContent: { paddingLeft: spacing.md, paddingRight: 62, paddingVertical: spacing.md },
-  floatingTabs: {
+  tabContent: { paddingHorizontal: spacing.md, paddingVertical: spacing.md },
+  inlineTabs: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+    gap: spacing.sm,
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(255,255,255,0.06)',
+  },
+  inlineTab: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 20,
+    backgroundColor: 'rgba(255,255,255,0.04)',
+  },
+  inlineTabActive: {
+    backgroundColor: 'rgba(129,140,248,0.12)',
+    borderWidth: 1,
+    borderColor: 'rgba(129,140,248,0.25)',
+  },
+  inlineTabText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: colors.textMuted,
+  },
+  inlineTabTextActive: {
+    color: colors.primary,
+  },
+  _deprecated_floatingTabs: {
     position: 'absolute', right: 2, zIndex: 20,
     alignItems: 'center', gap: 4,
   },
@@ -1492,4 +1557,27 @@ const styles = StyleSheet.create({
   },
   tokenStatLabel: { fontSize: 9, fontWeight: '500', color: colors.textMuted, marginBottom: 2 },
   tokenStatValue: { fontSize: 11, fontWeight: '700', color: colors.textPrimary, fontVariant: ['tabular-nums'] },
+  descriptionExcerpt: {
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+  },
+  descriptionText: {
+    ...typography.caption,
+    color: colors.textSecondary,
+    lineHeight: 20,
+  },
+  positionBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    paddingVertical: 6,
+    backgroundColor: 'rgba(255,255,255,0.03)',
+    borderTopWidth: 1,
+    borderTopColor: 'rgba(255,255,255,0.06)',
+  },
+  positionBadgeText: {
+    fontSize: 12,
+    fontWeight: '600',
+  },
 });
