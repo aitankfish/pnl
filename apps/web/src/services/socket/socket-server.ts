@@ -65,8 +65,8 @@ export class SocketServer {
           if (isAllowed) {
             callback(null, true);
           } else {
-            console.log(`Socket.IO CORS blocked origin: ${origin}`);
-            callback(null, true); // Still allow for now, just log
+            logger.warn(`Socket.IO CORS blocked origin: ${origin}`);
+            callback(new Error('CORS origin not allowed'), false);
           }
         },
         methods: ['GET', 'POST'],
@@ -165,18 +165,10 @@ export class SocketServer {
         socket.emit('subscribed', { walletAddress });
       });
 
-      // Handle broadcast requests from blockchain sync (server-to-server)
-      socket.on('broadcast:market', (payload: { marketAddress: string; data: any; timestamp: number }) => {
-        this.broadcastMarketUpdate(payload.marketAddress, payload.data);
-      });
-
-      socket.on('broadcast:position', (payload: { userWallet: string; marketAddress: string; data: any; timestamp: number }) => {
-        this.broadcastPositionUpdate(payload.userWallet, payload.marketAddress, payload.data);
-      });
-
-      socket.on('broadcast:notification', (payload: { userWallet: string; notification: any; timestamp: number }) => {
-        this.broadcastNotification(payload.userWallet, payload.notification);
-      });
+      // SECURITY: broadcast:* events removed from client sockets.
+      // Server-side code calls broadcastMarketUpdate() / broadcastNotification()
+      // directly — no need for socket-based broadcast from clients.
+      // This prevents attackers from spoofing market data via fake broadcasts.
 
       // ========================================
       // Chat Events
