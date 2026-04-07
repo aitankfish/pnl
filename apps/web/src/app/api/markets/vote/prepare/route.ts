@@ -11,14 +11,19 @@ import { buildBuyYesTransaction, buildBuyNoTransaction } from '@/lib/anchor-prog
 import { createClientLogger } from '@/lib/logger';
 import { SOLANA_NETWORK } from '@/config/solana';
 import { withWalletOwnership } from '@/lib/auth/require-wallet';
+import { checkRateLimit } from '@/lib/auth/rate-limit';
 
 const logger = createClientLogger();
 
 export const POST = withWalletOwnership(async (request, authUser) => {
   try {
+    // Rate limit: 10 vote preps per minute per wallet
+    const rateLimited = checkRateLimit(`vote:${authUser.walletAddress}`, 10, 60_000);
+    if (rateLimited) return rateLimited;
+
     const body = await request.json();
     const { marketAddress, voteType, amount, network } = body;
-    const userWallet = authUser.walletAddress; // Use verified wallet
+    const userWallet = authUser.walletAddress;
 
     // Use provided network or fall back to SOLANA_NETWORK constant
     const targetNetwork = (network as 'devnet' | 'mainnet-beta') || SOLANA_NETWORK;

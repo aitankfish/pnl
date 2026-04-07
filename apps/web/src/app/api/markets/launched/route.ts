@@ -55,7 +55,7 @@ export async function GET(request: NextRequest) {
       pipeline.push({
         $match: {
           $or: [
-            { 'project.category': { $regex: new RegExp(`^${category}$`, 'i') } },
+            { 'project.category': { $regex: new RegExp(`^${category.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$`, 'i') } },
             // Handle 'other' category - match anything not in known categories
             ...(category === 'other' ? [{ 'project.category': { $exists: false } }, { 'project.category': null }] : [])
           ]

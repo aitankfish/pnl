@@ -8,11 +8,16 @@ import { uploadToStream } from '@/lib/cloudflare-stream';
 import { createClientLogger } from '@/lib/logger';
 import { connectToDatabase, Project } from '@/lib/mongodb';
 import { withAuth } from '@/lib/auth/require-wallet';
+import { checkRateLimit } from '@/lib/auth/rate-limit';
 
 const logger = createClientLogger();
 
 export const POST = withAuth(async (request, authUser) => {
   try {
+    // Rate limit: 3 project creations per minute per wallet
+    const rateLimited = checkRateLimit(`create:${authUser.walletAddress}`, 3, 60_000);
+    if (rateLimited) return rateLimited;
+
     logger.info('🚀 API: Starting project creation request');
     
     // Handle both JSON and FormData
@@ -28,29 +33,53 @@ export const POST = withAuth(async (request, authUser) => {
       
       logger.info('📊 API: FormData entries:', Object.keys(body));
       
-      // Handle file upload
+      // File upload validation constants
+      const MAX_IMAGE_SIZE = 10 * 1024 * 1024; // 10MB
+      const MAX_VIDEO_SIZE = 100 * 1024 * 1024; // 100MB
+      const ALLOWED_IMAGE_TYPES = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
+      const ALLOWED_VIDEO_TYPES = ['video/mp4', 'video/quicktime', 'video/webm'];
+
+      // Handle file upload with validation
       const imageFile = formData.get('projectImage') as File;
       if (imageFile && imageFile.size > 0) {
+        if (imageFile.size > MAX_IMAGE_SIZE) {
+          return NextResponse.json({ success: false, error: `Image too large (max ${MAX_IMAGE_SIZE / 1024 / 1024}MB)` }, { status: 400 });
+        }
+        if (!ALLOWED_IMAGE_TYPES.includes(imageFile.type)) {
+          return NextResponse.json({ success: false, error: `Invalid image type: ${imageFile.type}. Allowed: ${ALLOWED_IMAGE_TYPES.join(', ')}` }, { status: 400 });
+        }
         body.projectImage = imageFile;
-        logger.info('📊 API: Image file found, size:', imageFile.size);
       }
 
-      // Handle gallery image uploads (up to 3 extra images for Meme projects)
+      // Handle gallery image uploads with validation
       const galleryImageFiles: File[] = [];
       for (let i = 0; i < 3; i++) {
         const gf = formData.get(`galleryImage${i}`) as File;
-        if (gf && gf.size > 0) galleryImageFiles.push(gf);
+        if (gf && gf.size > 0) {
+          if (gf.size > MAX_IMAGE_SIZE) {
+            return NextResponse.json({ success: false, error: `Gallery image ${i + 1} too large (max ${MAX_IMAGE_SIZE / 1024 / 1024}MB)` }, { status: 400 });
+          }
+          if (!ALLOWED_IMAGE_TYPES.includes(gf.type)) {
+            return NextResponse.json({ success: false, error: `Invalid gallery image type: ${gf.type}` }, { status: 400 });
+          }
+          galleryImageFiles.push(gf);
+        }
       }
       if (galleryImageFiles.length > 0) {
         body.galleryImageFiles = galleryImageFiles;
         logger.info('API: Gallery image files found, count:', galleryImageFiles.length);
       }
 
-      // Handle pitch video upload
+      // Handle pitch video upload with validation
       const pitchVideoFile = formData.get('pitchVideo') as File;
       if (pitchVideoFile && pitchVideoFile.size > 0) {
+        if (pitchVideoFile.size > MAX_VIDEO_SIZE) {
+          return NextResponse.json({ success: false, error: `Video too large (max ${MAX_VIDEO_SIZE / 1024 / 1024}MB)` }, { status: 400 });
+        }
+        if (!ALLOWED_VIDEO_TYPES.includes(pitchVideoFile.type)) {
+          return NextResponse.json({ success: false, error: `Invalid video type: ${pitchVideoFile.type}. Allowed: ${ALLOWED_VIDEO_TYPES.join(', ')}` }, { status: 400 });
+        }
         body.pitchVideo = pitchVideoFile;
-        logger.info('API: Pitch video file found, size:', pitchVideoFile.size);
       }
 
       // Handle pre-uploaded pitchVideoUrl

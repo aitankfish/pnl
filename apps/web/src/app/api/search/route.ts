@@ -9,6 +9,11 @@ import { createClientLogger } from '@/lib/logger';
 
 const logger = createClientLogger();
 
+/** Escape regex special chars to prevent ReDoS attacks */
+function escapeRegex(str: string): string {
+  return str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
 // Force dynamic rendering for API route with query parameters
 export const dynamic = 'force-dynamic';
 
@@ -30,12 +35,15 @@ export async function GET(request: NextRequest) {
 
     await connectToDatabase();
 
+    // Sanitize query to prevent ReDoS
+    const safeQuery = escapeRegex(query.trim().slice(0, 100));
+
     // Search users by username or wallet address
     const users = await UserProfile.find({
       $or: [
-        { username: { $regex: query, $options: 'i' } },
-        { walletAddress: { $regex: query, $options: 'i' } },
-        { bio: { $regex: query, $options: 'i' } },
+        { username: { $regex: safeQuery, $options: 'i' } },
+        { walletAddress: { $regex: safeQuery, $options: 'i' } },
+        { bio: { $regex: safeQuery, $options: 'i' } },
       ],
     })
       .limit(limit)
@@ -45,8 +53,8 @@ export async function GET(request: NextRequest) {
     // Search markets by name or description with populated project
     const markets = await PredictionMarket.find({
       $or: [
-        { marketName: { $regex: query, $options: 'i' } },
-        { marketDescription: { $regex: query, $options: 'i' } },
+        { marketName: { $regex: safeQuery, $options: 'i' } },
+        { marketDescription: { $regex: safeQuery, $options: 'i' } },
       ],
     })
       .populate('projectId')
