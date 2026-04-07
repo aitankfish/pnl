@@ -132,12 +132,8 @@ export function useProfile(walletAddress: string | null): UseProfileReturn {
       setIsUpdating(true);
 
       try {
-        const res = await fetch(apiUrl('/api/profile/update'), {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ walletAddress, ...data }),
-        });
-        const result = await res.json();
+        const { authenticatedPost } = await import('@pnl/shared/utils');
+        const result = await authenticatedPost('/api/profile/update', { walletAddress, ...data });
 
         if (result.success) {
           // Refresh profile

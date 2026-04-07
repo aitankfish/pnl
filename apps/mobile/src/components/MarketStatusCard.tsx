@@ -101,12 +101,8 @@ function getYesWinning(market: MarketData): boolean {
 // ── Prepare + Sign helpers ─────────────────────────────────────────────────
 
 async function prepareTransaction(endpoint: string, body: object): Promise<any> {
-  const res = await fetch(apiUrl(endpoint), {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(body),
-  });
-  const data = await res.json();
+  const { authenticatedPost } = await import('@pnl/shared/utils');
+  const data = await authenticatedPost(endpoint, body);
   if (!data.success) throw new Error(data.error || 'Transaction preparation failed');
   return data;
 }
@@ -143,12 +139,9 @@ async function signAndSendPrepared(
   // Call complete endpoint if provided (non-fatal — on-chain tx already succeeded)
   if (completeEndpoint && completeBody) {
     try {
-      await fetch(apiUrl(completeEndpoint), {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ ...completeBody, signature }),
-      });
-    } catch (e) {
+      const { authenticatedPost } = await import('@pnl/shared/utils');
+      await authenticatedPost(completeEndpoint, { ...completeBody, signature });
+    } catch {
       // Non-fatal: on-chain tx already succeeded, backend sync will catch up
     }
   }

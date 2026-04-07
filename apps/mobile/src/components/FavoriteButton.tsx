@@ -55,12 +55,8 @@ export function FavoriteButton({ marketId, walletAddress, initialCount = 0, vari
     setCount(prev => wasFavorite ? prev - 1 : prev + 1);
 
     try {
-      const res = await fetch(apiUrl(`/api/profile/${walletAddress}/favorites`), {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ marketId }),
-      });
-      const data = await res.json();
+      const { authenticatedPost } = await import('@pnl/shared/utils');
+      const data = await authenticatedPost(`/api/profile/${walletAddress}/favorites`, { marketId });
       if (data.success) {
         setIsFavorite(data.data?.isFavorite ?? !wasFavorite);
       } else {

@@ -138,7 +138,8 @@ export function usePitchVideo({ projectId, walletAddress, onSuccess }: UsePitchV
           onPress: async () => {
             setStatus('deleting');
             try {
-              const res = await fetch(apiUrl(`/api/projects/${projectId}/pitch-video`), {
+              const { authenticatedFetch } = await import('@pnl/shared/utils');
+              const res = await authenticatedFetch(`/api/projects/${projectId}/pitch-video`, {
                 method: 'DELETE',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ walletAddress }),

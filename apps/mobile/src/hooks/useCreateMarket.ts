@@ -366,7 +366,8 @@ export function useCreateMarket() {
         } as any);
       }
 
-      const createRes = await fetch(apiUrl('/api/projects/create'), {
+      const { authenticatedFetch } = await import('@pnl/shared/utils');
+      const createRes = await authenticatedFetch('/api/projects/create', {
         method: 'POST',
         body: formData,
       });
@@ -381,18 +382,14 @@ export function useCreateMarket() {
       const targetPoolLamports = parseFloat(form.targetPool) * 1_000_000_000;
       const durationDays = parseInt(form.marketDuration, 10);
 
-      const prepareRes = await fetch(apiUrl('/api/markets/prepare-transaction'), {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          founderWallet: walletAddress,
-          metadataUri,
-          targetPool: targetPoolLamports,
-          marketDuration: durationDays,
-          network,
-        }),
+      const { authenticatedPost: authPost } = await import('@pnl/shared/utils');
+      const prepareData = await authPost('/api/markets/prepare-transaction', {
+        founderWallet: walletAddress,
+        metadataUri,
+        targetPool: targetPoolLamports,
+        marketDuration: durationDays,
+        network,
       });
-      const prepareData = await prepareRes.json();
       if (!prepareData.success)
         throw new Error(prepareData.error || 'Failed to prepare transaction');
 
@@ -419,21 +416,16 @@ export function useCreateMarket() {
       // ── Step 5: Save to backend ────────────────────────────────────
       setSubmissionStep('completing');
 
-      const completeRes = await fetch(apiUrl('/api/markets/complete'), {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          projectId,
-          marketAddress: marketPda,
-          signature,
-          ipfsCid,
-          metadataUri,
-          targetPool: targetPoolLamports,
-          expiryTime,
-          marketDuration: durationDays,
-        }),
+      const completeData = await authPost('/api/markets/complete', {
+        projectId,
+        marketAddress: marketPda,
+        signature,
+        ipfsCid,
+        metadataUri,
+        targetPool: targetPoolLamports,
+        expiryTime,
+        marketDuration: durationDays,
       });
-      const completeData = await completeRes.json();
       if (!completeData.success) throw new Error(completeData.error || 'Failed to complete market');
 
       setCreatedMarketId(completeData.data?.marketId ?? projectId);
