@@ -232,9 +232,18 @@ export function useUserSocket(walletAddress: string | null) {
     isMountedRef.current = true;
     if (!socket || !isConnected || !walletAddress) return;
 
-    // Subscribe to user updates
-    logger.info(`Subscribing to user: ${walletAddress}`);
-    socket.emit('subscribe:user', walletAddress);
+    // Subscribe to user updates with access token for wallet verification
+    const subscribe = async () => {
+      let token: string | undefined;
+      try {
+        const { getAccessToken } = await import('../utils/authenticated-fetch');
+        const t = await getAccessToken();
+        if (t) token = t;
+      } catch {}
+      logger.info(`Subscribing to user: ${walletAddress}`);
+      socket.emit('subscribe:user', walletAddress, token);
+    };
+    subscribe();
 
     // Listen for position updates
     const handlePositionUpdate = (data: any) => {

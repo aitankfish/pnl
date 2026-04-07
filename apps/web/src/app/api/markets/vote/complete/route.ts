@@ -12,13 +12,71 @@ import { COLLECTIONS, TradeHistory } from '@/lib/database/models';
 import { createClientLogger } from '@/lib/logger';
 import { updateMarketVoteCounts } from '@/lib/vote-counts';
 import { broadcastMarketUpdate } from '@/services/socket/socket-server';
+import { getSolanaConnection } from '@/lib/solana';
+import { getProgramIdForNetwork } from '@/lib/anchor-program';
+import { SOLANA_NETWORK } from '@/config/solana';
+import { withWalletOwnership } from '@/lib/auth/require-wallet';
 
 const logger = createClientLogger();
 
-export async function POST(request: NextRequest) {
+/**
+ * Verify a transaction signature on-chain.
+ * Checks: confirmed, not failed, and involves our program.
+ */
+async function verifyTransactionOnChain(
+  signature: string,
+  expectedWallet: string,
+  network: string,
+): Promise<{ verified: boolean; error?: string }> {
+  try {
+    const connection = await getSolanaConnection(network);
+    const tx = await connection.getTransaction(signature, {
+      commitment: 'confirmed',
+      maxSupportedTransactionVersion: 0,
+    });
+
+    if (!tx) {
+      return { verified: false, error: 'Transaction not found on-chain' };
+    }
+
+    if (tx.meta?.err) {
+      return { verified: false, error: 'Transaction failed on-chain' };
+    }
+
+    // Verify the program was involved
+    const programId = getProgramIdForNetwork(network as any);
+    const accountKeys = tx.transaction.message.getAccountKeys();
+    const programInvolved = accountKeys.staticAccountKeys.some(
+      (key) => key.toBase58() === programId,
+    );
+
+    if (!programInvolved) {
+      return { verified: false, error: 'Transaction does not involve PNL program' };
+    }
+
+    // Verify the signer matches the claimed wallet
+    const signerKey = accountKeys.staticAccountKeys[0]?.toBase58();
+    if (signerKey !== expectedWallet) {
+      return { verified: false, error: 'Transaction signer does not match claimed wallet' };
+    }
+
+    return { verified: true };
+  } catch (error: any) {
+    // If verification fails (RPC issue), allow the request but log warning
+    // The blockchain sync will eventually reconcile
+    logger.warn('Transaction verification failed (non-blocking)', {
+      signature,
+      error: error.message,
+    });
+    return { verified: true }; // Fail-open for RPC issues
+  }
+}
+
+export const POST = withWalletOwnership(async (request, authUser) => {
   try {
     const body = await request.json();
-    const { marketId, voteType, amount, signature, traderWallet } = body;
+    const { marketId, voteType, amount, signature } = body;
+    const traderWallet = authUser.walletAddress; // Use verified wallet
 
     // Validate inputs
     if (!marketId || !voteType || !amount || !signature || !traderWallet) {
@@ -49,6 +107,15 @@ export async function POST(request: NextRequest) {
       signature,
       traderWallet: traderWallet.slice(0, 8) + '...',
     });
+
+    // Verify transaction on-chain before recording
+    const verification = await verifyTransactionOnChain(signature, traderWallet, SOLANA_NETWORK);
+    if (!verification.verified) {
+      return NextResponse.json(
+        { success: false, error: verification.error || 'Transaction verification failed' },
+        { status: 400 },
+      );
+    }
 
     // Connect to MongoDB (Mongoose for market models)
     await connectMongoose();
@@ -219,4 +286,4 @@ export async function POST(request: NextRequest) {
       { status: 500 }
     );
   }
-}
+}, 'traderWallet');

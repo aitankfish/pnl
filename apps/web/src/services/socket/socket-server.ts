@@ -160,7 +160,33 @@ export class SocketServer {
       });
 
       // Handle user-specific subscriptions (for notifications)
-      socket.on('subscribe:user', (walletAddress: string) => {
+      // Accepts optional accessToken for wallet ownership verification
+      socket.on('subscribe:user', async (walletAddress: string, accessToken?: string) => {
+        // If token provided, verify wallet ownership via Privy
+        if (accessToken) {
+          try {
+            const { PrivyClient } = await import('@privy-io/server-auth');
+            const appId = process.env.NEXT_PUBLIC_PRIVY_APP_ID;
+            const appSecret = process.env.PRIVY_APP_SECRET;
+            if (appId && appSecret) {
+              const privy = new PrivyClient(appId, appSecret);
+              const claims = await privy.verifyAuthToken(accessToken);
+              const user = await privy.getUser(claims.userId);
+              const linkedWallet = user.linkedAccounts?.find(
+                (a: any) => a.type === 'wallet' && a.chainType === 'solana',
+              );
+              const verifiedWallet = linkedWallet?.address || user.wallet?.address;
+              if (verifiedWallet !== walletAddress) {
+                socket.emit('error', { message: 'Wallet mismatch' });
+                return;
+              }
+            }
+          } catch {
+            // Token verification failed — allow subscription anyway for backwards compat
+            // but mark as unverified
+            logger.warn(`Unverified user subscription: ${walletAddress.slice(0, 8)}...`);
+          }
+        }
         socket.join(`user:${walletAddress}`);
         socket.emit('subscribed', { walletAddress });
       });

@@ -18,6 +18,18 @@ export function setAccessTokenProvider(provider: GetAccessToken) {
 }
 
 /**
+ * Get the current access token (if provider is set)
+ */
+export async function getAccessToken(): Promise<string | null> {
+  if (!_getAccessToken) return null;
+  try {
+    return await _getAccessToken();
+  } catch {
+    return null;
+  }
+}
+
+/**
  * Fetch with authentication header.
  * Falls back to unauthenticated if no token available.
  */
