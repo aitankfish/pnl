@@ -349,6 +349,17 @@ export default function ProfileScreen() {
               <ActionButton icon="add-circle-outline" label="Create" color="#f59e0b" onPress={() => router.push('/create')} />
             </View>
 
+            {/* Creator fees banner — prominent if claimable */}
+            {hasClaimableFees && totalClaimable > 0 && (
+              <View style={styles.creatorFeesBanner}>
+                <Ionicons name="star" size={16} color="#f59e0b" />
+                <Text style={styles.creatorFeesText}>
+                  {launchedTokenCount} token{launchedTokenCount > 1 ? 's' : ''} launched · {totalClaimable.toFixed(4)} SOL pending
+                </Text>
+                <Text style={styles.creatorFeesAction}>Claim ↓</Text>
+              </View>
+            )}
+
             {/* ─── Stats Cards ─── */}
             <View style={styles.statsCardRow}>
               <GlassCard style={styles.statCard}>
@@ -864,6 +875,30 @@ const styles = StyleSheet.create({
   },
 
   // ─── Action Buttons ───
+  creatorFeesBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    backgroundColor: 'rgba(245,158,11,0.08)',
+    borderWidth: 1,
+    borderColor: 'rgba(245,158,11,0.2)',
+    borderRadius: 12,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    marginHorizontal: spacing.md,
+    marginBottom: spacing.md,
+  },
+  creatorFeesText: {
+    flex: 1,
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#f59e0b',
+  },
+  creatorFeesAction: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#f59e0b',
+  },
   actionsRow: {
     flexDirection: 'row',
     justifyContent: 'space-around',

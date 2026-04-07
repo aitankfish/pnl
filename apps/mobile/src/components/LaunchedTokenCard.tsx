@@ -229,28 +229,7 @@ export function LaunchedTokenCard({ token, index, stats }: LaunchedTokenCardProp
           </Text>
         </View>
       </View>
-      <View style={styles.statsGrid}>
-        <View style={styles.statCell}>
-          <Text style={styles.statLabel}>Stage</Text>
-          <Text style={[styles.statValue, { color: STAGE_COLORS[stageKey] ?? colors.textSecondary }]}>
-            {STAGE_LABELS[stageKey] ?? token.stage ?? '-'}
-          </Text>
-        </View>
-        <View style={styles.statCell}>
-          <Text style={styles.statLabel}>Type</Text>
-          <Text style={[styles.statValue, { color: TYPE_COLORS[typeKey] ?? colors.textSecondary }]}>
-            {TYPE_LABELS[typeKey] ?? token.projectType ?? '-'}
-          </Text>
-        </View>
-        <View style={styles.statCell}>
-          <Text style={styles.statLabel}>Yes %</Text>
-          <Text style={[styles.statValue, { color: '#10b981' }]}>
-            {token.yesPercentage?.toFixed(1) ?? '-'}%
-          </Text>
-        </View>
-      </View>
-
-      {/* Address + age footer */}
+      {/* Compact footer — address + age + primary links */}
       <View style={styles.footer}>
         <View style={styles.addressRow}>
           <Text style={styles.addressLabel}>CA:</Text>
@@ -264,23 +243,18 @@ export function LaunchedTokenCard({ token, index, stats }: LaunchedTokenCardProp
             </View>
           )}
         </View>
-        <Text style={styles.age}>{formatAge(token.launchDate)}</Text>
+        <View style={styles.footerRight}>
+          <Text style={styles.age}>{formatAge(token.launchDate)}</Text>
+          {/* Only 2 primary links instead of 5 */}
+          <PressableScale onPress={() => handleLink(links[2].url)} style={styles.miniLink} scaleDown={0.92}>
+            <Ionicons name="eye-outline" size={12} color="#f59e0b" />
+          </PressableScale>
+          <PressableScale onPress={() => handleLink(links[3].url)} style={styles.miniLink} scaleDown={0.92}>
+            <Ionicons name="bar-chart-outline" size={12} color="#22c55e" />
+          </PressableScale>
+        </View>
       </View>
 
-      {/* External links */}
-      <View style={styles.linksRow}>
-        {links.map((link) => (
-          <PressableScale
-            key={link.label}
-            onPress={() => handleLink(link.url)}
-            style={styles.linkButton}
-            scaleDown={0.92}
-          >
-            <Ionicons name={link.icon} size={12} color={link.color} />
-            <Text style={[styles.linkText, { color: link.color }]}>{link.label}</Text>
-          </PressableScale>
-        ))}
-      </View>
     </PressableScale>
   );
 }
@@ -417,6 +391,19 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingHorizontal: 12,
     paddingVertical: 8,
+  },
+  footerRight: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  miniLink: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    backgroundColor: 'rgba(255,255,255,0.06)',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   addressRow: {
     flexDirection: 'row',

@@ -58,7 +58,7 @@ interface SendSheetProps {
   onSuccess?: (signature: string) => void;
 }
 
-type Step = 'form' | 'confirming' | 'success' | 'error';
+type Step = 'form' | 'review' | 'confirming' | 'success' | 'error';
 
 export const SendSheet = forwardRef<GorhomBottomSheet, SendSheetProps>(
   ({ walletAddress, solBalance, tokens, onClose, onSuccess }, ref) => {
@@ -120,6 +120,12 @@ export const SendSheet = forwardRef<GorhomBottomSheet, SendSheetProps>(
     const handleMax = useCallback(() => {
       setAmount(maxAmount > 0 ? maxAmount.toString() : '0');
     }, [maxAmount]);
+
+    const handleReview = useCallback(() => {
+      if (!canSend || !activeToken) return;
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+      setStep('review');
+    }, [canSend, activeToken]);
 
     const handleSend = useCallback(async () => {
       if (!canSend || !activeToken) return;
@@ -387,21 +393,65 @@ export const SendSheet = forwardRef<GorhomBottomSheet, SendSheetProps>(
             <Text style={styles.errorHint}>Insufficient balance</Text>
           )}
 
-          {/* Send Button */}
+          {/* Review Button */}
           <PressableScale
-            onPress={handleSend}
-            disabled={!canSend || step === 'confirming'}
+            onPress={handleReview}
+            disabled={!canSend}
             style={[styles.primaryButton, !canSend && styles.buttonDisabled]}
           >
-            {step === 'confirming' ? (
-              <ActivityIndicator size="small" color="#fff" />
-            ) : (
-              <Text style={styles.primaryButtonText}>
-                Send {activeToken?.symbol || 'SOL'}
-              </Text>
-            )}
+            <Text style={styles.primaryButtonText}>
+              Review Send
+            </Text>
           </PressableScale>
         </View>
+
+        {/* Review Step — confirmation before sending */}
+        {step === 'review' && (
+          <View style={styles.reviewOverlay}>
+            <Text style={styles.reviewTitle}>Confirm Send</Text>
+
+            <View style={styles.reviewCard}>
+              <View style={styles.reviewRow}>
+                <Text style={styles.reviewLabel}>To</Text>
+                <Text style={styles.reviewValue} numberOfLines={1}>
+                  {recipient.slice(0, 8)}...{recipient.slice(-6)}
+                </Text>
+              </View>
+              <View style={styles.reviewRow}>
+                <Text style={styles.reviewLabel}>Amount</Text>
+                <Text style={styles.reviewValue}>{amount} {activeToken?.symbol || 'SOL'}</Text>
+              </View>
+              <View style={styles.reviewRow}>
+                <Text style={styles.reviewLabel}>Network Fee</Text>
+                <Text style={styles.reviewValue}>~0.00025 SOL</Text>
+              </View>
+              <View style={[styles.reviewRow, styles.reviewTotal]}>
+                <Text style={styles.reviewTotalLabel}>Total</Text>
+                <Text style={styles.reviewTotalValue}>
+                  {activeToken?.isNative
+                    ? `~${(parsedAmount + 0.00025).toFixed(5)} SOL`
+                    : `${amount} ${activeToken?.symbol} + ~0.00025 SOL`
+                  }
+                </Text>
+              </View>
+            </View>
+
+            <View style={styles.reviewButtons}>
+              <PressableScale
+                onPress={() => setStep('form')}
+                style={styles.reviewCancelBtn}
+              >
+                <Text style={styles.reviewCancelText}>Back</Text>
+              </PressableScale>
+              <PressableScale
+                onPress={handleSend}
+                style={[styles.primaryButton, { flex: 1 }]}
+              >
+                <Text style={styles.primaryButtonText}>Confirm Send</Text>
+              </PressableScale>
+            </View>
+          </View>
+        )}
       </BottomSheet>
     );
   },
@@ -584,5 +634,68 @@ const styles = StyleSheet.create({
     ...typography.captionBold,
     color: colors.textSecondary,
     fontVariant: ['tabular-nums'],
+  },
+  reviewOverlay: {
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.lg,
+    gap: spacing.md,
+  },
+  reviewTitle: {
+    ...typography.heading,
+    color: colors.textPrimary,
+    textAlign: 'center',
+  },
+  reviewCard: {
+    backgroundColor: 'rgba(255,255,255,0.04)',
+    borderRadius: borderRadius.lg,
+    borderWidth: 1,
+    borderColor: colors.border,
+    padding: spacing.md,
+    gap: spacing.sm,
+  },
+  reviewRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  reviewLabel: {
+    ...typography.caption,
+    color: colors.textMuted,
+  },
+  reviewValue: {
+    ...typography.captionBold,
+    color: colors.textPrimary,
+    maxWidth: '60%',
+    textAlign: 'right',
+  },
+  reviewTotal: {
+    borderTopWidth: 1,
+    borderTopColor: colors.border,
+    paddingTop: spacing.sm,
+    marginTop: spacing.xs,
+  },
+  reviewTotalLabel: {
+    ...typography.bodyBold,
+    color: colors.textPrimary,
+  },
+  reviewTotalValue: {
+    ...typography.bodyBold,
+    color: colors.primary,
+  },
+  reviewButtons: {
+    flexDirection: 'row',
+    gap: spacing.sm,
+  },
+  reviewCancelBtn: {
+    flex: 1,
+    paddingVertical: 14,
+    alignItems: 'center',
+    borderRadius: borderRadius.lg,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  reviewCancelText: {
+    ...typography.bodyBold,
+    color: colors.textSecondary,
   },
 });

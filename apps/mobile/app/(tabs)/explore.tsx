@@ -114,14 +114,13 @@ export default function ExploreScreen() {
 
   const handleStatusChange = useCallback((status: string) => {
     setSelectedStatus(status);
-    setSearchQuery('');
-    setSelectedCategory('All');
+    // Preserve search query — compose filters instead of resetting
     listRef.current?.scrollToOffset({ offset: 0, animated: true });
   }, []);
 
   const handleCategoryChange = useCallback((cat: string) => {
     setSelectedCategory(cat);
-    setSearchQuery('');
+    // Preserve search query when changing category
     listRef.current?.scrollToOffset({ offset: 0, animated: true });
   }, []);
 
