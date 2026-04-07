@@ -10,6 +10,7 @@ import { Platform, StyleSheet, View, Text } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { apiUrl } from '@pnl/shared/utils';
+import { useUserSocket } from '@pnl/shared/hooks';
 import { useAuth } from '../../src/providers/AuthProvider';
 import { useProfile, resolveAvatarUrl } from '../../src/hooks/useProfile';
 import { WelcomeCard, AvatarImage } from '../../src/components';
@@ -83,7 +84,17 @@ export default function TabLayout() {
     setWelcomeDismissed(true);
   }, []);
 
-  // Poll unread count
+  // Real-time notifications via Socket.IO + slow fallback poll
+  const { notifications: socketNotifications } = useUserSocket(walletAddress);
+
+  // Increment badge instantly when socket delivers new notification
+  useEffect(() => {
+    if (socketNotifications.length > 0) {
+      setUnreadCount((prev) => prev + 1);
+    }
+  }, [socketNotifications.length]);
+
+  // Fallback: sync true count from API on mount + every 2 min
   useEffect(() => {
     if (!isAuthenticated || !walletAddress) {
       setUnreadCount(0);
@@ -99,7 +110,7 @@ export default function TabLayout() {
       } catch {}
     };
     fetchCount();
-    const interval = setInterval(fetchCount, 60000); // 60s — badge doesn't need real-time
+    const interval = setInterval(fetchCount, 120000); // 2 min fallback — socket handles real-time
     return () => { active = false; clearInterval(interval); };
   }, [isAuthenticated, walletAddress]);
 

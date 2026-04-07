@@ -7,6 +7,7 @@ import { connectToDatabase, Notification, PredictionMarket, PredictionParticipan
 import { getDatabase } from '@/lib/database/index';
 import { COLLECTIONS } from '@/lib/database/models';
 import logger from '@/lib/logger';
+import { broadcastNotification } from '@/services/socket/socket-server';
 
 interface CreateNotificationParams {
   userId: string;
@@ -44,6 +45,24 @@ export async function createNotification(params: CreateNotificationParams) {
       type: params.type,
       notificationId: notification._id?.toString(),
     });
+
+    // Push real-time via Socket.IO (userId is wallet address)
+    try {
+      broadcastNotification(params.userId, {
+        _id: notification._id?.toString(),
+        type: params.type,
+        title: params.title,
+        message: params.message,
+        priority: params.priority || 'medium',
+        marketId: params.marketId,
+        actionUrl: params.actionUrl,
+        metadata: params.metadata,
+        read: false,
+        createdAt: new Date().toISOString(),
+      });
+    } catch {
+      // Non-fatal — notification is saved in DB, socket push is best-effort
+    }
 
     return notification;
   } catch (error) {
