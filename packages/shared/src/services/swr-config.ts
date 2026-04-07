@@ -29,23 +29,21 @@ export async function postFetcher<T>(url: string, data: any): Promise<T> {
 
 export const swrConfig: SWRConfiguration = {
   fetcher,
-  revalidateOnFocus: true,
+  revalidateOnFocus: false,       // Disabled — prevents burst refetches on mobile app resume
   revalidateOnReconnect: true,
   revalidateIfStale: true,
-  dedupingInterval: 2000,
-  focusThrottleInterval: 5000,
+  dedupingInterval: 5000,          // Increased from 2s to 5s — reduces duplicate requests
+  focusThrottleInterval: 10000,    // Increased from 5s to 10s
   keepPreviousData: true,
-  errorRetryCount: 3,
-  errorRetryInterval: 1000,
+  errorRetryCount: 2,              // Reduced from 3 — faster failure
+  errorRetryInterval: 2000,        // Increased from 1s — less retry spam
   suspense: false,
-  onError: (error, key) => {
-    if ((error as any).status !== 404) console.error(`SWR Error for ${key}:`, error);
-  },
+  onError: () => {},               // Silent — errors handled per-hook
 };
 
-export const realtimeConfig: SWRConfiguration = { ...swrConfig, refreshInterval: 10000, dedupingInterval: 1000, revalidateIfStale: true };
-export const staticConfig: SWRConfiguration = { ...swrConfig, refreshInterval: 0, dedupingInterval: 60000, revalidateOnFocus: false };
-export const userConfig: SWRConfiguration = { ...swrConfig, refreshInterval: 30000, dedupingInterval: 5000, revalidateOnFocus: true };
+export const realtimeConfig: SWRConfiguration = { ...swrConfig, refreshInterval: 15000, dedupingInterval: 5000 };
+export const staticConfig: SWRConfiguration = { ...swrConfig, refreshInterval: 0, dedupingInterval: 60000 };
+export const userConfig: SWRConfiguration = { ...swrConfig, refreshInterval: 30000, dedupingInterval: 10000 };
 
 export interface ApiResponse<T> { success: boolean; data?: T; error?: string; details?: string; }
 export interface PaginatedResponse<T> { success: boolean; data?: { items: T[]; total: number; page: number; limit: number; hasMore: boolean; }; error?: string; }

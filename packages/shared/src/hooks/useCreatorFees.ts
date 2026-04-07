@@ -73,9 +73,9 @@ export function useCreatorFees(walletAddress: string | null): UseCreatorFeesRetu
     walletAddress ? apiUrl(`/api/user/${walletAddress}/creator-fees`) : null,
     fetcher,
     {
-      refreshInterval: 30000, // Refresh every 30 seconds for real-time updates
-      revalidateOnFocus: true,
-      dedupingInterval: 10000,
+      refreshInterval: 120000, // 2 min — fees don't change frequently
+      revalidateOnFocus: false,
+      dedupingInterval: 30000,
     }
   );
 

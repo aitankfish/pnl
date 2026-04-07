@@ -92,8 +92,8 @@ export function usePosition(walletAddress: string | null, marketId: string | nul
     fetcher,
     {
       ...userConfig,
-      // Individual position refreshes more frequently
-      refreshInterval: 15000,
+      // Individual position — socket handles real-time, SWR is fallback
+      refreshInterval: 30000,
     }
   );
 

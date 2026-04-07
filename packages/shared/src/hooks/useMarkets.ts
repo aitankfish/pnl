@@ -72,7 +72,8 @@ export function useMarkets(category?: string, status?: string) {
   const { marketUpdates, activeVoiceRooms, newMarkets, clearNewMarkets, isConnected: socketConnected } = useAllMarketsSocket();
 
   // Adaptive polling: reduce SWR frequency when Socket.IO is healthy
-  const refreshInterval = socketConnected ? 60000 : 15000;
+  // Fallback was 15s which is too aggressive on mobile (causes 429s)
+  const refreshInterval = socketConnected ? 60000 : 30000;
 
   // Fetch markets via SWR
   const { data, error, isLoading, mutate } = useSWR<ApiResponse<MarketsResponse>>(
@@ -134,8 +135,8 @@ export function useMarket(marketId: string | null) {
     fetcher,
     {
       ...realtimeConfig,
-      // Individual markets refresh every 15 seconds
-      refreshInterval: 15000,
+      // Individual market detail — socket handles real-time, SWR is fallback
+      refreshInterval: 30000,
     }
   );
 

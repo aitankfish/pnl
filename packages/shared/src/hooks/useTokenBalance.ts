@@ -1,107 +1,63 @@
 /**
  * useTokenBalance Hook
- * Fetch SPL token balances for a wallet
+ * Fetch SPL token balances using SWR for deduplication and smart caching.
+ * Replaces raw setInterval pattern that caused RPC spam (429 errors).
  */
 
-import { useState, useEffect, useCallback } from 'react';
+import useSWR from 'swr';
 import { PublicKey } from '@solana/web3.js';
 import { getAssociatedTokenAddress, getAccount } from '@solana/spl-token';
 import { getSolanaConnection } from '../solana/connection';
-import { createClientLogger } from '../utils/logger';
 import { useNetwork } from './useNetwork';
 
-const logger = createClientLogger();
+async function fetchTokenBalance(
+  walletAddress: string,
+  tokenMintStr: string,
+  decimals: number,
+  network: string,
+): Promise<number> {
+  const connection = await getSolanaConnection(network as any);
+  const walletPubkey = new PublicKey(walletAddress);
+  const tokenMint = new PublicKey(tokenMintStr);
 
-interface TokenBalance {
-  balance: number;
-  formattedBalance: string;
-  isLoading: boolean;
-  error: string | null;
+  const ata = await getAssociatedTokenAddress(tokenMint, walletPubkey);
+
+  try {
+    const tokenAccount = await getAccount(connection, ata);
+    return Number(tokenAccount.amount) / Math.pow(10, decimals);
+  } catch (err: any) {
+    // Account not found = balance is 0 (not an error)
+    if (err.message?.includes('could not find account') || err.name === 'TokenAccountNotFoundError') {
+      return 0;
+    }
+    throw err;
+  }
 }
 
 export function useTokenBalance(
   walletAddress: string | null | undefined,
   tokenMint: PublicKey,
   decimals: number = 6
-): TokenBalance {
+) {
   const { network } = useNetwork();
-  const [balance, setBalance] = useState<number>(0);
-  const [formattedBalance, setFormattedBalance] = useState<string>('0.00');
-  const [isLoading, setIsLoading] = useState<boolean>(false);
-  const [error, setError] = useState<string | null>(null);
+  const mintStr = tokenMint.toBase58();
 
-  const fetchBalance = useCallback(async () => {
-    if (!walletAddress) {
-      setBalance(0);
-      setFormattedBalance('0.00');
-      return;
-    }
-
-    setIsLoading(true);
-    setError(null);
-
-    try {
-      const connection = await getSolanaConnection(network);
-      const walletPubkey = new PublicKey(walletAddress);
-
-      // Get associated token address
-      const associatedTokenAddress = await getAssociatedTokenAddress(
-        tokenMint,
-        walletPubkey
-      );
-
-      logger.info('Fetching token balance', {
-        wallet: walletAddress,
-        tokenMint: tokenMint.toBase58(),
-        associatedTokenAddress: associatedTokenAddress.toBase58(),
-      });
-
-      // Get token account
-      const tokenAccount = await getAccount(connection, associatedTokenAddress);
-
-      // Convert balance to decimal format
-      const rawBalance = Number(tokenAccount.amount);
-      const balanceInDecimals = rawBalance / Math.pow(10, decimals);
-
-      setBalance(balanceInDecimals);
-      setFormattedBalance(balanceInDecimals.toFixed(2));
-
-      logger.info('Token balance fetched successfully', {
-        rawBalance,
-        balance: balanceInDecimals,
-      });
-
-    } catch (err: any) {
-      // If the account doesn't exist, balance is 0
-      if (err.message?.includes('could not find account') || err.name === 'TokenAccountNotFoundError') {
-        logger.info('Token account not found, balance is 0', { wallet: walletAddress });
-        setBalance(0);
-        setFormattedBalance('0.00');
-        setError(null);
-      } else {
-        logger.error('Failed to fetch token balance', { error: err });
-        setError(err.message || 'Failed to fetch balance');
-        setBalance(0);
-        setFormattedBalance('0.00');
-      }
-    } finally {
-      setIsLoading(false);
-    }
-  }, [walletAddress, tokenMint, decimals, network]);
-
-  useEffect(() => {
-    fetchBalance();
-
-    // Refresh balance every 30 seconds
-    const interval = setInterval(fetchBalance, 30000);
-
-    return () => clearInterval(interval);
-  }, [fetchBalance]);
+  const { data: balance = 0, error, isLoading, mutate } = useSWR(
+    walletAddress ? `token-balance:${walletAddress}:${mintStr}:${network}` : null,
+    () => fetchTokenBalance(walletAddress!, mintStr, decimals, network),
+    {
+      refreshInterval: 120_000,    // 2 min (was 30s setInterval — 4x reduction)
+      dedupingInterval: 30_000,    // Dedup within 30s across components
+      revalidateOnFocus: false,
+      errorRetryCount: 2,
+    },
+  );
 
   return {
     balance,
-    formattedBalance,
+    formattedBalance: balance.toFixed(2),
     isLoading,
-    error,
+    error: error?.message || null,
+    refresh: mutate,
   };
 }
