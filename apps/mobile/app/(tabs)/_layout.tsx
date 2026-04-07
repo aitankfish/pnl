@@ -99,7 +99,7 @@ export default function TabLayout() {
       } catch {}
     };
     fetchCount();
-    const interval = setInterval(fetchCount, 30000); // refresh every 30s
+    const interval = setInterval(fetchCount, 60000); // 60s — badge doesn't need real-time
     return () => { active = false; clearInterval(interval); };
   }, [isAuthenticated, walletAddress]);
 
