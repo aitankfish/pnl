@@ -9,6 +9,7 @@ import {
   View,
   Text,
   StyleSheet,
+  Pressable,
   ActivityIndicator,
   Alert,
 } from 'react-native';
@@ -60,6 +61,7 @@ export const TradeSheet = forwardRef<GorhomBottomSheet, TradeSheetProps>(
     const [isLoadingQuote, setIsLoadingQuote] = useState(false);
     const [isSwapping, setIsSwapping] = useState(false);
     const [error, setError] = useState<string | null>(null);
+    const [slippageBps, setSlippageBps] = useState(100); // 1% default
     const [solBalance, setSolBalance] = useState<number>(0);
     const [tokenBalance, setTokenBalance] = useState<number>(0);
     const quoteTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -122,7 +124,7 @@ export const TradeSheet = forwardRef<GorhomBottomSheet, TradeSheetProps>(
 
         const amountInSmallestUnit = Math.floor(parseFloat(amount) * Math.pow(10, inputDecimals));
         const res = await fetch(
-          `https://api.jup.ag/swap/v1/quote?inputMint=${inputMintAddr}&outputMint=${outputMintAddr}&amount=${amountInSmallestUnit}&slippageBps=100`,
+          `https://api.jup.ag/swap/v1/quote?inputMint=${inputMintAddr}&outputMint=${outputMintAddr}&amount=${amountInSmallestUnit}&slippageBps=${slippageBps}`,
           { headers: { 'Accept': 'application/json', 'x-api-key': JUPITER_API_KEY } },
         );
 
@@ -354,6 +356,24 @@ export const TradeSheet = forwardRef<GorhomBottomSheet, TradeSheetProps>(
             </View>
           ) : null}
 
+          {/* Slippage selector */}
+          <View style={styles.infoRow}>
+            <Text style={styles.infoLabel}>Max Slippage</Text>
+            <View style={styles.slippageRow}>
+              {[50, 100, 200, 500].map((bps) => (
+                <Pressable
+                  key={bps}
+                  onPress={() => { setSlippageBps(bps); Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); }}
+                  style={[styles.slippageChip, slippageBps === bps && styles.slippageChipActive]}
+                >
+                  <Text style={[styles.slippageChipText, slippageBps === bps && styles.slippageChipTextActive]}>
+                    {(bps / 100).toFixed(1)}%
+                  </Text>
+                </Pressable>
+              ))}
+            </View>
+          </View>
+
           {/* Error */}
           {error && isMainnet ? (
             <View style={styles.errorBox}>
@@ -541,5 +561,29 @@ const styles = StyleSheet.create({
     ...typography.micro,
     color: colors.textMuted,
     textAlign: 'center',
+  },
+  slippageRow: {
+    flexDirection: 'row',
+    gap: 6,
+  },
+  slippageChip: {
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 10,
+    backgroundColor: 'rgba(255,255,255,0.06)',
+    borderWidth: 1,
+    borderColor: 'transparent',
+  },
+  slippageChipActive: {
+    borderColor: colors.primary,
+    backgroundColor: 'rgba(129,140,248,0.12)',
+  },
+  slippageChipText: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: colors.textMuted,
+  },
+  slippageChipTextActive: {
+    color: colors.primary,
   },
 });

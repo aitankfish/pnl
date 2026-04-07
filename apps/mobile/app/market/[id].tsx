@@ -531,21 +531,23 @@ export default function MarketDetailScreen() {
 
           {/* Market info */}
           <View style={styles.infoSection}>
-            {!isTokenLaunched && (
-              <View style={styles.pillRow}>
-                {market.category && <CategoryPill label={formatLabel(market.category)} variant="tag" />}
-                {market.displayStatus && <CategoryPill label={market.displayStatus} variant="tag" />}
-                {(market as any).projectAge && <CategoryPill label={(market as any).projectAge} variant="tag" />}
-                {!isResolved && (
-                  <View style={styles.participantInlineBadge}>
-                    <Ionicons name="people-outline" size={10} color={colors.textSecondary} />
-                    <Text style={styles.participantInlineText}>
-                      {totalParticipants}
-                    </Text>
-                  </View>
-                )}
-              </View>
-            )}
+            <View style={styles.pillRow}>
+              {market.category && <CategoryPill label={formatLabel(market.category)} variant="tag" />}
+              {isTokenLaunched ? (
+                <CategoryPill label="Launched" variant="tag" />
+              ) : (
+                <>
+                  {market.displayStatus && <CategoryPill label={market.displayStatus} variant="tag" />}
+                  {(market as any).projectAge && <CategoryPill label={(market as any).projectAge} variant="tag" />}
+                </>
+              )}
+              {!isResolved && (
+                <View style={styles.participantInlineBadge}>
+                  <Ionicons name="people-outline" size={10} color={colors.textSecondary} />
+                  <Text style={styles.participantInlineText}>{totalParticipants}</Text>
+                </View>
+              )}
+            </View>
 
             {/* Launched token: horizontal identity bar — image | ticker + name | CA */}
             {isTokenLaunched && tokenMintAddress ? (
@@ -581,7 +583,7 @@ export default function MarketDetailScreen() {
             )}
 
             {/* Creator badge + follow */}
-            {founderWallet && !isTokenLaunched && (
+            {founderWallet && (
               <View style={styles.creatorRow}>
                 <PressableScale onPress={() => router.push(`/profile/${founderWallet}` as any)} style={styles.creatorInfo}>
                   <Ionicons name="person-circle-outline" size={16} color={colors.warning} />
