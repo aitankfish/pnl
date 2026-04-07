@@ -6,6 +6,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { connectToDatabase, PredictionMarket } from '@/lib/mongodb';
 
 export async function GET(_request: NextRequest) {
+  if (process.env.NODE_ENV === "production") return NextResponse.json({ error: "Not available in production" }, { status: 403 });
   try {
     await connectToDatabase();
 

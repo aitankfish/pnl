@@ -14,6 +14,7 @@ export const dynamic = 'force-dynamic';
 const logger = createClientLogger();
 
 export async function GET(request: NextRequest) {
+  if (process.env.NODE_ENV === "production") return NextResponse.json({ error: "Not available in production" }, { status: 403 });
   try {
     const { searchParams } = new URL(request.url);
     const showDLQ = searchParams.get('dlq') === 'true';

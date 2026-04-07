@@ -13,6 +13,7 @@ import { parseMarketAccount } from '@/services/blockchain-sync/account-parser';
 const logger = createClientLogger();
 
 export async function POST(request: NextRequest) {
+  if (process.env.NODE_ENV === "production") return NextResponse.json({ error: "Not available in production" }, { status: 403 });
   try {
     const body = await request.json();
     const { marketAddress, network, tokenMint, forceUpdate } = body;

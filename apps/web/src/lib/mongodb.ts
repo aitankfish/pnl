@@ -473,7 +473,8 @@ const PredictionParticipantSchema = new mongoose.Schema({
 });
 
 // Add indexes for better performance
-PredictionParticipantSchema.index({ marketId: 1, participantWallet: 1, voteOption: 1 }, { unique: true });
+// One position per user per market — matches on-chain Position PDA constraint
+PredictionParticipantSchema.index({ marketId: 1, participantWallet: 1 }, { unique: true });
 
 // Notification Schema
 const NotificationSchema = new mongoose.Schema({

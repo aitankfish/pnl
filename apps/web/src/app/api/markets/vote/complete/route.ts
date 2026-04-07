@@ -119,7 +119,17 @@ export const POST = withWalletOwnership(async (request, authUser) => {
 
     // Connect to MongoDB (Mongoose for market models)
     await connectMongoose();
-    logger.info('✅ [API] Connected to MongoDB');
+    await connectToDatabase();
+
+    // Signature replay protection — reject if already processed
+    const db = getDatabase();
+    const existingTrade = await db.collection(COLLECTIONS.TRADE_HISTORY).findOne({ signature });
+    if (existingTrade) {
+      return NextResponse.json(
+        { success: false, error: 'Transaction already processed' },
+        { status: 409 },
+      );
+    }
 
     // Convert SOL to lamports for stake tracking
     const lamports = Math.floor(amount * 1_000_000_000);

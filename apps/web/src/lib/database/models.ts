@@ -227,7 +227,9 @@ export const INDEXES = {
   MARKET_TIME_SERIES: [
     { marketId: 1, timestamp: -1 },
   ],
-  TRADE_HISTORY: [],
+  TRADE_HISTORY: [
+    { signature: 1 },  // Unique index added at runtime for replay protection
+  ],
   CHAT_MESSAGES: [
     { marketAddress: 1, createdAt: -1 },
     { marketAddress: 1, isPinned: 1 },
