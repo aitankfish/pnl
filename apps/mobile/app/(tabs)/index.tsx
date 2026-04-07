@@ -795,16 +795,30 @@ export default function FeedScreen() {
               initialCount={item.favoriteCount ?? 0}
               variant="floating"
             />
-            <Pressable
-              style={styles.createBtn}
-              onPress={() => {
-                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                router.push(isAuthenticated ? '/create' : '/login');
-              }}
-              hitSlop={8}
-            >
-              <Ionicons name="add-circle" size={26} color="rgba(255,255,255,0.9)" />
-            </Pressable>
+            {/* Founder: show edit button instead of create */}
+            {walletAddress && (item as any).founderWallet === walletAddress ? (
+              <Pressable
+                style={styles.createBtn}
+                onPress={() => {
+                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                  router.push(`/market/${item.id}` as any);
+                }}
+                hitSlop={8}
+              >
+                <Ionicons name="pencil" size={22} color="#f59e0b" />
+              </Pressable>
+            ) : (
+              <Pressable
+                style={styles.createBtn}
+                onPress={() => {
+                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                  router.push(isAuthenticated ? '/create' : '/login');
+                }}
+                hitSlop={8}
+              >
+                <Ionicons name="add-circle" size={26} color="rgba(255,255,255,0.9)" />
+              </Pressable>
+            )}
             <Pressable
               style={styles.shareBtn}
               onPress={() => {

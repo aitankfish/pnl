@@ -10,12 +10,14 @@ import { PublicKey } from '@solana/web3.js';
 import { buildCreateMarketTransaction, extractIPFSCid } from '@/lib/anchor-program';
 import { createClientLogger } from '@/lib/logger';
 import { TARGET_POOL_OPTIONS, MIN_POOL_LAMPORTS, FEES, SOLANA_NETWORK } from '@/config/solana';
+import { withWalletOwnership } from '@/lib/auth/require-wallet';
 
 const logger = createClientLogger();
 
-export async function POST(request: NextRequest) {
+export const POST = withWalletOwnership(async (request, authUser) => {
   try {
     const body = await request.json();
+    body.founderWallet = authUser.walletAddress; // Use verified wallet
 
     // Get network from request or use environment configuration
     const network = (body.network as 'devnet' | 'mainnet-beta') || SOLANA_NETWORK;
@@ -147,4 +149,4 @@ export async function GET() {
       sol: v / 1e9
     }))
   });
-}
+}, 'founderWallet');

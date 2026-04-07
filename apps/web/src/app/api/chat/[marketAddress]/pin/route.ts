@@ -8,6 +8,7 @@ import { ObjectId } from 'mongodb';
 import { connectToDatabase, getDatabase } from '@/lib/database/index';
 import { COLLECTIONS, ChatMessage, PredictionMarket, Project } from '@/lib/database/models';
 import { broadcastChatPinned } from '@/services/socket/socket-server';
+import { verifyAuth } from '@/lib/auth/privy-server';
 
 // Disable Next.js caching for this route
 export const dynamic = 'force-dynamic';
@@ -22,20 +23,23 @@ export async function POST(
 ) {
   try {
     const { marketAddress } = await params;
-    const body = await request.json();
-    const { founderWallet, messageId, pinned } = body;
 
-    // Validation
+    // Verify founder via JWT
+    const authUser = await verifyAuth(request);
+    if (!authUser?.walletAddress) {
+      return NextResponse.json(
+        { success: false, error: 'Authentication required' },
+        { status: 401 },
+      );
+    }
+    const founderWallet = authUser.walletAddress;
+
+    const body = await request.json();
+    const { messageId, pinned } = body;
+
     if (!marketAddress) {
       return NextResponse.json(
         { success: false, error: 'Market address is required' },
-        { status: 400 }
-      );
-    }
-
-    if (!founderWallet) {
-      return NextResponse.json(
-        { success: false, error: 'Founder wallet is required' },
         { status: 400 }
       );
     }

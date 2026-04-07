@@ -10,6 +10,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { uploadToStream, deleteFromStream, isStreamUrl, extractStreamUid } from '@/lib/cloudflare-stream';
 import { connectToDatabase, Project, PredictionMarket } from '@/lib/mongodb';
+import { verifyAuth } from '@/lib/auth/privy-server';
 
 function isValidObjectId(id: string): boolean {
   return /^[a-f\d]{24}$/i.test(id);
@@ -41,16 +42,18 @@ export async function POST(
   try {
     const id = params.id;
 
-    const formData = await request.formData();
-    const walletAddress = formData.get('walletAddress') as string;
-    const videoFile = formData.get('pitchVideo') as File;
-
-    if (!walletAddress) {
+    // Verify founder via JWT auth
+    const authUser = await verifyAuth(request);
+    if (!authUser?.walletAddress) {
       return NextResponse.json(
-        { success: false, error: 'walletAddress is required' },
-        { status: 400 },
+        { success: false, error: 'Authentication required' },
+        { status: 401 },
       );
     }
+    const walletAddress = authUser.walletAddress;
+
+    const formData = await request.formData();
+    const videoFile = formData.get('pitchVideo') as File;
     if (!videoFile || videoFile.size === 0) {
       return NextResponse.json(
         { success: false, error: 'pitchVideo file is required' },
@@ -119,14 +122,15 @@ export async function DELETE(
 ) {
   try {
     const id = params.id;
-    const { walletAddress } = await request.json();
-
-    if (!walletAddress) {
+    // Verify founder via JWT auth
+    const authUser = await verifyAuth(request);
+    if (!authUser?.walletAddress) {
       return NextResponse.json(
-        { success: false, error: 'walletAddress is required' },
-        { status: 400 },
+        { success: false, error: 'Authentication required' },
+        { status: 401 },
       );
     }
+    const walletAddress = authUser.walletAddress;
 
     await connectToDatabase();
 
