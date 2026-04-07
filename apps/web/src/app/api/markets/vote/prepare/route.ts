@@ -10,13 +10,15 @@ import { PublicKey } from '@solana/web3.js';
 import { buildBuyYesTransaction, buildBuyNoTransaction } from '@/lib/anchor-program';
 import { createClientLogger } from '@/lib/logger';
 import { SOLANA_NETWORK } from '@/config/solana';
+import { withWalletOwnership } from '@/lib/auth/require-wallet';
 
 const logger = createClientLogger();
 
-export async function POST(request: NextRequest) {
+export const POST = withWalletOwnership(async (request, authUser) => {
   try {
     const body = await request.json();
-    const { marketAddress, voteType, amount, userWallet, network } = body;
+    const { marketAddress, voteType, amount, network } = body;
+    const userWallet = authUser.walletAddress; // Use verified wallet
 
     // Use provided network or fall back to SOLANA_NETWORK constant
     const targetNetwork = (network as 'devnet' | 'mainnet-beta') || SOLANA_NETWORK;
@@ -123,4 +125,4 @@ export async function POST(request: NextRequest) {
       { status: 500 }
     );
   }
-}
+}, 'userWallet');

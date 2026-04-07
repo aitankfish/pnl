@@ -10,26 +10,28 @@ import { getSolanaConnection } from '@/lib/solana';
 import { PublicKey, Transaction, TransactionInstruction, SystemProgram } from '@solana/web3.js';
 import { getTreasuryPDA, getProgramIdForNetwork } from '@/lib/anchor-program';
 import { createClientLogger } from '@/lib/logger';
+import { withAdmin } from '@/lib/auth/require-wallet';
 
 const logger = createClientLogger();
 
-export async function POST(request: NextRequest) {
+export const POST = withAdmin(async (request, adminUser) => {
   try {
     const body = await request.json();
-    const { marketAddress, founderAddress, adminWallet, network } = body;
+    const { marketAddress, founderAddress, network } = body;
+    const adminWallet = adminUser.walletAddress; // Use verified wallet, not body
 
     // Validate inputs
-    if (!marketAddress || !founderAddress || !adminWallet) {
+    if (!marketAddress || !founderAddress) {
       return NextResponse.json(
         {
           success: false,
-          error: 'Missing required fields: marketAddress, founderAddress, adminWallet',
+          error: 'Missing required fields: marketAddress, founderAddress',
         },
         { status: 400 }
       );
     }
 
-    logger.info('Emergency vault drain requested', {
+    logger.info('Emergency vault drain requested by verified admin', {
       marketAddress,
       founderAddress,
       adminWallet,
@@ -131,4 +133,4 @@ export async function POST(request: NextRequest) {
       { status: 500 }
     );
   }
-}
+});

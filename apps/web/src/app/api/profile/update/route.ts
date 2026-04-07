@@ -6,18 +6,13 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { connectToDatabase, getDatabase } from '@/lib/database/index';
 import { COLLECTIONS, UserProfile } from '@/lib/database/models';
+import { withAuth } from '@/lib/auth/require-wallet';
 
-export async function POST(request: NextRequest) {
+export const POST = withAuth(async (request, authUser) => {
   try {
     const body = await request.json();
-    const { walletAddress, username, profilePhotoUrl, bio, twitter, email } = body;
-
-    if (!walletAddress) {
-      return NextResponse.json(
-        { success: false, error: 'Wallet address is required' },
-        { status: 400 }
-      );
-    }
+    const { username, profilePhotoUrl, bio, twitter, email } = body;
+    const walletAddress = authUser.walletAddress; // Use verified wallet
 
     await connectToDatabase();
     const db = getDatabase();
@@ -67,4 +62,4 @@ export async function POST(request: NextRequest) {
       { status: 500 }
     );
   }
-}
+});

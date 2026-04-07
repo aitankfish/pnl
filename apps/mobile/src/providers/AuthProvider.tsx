@@ -12,6 +12,7 @@ import {
   useEmbeddedSolanaWallet,
 } from '@privy-io/expo';
 import type { OtpFlowState, OAuthFlowState } from '@privy-io/expo';
+import { setAccessTokenProvider } from '@pnl/shared/utils';
 
 interface AuthContextType {
   isAuthenticated: boolean;
@@ -37,6 +38,11 @@ const AuthContext = createContext<AuthContextType | null>(null);
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const { user, isReady, logout: privyLogout, getAccessToken } = usePrivy();
+
+  // Wire up authenticated fetch for all shared hooks
+  useEffect(() => {
+    setAccessTokenProvider(getAccessToken);
+  }, [getAccessToken]);
 
   const {
     sendCode,

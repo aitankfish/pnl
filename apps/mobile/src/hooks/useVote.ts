@@ -7,7 +7,7 @@ import { useState, useCallback } from 'react';
 import { Alert } from 'react-native';
 import { Transaction, VersionedTransaction } from '@solana/web3.js';
 import * as Haptics from 'expo-haptics';
-import { apiUrl, parseError } from '@pnl/shared/utils';
+import { apiUrl, parseError, authenticatedPost } from '@pnl/shared/utils';
 import { useNetwork } from '@pnl/shared/hooks';
 import { getSolanaConnection } from '@pnl/shared/solana';
 import { useAuth } from '../providers/AuthProvider';
@@ -38,13 +38,10 @@ export function useVote(options?: UseVoteOptions) {
           return false;
         }
 
-        // Step 1: Prepare transaction on server
-        const prepareRes = await fetch(apiUrl('/api/markets/vote/prepare'), {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ marketAddress, voteType: direction, amount, userWallet: walletAddress, network }),
+        // Step 1: Prepare transaction on server (authenticated)
+        const prepareData = await authenticatedPost('/api/markets/vote/prepare', {
+          marketAddress, voteType: direction, amount, userWallet: walletAddress, network,
         });
-        const prepareData = await prepareRes.json();
         if (!prepareData.success) throw new Error(prepareData.error || 'Failed to prepare vote transaction');
 
         // Step 2: Sign & send with Privy embedded wallet
@@ -71,17 +68,9 @@ export function useVote(options?: UseVoteOptions) {
         );
         await Promise.race([confirmPromise, timeoutPromise]);
 
-        // Step 4: Record in database
-        await fetch(apiUrl('/api/markets/vote/complete'), {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            marketId,
-            voteType: direction,
-            amount,
-            signature,
-            traderWallet: walletAddress,
-          }),
+        // Step 4: Record in database (authenticated)
+        await authenticatedPost('/api/markets/vote/complete', {
+          marketId, voteType: direction, amount, signature, traderWallet: walletAddress,
         });
 
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
