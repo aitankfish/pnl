@@ -12,6 +12,8 @@ import { colors, typography, spacing, borderRadius } from '../theme';
 
 const { height: SCREEN_HEIGHT } = Dimensions.get('window');
 
+type MarketActionType = 'vote' | 'trade' | 'claim' | 'none';
+
 interface FeedCardProps {
   market: {
     id: string;
@@ -29,15 +31,19 @@ interface FeedCardProps {
     isNoVoteEnabled?: boolean;
     status?: string;
     displayStatus?: string;
+    resolution?: string | null;
   };
   height: number;
+  actionType?: MarketActionType;
   votingState?: { voteType: 'yes' | 'no' } | null;
   onVoteYes: () => void;
   onVoteNo: () => void;
+  onTradeBuy?: () => void;
+  onTradeSell?: () => void;
   onPress: () => void;
 }
 
-export function FeedCard({ market, height, votingState, onVoteYes, onVoteNo, onPress }: FeedCardProps) {
+export function FeedCard({ market, height, actionType = 'vote', votingState, onVoteYes, onVoteNo, onTradeBuy, onTradeSell, onPress }: FeedCardProps) {
   const insets = useSafeAreaInsets();
   const isActionable = market.isYesVoteEnabled || market.isNoVoteEnabled;
   const isVotingYes = votingState?.voteType === 'yes';
@@ -122,60 +128,66 @@ export function FeedCard({ market, height, votingState, onVoteYes, onVoteNo, onP
           />
         )}
 
-        {/* Vote buttons — only when actionable */}
-        {isActionable && (
+        {/* Adaptive action buttons */}
+        {actionType === 'vote' && isActionable && (
           <View style={styles.voteRow}>
             <PressableScale
               onPress={onVoteYes}
               disabled={isVoting || !market.isYesVoteEnabled}
-              style={[
-                styles.voteButton,
-                (!market.isYesVoteEnabled || isVoting) && styles.voteButtonDisabled,
-              ]}
+              style={[styles.voteButton, (!market.isYesVoteEnabled || isVoting) && styles.voteButtonDisabled]}
             >
               <LinearGradient
                 colors={['#10b981', '#059669']}
                 start={{ x: 0, y: 0 }}
                 end={{ x: 1, y: 0 }}
-                style={[
-                  styles.voteButtonGradient,
-                  (!market.isYesVoteEnabled || isVoting) && styles.voteGradientDisabled,
-                ]}
+                style={[styles.voteButtonGradient, (!market.isYesVoteEnabled || isVoting) && styles.voteGradientDisabled]}
               >
-                {isVotingYes ? (
-                  <ActivityIndicator size="small" color="#fff" />
-                ) : (
-                  <>
-                    <Ionicons name="trending-up" size={16} color="#fff" />
-                    <Text style={styles.voteButtonText}>YES</Text>
-                  </>
+                {isVotingYes ? <ActivityIndicator size="small" color="#fff" /> : (
+                  <><Ionicons name="trending-up" size={16} color="#fff" /><Text style={styles.voteButtonText}>YES</Text></>
                 )}
               </LinearGradient>
             </PressableScale>
             <PressableScale
               onPress={onVoteNo}
               disabled={isVoting || !market.isNoVoteEnabled}
-              style={[
-                styles.voteButton,
-                (!market.isNoVoteEnabled || isVoting) && styles.voteButtonDisabled,
-              ]}
+              style={[styles.voteButton, (!market.isNoVoteEnabled || isVoting) && styles.voteButtonDisabled]}
             >
-              <View
-                style={[
-                  styles.noButtonInner,
-                  (!market.isNoVoteEnabled || isVoting) && styles.noButtonDisabled,
-                ]}
-              >
-                {isVotingNo ? (
-                  <ActivityIndicator size="small" color="#fff" />
-                ) : (
-                  <>
-                    <Ionicons name="trending-down" size={16} color="#fff" />
-                    <Text style={styles.voteButtonText}>NO</Text>
-                  </>
+              <View style={[styles.noButtonInner, (!market.isNoVoteEnabled || isVoting) && styles.noButtonDisabled]}>
+                {isVotingNo ? <ActivityIndicator size="small" color="#fff" /> : (
+                  <><Ionicons name="trending-down" size={16} color="#fff" /><Text style={styles.voteButtonText}>NO</Text></>
                 )}
               </View>
             </PressableScale>
+          </View>
+        )}
+        {actionType === 'trade' && (
+          <View style={styles.voteRow}>
+            <PressableScale onPress={onTradeBuy} style={styles.voteButton}>
+              <LinearGradient colors={['#10b981', '#059669']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={styles.voteButtonGradient}>
+                <Ionicons name="add" size={16} color="#fff" />
+                <Text style={styles.voteButtonText}>{market.tokenSymbol || 'BUY'}</Text>
+              </LinearGradient>
+            </PressableScale>
+            <PressableScale onPress={onTradeSell} style={styles.voteButton}>
+              <View style={[styles.noButtonInner, { backgroundColor: 'rgba(239,68,68,0.15)' }]}>
+                <Ionicons name="remove" size={16} color="#fff" />
+                <Text style={styles.voteButtonText}>{market.tokenSymbol || 'SELL'}</Text>
+              </View>
+            </PressableScale>
+          </View>
+        )}
+        {actionType === 'none' && market.resolution && (
+          <View style={[styles.voteRow, { justifyContent: 'center' }]}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, paddingVertical: 10, paddingHorizontal: 16, backgroundColor: 'rgba(255,255,255,0.06)', borderRadius: 14 }}>
+              <Ionicons
+                name={market.resolution === 'YesWins' ? 'checkmark-circle' : market.resolution === 'NoWins' ? 'close-circle' : 'refresh-circle'}
+                size={16}
+                color={market.resolution === 'YesWins' ? '#10b981' : market.resolution === 'NoWins' ? '#ef4444' : '#f59e0b'}
+              />
+              <Text style={{ fontSize: 13, fontWeight: '600', color: 'rgba(255,255,255,0.6)' }}>
+                {market.resolution === 'YesWins' ? 'Launched' : market.resolution === 'NoWins' ? 'Failed' : 'Refunded'}
+              </Text>
+            </View>
           </View>
         )}
       </View>

@@ -38,6 +38,7 @@ import { useVote } from '../../src/hooks/useVote';
 import { VoiceRoom } from '../../src/components/community/VoiceRoom';
 import { ChatRoom } from '../../src/components/community/ChatRoom';
 import { VoiceRoomVoteButtons } from '../../src/components/community/VoiceRoomVoteButtons';
+import { TradeSheet } from '../../src/components/TradeSheet';
 import { useVoiceRoomContextSafe } from '../../src/providers/VoiceRoomProvider';
 import {
   FeedCard,
@@ -61,6 +62,39 @@ import { colors, spacing } from '../../src/theme';
 const { height: WINDOW_HEIGHT, width: WINDOW_WIDTH } = Dimensions.get('window');
 
 type VoteDirection = 'yes' | 'no';
+
+/**
+ * Determine what action buttons to show for a market based on its lifecycle stage.
+ * Used across feed cards, voice room, and any place that shows market actions.
+ */
+type MarketAction = 'vote' | 'trade' | 'claim' | 'none';
+
+function getMarketAction(market: Market): {
+  action: MarketAction;
+  isExpired: boolean;
+  isResolved: boolean;
+  isTokenLaunched: boolean;
+  tokenMint: string | null;
+  resolution: string | null;
+} {
+  const resolution = market.resolution || null;
+  const isResolved = !!resolution && resolution !== 'Unresolved';
+  const isExpired = market.expiryTime ? new Date(market.expiryTime).getTime() < Date.now() : false;
+  const tokenMint = (market as any)?.tokenMint || (market as any)?.pumpFunTokenAddress || null;
+  const isTokenLaunched = isResolved && resolution === 'YesWins' && !!tokenMint;
+
+  let action: MarketAction = 'none';
+  if (isTokenLaunched) {
+    action = 'trade';
+  } else if (!isResolved && (market.isYesVoteEnabled || market.isNoVoteEnabled)) {
+    action = 'vote';
+  } else if (isResolved && !isTokenLaunched) {
+    // NoWins or Refund — claim happens in market detail, not feed
+    action = 'none';
+  }
+
+  return { action, isExpired, isResolved, isTokenLaunched, tokenMint, resolution };
+}
 
 function applySortOption(list: Market[], sortBy: CurateSortOption): Market[] {
   const sorted = [...list];
@@ -93,9 +127,12 @@ interface PitchVideoCardProps {
   isActive: boolean;
   walletAddress: string | null;
   isAuthenticated: boolean;
+  marketAction: ReturnType<typeof getMarketAction>;
   votingState?: { voteType: 'yes' | 'no' } | null;
   onVoteYes: () => void;
   onVoteNo: () => void;
+  onTradeBuy: () => void;
+  onTradeSell: () => void;
   onPress: () => void;
 }
 
@@ -105,9 +142,12 @@ function PitchVideoCard({
   isActive,
   walletAddress,
   isAuthenticated,
+  marketAction,
   votingState,
   onVoteYes,
   onVoteNo,
+  onTradeBuy,
+  onTradeSell,
   onPress,
 }: PitchVideoCardProps) {
   const isActionable = market.isYesVoteEnabled || market.isNoVoteEnabled;
@@ -384,8 +424,9 @@ function PitchVideoCard({
           />
         )}
 
+        {/* Adaptive action buttons based on market stage */}
         <View style={styles.voteRow}>
-          {isActionable && (
+          {marketAction.action === 'vote' && isActionable && (
             <>
               <Pressable
                 style={[styles.voteBtn, (!market.isYesVoteEnabled || isVoting) && styles.voteBtnDisabled]}
@@ -411,18 +452,12 @@ function PitchVideoCard({
                   )}
                 </LinearGradient>
               </Pressable>
-
               <Pressable
                 style={[styles.voteBtn, (!market.isNoVoteEnabled || isVoting) && styles.voteBtnDisabled]}
                 disabled={isVoting || !market.isNoVoteEnabled}
                 onPress={onVoteNo}
               >
-                <View
-                  style={[
-                    styles.noBtnInner,
-                    (!market.isNoVoteEnabled || isVoting) && styles.noBtnDisabled,
-                  ]}
-                >
+                <View style={[styles.noBtnInner, (!market.isNoVoteEnabled || isVoting) && styles.noBtnDisabled]}>
                   {isVotingNo ? (
                     <ActivityIndicator size="small" color="#fff" />
                   ) : (
@@ -435,7 +470,39 @@ function PitchVideoCard({
               </Pressable>
             </>
           )}
-
+          {marketAction.action === 'trade' && (
+            <>
+              <Pressable style={styles.voteBtn} onPress={onTradeBuy}>
+                <LinearGradient
+                  colors={['#10b981', '#059669']}
+                  start={{ x: 0, y: 0 }}
+                  end={{ x: 1, y: 0 }}
+                  style={styles.voteBtnGradient}
+                >
+                  <Ionicons name="add" size={16} color="#fff" />
+                  <Text style={styles.voteBtnText}>{market.tokenSymbol || 'BUY'}</Text>
+                </LinearGradient>
+              </Pressable>
+              <Pressable style={styles.voteBtn} onPress={onTradeSell}>
+                <View style={styles.noBtnInner}>
+                  <Ionicons name="remove" size={16} color="#fff" />
+                  <Text style={styles.voteBtnText}>{market.tokenSymbol || 'SELL'}</Text>
+                </View>
+              </Pressable>
+            </>
+          )}
+          {marketAction.action === 'none' && marketAction.isResolved && (
+            <View style={styles.resolvedBadge}>
+              <Ionicons
+                name={marketAction.resolution === 'YesWins' ? 'checkmark-circle' : marketAction.resolution === 'NoWins' ? 'close-circle' : 'refresh-circle'}
+                size={16}
+                color={marketAction.resolution === 'YesWins' ? '#10b981' : marketAction.resolution === 'NoWins' ? '#ef4444' : '#f59e0b'}
+              />
+              <Text style={styles.resolvedBadgeText}>
+                {marketAction.resolution === 'YesWins' ? 'Launched' : marketAction.resolution === 'NoWins' ? 'Failed' : 'Refunded'}
+              </Text>
+            </View>
+          )}
         </View>
       </View>
     </View>
@@ -482,6 +549,20 @@ export default function FeedScreen() {
   const [voteDirection, setVoteDirection] = useState<VoteDirection | null>(null);
   const [voteMarket, setVoteMarket] = useState<Market | null>(null);
   const [votePositionData, setVotePositionData] = useState<any>(null);
+
+  // Trade sheet (for launched tokens)
+  const tradeSheetRef = useRef<GorhomBottomSheet>(null);
+  const [tradeToken, setTradeToken] = useState<{ mint: string; symbol: string } | null>(null);
+  const [tradeMode, setTradeMode] = useState<'buy' | 'sell'>('buy');
+
+  const handleOpenTrade = useCallback((market: Market, mode: 'buy' | 'sell') => {
+    const { tokenMint } = getMarketAction(market);
+    if (!tokenMint) return;
+    if (!isAuthenticated) { router.push('/login'); return; }
+    setTradeToken({ mint: tokenMint, symbol: market.tokenSymbol || 'TOKEN' });
+    setTradeMode(mode);
+    tradeSheetRef.current?.snapToIndex(0);
+  }, [isAuthenticated]);
 
   // Curate sheet
   const curateSheetRef = useRef<GorhomBottomSheet>(null);
@@ -653,6 +734,7 @@ export default function FeedScreen() {
   const renderCard = useCallback(
     (item: Market, _index: number, isCardActive: boolean) => {
       const isNew = seenNewIds.has(item.id) || seenNewIds.has(item.marketAddress);
+      const mAction = getMarketAction(item);
 
       const card = item.pitchVideoUrl ? (
         <PitchVideoCard
@@ -661,8 +743,11 @@ export default function FeedScreen() {
           isActive={isCardActive}
           walletAddress={walletAddress}
           isAuthenticated={isAuthenticated}
+          marketAction={mAction}
           onVoteYes={() => handleVote(item, 'yes')}
           onVoteNo={() => handleVote(item, 'no')}
+          onTradeBuy={() => handleOpenTrade(item, 'buy')}
+          onTradeSell={() => handleOpenTrade(item, 'sell')}
           onPress={() =>
             router.push(`/market/${item.id}` as any)
           }
@@ -686,10 +771,14 @@ export default function FeedScreen() {
               isNoVoteEnabled: item.isNoVoteEnabled,
               status: item.status,
               displayStatus: item.displayStatus,
+              resolution: item.resolution || null,
             }}
             height={cardHeight}
+            actionType={mAction.action}
             onVoteYes={() => handleVote(item, 'yes')}
             onVoteNo={() => handleVote(item, 'no')}
+            onTradeBuy={() => handleOpenTrade(item, 'buy')}
+            onTradeSell={() => handleOpenTrade(item, 'sell')}
             onPress={() => router.push(`/market/${item.id}`)}
           />
           <View style={styles.feedRightActions}>
@@ -733,7 +822,7 @@ export default function FeedScreen() {
         </View>
       );
     },
-    [cardHeight, walletAddress, isAuthenticated, handleVote, seenNewIds],
+    [cardHeight, walletAddress, isAuthenticated, handleVote, handleOpenTrade, seenNewIds],
   );
 
   // Loading state — show skeleton feed cards instead of a spinner
@@ -996,15 +1085,38 @@ export default function FeedScreen() {
                   poolBalance={item.poolBalance as number}
                   targetPool={Number(item.targetPool)}
                 />
-                {voiceRoom?.isConnected && (item.isYesVoteEnabled || item.isNoVoteEnabled) && (
-                  <View style={styles.voiceVoteOverlay}>
-                    <VoiceRoomVoteButtons
-                      onVoteYes={() => handleVote(item, 'yes')}
-                      onVoteNo={() => handleVote(item, 'no')}
-                      isVoting={false}
-                    />
-                  </View>
-                )}
+                {/* Adaptive voice room action overlay */}
+                {voiceRoom?.isConnected && (() => {
+                  const vAction = getMarketAction(item);
+                  if (vAction.action === 'vote') {
+                    return (
+                      <View style={styles.voiceVoteOverlay}>
+                        <VoiceRoomVoteButtons
+                          onVoteYes={() => handleVote(item, 'yes')}
+                          onVoteNo={() => handleVote(item, 'no')}
+                          isVoting={false}
+                        />
+                      </View>
+                    );
+                  }
+                  if (vAction.action === 'trade') {
+                    return (
+                      <View style={styles.voiceVoteOverlay}>
+                        <View style={styles.tradeOverlayRow}>
+                          <Pressable style={styles.tradeBuyBtn} onPress={() => handleOpenTrade(item, 'buy')}>
+                            <Ionicons name="add" size={16} color="#fff" />
+                            <Text style={styles.voteBtnText}>{item.tokenSymbol || 'BUY'}</Text>
+                          </Pressable>
+                          <Pressable style={styles.tradeSellBtn} onPress={() => handleOpenTrade(item, 'sell')}>
+                            <Ionicons name="remove" size={16} color="#fff" />
+                            <Text style={styles.voteBtnText}>{item.tokenSymbol || 'SELL'}</Text>
+                          </Pressable>
+                        </View>
+                      </View>
+                    );
+                  }
+                  return null;
+                })()}
               </View>
             )}
           />
@@ -1042,6 +1154,17 @@ export default function FeedScreen() {
           setVotePositionData(null);
         }}
       />
+
+      {/* Trade bottom sheet (for launched tokens) */}
+      {tradeToken && (
+        <TradeSheet
+          ref={tradeSheetRef}
+          tokenMint={tradeToken.mint}
+          tokenSymbol={tradeToken.symbol}
+          initialMode={tradeMode}
+          onClose={() => setTradeToken(null)}
+        />
+      )}
     </View>
   );
 }
@@ -1101,6 +1224,47 @@ const styles = StyleSheet.create({
   createBtn: {
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  resolvedBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    flex: 1,
+    paddingVertical: 10,
+    backgroundColor: 'rgba(255,255,255,0.06)',
+    borderRadius: 14,
+  },
+  resolvedBadgeText: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: 'rgba(255,255,255,0.6)',
+  },
+  tradeOverlayRow: {
+    flexDirection: 'row',
+    gap: 10,
+  },
+  tradeBuyBtn: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    paddingVertical: 14,
+    borderRadius: 14,
+    backgroundColor: '#10b981',
+  },
+  tradeSellBtn: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    paddingVertical: 14,
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.25)',
+    backgroundColor: 'rgba(239,68,68,0.15)',
   },
   edgeHintLeft: {
     position: 'absolute',
