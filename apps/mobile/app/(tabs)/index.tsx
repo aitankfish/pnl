@@ -36,6 +36,7 @@ import { useAuth } from '../../src/providers/AuthProvider';
 import { useWalletBalance } from '../../src/hooks/useWalletBalance';
 import { useVote } from '../../src/hooks/useVote';
 import { VoiceRoom } from '../../src/components/community/VoiceRoom';
+import { ChatRoom } from '../../src/components/community/ChatRoom';
 import { VoiceRoomVoteButtons } from '../../src/components/community/VoiceRoomVoteButtons';
 import { useVoiceRoomContextSafe } from '../../src/providers/VoiceRoomProvider';
 import {
@@ -541,8 +542,12 @@ export default function FeedScreen() {
   // Active data source based on tab selection
   const displayMarkets = activeTab === 0 ? feedPageMarkets : forYouMarkets;
 
-  const [pagerPage, setPagerPage] = useState(0); // 0=Feed, 1=Voice Room
+  const [pagerPage, setPagerPage] = useState(1); // 0=Chat, 1=Feed (default), 2=Voice
   const voiceRoom = useVoiceRoomContextSafe();
+
+  // Refs for syncing vertical scroll across pages
+  const chatListRef = useRef<FlatList>(null);
+  const voiceListRef = useRef<FlatList>(null);
 
   const handlePageScroll = useCallback(
     (e: NativeSyntheticEvent<NativeScrollEvent>) => {
@@ -550,8 +555,17 @@ export default function FeedScreen() {
       const page = Math.round(offsetX / WINDOW_WIDTH);
       if (page !== pagerPage) {
         setPagerPage(page);
-        if (page === 1 && walletAddress && voiceRoom) {
-          // Auto-join as listener when swiping to voice room
+
+        // Sync vertical position when switching pages
+        const syncOffset = feedActiveIndex * cardHeight;
+        if (page === 0) {
+          chatListRef.current?.scrollToOffset({ offset: syncOffset, animated: false });
+        } else if (page === 2) {
+          voiceListRef.current?.scrollToOffset({ offset: syncOffset, animated: false });
+        }
+
+        // Auto-join voice room when landing on page 2
+        if (page === 2 && walletAddress && voiceRoom) {
           Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
           const market = displayMarkets[feedActiveIndex];
           if (market) {
@@ -560,7 +574,7 @@ export default function FeedScreen() {
         }
       }
     },
-    [pagerPage, walletAddress, voiceRoom, displayMarkets, feedActiveIndex],
+    [pagerPage, walletAddress, voiceRoom, displayMarkets, feedActiveIndex, cardHeight],
   );
 
   // Tab press: switch data source (Feed vs For You) — no pager scroll
@@ -806,11 +820,19 @@ export default function FeedScreen() {
         </View>
       )}
 
-      {/* Voice room swipe hint — right edge */}
-      <View style={[styles.voiceHint, { top: cardHeight / 2 - 30 }]}>
-        <Ionicons name="mic-outline" size={14} color="rgba(139,92,246,0.4)" />
-        <Ionicons name="chevron-forward" size={12} color="rgba(139,92,246,0.3)" />
-      </View>
+      {/* Edge hints — only visible on Feed page */}
+      {pagerPage === 1 && (
+        <>
+          <View style={[styles.edgeHintLeft, { top: cardHeight / 2 - 20 }]}>
+            <Ionicons name="chevron-back" size={12} color="rgba(139,92,246,0.3)" />
+            <Ionicons name="chatbubble-outline" size={13} color="rgba(139,92,246,0.4)" />
+          </View>
+          <View style={[styles.edgeHintRight, { top: cardHeight / 2 - 20 }]}>
+            <Ionicons name="mic-outline" size={13} color="rgba(139,92,246,0.4)" />
+            <Ionicons name="chevron-forward" size={12} color="rgba(139,92,246,0.3)" />
+          </View>
+        </>
+      )}
 
       {/* New projects pill */}
       <NewProjectsPill
@@ -820,7 +842,7 @@ export default function FeedScreen() {
         top={pillTop}
       />
 
-      {/* Horizontal paging ScrollView — swipe between Feed / For You */}
+      {/* 3-page horizontal pager: Chat ← Feed → Voice */}
       <ScrollView
         ref={pagerRef}
         horizontal
@@ -828,9 +850,62 @@ export default function FeedScreen() {
         showsHorizontalScrollIndicator={false}
         onMomentumScrollEnd={handlePageScroll}
         scrollEventThrottle={16}
+        contentOffset={{ x: WINDOW_WIDTH, y: 0 }}
         style={styles.pager}
       >
-        {/* Page 0: Feed / For You (single list, tab switches data) */}
+        {/* Page 0: Chat Room */}
+        <View style={[styles.page, { width: WINDOW_WIDTH }]}>
+          <FlatList
+            ref={chatListRef}
+            data={displayMarkets}
+            keyExtractor={(item) => `chat-${item.id}`}
+            pagingEnabled
+            snapToInterval={cardHeight}
+            snapToAlignment="start"
+            decelerationRate="fast"
+            showsVerticalScrollIndicator={false}
+            getItemLayout={(_, index) => ({
+              length: cardHeight,
+              offset: cardHeight * index,
+              index,
+            })}
+            onViewableItemsChanged={({ viewableItems }) => {
+              if (pagerPage === 0 && viewableItems.length > 0 && viewableItems[0].index != null) {
+                setFeedActiveIndex(viewableItems[0].index);
+              }
+            }}
+            viewabilityConfig={viewabilityConfig}
+            renderItem={({ item }) => (
+              <View style={[styles.chatPage, { height: cardHeight }]}>
+                <View style={styles.chatHeader}>
+                  {item.projectImageUrl ? (
+                    <Image source={{ uri: item.projectImageUrl }} style={styles.chatHeaderAvatar} />
+                  ) : null}
+                  <View style={styles.chatHeaderInfo}>
+                    <Text style={styles.chatHeaderName} numberOfLines={1}>{item.name}</Text>
+                    <Text style={styles.chatHeaderToken}>${item.tokenSymbol}</Text>
+                  </View>
+                  <Pressable
+                    onPress={() => {
+                      pagerRef.current?.scrollTo({ x: WINDOW_WIDTH, animated: true });
+                    }}
+                    hitSlop={10}
+                  >
+                    <Ionicons name="chevron-forward" size={20} color={colors.textMuted} />
+                  </Pressable>
+                </View>
+                <ChatRoom
+                  marketAddress={item.marketAddress}
+                  walletAddress={walletAddress}
+                  founderWallet={null}
+                  hasPosition={false}
+                />
+              </View>
+            )}
+          />
+        </View>
+
+        {/* Page 1: Feed (default center page) */}
         <View style={[styles.page, { width: WINDOW_WIDTH }]}>
           {displayMarkets.length === 0 && activeTab === 1 ? (
             <View style={[styles.emptyForYou, { paddingTop: tabBarTop + 60 }]}>
@@ -864,9 +939,10 @@ export default function FeedScreen() {
           )}
         </View>
 
-        {/* Page 1: Voice Rooms — vertical swipe between project rooms */}
+        {/* Page 2: Voice Room */}
         <View style={[styles.voiceRoomPage, { width: WINDOW_WIDTH }]}>
           <FlatList
+            ref={voiceListRef}
             data={displayMarkets}
             keyExtractor={(item) => `voice-${item.id}`}
             pagingEnabled
@@ -874,7 +950,6 @@ export default function FeedScreen() {
             snapToAlignment="start"
             decelerationRate="fast"
             showsVerticalScrollIndicator={false}
-            initialScrollIndex={feedActiveIndex}
             getItemLayout={(_, index) => ({
               length: cardHeight,
               offset: cardHeight * index,
@@ -882,10 +957,14 @@ export default function FeedScreen() {
             })}
             onViewableItemsChanged={({ viewableItems }) => {
               if (viewableItems.length > 0 && viewableItems[0].index != null) {
+                const idx = viewableItems[0].index;
                 const item = viewableItems[0].item as Market;
-                // Auto-switch room when swiping to a new project
-                if (walletAddress && voiceRoom && pagerPage === 1) {
-                  voiceRoom.joinSilent(item.id, item.marketAddress, item.name, walletAddress, null);
+                if (pagerPage === 2) {
+                  setFeedActiveIndex(idx);
+                  // Auto-switch room
+                  if (walletAddress && voiceRoom) {
+                    voiceRoom.joinSilent(item.id, item.marketAddress, item.name, walletAddress, null);
+                  }
                 }
               }
             }}
@@ -904,7 +983,6 @@ export default function FeedScreen() {
                   poolBalance={item.poolBalance as number}
                   targetPool={Number(item.targetPool)}
                 />
-                {/* Vote overlay */}
                 {voiceRoom?.isConnected && (item.isYesVoteEnabled || item.isNoVoteEnabled) && (
                   <View style={styles.voiceVoteOverlay}>
                     <VoiceRoomVoteButtons
@@ -917,14 +995,6 @@ export default function FeedScreen() {
               </View>
             )}
           />
-          {/* Swipe hints */}
-          <View style={styles.voiceSwipeHint}>
-            <Ionicons name="chevron-back" size={12} color={colors.textMuted} />
-            <Text style={styles.voiceSwipeHintText}>Feed</Text>
-            <Text style={[styles.voiceSwipeHintText, { marginLeft: 8 }]}>·</Text>
-            <Ionicons name="swap-vertical" size={12} color={colors.textMuted} style={{ marginLeft: 8 }} />
-            <Text style={styles.voiceSwipeHintText}>Rooms</Text>
-          </View>
         </View>
       </ScrollView>
 
@@ -1019,12 +1089,25 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  voiceHint: {
+  edgeHintLeft: {
+    position: 'absolute',
+    left: 0,
+    zIndex: 40,
+    backgroundColor: 'rgba(10, 14, 26, 0.5)',
+    paddingVertical: 8,
+    paddingHorizontal: 4,
+    paddingRight: 6,
+    borderTopRightRadius: 12,
+    borderBottomRightRadius: 12,
+    alignItems: 'center',
+    gap: 2,
+  },
+  edgeHintRight: {
     position: 'absolute',
     right: 0,
     zIndex: 40,
-    backgroundColor: 'rgba(10, 14, 26, 0.6)',
-    paddingVertical: 10,
+    backgroundColor: 'rgba(10, 14, 26, 0.5)',
+    paddingVertical: 8,
     paddingHorizontal: 4,
     paddingLeft: 6,
     borderTopLeftRadius: 12,
@@ -1049,18 +1132,37 @@ const styles = StyleSheet.create({
     right: spacing.md,
     zIndex: 20,
   },
-  voiceSwipeHint: {
-    position: 'absolute',
-    bottom: 100,
-    alignSelf: 'center',
+  chatPage: {
+    flex: 1,
+    backgroundColor: colors.background,
+  },
+  chatHeader: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 4,
-    opacity: 0.4,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(255,255,255,0.06)',
+    gap: spacing.sm,
   },
-  voiceSwipeHintText: {
-    color: colors.textMuted,
+  chatHeaderAvatar: {
+    width: 32,
+    height: 32,
+    borderRadius: 8,
+  },
+  chatHeaderInfo: {
+    flex: 1,
+  },
+  chatHeaderName: {
+    color: '#fff',
+    fontSize: 14,
+    fontWeight: '700',
+  },
+  chatHeaderToken: {
+    color: '#22d3ee',
     fontSize: 11,
+    fontWeight: '600',
+    fontFamily: 'monospace' as any,
   },
   voiceRoomHintTitle: {
     color: 'rgba(255,255,255,0.4)',
