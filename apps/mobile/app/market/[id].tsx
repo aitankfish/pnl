@@ -44,7 +44,6 @@ import { apiUrl } from '@pnl/shared/utils';
 import { useAuth } from '../../src/providers/AuthProvider';
 import { useWalletBalance } from '../../src/hooks/useWalletBalance';
 import { useVote } from '../../src/hooks/useVote';
-import { useVoiceRoomContextSafe } from '../../src/providers/VoiceRoomProvider';
 import { useTokenStats } from '../../src/hooks/useTokenStats';
 import { usePitchVideo } from '../../src/hooks/usePitchVideo';
 import { useToggleFollow } from '../../src/hooks/useFollow';
@@ -67,12 +66,11 @@ import {
   VoteToast,
 } from '../../src/components';
 import type { VoteToastState } from '../../src/components';
-import { CommunityHub } from '../../src/components/community';
 import { colors, spacing, typography, borderRadius } from '../../src/theme';
 
 const HERO_HEIGHT = 260;
 const SCREEN_WIDTH = Dimensions.get('window').width;
-const TABS = ['Overview', 'AI Analysis', 'Activity', 'Community'] as const;
+const TABS = ['Overview', 'AI Analysis', 'Activity'] as const;
 type TabName = (typeof TABS)[number];
 type VoteDirection = 'yes' | 'no';
 
@@ -80,7 +78,6 @@ const TAB_ICONS: Record<TabName, { outline: keyof typeof Ionicons.glyphMap; fill
   'Overview':    { outline: 'layers-outline',      filled: 'layers',      shortLabel: 'Info' },
   'AI Analysis': { outline: 'sparkles-outline',    filled: 'sparkles',    shortLabel: 'AI' },
   'Activity':    { outline: 'pulse-outline',       filled: 'pulse',       shortLabel: 'Activity' },
-  'Community':   { outline: 'chatbubbles-outline', filled: 'chatbubbles', shortLabel: 'Chat' },
 };
 
 // ── Helpers ────────────────────────────────────────────────────────────────
@@ -124,9 +121,9 @@ function extractYouTubeId(url?: string): string | null {
 // ── Screen ─────────────────────────────────────────────────────────────────
 
 export default function MarketDetailScreen() {
-  const { id, tab } = useLocalSearchParams<{ id: string; tab?: string }>();
+  const { id } = useLocalSearchParams<{ id: string }>();
   const { market, isLoading, error, refresh: refreshMarket, socketConnected } = useMarket(id ?? null);
-  const { isAuthenticated, walletAddress, getAccessToken, solanaWallet } = useAuth();
+  const { isAuthenticated, walletAddress, solanaWallet } = useAuth();
   const { network } = useNetwork();
   const { solBalance } = useWalletBalance(walletAddress);
   const [toastState, setToastState] = useState<VoteToastState>({ visible: false, stage: 'signing' });
@@ -161,45 +158,11 @@ export default function MarketDetailScreen() {
     if (success) setIsFollowingCreator(prev => !prev);
   }, [founderWallet, isFollowingCreator, toggleFollow]);
   const insets = useSafeAreaInsets();
-  const [activeTab, setActiveTab] = useState<TabName>(
-    tab === 'community' ? 'Community' : 'Overview',
-  );
-  const prevTabRef = useRef<TabName>('Overview');
-  const voice = useVoiceRoomContextSafe();
+  const [activeTab, setActiveTab] = useState<TabName>('Overview');
 
-  const handleSetActiveTab = useCallback((tab: TabName) => {
-    if (tab === 'Community') {
-      prevTabRef.current = activeTab;
-      // Un-minimize voice when entering Community tab
-      if (voice?.isMinimized) voice.setMinimized(false);
-    }
-    setActiveTab(tab);
-  }, [activeTab, voice]);
-
-  const handleCommunityDismiss = useCallback(() => {
-    setActiveTab(prevTabRef.current);
+  const handleSetActiveTab = useCallback((newTab: TabName) => {
+    setActiveTab(newTab);
   }, []);
-
-  // ── Voice room: auto-switch to Community tab when returning via MiniVoiceBar ──
-  const wasMinimized = useRef(voice?.isMinimized ?? false);
-  const hasAutoSwitched = useRef(false);
-
-  // On mount: if voice is connected to this market and not minimized, jump to Community
-  useEffect(() => {
-    if (!hasAutoSwitched.current && voice?.isConnected && voice.marketId === id && !voice.isMinimized) {
-      setActiveTab('Community');
-      hasAutoSwitched.current = true;
-    }
-  }, [voice?.isConnected, voice?.marketId, voice?.isMinimized, id]);
-
-  // During session: detect minimized → expanded transition
-  useEffect(() => {
-    const isMinimized = voice?.isMinimized ?? false;
-    if (wasMinimized.current && !isMinimized && voice?.isConnected && voice.marketId === id) {
-      setActiveTab('Community');
-    }
-    wasMinimized.current = isMinimized;
-  }, [voice?.isMinimized, voice?.isConnected, voice?.marketId, id]);
 
   // ── Position data (platform-agnostic SWR) ──
   const { data: positionResponse, mutate: refetchPosition } = useSWR(
@@ -500,22 +463,7 @@ export default function MarketDetailScreen() {
       />
       <Animated.View style={[styles.headerBg, { height: insets.top + 52 }, headerBgStyle]} />
 
-      {/* Community tab renders outside ScrollView (has its own FlatList) */}
-      {activeTab === 'Community' ? (
-        <View style={{ flex: 1, marginTop: insets.top + 52 }}>
-          <CommunityHub
-            marketId={market.id}
-            marketAddress={market.marketAddress}
-            marketName={market.name}
-            walletAddress={walletAddress}
-            founderWallet={(market as any).founderWallet}
-            hasPosition={!!positionData}
-            onDismiss={handleCommunityDismiss}
-            getAccessToken={getAccessToken}
-            initialSubTab={tab === 'community' ? 'Voice' : undefined}
-          />
-        </View>
-      ) : (
+      {/* Main scrollable content */}
         <ScrollView
           onScroll={handleScroll}
           scrollEventThrottle={16}
@@ -790,10 +738,9 @@ export default function MarketDetailScreen() {
             )}
           </View>
         </ScrollView>
-      )}
 
-      {/* Floating action bar — TikTok-style vertical stack (hidden in Community tab) */}
-      {activeTab !== 'Community' && <View style={[styles.floatingTabs, { top: insets.top + 220 }]}>
+      {/* Floating action bar — TikTok-style vertical stack */}
+      <View style={[styles.floatingTabs, { top: insets.top + 220 }]}>
         {/* Favorite */}
         <View style={styles.floatingTabItem}>
           <View style={styles.floatingTabIcon}>
@@ -827,11 +774,10 @@ export default function MarketDetailScreen() {
             </PressableScale>
           );
         })}
-      </View>}
+      </View>
 
-      {/* Sticky bottom buttons — trade for launched, vote otherwise (hidden in Community tab) */}
-      {activeTab !== 'Community' && (
-        isTokenLaunched ? (
+      {/* Sticky bottom buttons — trade for launched, vote otherwise */}
+      {isTokenLaunched ? (
           <View style={[styles.stickyVotes, { paddingBottom: insets.bottom || 16 }]}>
             <PressableScale
               onPress={() => openTrade('buy')}
@@ -876,7 +822,7 @@ export default function MarketDetailScreen() {
             ) : null}
           </>
         )
-      )}
+      }
 
       {/* Vote bottom sheet */}
       <VoteBottomSheet
