@@ -15,6 +15,7 @@ import { COLLECTIONS } from '@/lib/database/models';
 import { ObjectId } from 'mongodb';
 import { connectToDatabase as connectMongoose, Notification, PredictionParticipant, Project } from '@/lib/mongodb';
 import { tweetTokenLaunched, tweetMarketFailed } from '@/services/twitter/twitter-service';
+import { withWalletOwnership } from '@/lib/auth/require-wallet';
 
 const logger = createClientLogger();
 
@@ -32,7 +33,7 @@ function extractRoastFromAnalysis(analysis: string): string {
   return analysis.slice(0, 200).trim();
 }
 
-export async function POST(request: NextRequest) {
+export const POST = withWalletOwnership(async (request: NextRequest) => {
   try {
     const body = await request.json();
     const { marketId, marketAddress, signature, tokenMint, network } = body;
@@ -399,4 +400,4 @@ export async function POST(request: NextRequest) {
       { status: 500 }
     );
   }
-}
+});

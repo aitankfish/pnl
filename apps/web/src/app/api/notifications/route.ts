@@ -6,6 +6,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { connectToDatabase, Notification } from '@/lib/mongodb';
 import logger from '@/lib/logger';
+import { withAuth } from '@/lib/auth/require-wallet';
 
 /**
  * GET /api/notifications
@@ -82,17 +83,11 @@ export async function GET(request: NextRequest) {
  *   - notificationId: ID of notification to mark as read (optional)
  *   - markAll: Mark all notifications as read (optional)
  */
-export async function PATCH(request: NextRequest) {
+export const PATCH = withAuth(async (request: NextRequest, authUser) => {
   try {
     const body = await request.json();
-    const { wallet, notificationId, markAll } = body;
-
-    if (!wallet) {
-      return NextResponse.json(
-        { error: 'Wallet address is required' },
-        { status: 400 }
-      );
-    }
+    const { notificationId, markAll } = body;
+    const wallet = authUser.walletAddress;
 
     await connectToDatabase();
 
@@ -141,7 +136,7 @@ export async function PATCH(request: NextRequest) {
       { status: 500 }
     );
   }
-}
+});
 
 /**
  * DELETE /api/notifications
@@ -150,17 +145,11 @@ export async function PATCH(request: NextRequest) {
  *   - wallet: User's wallet address (required)
  *   - notificationId: ID of notification to delete (required)
  */
-export async function DELETE(request: NextRequest) {
+export const DELETE = withAuth(async (request: NextRequest, authUser) => {
   try {
     const body = await request.json();
-    const { wallet, notificationId } = body;
-
-    if (!wallet) {
-      return NextResponse.json(
-        { error: 'Wallet address is required' },
-        { status: 400 }
-      );
-    }
+    const { notificationId } = body;
+    const wallet = authUser.walletAddress;
 
     if (!notificationId) {
       return NextResponse.json(
@@ -195,7 +184,7 @@ export async function DELETE(request: NextRequest) {
       { status: 500 }
     );
   }
-}
+});
 
 /**
  * POST /api/notifications
@@ -211,7 +200,7 @@ export async function DELETE(request: NextRequest) {
  *   - actionUrl: Action URL (optional)
  *   - metadata: Additional metadata (optional)
  */
-export async function POST(request: NextRequest) {
+export const POST = withAuth(async (request: NextRequest) => {
   try {
     const body = await request.json();
     const {
@@ -287,4 +276,4 @@ export async function POST(request: NextRequest) {
       { status: 500 }
     );
   }
-}
+});

@@ -9,6 +9,7 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
+import { withWalletOwnership } from '@/lib/auth/require-wallet';
 import {
   PublicKey,
   TransactionMessage,
@@ -45,7 +46,7 @@ const PUMP_FEE_RECIPIENT = new PublicKey('CebN5WGQ4jvEPvsVU4EoHEpgzq1VV7AbicfhtW
 // Address Lookup Table (mainnet) - now contains all required accounts
 const ALT_ADDRESS = new PublicKey('hs9SCzyzTgqURSxLm4p3gTtLRUkmL54BWQrtYFn9JeS');
 
-export async function POST(request: NextRequest) {
+export const POST = withWalletOwnership(async (request: NextRequest) => {
   try {
     const body = await request.json();
     const {
@@ -315,4 +316,4 @@ export async function POST(request: NextRequest) {
       { status: 500 }
     );
   }
-}
+}, 'callerWallet');

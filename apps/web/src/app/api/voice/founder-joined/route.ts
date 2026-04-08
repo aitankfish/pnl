@@ -1,12 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { notifyFounderJoinedVoice } from '@/lib/services/notification-service';
+import { withAuth } from '@/lib/auth/require-wallet';
 
-export async function POST(request: NextRequest) {
+export const POST = withAuth(async (request: NextRequest, authUser) => {
   try {
-    const { marketAddress, marketName, founderWallet, walletAddress } = await request.json();
+    const { marketAddress, marketName, founderWallet } = await request.json();
+    const walletAddress = authUser.walletAddress;
 
     // Validate required fields
-    if (!marketAddress || !marketName || !founderWallet || !walletAddress) {
+    if (!marketAddress || !marketName || !founderWallet) {
       return NextResponse.json(
         { error: 'Missing required fields' },
         { status: 400 }
@@ -32,4 +34,4 @@ export async function POST(request: NextRequest) {
       { status: 500 }
     );
   }
-}
+});

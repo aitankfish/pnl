@@ -11,10 +11,11 @@ import { createClientLogger } from '@/lib/logger';
 import { getSyncManager } from '@/services/blockchain-sync/sync-manager';
 import { tweetMarketCreated } from '@/services/twitter/twitter-service';
 import { broadcastNewMarket } from '@/services/socket/socket-server';
+import { withWalletOwnership } from '@/lib/auth/require-wallet';
 
 const logger = createClientLogger();
 
-export async function POST(request: NextRequest) {
+export const POST = withWalletOwnership(async (request: NextRequest) => {
   try {
     const body = await request.json();
 
@@ -177,7 +178,7 @@ export async function POST(request: NextRequest) {
       { status: 500 }
     );
   }
-}
+});
 
 export async function GET() {
   return NextResponse.json({

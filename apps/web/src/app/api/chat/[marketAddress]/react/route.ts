@@ -8,6 +8,7 @@ import { ObjectId } from 'mongodb';
 import { connectToDatabase, getDatabase } from '@/lib/database/index';
 import { COLLECTIONS, MessageReaction, ChatMessage } from '@/lib/database/models';
 import { broadcastChatReaction } from '@/services/socket/socket-server';
+import { withAuth } from '@/lib/auth/require-wallet';
 
 // Disable Next.js caching for this route
 export const dynamic = 'force-dynamic';
@@ -19,26 +20,21 @@ const ALLOWED_EMOJIS = ['🚀', '💎', '🔥', '👀', '❤️', '👍', '👎'
  * POST /api/chat/[marketAddress]/react
  * Toggle a reaction on a message
  */
-export async function POST(
+export const POST = withAuth(async (
   request: NextRequest,
+  authUser,
   { params }: { params: Promise<{ marketAddress: string }> }
-) {
+) => {
   try {
     const { marketAddress } = await params;
     const body = await request.json();
-    const { walletAddress, messageId, emoji } = body;
+    const { messageId, emoji } = body;
+    const walletAddress = authUser.walletAddress;
 
     // Validation
     if (!marketAddress) {
       return NextResponse.json(
         { success: false, error: 'Market address is required' },
-        { status: 400 }
-      );
-    }
-
-    if (!walletAddress) {
-      return NextResponse.json(
-        { success: false, error: 'Wallet address is required' },
         { status: 400 }
       );
     }
@@ -125,4 +121,4 @@ export async function POST(
       { status: 500 }
     );
   }
-}
+});

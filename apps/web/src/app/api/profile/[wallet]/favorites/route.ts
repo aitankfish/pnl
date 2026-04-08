@@ -6,6 +6,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { connectToDatabase, getDatabase } from '@/lib/database/index';
 import { COLLECTIONS, UserProfile, PredictionMarket } from '@/lib/database/models';
+import { withAuth } from '@/lib/auth/require-wallet';
 
 export async function GET(
   _request: NextRequest,
@@ -81,10 +82,11 @@ export async function GET(
   }
 }
 
-export async function POST(
+export const POST = withAuth(async (
   request: NextRequest,
+  authUser,
   { params }: { params: Promise<{ wallet: string }> }
-) {
+) => {
   try {
     const { wallet } = await params;
     const body = await request.json();
@@ -181,4 +183,4 @@ export async function POST(
       { status: 500 }
     );
   }
-}
+});

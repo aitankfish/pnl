@@ -5,6 +5,7 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
+import { withAuth } from '@/lib/auth/require-wallet';
 
 const PINATA_JWT = process.env.PINATA_JWT || '';
 const PINATA_API_KEY = process.env.PINATA_API_KEY || '';
@@ -12,7 +13,7 @@ const PINATA_SECRET_KEY = process.env.PINATA_SECRET_KEY || '';
 const PINATA_GATEWAY =
   process.env.PINATA_GATEWAY_URL || 'https://gateway.pinata.cloud';
 
-export async function POST(request: NextRequest) {
+export const POST = withAuth(async (request: NextRequest) => {
   try {
     const formData = await request.formData();
     const file = formData.get('file') as File | null;
@@ -70,4 +71,4 @@ export async function POST(request: NextRequest) {
       { status: 500 },
     );
   }
-}
+});

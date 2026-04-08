@@ -11,10 +11,11 @@ import { connectToDatabase, getDatabase } from '@/lib/database/index';
 import { COLLECTIONS } from '@/lib/database/models';
 import { ObjectId } from 'mongodb';
 import { connectToDatabase as connectMongoose, Notification, PredictionParticipant } from '@/lib/mongodb';
+import { withWalletOwnership } from '@/lib/auth/require-wallet';
 
 const logger = createClientLogger();
 
-export async function POST(request: NextRequest) {
+export const POST = withWalletOwnership(async (request: NextRequest) => {
   try {
     const body = await request.json();
     const { marketId, marketAddress, signature } = body;
@@ -155,4 +156,4 @@ export async function POST(request: NextRequest) {
       { status: 500 }
     );
   }
-}
+});

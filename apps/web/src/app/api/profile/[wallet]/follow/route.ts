@@ -8,6 +8,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { connectToDatabase, UserFollow, UserProfile } from '@/lib/mongodb';
 import { createClientLogger } from '@/lib/logger';
+import { withAuth } from '@/lib/auth/require-wallet';
 
 // Force dynamic rendering - this route uses request.url
 export const dynamic = 'force-dynamic';
@@ -18,23 +19,16 @@ const logger = createClientLogger();
  * POST /api/profile/[wallet]/follow
  * Follow a user
  */
-export async function POST(
+export const POST = withAuth(async (
   request: NextRequest,
+  authUser,
   { params }: { params: { wallet: string } }
-) {
+) => {
   try {
     const { wallet: followingWallet } = params;
-    const body = await request.json();
-    const { followerWallet } = body;
+    const followerWallet = authUser.walletAddress;
 
     // Validate input
-    if (!followerWallet) {
-      return NextResponse.json(
-        { success: false, error: 'Follower wallet address is required' },
-        { status: 400 }
-      );
-    }
-
     if (!followingWallet) {
       return NextResponse.json(
         { success: false, error: 'Following wallet address is required' },
@@ -135,29 +129,22 @@ export async function POST(
       { status: 500 }
     );
   }
-}
+});
 
 /**
  * DELETE /api/profile/[wallet]/follow
  * Unfollow a user
  */
-export async function DELETE(
+export const DELETE = withAuth(async (
   request: NextRequest,
+  authUser,
   { params }: { params: { wallet: string } }
-) {
+) => {
   try {
     const { wallet: followingWallet } = params;
-    const { searchParams } = new URL(request.url);
-    const followerWallet = searchParams.get('followerWallet');
+    const followerWallet = authUser.walletAddress;
 
     // Validate input
-    if (!followerWallet) {
-      return NextResponse.json(
-        { success: false, error: 'Follower wallet address is required' },
-        { status: 400 }
-      );
-    }
-
     if (!followingWallet) {
       return NextResponse.json(
         { success: false, error: 'Following wallet address is required' },
@@ -227,4 +214,4 @@ export async function DELETE(
       { status: 500 }
     );
   }
-}
+});
