@@ -5,7 +5,7 @@
   "scripts": {
     "dev": "next dev",
     "dev:unified": "NODE_OPTIONS='--no-warnings' tsx server.ts",
-    "build": "(next build || [ -d .next ]) && node scripts/post-build.js",
+    "build": "next build && node scripts/post-build.js",
     "start": "next start",
     "start:prod": "NODE_ENV=production NODE_OPTIONS='--no-warnings' node server.js",
     "start:unified": "NODE_ENV=production NODE_OPTIONS='--no-warnings' tsx server.ts",

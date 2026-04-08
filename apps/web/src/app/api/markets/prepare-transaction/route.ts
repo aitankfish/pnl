@@ -124,7 +124,7 @@ export const POST = withWalletOwnership(async (request, authUser) => {
       { status: 500 }
     );
   }
-}
+});
 
 export async function GET() {
   return NextResponse.json({
@@ -149,4 +149,4 @@ export async function GET() {
       sol: v / 1e9
     }))
   });
-}, 'founderWallet');
+}
