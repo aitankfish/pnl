@@ -152,7 +152,8 @@ const ITEMS_PER_PAGE_OPTIONS = [25, 50, 100];
 export default function BrowsePage() {
   const [votingState, setVotingState] = useState<{ marketId: string; voteType: 'yes' | 'no' } | null>(null);
   const [selectedCategory, setSelectedCategory] = useState<string>('All');
-  const [selectedStatus, setSelectedStatus] = useState<string>('active'); // 'active', 'resolved', 'all'
+  const [selectedStatus, setSelectedStatus] = useState<string>('active');
+  const [searchQuery, setSearchQuery] = useState<string>('');
   const [page, setPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(25);
   const { vote } = useVoting();
@@ -347,6 +348,17 @@ export default function BrowsePage() {
   const filteredMarkets = useMemo(() => {
     let filtered = markets;
 
+    // Apply text search filter
+    if (searchQuery.trim()) {
+      const q = searchQuery.toLowerCase();
+      filtered = filtered.filter(m =>
+        m.name?.toLowerCase().includes(q) ||
+        m.description?.toLowerCase().includes(q) ||
+        m.tokenSymbol?.toLowerCase().includes(q) ||
+        m.category?.toLowerCase().includes(q)
+      );
+    }
+
     // Apply category filter
     if (selectedCategory !== 'All') {
       filtered = filtered.filter(m => {
@@ -367,7 +379,7 @@ export default function BrowsePage() {
     }
 
     return filtered;
-  }, [markets, hotProjectIds, selectedCategory, selectedStatus]);
+  }, [markets, hotProjectIds, selectedCategory, selectedStatus, searchQuery]);
 
   return (
     <div className="pt-2 sm:pt-3 px-3 sm:px-6 pb-6 space-y-6 sm:space-y-8">
@@ -380,6 +392,23 @@ export default function BrowsePage() {
             <p className="text-sm text-gray-400 mt-1">
               {totalCount} market{totalCount !== 1 ? 's' : ''} available
             </p>
+          )}
+        </div>
+
+        {/* Search Bar */}
+        <div className="relative mb-4">
+          <input
+            type="text"
+            placeholder="Search markets by name, description, or token..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="w-full h-11 bg-slate-800/80 border border-white/10 text-white text-sm rounded-xl pl-10 pr-10 focus:ring-2 focus:ring-purple-500/50 focus:border-purple-500/50 transition-all placeholder:text-gray-500"
+          />
+          <svg className="absolute left-3 top-3 w-5 h-5 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg>
+          {searchQuery && (
+            <button onClick={() => setSearchQuery('')} className="absolute right-3 top-3 text-gray-500 hover:text-white">
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
+            </button>
           )}
         </div>
 
@@ -616,52 +645,62 @@ export default function BrowsePage() {
                     <CountdownTimer expiryTime={project.expiryTime} className="text-[11px]" />
                   </div>
 
-                  {/* Action Button - Smart based on state */}
-                  {isActionable ? (
-                    <div className="flex gap-1.5">
-                      <Button
-                        onClick={(e) => {
-                          e.preventDefault();
-                          e.stopPropagation();
-                          handleQuickVote(project, 'yes');
-                        }}
-                        disabled={votingState !== null || isYesVoteDisabled(project)}
-                        className="flex-1 bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700 disabled:opacity-40 text-[11px] h-7 px-2"
-                        size="sm"
-                      >
-                        {votingState?.marketId === project.id && votingState?.voteType === 'yes' ? (
-                          <Loader2 className="w-3 h-3 animate-spin" />
-                        ) : (
-                          'YES'
-                        )}
+                  {/* Adaptive Action Buttons — vote / trade / resolved badge */}
+                  {(() => {
+                    const isResolved = project.resolution && project.resolution !== 'Unresolved';
+                    const tokenMint = (project as any).tokenMint || (project as any).pumpFunTokenAddress;
+                    const isTokenLaunched = isResolved && project.resolution === 'YesWins' && !!tokenMint;
+
+                    if (isTokenLaunched) {
+                      return (
+                        <div className="flex gap-1.5">
+                          <Button className="flex-1 bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700 text-[11px] h-7 px-2" size="sm">
+                            + {project.tokenSymbol || 'BUY'}
+                          </Button>
+                          <Button variant="outline" className="flex-1 border-white/20 text-white hover:bg-white/10 text-[11px] h-7 px-2" size="sm">
+                            − {project.tokenSymbol || 'SELL'}
+                          </Button>
+                        </div>
+                      );
+                    }
+                    if (isResolved) {
+                      return (
+                        <div className="flex items-center justify-center gap-1.5 py-1 px-3 rounded-lg bg-white/5 text-[11px]">
+                          <span className={project.resolution === 'YesWins' ? 'text-green-400' : project.resolution === 'NoWins' ? 'text-red-400' : 'text-yellow-400'}>
+                            {project.resolution === 'YesWins' ? '✓ Launched' : project.resolution === 'NoWins' ? '✗ Failed' : '↩ Refunded'}
+                          </span>
+                        </div>
+                      );
+                    }
+                    if (isActionable) {
+                      return (
+                        <div className="flex gap-1.5">
+                          <Button
+                            onClick={(e) => { e.preventDefault(); e.stopPropagation(); handleQuickVote(project, 'yes'); }}
+                            disabled={votingState !== null || isYesVoteDisabled(project)}
+                            className="flex-1 bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700 disabled:opacity-40 text-[11px] h-7 px-2"
+                            size="sm"
+                          >
+                            {votingState?.marketId === project.id && votingState?.voteType === 'yes' ? <Loader2 className="w-3 h-3 animate-spin" /> : 'YES'}
+                          </Button>
+                          <Button
+                            onClick={(e) => { e.preventDefault(); e.stopPropagation(); handleQuickVote(project, 'no'); }}
+                            disabled={votingState !== null || isNoVoteDisabled(project)}
+                            variant="outline"
+                            className="flex-1 border-white/20 text-white hover:bg-white/10 disabled:opacity-40 text-[11px] h-7 px-2"
+                            size="sm"
+                          >
+                            {votingState?.marketId === project.id && votingState?.voteType === 'no' ? <Loader2 className="w-3 h-3 animate-spin" /> : 'NO'}
+                          </Button>
+                        </div>
+                      );
+                    }
+                    return (
+                      <Button variant="outline" className="w-full border-white/10 text-gray-300 hover:bg-white/5 hover:text-white text-[11px] h-7" size="sm">
+                        View Details
                       </Button>
-                      <Button
-                        onClick={(e) => {
-                          e.preventDefault();
-                          e.stopPropagation();
-                          handleQuickVote(project, 'no');
-                        }}
-                        disabled={votingState !== null || isNoVoteDisabled(project)}
-                        variant="outline"
-                        className="flex-1 border-white/20 text-white hover:bg-white/10 disabled:opacity-40 text-[11px] h-7 px-2"
-                        size="sm"
-                      >
-                        {votingState?.marketId === project.id && votingState?.voteType === 'no' ? (
-                          <Loader2 className="w-3 h-3 animate-spin" />
-                        ) : (
-                          'NO'
-                        )}
-                      </Button>
-                    </div>
-                  ) : (
-                    <Button
-                      variant="outline"
-                      className="w-full border-white/10 text-gray-300 hover:bg-white/5 hover:text-white text-[11px] h-7"
-                      size="sm"
-                    >
-                      View Details
-                    </Button>
-                  )}
+                    );
+                  })()}
                 </div>
               </Card>
               </Link>
