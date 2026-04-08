@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { authFetch } from '@/lib/auth/fetch-with-auth';
 import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -288,7 +289,7 @@ export default function CreatePage() {
       }
       submitData.append('creatorWalletAddress', primaryWallet.address);
       
-      const response = await fetch('/api/projects/create', {
+      const response = await authFetch('/api/projects/create', {
         method: 'POST',
         body: submitData,
       });
@@ -1268,7 +1269,7 @@ export default function CreatePage() {
                     // Step 2: Send data to server for IPFS upload and metadata creation
                     console.log('Sending project data to server for IPFS upload and metadata creation');
                     
-                    const projectResponse = await fetch('/api/projects/create', {
+                    const projectResponse = await authFetch('/api/projects/create', {
                       method: 'POST',
                       body: apiFormData,
                     });
@@ -1286,7 +1287,7 @@ export default function CreatePage() {
                     // Step 3: Prepare transaction for client-side signing
                     console.log('Preparing transaction for client-side wallet signing');
 
-                    const transactionResponse = await fetch('/api/markets/prepare-transaction', {
+                    const transactionResponse = await authFetch('/api/markets/prepare-transaction', {
                       method: 'POST',
                       headers: {
                         'Content-Type': 'application/json',
@@ -1443,7 +1444,7 @@ export default function CreatePage() {
                     // Step 4: Complete market creation in database
                     console.log('Completing market creation in database...');
                     
-                    const completeMarketResponse = await fetch('/api/markets/complete', {
+                    const completeMarketResponse = await authFetch('/api/markets/complete', {
                       method: 'POST',
                       headers: {
                         'Content-Type': 'application/json',

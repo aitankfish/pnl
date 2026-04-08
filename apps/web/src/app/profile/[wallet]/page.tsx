@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
+import { authFetch } from '@/lib/auth/fetch-with-auth';
 import { useParams } from 'next/navigation';
 import { useWallet } from '@/hooks/useWallet';
 import { Card, CardContent } from '@/components/ui/card';
@@ -111,7 +112,7 @@ export default function PublicProfilePage() {
     try {
       if (isFollowing) {
         // Unfollow
-        const response = await fetch(`/api/profile/${profileWallet}/follow?followerWallet=${viewerWallet}`, {
+        const response = await authFetch(`/api/profile/${profileWallet}/follow?followerWallet=${viewerWallet}`, {
           method: 'DELETE',
         });
 
@@ -125,7 +126,7 @@ export default function PublicProfilePage() {
         }
       } else {
         // Follow
-        const response = await fetch(`/api/profile/${profileWallet}/follow`, {
+        const response = await authFetch(`/api/profile/${profileWallet}/follow`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ followerWallet: viewerWallet }),

@@ -1,6 +1,7 @@
 'use client';
 
 import { motion, AnimatePresence } from 'framer-motion';
+import { authFetch } from '@/lib/auth/fetch-with-auth';
 import { Sparkles, Rocket, ArrowRight, UserCircle } from 'lucide-react';
 import { usePrivy } from '@privy-io/react-auth';
 import { useState, useEffect, useRef } from 'react';
@@ -130,7 +131,7 @@ export function CosmicOnboardingModal({ isOpen, onClose, onJoinUniverse, onConti
   // Check username uniqueness via API
   const checkUsernameUniqueness = async (usernameToCheck: string): Promise<boolean> => {
     try {
-      const response = await fetch(`/api/profile/check-username?username=${encodeURIComponent(usernameToCheck)}`);
+      const response = await authFetch(`/api/profile/check-username?username=${encodeURIComponent(usernameToCheck)}`);
       const data = await response.json();
       return data.available || false;
     } catch (error) {
@@ -149,7 +150,7 @@ export function CosmicOnboardingModal({ isOpen, onClose, onJoinUniverse, onConti
       const walletAddress = user?.wallet?.address;
       if (walletAddress) {
         try {
-          const response = await fetch(`/api/profile/${walletAddress}`);
+          const response = await authFetch(`/api/profile/${walletAddress}`);
           const result = await response.json();
 
           if (result.success && result.data?.username) {
@@ -295,7 +296,7 @@ export function CosmicOnboardingModal({ isOpen, onClose, onJoinUniverse, onConti
       console.log('💾 Saving to backend...', { finalUsername, profilePhotoUrl });
 
       // Save to backend using the same API as wallet page
-      const response = await fetch('/api/profile/update', {
+      const response = await authFetch('/api/profile/update', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

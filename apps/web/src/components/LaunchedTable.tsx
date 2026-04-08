@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useMemo, useEffect, useRef, useCallback } from 'react';
+import { authFetch } from '@/lib/auth/fetch-with-auth';
 import { useRouter } from 'next/navigation';
 import {
   ArrowUpDown,
@@ -174,7 +175,7 @@ export function LaunchedTable({ tokens, isLoading = false, refreshKey = 0 }: Lau
       setIsLoadingStats(true);
       try {
         const addresses = tokens.map((t) => t.tokenAddress).filter(Boolean);
-        const response = await fetch('/api/tokens/stats', {
+        const response = await authFetch('/api/tokens/stats', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ addresses }),

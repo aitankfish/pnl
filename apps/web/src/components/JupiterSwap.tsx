@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, useCallback } from 'react';
+import { authFetch } from '@/lib/auth/fetch-with-auth';
 import { useWallet } from '@/hooks/useWallet';
 import { useNetwork } from '@/lib/hooks/useNetwork';
 import { PublicKey } from '@solana/web3.js';
@@ -157,7 +158,7 @@ export function JupiterSwap({ isOpen, onClose }: JupiterSwapProps) {
           // Fetch metadata for each token using our internal API
           const metadataPromises = tokenMints.map(async (mint) => {
             try {
-              const response = await fetch('/api/tokens/metadata', {
+              const response = await authFetch('/api/tokens/metadata', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ mint }),

@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, useRef } from 'react';
+import { authFetch } from '@/lib/auth/fetch-with-auth';
 import { usePathname } from 'next/navigation';
 import { Mic, MicOff, PhoneOff, Users, Maximize2 } from 'lucide-react';
 import { useVoiceRoomContextSafe, REACTION_EMOJIS } from '@/lib/context/VoiceRoomContext';
@@ -60,7 +61,7 @@ export default function MiniVoicePlayer() {
       if (walletsToFetch.length === 0) return;
 
       try {
-        const response = await fetch('/api/profiles/batch', {
+        const response = await authFetch('/api/profiles/batch', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ wallets: walletsToFetch }),

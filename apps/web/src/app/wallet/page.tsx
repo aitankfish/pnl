@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
+import { authFetch } from '@/lib/auth/fetch-with-auth';
 import { useWallet } from '@/hooks/useWallet';
 import { useAuthModal } from '@/contexts/AuthModalContext';
 import { useFundWallet, useSignAndSendTransaction, useWallets, useStandardWallets, useExportWallet } from '@privy-io/react-auth/solana';
@@ -1160,7 +1161,7 @@ export default function WalletPage() {
       setIsLoadingTokenStats(true);
       try {
         const addresses = allTokens.map((t) => t.mint).filter(Boolean);
-        const response = await fetch('/api/tokens/stats', {
+        const response = await authFetch('/api/tokens/stats', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ addresses }),
@@ -1197,7 +1198,7 @@ export default function WalletPage() {
     if (!newUsername.trim() || !primaryWallet) return;
 
     try {
-      const response = await fetch('/api/profile/update', {
+      const response = await authFetch('/api/profile/update', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -1221,7 +1222,7 @@ export default function WalletPage() {
     if (!primaryWallet) return;
 
     try {
-      const response = await fetch('/api/profile/update', {
+      const response = await authFetch('/api/profile/update', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -1248,7 +1249,7 @@ export default function WalletPage() {
     const cleanHandle = newTwitter.trim().replace(/^@/, '');
 
     try {
-      const response = await fetch('/api/profile/update', {
+      const response = await authFetch('/api/profile/update', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -1284,7 +1285,7 @@ export default function WalletPage() {
         const ipfsUri = await ipfsUtils.uploadImage(file);
         const photoUrl = ipfsUtils.getGatewayUrl(ipfsUri);
 
-        const response = await fetch('/api/profile/update', {
+        const response = await authFetch('/api/profile/update', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({

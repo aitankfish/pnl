@@ -5,10 +5,20 @@
 
 'use client';
 
-import { memo } from 'react';
-import { PrivyProvider } from '@privy-io/react-auth';
+import { memo, useEffect } from 'react';
+import { PrivyProvider, usePrivy } from '@privy-io/react-auth';
 import type { PrivyClientConfig } from '@privy-io/react-auth';
 import { createSolanaRpc, createSolanaRpcSubscriptions } from '@solana/kit';
+import { setAccessTokenProvider } from '@pnl/shared/utils';
+
+/** Wires Privy's getAccessToken to the shared authenticated fetch utility */
+function AuthWiring({ children }: { children: React.ReactNode }) {
+  const { getAccessToken } = usePrivy();
+  useEffect(() => {
+    setAccessTokenProvider(getAccessToken);
+  }, [getAccessToken]);
+  return <>{children}</>;
+}
 
 interface WalletProviderProps {
   children: React.ReactNode;
@@ -69,7 +79,7 @@ function WalletProviderInner({ children }: WalletProviderProps) {
 
   return (
     <PrivyProvider appId={appId} config={config}>
-      {children}
+      <AuthWiring>{children}</AuthWiring>
     </PrivyProvider>
   );
 }

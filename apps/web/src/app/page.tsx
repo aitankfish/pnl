@@ -1,6 +1,7 @@
 'use client';
 
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { authFetch } from '@/lib/auth/fetch-with-auth';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import Link from 'next/link';
@@ -164,7 +165,7 @@ export default function HomePage() {
         // Background profile setup
         try {
           // Check if profile already exists and has username
-          const checkResponse = await fetch(`/api/profile/${walletAddress}`);
+          const checkResponse = await authFetch(`/api/profile/${walletAddress}`);
           const checkResult = await checkResponse.json();
 
           if (checkResult.success && checkResult.data?.username) {
@@ -199,7 +200,7 @@ export default function HomePage() {
           console.log('💾 Saving profile in background:', { username: randomUsername, avatar: randomAvatar });
 
           // Save profile
-          const response = await fetch('/api/profile/update', {
+          const response = await authFetch('/api/profile/update', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({

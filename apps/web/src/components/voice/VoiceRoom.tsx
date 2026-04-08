@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, useRef } from 'react';
+import { authFetch } from '@/lib/auth/fetch-with-auth';
 import { Mic, MicOff, PhoneOff, Loader2, Users, AlertCircle, Hand, MoreVertical, UserX, VolumeX, Check, X, Edit2, Share2, Link as LinkIcon, Star, Crown, Wifi, WifiOff, Minimize2 } from 'lucide-react';
 import { useVoiceRoomContext, REACTION_EMOJIS, MAX_SPEAKERS } from '@/lib/context/VoiceRoomContext';
 import Link from 'next/link';
@@ -319,7 +320,7 @@ export default function VoiceRoom({
       if (walletsToFetch.length === 0) return;
 
       try {
-        const response = await fetch('/api/profiles/batch', {
+        const response = await authFetch('/api/profiles/batch', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ wallets: walletsToFetch }),

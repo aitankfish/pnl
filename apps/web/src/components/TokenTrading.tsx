@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, useCallback } from 'react';
+import { authFetch } from '@/lib/auth/fetch-with-auth';
 import { useWallet } from '@/hooks/useWallet';
 import { useNetwork } from '@/lib/hooks/useNetwork';
 import { PublicKey } from '@solana/web3.js';

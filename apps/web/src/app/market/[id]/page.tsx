@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useEffect, useState, useMemo } from 'react';
+import { authFetch } from '@/lib/auth/fetch-with-auth';
 import dynamic from 'next/dynamic';
 import { useParams, useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
@@ -365,7 +366,7 @@ export default function MarketDetailsPage() {
 
     setIsTogglingFavorite(true);
     try {
-      const response = await fetch(`/api/profile/${primaryWallet.address}/favorites`, {
+      const response = await authFetch(`/api/profile/${primaryWallet.address}/favorites`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ marketId: params.id }),
@@ -701,7 +702,7 @@ export default function MarketDetailsPage() {
   const fetchMarketDetails = async (id: string) => {
     try {
       setLoading(true);
-      const response = await fetch(`/api/markets/${id}`);
+      const response = await authFetch(`/api/markets/${id}`);
       const result = await response.json();
 
       if (result.success) {
@@ -898,7 +899,7 @@ export default function MarketDetailsPage() {
       console.log('⚠️ Resolution failed, checking on-chain status...');
 
       try {
-        const statusCheckResponse = await fetch('/api/markets/check-onchain-status', {
+        const statusCheckResponse = await authFetch('/api/markets/check-onchain-status', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ marketAddress: market.marketAddress }),

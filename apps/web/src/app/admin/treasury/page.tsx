@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { authFetch } from '@/lib/auth/fetch-with-auth';
 import { useWallet } from '@/hooks/useWallet';
 import { useNetwork } from '@/lib/hooks/useNetwork';
 import { getSolanaConnection } from '@/lib/solana';
@@ -100,7 +101,7 @@ export default function TreasuryAdminPage() {
   const fetchMarketsWithTokens = async () => {
     try {
       setLoadingMarkets(true);
-      const response = await fetch('/api/markets/platform-tokens/list');
+      const response = await authFetch('/api/markets/platform-tokens/list');
       const result = await response.json();
 
       if (result.success) {
@@ -125,7 +126,7 @@ export default function TreasuryAdminPage() {
     try {
       setLoading(true);
 
-      const response = await fetch('/api/treasury/initialize', {
+      const response = await authFetch('/api/treasury/initialize', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -187,7 +188,7 @@ export default function TreasuryAdminPage() {
     try {
       setLoading(true);
 
-      const response = await fetch('/api/treasury/set-admin', {
+      const response = await authFetch('/api/treasury/set-admin', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -309,7 +310,7 @@ export default function TreasuryAdminPage() {
 
       const amountLamports = parseFloat(withdrawAmount) * 1e9;
 
-      const response = await fetch('/api/treasury/withdraw-fees', {
+      const response = await authFetch('/api/treasury/withdraw-fees', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
