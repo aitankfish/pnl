@@ -92,6 +92,7 @@ export default function LaunchpadPage() {
   const [isPending, startTransition] = useTransition();
   const [markets, setMarkets] = useState<Market[]>([]);
   const [launchedProjects, setLaunchedProjects] = useState<LaunchedToken[]>([]);
+  const [searchQuery, setSearchQuery] = useState('');
   const [loading, setLoading] = useState(true);
   const [loadingLaunched, setLoadingLaunched] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -160,6 +161,15 @@ export default function LaunchpadPage() {
   // Filter active markets for display list (separate from stats)
   const activeMarkets = markets.filter(m => m.resolution === 'Unresolved' || !m.resolution);
 
+  // Search filter
+  const q = searchQuery.toLowerCase();
+  const filteredActiveMarkets = q
+    ? activeMarkets.filter(m => m.name?.toLowerCase().includes(q) || m.description?.toLowerCase().includes(q) || m.tokenSymbol?.toLowerCase().includes(q))
+    : activeMarkets;
+  const filteredLaunched = q
+    ? launchedProjects.filter(p => p.name?.toLowerCase().includes(q) || p.symbol?.toLowerCase().includes(q))
+    : launchedProjects;
+
   // Helper function to format launch date
   const formatLaunchDate = (dateString: string) => {
     const date = new Date(dateString);
@@ -178,6 +188,23 @@ export default function LaunchpadPage() {
           <p className="text-white/70">
             Monitor prediction markets, track statistics, and explore launched projects
           </p>
+        </div>
+
+        {/* Search */}
+        <div className="relative mb-4">
+          <input
+            type="text"
+            placeholder="Search markets and launched tokens..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="w-full h-11 bg-slate-800/80 border border-white/10 text-white text-sm rounded-xl pl-10 pr-10 focus:ring-2 focus:ring-purple-500/50 focus:border-purple-500/50 transition-all placeholder:text-gray-500"
+          />
+          <svg className="absolute left-3 top-3 w-5 h-5 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg>
+          {searchQuery && (
+            <button onClick={() => setSearchQuery('')} className="absolute right-3 top-3 text-gray-500 hover:text-white">
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
+            </button>
+          )}
         </div>
 
         {/* Three Vertical Containers */}
@@ -216,12 +243,12 @@ export default function LaunchpadPage() {
                   <div className="text-center py-8">
                     <p className="text-red-400 text-sm">{error}</p>
                   </div>
-                ) : activeMarkets.length === 0 ? (
+                ) : filteredActiveMarkets.length === 0 ? (
                   <div className="text-center py-8">
                     <p className="text-white/70 text-sm">No active markets yet</p>
                   </div>
                 ) : (
-                  activeMarkets.slice(0, 4).map((market) => {
+                  filteredActiveMarkets.slice(0, 4).map((market) => {
                     const totalVotes = market.yesVotes + market.noVotes;
                     const yesPercentage = totalVotes > 0 ? Math.round((market.yesVotes / totalVotes) * 100) : 0;
 
@@ -446,7 +473,7 @@ export default function LaunchpadPage() {
                   </div>
                 ) : (
                   <>
-                    {launchedProjects.slice(0, 4).map((project) => (
+                    {filteredLaunched.slice(0, 4).map((project) => (
                       <Link href={`/market/${project.id}`} key={project.id} prefetch={true}>
                         <div className="p-4 bg-white/5 rounded-lg border border-white/10 hover:bg-white/10 transition-all duration-300 hover:scale-102 group cursor-pointer">
                           <div className="flex items-start justify-between mb-3">
@@ -480,6 +507,14 @@ export default function LaunchpadPage() {
                               <div className="text-gray-400 text-xs">Category</div>
                               <div className="font-semibold text-white">{formatLabel(project.category)}</div>
                             </div>
+                          </div>
+                          <div className="flex gap-2 mt-3">
+                            <Button size="sm" className="flex-1 bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700 text-[11px] h-7">
+                              + {project.symbol}
+                            </Button>
+                            <Button size="sm" variant="outline" className="flex-1 border-white/20 text-white hover:bg-white/10 text-[11px] h-7">
+                              − {project.symbol}
+                            </Button>
                           </div>
                         </div>
                       </Link>

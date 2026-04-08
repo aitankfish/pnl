@@ -10,7 +10,7 @@ import {
   View,
   Text,
   StyleSheet,
-  FlatList,
+  SectionList,
   RefreshControl,
   Pressable,
   ActivityIndicator,
@@ -39,6 +39,7 @@ interface Notification {
   title: string;
   message: string;
   timestamp: string;
+  rawTimestamp: number;
   isRead: boolean;
   priority: 'high' | 'medium' | 'low';
   project: { name: string; symbol: string; category: string } | null;
@@ -75,6 +76,7 @@ function transform(raw: any): Notification {
     title: raw.title,
     message: raw.message,
     timestamp: formatTimestamp(raw.createdAt),
+    rawTimestamp: new Date(raw.createdAt).getTime(),
     isRead: raw.isRead,
     priority: raw.priority || 'medium',
     project: raw.projectId
@@ -341,6 +343,23 @@ export default function NotificationsScreen() {
     return notifications;
   }, [notifications, activeFilter]);
 
+  // Group by time period for SectionList
+  const sections = useMemo(() => {
+    const todayStart = new Date().setHours(0, 0, 0, 0);
+    const yesterdayStart = todayStart - 86400000;
+    const weekStart = todayStart - 7 * 86400000;
+    const groups: Record<string, Notification[]> = { Today: [], Yesterday: [], 'This Week': [], Older: [] };
+    for (const n of filteredNotifications) {
+      if (n.rawTimestamp >= todayStart) groups.Today.push(n);
+      else if (n.rawTimestamp >= yesterdayStart) groups.Yesterday.push(n);
+      else if (n.rawTimestamp >= weekStart) groups['This Week'].push(n);
+      else groups.Older.push(n);
+    }
+    return Object.entries(groups)
+      .filter(([, data]) => data.length > 0)
+      .map(([title, data]) => ({ title, data }));
+  }, [filteredNotifications]);
+
   // Not authenticated
   if (!isAuthenticated) {
     return (
@@ -405,7 +424,7 @@ export default function NotificationsScreen() {
       />
 
       {/* List */}
-      {filteredNotifications.length === 0 ? (
+      {sections.length === 0 ? (
         <View style={styles.centerFill}>
           <Ionicons name="notifications-outline" size={48} color={colors.textMuted} />
           <Text style={styles.emptyTitle}>
@@ -418,17 +437,24 @@ export default function NotificationsScreen() {
           </Text>
         </View>
       ) : (
-        <FlatList
-          data={filteredNotifications}
+        <SectionList
+          sections={sections}
           keyExtractor={(item) => item.id}
           renderItem={({ item }) => (
             <NotificationRow item={item} onMarkRead={markAsRead} onDelete={deleteNotification} />
+          )}
+          renderSectionHeader={({ section: { title, data } }) => (
+            <View style={styles.sectionHeader}>
+              <Text style={styles.sectionHeaderText}>{title}</Text>
+              <Text style={styles.sectionHeaderCount}>{data.length}</Text>
+            </View>
           )}
           contentContainerStyle={{ paddingBottom: 16 }}
           refreshControl={
             <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.primary} />
           }
           ItemSeparatorComponent={() => <View style={styles.separator} />}
+          stickySectionHeadersEnabled
         />
       )}
     </View>
@@ -533,6 +559,28 @@ const styles = StyleSheet.create({
 
   rowTimestamp: { fontSize: 11, color: colors.textMuted, marginTop: 6 },
   separator: { height: 1, backgroundColor: colors.glassBorder, marginLeft: 68 },
+  sectionHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+    backgroundColor: 'rgba(10,14,26,0.95)',
+  },
+  sectionHeaderText: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: colors.textSecondary,
+  },
+  sectionHeaderCount: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: colors.textMuted,
+    backgroundColor: 'rgba(255,255,255,0.06)',
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 10,
+  },
 
   emptyTitle: { fontSize: 16, fontWeight: '600', color: colors.textSecondary, marginTop: 12 },
   emptySubtitle: { fontSize: 13, color: colors.textMuted, marginTop: 4, textAlign: 'center', paddingHorizontal: 40 },

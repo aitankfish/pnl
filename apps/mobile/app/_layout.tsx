@@ -7,7 +7,7 @@ import '../src/config/init'; // Must be first - polyfills + env config
 
 import { useEffect } from 'react';
 import { StatusBar } from 'expo-status-bar';
-import { Stack, usePathname } from 'expo-router';
+import { Stack, usePathname, router } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import * as Linking from 'expo-linking';
 import { SWRConfig } from 'swr';
@@ -40,21 +40,24 @@ function AppContent() {
     SplashScreen.hideAsync();
   }, []);
 
-  // Handle pnl://voice/leave deep link from Dynamic Island
+  // Handle deep links: pnl://market/[id], pnl://profile/[wallet], pnl://voice/leave
+  const handleDeepLink = (url: string | null) => {
+    if (!url) return;
+    if (url === 'pnl://voice/leave') { voiceRoom?.leave(); return; }
+    try {
+      // Parse pnl://market/abc123 → hostname='market', pathname='/abc123'
+      const parsed = new URL(url);
+      const host = parsed.hostname;
+      const path = parsed.pathname.replace(/^\//, '');
+      if (host === 'market' && path) router.push(`/market/${path}` as any);
+      else if (host === 'profile' && path) router.push(`/profile/${path}` as any);
+      else if (host === 'voice' && path) router.push({ pathname: '/voice-rooms', params: { marketAddress: path } } as any);
+    } catch {}
+  };
+
   useEffect(() => {
-    const subscription = Linking.addEventListener('url', ({ url }) => {
-      if (url === 'pnl://voice/leave') {
-        voiceRoom?.leave();
-      }
-    });
-
-    // Check initial URL (app opened via deep link)
-    Linking.getInitialURL().then((url) => {
-      if (url === 'pnl://voice/leave') {
-        voiceRoom?.leave();
-      }
-    });
-
+    const subscription = Linking.addEventListener('url', ({ url }) => handleDeepLink(url));
+    Linking.getInitialURL().then(handleDeepLink);
     return () => subscription.remove();
   }, [voiceRoom]);
 
