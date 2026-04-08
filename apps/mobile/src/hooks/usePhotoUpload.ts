@@ -1,11 +1,12 @@
 /**
- * usePhotoUpload — pick a photo and upload it directly to Pinata/IPFS.
- * Returns the IPFS gateway URL (not a local file:// URI).
+ * usePhotoUpload — pick a photo and upload via backend proxy to IPFS.
+ * The Pinata JWT never leaves the server — mobile sends to /api/upload/ipfs.
  */
 
 import { useState, useCallback } from 'react';
 import { Alert } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
+import { authenticatedFetch } from '@pnl/shared/utils';
 import { getEnvConfig } from '@pnl/shared/config';
 
 export interface PhotoResult {
@@ -53,7 +54,6 @@ export function usePhotoUpload(): UsePhotoUploadReturn {
 
       return { uri: asset.uri, name: fileName, type: mimeType };
     } catch (err) {
-      console.error('Photo picker error:', err);
       Alert.alert('Error', 'Failed to open photo picker. Please try again.');
       return null;
     }
@@ -68,51 +68,29 @@ export function usePhotoUpload(): UsePhotoUploadReturn {
         return null;
       }
 
-      const env = getEnvConfig();
-      if (!env.PINATA_JWT) {
-        Alert.alert('Upload Failed', 'IPFS upload is not configured.');
-        return null;
-      }
-
-      // Upload directly to Pinata (same approach as web)
+      // Upload via backend proxy — Pinata JWT stays on server
       const formData = new FormData();
       formData.append('file', {
         uri: photo.uri,
         name: photo.name,
         type: photo.type,
       } as any);
-      formData.append('pinataMetadata', JSON.stringify({ name: photo.name }));
-      formData.append('pinataOptions', JSON.stringify({ cidVersion: 1 }));
+      formData.append('metadata', JSON.stringify({ name: photo.name }));
 
-      // Do NOT set Content-Type manually — React Native's fetch must
-      // auto-generate it with the correct multipart boundary string.
-      const res = await fetch('https://api.pinata.cloud/pinning/pinFileToIPFS', {
+      const res = await authenticatedFetch('/api/upload/ipfs', {
         method: 'POST',
-        headers: {
-          Authorization: `Bearer ${env.PINATA_JWT}`,
-        },
         body: formData,
       });
 
-      if (!res.ok) {
-        const errorText = await res.text();
-        console.error('Pinata upload error:', res.status, errorText);
-        Alert.alert('Upload Failed', 'Could not upload photo. Try again.');
-        return null;
-      }
-
       const data = await res.json();
-      const ipfsHash = data.IpfsHash;
 
-      if (!ipfsHash) {
-        Alert.alert('Upload Failed', 'No IPFS hash returned.');
+      if (!data.success) {
+        Alert.alert('Upload Failed', data.error || 'Could not upload photo. Try again.');
         return null;
       }
 
-      // Return the gateway URL (same format web uses)
-      return `${env.PINATA_GATEWAY_URL}/ipfs/${ipfsHash}`;
+      return data.data.url;
     } catch (err) {
-      console.error('Photo upload error:', err);
       Alert.alert('Upload Failed', 'Network error. Please try again.');
       return null;
     } finally {

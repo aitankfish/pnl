@@ -44,7 +44,8 @@ interface QuoteResponse {
 }
 
 const SOL_MINT = 'So11111111111111111111111111111111111111112';
-const JUPITER_API_KEY = '5b7cc211-4f7d-4453-8ada-21e76c406d7e';
+// Jupiter API key — optional, for higher rate limits. Empty string uses free tier.
+const JUPITER_API_KEY = process.env.EXPO_PUBLIC_JUPITER_API_KEY || '';
 const BUY_CHIPS = [0.01, 0.1, 0.5];
 const SELL_CHIPS = [25, 50, 100]; // percentages
 
@@ -125,7 +126,7 @@ export const TradeSheet = forwardRef<GorhomBottomSheet, TradeSheetProps>(
         const amountInSmallestUnit = Math.floor(parseFloat(amount) * Math.pow(10, inputDecimals));
         const res = await fetch(
           `https://api.jup.ag/swap/v1/quote?inputMint=${inputMintAddr}&outputMint=${outputMintAddr}&amount=${amountInSmallestUnit}&slippageBps=${slippageBps}`,
-          { headers: { 'Accept': 'application/json', 'x-api-key': JUPITER_API_KEY } },
+          { headers: { 'Accept': 'application/json', ...(JUPITER_API_KEY ? { 'x-api-key': JUPITER_API_KEY } : {}) } },
         );
 
         if (!res.ok) throw new Error(`Jupiter API error: ${res.status}`);
@@ -170,7 +171,7 @@ export const TradeSheet = forwardRef<GorhomBottomSheet, TradeSheetProps>(
 
         const swapRes = await fetch('https://api.jup.ag/swap/v1/swap', {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json', 'x-api-key': JUPITER_API_KEY },
+          headers: { 'Content-Type': 'application/json', ...(JUPITER_API_KEY ? { 'x-api-key': JUPITER_API_KEY } : {}) },
           body: JSON.stringify({
             quoteResponse: quote,
             userPublicKey: walletAddress,
