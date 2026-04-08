@@ -17,8 +17,8 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { getVoteButtonStates, getMarketDisplayStatus } from '@/lib/api-utils';
 import { useWallet } from '@/hooks/useWallet';
 
-// SWR fetcher
-const fetcher = (url: string) => fetch(url).then(res => res.json());
+// SWR fetcher — uses authFetch so read endpoints also send Bearer token
+const fetcher = (url: string) => authFetch(url).then(res => res.json());
 
 interface Market {
   id: string;

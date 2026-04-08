@@ -118,6 +118,35 @@ export default function ProfileScreen() {
   const [isEditing, setIsEditing] = useState(false);
   const [editBio, setEditBio] = useState('');
   const [refreshing, setRefreshing] = useState(false);
+  const [tokenSortBy, setTokenSortBy] = useState<'value' | 'name' | 'change'>('value');
+  const [hideDust, setHideDust] = useState(false);
+
+  // Sorted/filtered token list
+  const displayTokens = useMemo(() => {
+    let result = [...tokens];
+    if (hideDust) {
+      result = result.filter((token) => {
+        const stat = tokenStats.get(token.mint);
+        const usd = stat?.price ? token.uiAmount * stat.price : null;
+        return usd === null || usd >= 0.01;
+      });
+    }
+    result.sort((a, b) => {
+      if (tokenSortBy === 'value') {
+        const aUsd = (tokenStats.get(a.mint)?.price ?? 0) * a.uiAmount;
+        const bUsd = (tokenStats.get(b.mint)?.price ?? 0) * b.uiAmount;
+        return bUsd - aUsd;
+      }
+      if (tokenSortBy === 'name') return (a.symbol || '').localeCompare(b.symbol || '');
+      if (tokenSortBy === 'change') {
+        const aChange = tokenStats.get(a.mint)?.priceChange24h ?? 0;
+        const bChange = tokenStats.get(b.mint)?.priceChange24h ?? 0;
+        return bChange - aChange;
+      }
+      return 0;
+    });
+    return result;
+  }, [tokens, tokenStats, tokenSortBy, hideDust]);
 
   // Show setup modal when profile needs setup
   const shouldShowSetup = isAuthenticated && needsSetup && !profileLoading;
@@ -465,7 +494,30 @@ export default function ProfileScreen() {
             )}
 
             {/* ─── Token List ─── */}
-            <SectionHeader title="Your Tokens" count={tokens.length + 1} />
+            <SectionHeader title="Your Tokens" count={displayTokens.length + 1} />
+
+            {/* Sort/filter row */}
+            <View style={styles.tokenSortRow}>
+              {(['value', 'name', 'change'] as const).map((opt) => (
+                <Pressable
+                  key={opt}
+                  onPress={() => setTokenSortBy(opt)}
+                  style={[styles.tokenSortChip, tokenSortBy === opt && styles.tokenSortChipActive]}
+                >
+                  <Text style={[styles.tokenSortText, tokenSortBy === opt && styles.tokenSortTextActive]}>
+                    {opt === 'value' ? 'Value' : opt === 'name' ? 'A-Z' : '24h%'}
+                  </Text>
+                </Pressable>
+              ))}
+              <Pressable
+                onPress={() => setHideDust((v) => !v)}
+                style={[styles.tokenSortChip, hideDust && styles.tokenSortChipActive]}
+              >
+                <Text style={[styles.tokenSortText, hideDust && styles.tokenSortTextActive]}>
+                  Hide dust
+                </Text>
+              </Pressable>
+            </View>
 
             {/* SOL row */}
             <PressableScale
@@ -497,7 +549,7 @@ export default function ProfileScreen() {
                 <Text style={styles.loadingRowText}>Loading tokens...</Text>
               </View>
             ) : (
-              tokens.map((token) => {
+              displayTokens.map((token) => {
                 const stat = tokenStats.get(token.mint);
                 const tokenUsd = stat?.price ? token.uiAmount * stat.price : null;
                 const change = stat?.priceChange24h;
@@ -935,6 +987,32 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: '700',
     color: '#f59e0b',
+  },
+  tokenSortRow: {
+    flexDirection: 'row',
+    gap: 6,
+    paddingHorizontal: spacing.md,
+    marginBottom: spacing.sm,
+  },
+  tokenSortChip: {
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 14,
+    backgroundColor: 'rgba(255,255,255,0.04)',
+    borderWidth: 1,
+    borderColor: 'transparent',
+  },
+  tokenSortChipActive: {
+    borderColor: colors.primary,
+    backgroundColor: 'rgba(129,140,248,0.12)',
+  },
+  tokenSortText: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: colors.textMuted,
+  },
+  tokenSortTextActive: {
+    color: colors.primary,
   },
   actionsRow: {
     flexDirection: 'row',

@@ -232,14 +232,42 @@ export function useCreateMarket() {
     setHasDraft(false);
   }, []);
 
+  // ── Real-time field validation ────────────────────────────────────────
+
+  const validateField = useCallback(
+    (key: string, value: string): string | undefined => {
+      switch (key) {
+        case 'name':
+          if (!value.trim()) return 'Project name is required';
+          if (new TextEncoder().encode(value).length > 32) return 'Name must be 32 bytes or less';
+          return undefined;
+        case 'description':
+          if (!value.trim()) return 'Description is required';
+          return undefined;
+        case 'tokenSymbol':
+          if (!value.trim()) return 'Token symbol is required';
+          if (value.length < 3 || value.length > 10) return '3-10 characters';
+          if (!/^[A-Z0-9]+$/.test(value)) return 'Uppercase letters and numbers only';
+          return undefined;
+        case 'teamSize':
+          if (value && parseInt(value, 10) < 1) return 'Must be at least 1';
+          return undefined;
+        default:
+          return undefined;
+      }
+    },
+    [],
+  );
+
   // ── Field Updaters ───────────────────────────────────────────────────
 
   const updateField = useCallback(
     (key: keyof Omit<CreateMarketForm, 'socialLinks'>, value: string) => {
       setForm((prev) => ({ ...prev, [key]: value }));
-      if (errors[key]) setErrors((prev) => ({ ...prev, [key]: undefined }));
+      const fieldError = validateField(key, value);
+      setErrors((prev) => ({ ...prev, [key]: fieldError }));
     },
-    [errors],
+    [validateField],
   );
 
   const updateSocialLink = useCallback(
