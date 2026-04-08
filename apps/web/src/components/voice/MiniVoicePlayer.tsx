@@ -1,0 +1,245 @@
+'use client';
+
+import React, { useState, useEffect, useRef } from 'react';
+import { authFetch } from '@/lib/auth/fetch-with-auth';
+import { usePathname } from 'next/navigation';
+import { Mic, MicOff, PhoneOff, Users, Maximize2 } from 'lucide-react';
+import { useVoiceRoomContextSafe, REACTION_EMOJIS } from '@/lib/context/VoiceRoomContext';
+import Link from 'next/link';
+
+interface ProfileData {
+  username?: string;
+  profilePhotoUrl?: string;
+}
+
+// Check if string looks like a valid Solana wallet address (base58, 32-44 chars)
+const isValidWalletAddress = (str: string): boolean => {
+  return str.length >= 32 && str.length <= 44 && /^[1-9A-HJ-NP-Za-km-z]+$/.test(str);
+};
+
+export default function MiniVoicePlayer() {
+  // ALL HOOKS MUST BE AT THE TOP - before any conditional returns
+  const voiceRoom = useVoiceRoomContextSafe();
+  const pathname = usePathname();
+  const [profiles, setProfiles] = useState<Record<string, ProfileData>>({});
+  const isMountedRef = useRef(true);
+
+  // Extract values safely (these may be undefined if voiceRoom is null)
+  const isConnected = voiceRoom?.isConnected ?? false;
+  const marketId = voiceRoom?.marketId ?? null;
+  const marketName = voiceRoom?.marketName ?? '';
+  const walletAddress = voiceRoom?.walletAddress ?? null;
+  const participants = voiceRoom?.participants ?? [];
+  const isMuted = voiceRoom?.isMuted ?? true;
+  const isSpeaking = voiceRoom?.isSpeaking ?? false;
+  const roomTitle = voiceRoom?.roomTitle ?? '';
+  const isReconnecting = voiceRoom?.isReconnecting ?? false;
+  const reconnectAttempts = voiceRoom?.reconnectAttempts ?? 0;
+
+  // Fetch profiles for participants - HOOK MUST BE BEFORE CONDITIONAL RETURNS
+  useEffect(() => {
+    isMountedRef.current = true;
+
+    const fetchProfiles = async () => {
+      // Don't fetch if not connected or no wallet
+      if (!isConnected || !walletAddress) return;
+
+      const walletsToFetch: string[] = [];
+
+      // Add self wallet
+      if (walletAddress && !profiles[walletAddress]) {
+        walletsToFetch.push(walletAddress);
+      }
+
+      // Add participant wallets
+      participants.slice(0, 4).forEach(p => {
+        if (!profiles[p.peerId]) {
+          walletsToFetch.push(p.peerId);
+        }
+      });
+
+      if (walletsToFetch.length === 0) return;
+
+      try {
+        const response = await authFetch('/api/profiles/batch', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ wallets: walletsToFetch }),
+        });
+
+        if (response.ok && isMountedRef.current) {
+          const data = await response.json();
+          if (data.success && data.data && isMountedRef.current) {
+            setProfiles(prev => ({ ...prev, ...data.data }));
+          }
+        }
+      } catch (error) {
+        console.error('Failed to fetch profiles:', error);
+      }
+    };
+
+    fetchProfiles();
+
+    return () => {
+      isMountedRef.current = false;
+    };
+  }, [isConnected, participants, walletAddress]);
+
+  // NOW we can do conditional returns - AFTER all hooks
+  // Don't render if no voice room context or not connected
+  if (!voiceRoom || !isConnected) {
+    return null;
+  }
+
+  // Check if we're on the market page for this room
+  const isOnRoomPage = pathname?.startsWith('/market/') &&
+    marketId &&
+    pathname.toLowerCase().includes(marketId.toLowerCase());
+
+  // On mobile (md and below), ALWAYS show mini player even when on market page
+  // This allows users to minimize the voice room sidebar and still see the mini player
+  // On desktop (lg and above), hide when on market page since full voice room is visible
+  // We use CSS to handle this: show on mobile, hide on desktop when on market page
+  const hideOnDesktopWhenOnPage = isOnRoomPage;
+
+  const selfProfile = walletAddress ? profiles[walletAddress] : null;
+
+  return (
+    <div className={`fixed bottom-4 left-4 right-4 md:left-auto md:right-4 md:w-80 z-50 animate-slide-up ${hideOnDesktopWhenOnPage ? 'lg:hidden' : ''}`}>
+      <div className="bg-gray-900/95 backdrop-blur-lg border border-white/10 rounded-2xl shadow-2xl overflow-hidden">
+        {/* Reconnecting banner */}
+        {isReconnecting && (
+          <div className="bg-yellow-500/90 px-3 py-1.5 text-center">
+            <span className="text-xs text-black font-medium">
+              Reconnecting... ({reconnectAttempts}/5)
+            </span>
+          </div>
+        )}
+
+        {/* Main content */}
+        <div className="p-3">
+          {/* Header with room info */}
+          <div className="flex items-center justify-between mb-3">
+            <div className="flex items-center gap-2 min-w-0 flex-1">
+              <div className="w-2 h-2 rounded-full bg-green-400 animate-pulse flex-shrink-0" />
+              <div className="min-w-0 flex-1">
+                <p className="text-sm font-medium text-white truncate">
+                  {roomTitle || marketName || 'Voice Room'}
+                </p>
+                <div className="flex items-center gap-1 text-xs text-gray-400">
+                  <Users className="w-3 h-3" />
+                  <span>{participants.length + 1} listening</span>
+                </div>
+              </div>
+            </div>
+
+            {/* Expand button */}
+            <Link
+              href={`/market/${marketId}`}
+              className="p-2 rounded-lg bg-white/5 hover:bg-white/10 text-gray-400 hover:text-white transition-all"
+              title="Open full room"
+            >
+              <Maximize2 className="w-4 h-4" />
+            </Link>
+          </div>
+
+          {/* Participant avatars */}
+          <div className="flex items-center gap-1 mb-3 overflow-hidden">
+            {/* Self */}
+            <div
+              className={`w-8 h-8 rounded-full flex items-center justify-center text-white text-xs font-bold flex-shrink-0 overflow-hidden ${
+                isSpeaking ? 'ring-2 ring-green-400 ring-offset-1 ring-offset-gray-900' : ''
+              } bg-gradient-to-br from-cyan-500 to-purple-500`}
+            >
+              {selfProfile?.profilePhotoUrl ? (
+                <img src={selfProfile.profilePhotoUrl} alt="You" className="w-full h-full object-cover" />
+              ) : (
+                'You'
+              )}
+            </div>
+
+            {/* Other participants (show up to 4) */}
+            {participants.slice(0, 4).map((p) => {
+              const pProfile = profiles[p.peerId];
+              const pInitials = pProfile?.username?.slice(0, 2).toUpperCase() || p.peerId.slice(0, 2).toUpperCase();
+              const pName = pProfile?.username || `${p.peerId.slice(0, 4)}...${p.peerId.slice(-4)}`;
+              const canLink = isValidWalletAddress(p.peerId);
+
+              const avatarContent = (
+                <>
+                  {pProfile?.profilePhotoUrl ? (
+                    <img src={pProfile.profilePhotoUrl} alt={pProfile.username || 'Participant'} className="w-full h-full object-cover" />
+                  ) : (
+                    pInitials
+                  )}
+                </>
+              );
+
+              const avatarClasses = `w-8 h-8 rounded-full flex items-center justify-center text-white text-xs font-bold flex-shrink-0 overflow-hidden ${
+                p.isSpeaking ? 'ring-2 ring-green-400 ring-offset-1 ring-offset-gray-900' : ''
+              } bg-gradient-to-br from-gray-600 to-gray-700`;
+
+              return canLink ? (
+                <Link
+                  key={p.peerId}
+                  href={`/profile/${p.peerId}`}
+                  className={`${avatarClasses} hover:opacity-80 transition-opacity`}
+                  title={`View ${pName}'s profile`}
+                >
+                  {avatarContent}
+                </Link>
+              ) : (
+                <div key={p.peerId} className={avatarClasses}>
+                  {avatarContent}
+                </div>
+              );
+            })}
+
+            {/* More indicator */}
+            {participants.length > 4 && (
+              <div className="w-8 h-8 rounded-full flex items-center justify-center text-xs text-gray-400 bg-gray-800 flex-shrink-0">
+                +{participants.length - 4}
+              </div>
+            )}
+          </div>
+
+          {/* Quick reactions */}
+          <div className="flex items-center gap-1 mb-3">
+            {REACTION_EMOJIS.slice(0, 4).map((emoji) => (
+              <button
+                key={emoji}
+                onClick={() => voiceRoom.sendReaction(emoji)}
+                className="p-1.5 rounded-lg hover:bg-white/10 active:scale-90 transition-all"
+              >
+                <span className="text-sm">{emoji}</span>
+              </button>
+            ))}
+          </div>
+
+          {/* Controls */}
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => voiceRoom.toggleMute()}
+              className={`flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl font-medium text-sm transition-all ${
+                isMuted
+                  ? 'bg-white/10 hover:bg-white/20 text-white'
+                  : 'bg-green-500 hover:bg-green-600 text-white'
+              }`}
+            >
+              {isMuted ? <MicOff className="w-4 h-4" /> : <Mic className="w-4 h-4" />}
+              {isMuted ? 'Unmute' : 'Mute'}
+            </button>
+
+            <button
+              onClick={() => voiceRoom.leave()}
+              className="flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-red-500/20 hover:bg-red-500/30 text-red-400 font-medium text-sm transition-all"
+            >
+              <PhoneOff className="w-4 h-4" />
+              Leave
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}

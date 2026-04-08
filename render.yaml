@@ -4,8 +4,8 @@ services:
     runtime: node
     region: oregon
     plan: free
-    rootDir: plp-platform
-    buildCommand: npm install --legacy-peer-deps && npm run build
+    rootDir: apps/web
+    buildCommand: cd ../.. && npm install -g pnpm && pnpm install && pnpm build:web
     startCommand: npm start
     envVars:
       - key: NODE_VERSION

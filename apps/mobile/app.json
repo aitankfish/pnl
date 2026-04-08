@@ -1,0 +1,76 @@
+{
+  "expo": {
+    "name": "PNL",
+    "slug": "pnl",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "scheme": "pnl",
+    "userInterfaceStyle": "dark",
+    "splash": {
+      "image": "./assets/splash.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#0a0e1a"
+    },
+    "assetBundlePatterns": [
+      "**/*"
+    ],
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.pnl.app",
+      "infoPlist": {
+        "LSApplicationQueriesSchemes": [
+          "phantom",
+          "solflare",
+          "backpack"
+        ],
+        "NSAppTransportSecurity": {
+          "NSAllowsLocalNetworking": true
+        },
+        "NSCameraUsageDescription": "PNL needs camera access to record pitch videos",
+        "NSMicrophoneUsageDescription": "PNL needs microphone access to join voice rooms",
+        "NSPhotoLibraryUsageDescription": "PNL needs photo library access to upload project images and avatars",
+        "UIBackgroundModes": ["audio"],
+        "NSSupportsLiveActivities": true,
+        "NSSupportsLiveActivitiesFrequentUpdates": true
+      }
+    },
+    "android": {
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/adaptive-icon.png",
+        "backgroundColor": "#0a0e1a"
+      },
+      "package": "com.pnl.app",
+      "permissions": [
+        "RECORD_AUDIO",
+        "MODIFY_AUDIO_SETTINGS",
+        "CAMERA",
+        "READ_EXTERNAL_STORAGE",
+        "WRITE_EXTERNAL_STORAGE",
+        "READ_MEDIA_IMAGES"
+      ]
+    },
+    "web": {
+      "bundler": "metro",
+      "output": "static",
+      "favicon": "./assets/favicon.png"
+    },
+    "plugins": [
+      "expo-router",
+      "expo-secure-store",
+      "expo-font",
+      "expo-web-browser",
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "PNL needs photo library access to upload project images and avatars",
+          "cameraPermission": "PNL needs camera access to record pitch videos"
+        }
+      ],
+      "./plugins/withLiveActivity"
+    ],
+    "experiments": {
+      "typedRoutes": true
+    }
+  }
+}

@@ -1,0 +1,453 @@
+{
+  "address": "D1UuFTcsRSNHMEgF9UT4ae6BuVVrUj1VqQvZKjHs4CKS",
+  "metadata": {
+    "name": "errors",
+    "version": "0.1.0",
+    "spec": "0.1.0",
+    "description": "PLP Prediction Market Program"
+  },
+  "instructions": [
+    {
+      "name": "initTreasury",
+      "discriminator": [
+        10,
+        11,
+        12,
+        13,
+        14,
+        15,
+        16,
+        17
+      ],
+      "accounts": [
+        {
+          "name": "treasury"
+        },
+        {
+          "name": "admin"
+        },
+        {
+          "name": "systemProgram"
+        }
+      ],
+      "args": []
+    },
+    {
+      "name": "createMarket",
+      "discriminator": [
+        20,
+        21,
+        22,
+        23,
+        24,
+        25,
+        26,
+        27
+      ],
+      "accounts": [
+        {
+          "name": "market"
+        },
+        {
+          "name": "founder"
+        },
+        {
+          "name": "treasury"
+        },
+        {
+          "name": "systemProgram"
+        }
+      ],
+      "args": [
+        {
+          "name": "ipfsCid",
+          "type": "string"
+        },
+        {
+          "name": "targetPool",
+          "type": "u64"
+        },
+        {
+          "name": "expiryTime",
+          "type": "i64"
+        },
+        {
+          "name": "metadataUri",
+          "type": "string"
+        }
+      ]
+    },
+    {
+      "name": "buyYes",
+      "discriminator": [
+        30,
+        31,
+        32,
+        33,
+        34,
+        35,
+        36,
+        37
+      ],
+      "accounts": [
+        {
+          "name": "market"
+        },
+        {
+          "name": "position"
+        },
+        {
+          "name": "user"
+        },
+        {
+          "name": "treasury"
+        },
+        {
+          "name": "systemProgram"
+        }
+      ],
+      "args": [
+        {
+          "name": "solAmount",
+          "type": "u64"
+        }
+      ]
+    },
+    {
+      "name": "buyNo",
+      "discriminator": [
+        40,
+        41,
+        42,
+        43,
+        44,
+        45,
+        46,
+        47
+      ],
+      "accounts": [
+        {
+          "name": "market"
+        },
+        {
+          "name": "position"
+        },
+        {
+          "name": "user"
+        },
+        {
+          "name": "treasury"
+        },
+        {
+          "name": "systemProgram"
+        }
+      ],
+      "args": [
+        {
+          "name": "solAmount",
+          "type": "u64"
+        }
+      ]
+    },
+    {
+      "name": "resolveMarket",
+      "discriminator": [
+        50,
+        51,
+        52,
+        53,
+        54,
+        55,
+        56,
+        57
+      ],
+      "accounts": [
+        {
+          "name": "market"
+        },
+        {
+          "name": "founder"
+        },
+        {
+          "name": "treasury"
+        },
+        {
+          "name": "systemProgram"
+        }
+      ],
+      "args": []
+    },
+    {
+      "name": "claimRewards",
+      "discriminator": [
+        60,
+        61,
+        62,
+        63,
+        64,
+        65,
+        66,
+        67
+      ],
+      "accounts": [
+        {
+          "name": "market"
+        },
+        {
+          "name": "position"
+        },
+        {
+          "name": "user"
+        },
+        {
+          "name": "systemProgram"
+        }
+      ],
+      "args": []
+    },
+    {
+      "name": "setAdmin",
+      "discriminator": [
+        70,
+        71,
+        72,
+        73,
+        74,
+        75,
+        76,
+        77
+      ],
+      "accounts": [
+        {
+          "name": "treasury"
+        },
+        {
+          "name": "admin"
+        },
+        {
+          "name": "newAdmin"
+        }
+      ],
+      "args": []
+    },
+    {
+      "name": "withdrawFees",
+      "discriminator": [
+        80,
+        81,
+        82,
+        83,
+        84,
+        85,
+        86,
+        87
+      ],
+      "accounts": [
+        {
+          "name": "treasury"
+        },
+        {
+          "name": "admin"
+        }
+      ],
+      "args": [
+        {
+          "name": "amount",
+          "type": "u64"
+        }
+      ]
+    },
+    {
+      "name": "closePosition",
+      "discriminator": [
+        90,
+        91,
+        92,
+        93,
+        94,
+        95,
+        96,
+        97
+      ],
+      "accounts": [
+        {
+          "name": "market"
+        },
+        {
+          "name": "position"
+        },
+        {
+          "name": "user"
+        }
+      ],
+      "args": []
+    },
+    {
+      "name": "closeMarket",
+      "discriminator": [
+        100,
+        101,
+        102,
+        103,
+        104,
+        105,
+        106,
+        107
+      ],
+      "accounts": [
+        {
+          "name": "market"
+        },
+        {
+          "name": "founder"
+        }
+      ],
+      "args": []
+    }
+  ],
+  "accounts": [
+    {
+      "name": "market",
+      "discriminator": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7
+      ]
+    },
+    {
+      "name": "position",
+      "discriminator": [
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8
+      ]
+    },
+    {
+      "name": "treasury",
+      "discriminator": [
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8,
+        9
+      ]
+    }
+  ],
+  "errors": [
+    {
+      "code": 6000,
+      "name": "Unauthorized",
+      "msg": "Unauthorized"
+    },
+    {
+      "code": 6001,
+      "name": "MarketExpired",
+      "msg": "Market has expired"
+    },
+    {
+      "code": 6002,
+      "name": "MarketNotExpired",
+      "msg": "Market has not expired yet"
+    },
+    {
+      "code": 6003,
+      "name": "InvalidTargetPool",
+      "msg": "Invalid target pool amount"
+    },
+    {
+      "code": 6004,
+      "name": "InsufficientFunds",
+      "msg": "Insufficient funds"
+    },
+    {
+      "code": 6005,
+      "name": "AlreadyResolved",
+      "msg": "Market already resolved"
+    },
+    {
+      "code": 6006,
+      "name": "NotResolved",
+      "msg": "Market not yet resolved"
+    },
+    {
+      "code": 6007,
+      "name": "AlreadyClaimed",
+      "msg": "Rewards already claimed"
+    },
+    {
+      "code": 6008,
+      "name": "NoRewardsToClaim",
+      "msg": "No rewards to claim"
+    },
+    {
+      "code": 6009,
+      "name": "InvalidAmount",
+      "msg": "Invalid amount"
+    },
+    {
+      "code": 6010,
+      "name": "CalculationError",
+      "msg": "Calculation error in LMSR"
+    },
+    {
+      "code": 6011,
+      "name": "AlreadyHasPosition",
+      "msg": "User already has opposite position"
+    },
+    {
+      "code": 6012,
+      "name": "MinimumInvestmentNotMet",
+      "msg": "Minimum investment not met"
+    },
+    {
+      "code": 6013,
+      "name": "CannotClosePosition",
+      "msg": "Cannot close position - must claim rewards first or wait for refund state"
+    },
+    {
+      "code": 6014,
+      "name": "ClaimPeriodNotOver",
+      "msg": "Cannot close market - claim period has not ended yet (30 days after expiry)"
+    },
+    {
+      "code": 6015,
+      "name": "PoolNotEmpty",
+      "msg": "Cannot close market - pool still has unclaimed funds"
+    }
+  ],
+  "types": [
+    {
+      "name": "MarketResolution",
+      "type": {
+        "kind": "enum",
+        "variants": [
+          {
+            "name": "Unresolved"
+          },
+          {
+            "name": "YesWins"
+          },
+          {
+            "name": "NoWins"
+          },
+          {
+            "name": "Refund"
+          }
+        ]
+      }
+    }
+  ]
+}

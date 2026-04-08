@@ -6,27 +6,29 @@
 
 ## Slide 1 — AI. *(10 sec)*
 
-> You recognize these. ChatGPT, Claude, Grok, Gemini.
+> You recognize these. ChatGPT, Claude, Grok, Gemini, Copilot, OpenClaw.
 >
 > **AI.** The biggest shift in how work gets done since the internet.
 
 ---
 
-## Slide 2 — AI is replacing work *(25 sec)*
+## Slide 2 — AI is replacing work *(30 sec)*
 
-> This is data from Andrej Karpathy, co-founder of OpenAI. He ranked 342 jobs by AI exposure.
+> On the left — this is Andrej Karpathy's data, co-founder of OpenAI. He scored 342 jobs by AI exposure. Developers, lawyers, financial analysts — all scoring 8 or 9 out of 10. 57 million Americans at high risk.
 >
-> Medical transcription — fully replaceable. Software developers, lawyers, financial analysts — all scoring 8 or 9 out of 10. 57 million Americans at high risk. The highest-paying jobs are the *most* exposed.
+> In the middle — it's already happening. Block, Salesforce, Amazon, Microsoft — all cutting thousands. 56,000 tech layoffs in 2026 so far. 20% explicitly cite AI.
 >
-> When people can't find work, they do the only thing left. **They build.**
+> And on the right — the result. New business applications just hit an all-time record. 5.6 million in 2025. 24% cite job loss as their reason.
+>
+> Every recession, every wave of layoffs — startup creation spikes. **The pattern is clear. Layoffs spike, people build.**
 
 ---
 
-## Slide 3 — Who funds them? *(25 sec)*
+## Slide 3 — Who funds them? *(20 sec)*
 
 > Billions will try to build. Who funds them?
 >
-> Less than 1% of startups get VC funding. About 5,000 a year in the US. That's it. Millions of ideas funneled through a bottleneck built for a different era — if you don't have the right network or zip code, you get nothing.
+> Less than 1% get VC funding. About 5,000 a year in the US. Millions of ideas funneled through a bottleneck — if you don't have the right network or zip code, you get nothing.
 >
 > **The funding system needs a new rail.**
 
@@ -36,9 +38,9 @@
 
 > The building blocks already exist.
 >
-> **Blockchain** — global money rails. No banks, no borders, open 24/7.
+> **Blockchain** — global money rails. No banks, no borders.
 >
-> **Conviction markets** — people put real money behind what they believe in. When money meets belief, truth emerges.
+> **Prediction markets** — vote with real money, better than any expert. Polymarket proved it.
 >
 > **Token trading** — every trade generates fees. Pump.fun did $500 million in one year.
 >
@@ -46,15 +48,7 @@
 
 ---
 
-## Slide 5 — PNL Reveal *(10 sec)*
-
-> **PNL — Predict and Launch.**
->
-> Pitch your idea. Let the market decide. Not gatekept like VCs. Not lawless like scam launchpads. **Merit wins.**
-
----
-
-## Slide 6 — Two sides, one platform *(15 sec)*
+## Slide 5 — Two sides, one platform *(15 sec)*
 
 > PNL connects two sides. **Founders** — anyone with an idea, any country, post a pitch for two dollars. **Traders** — a global community that votes with real money and trades 24/7.
 >
@@ -62,31 +56,39 @@
 
 ---
 
-## Slide 7 — How founders raise money *(30 sec)*
+## Slide 6 — PNL Reveal *(10 sec)*
+
+> **PNL — Predict and Launch.**
+>
+> Pitch your idea. Let the market decide. Not gatekept like VCs. Not lawless like scam launchpads. **Merit wins.**
+
+---
+
+## Slide 7 — How founders raise money *(25 sec)*
 
 > How does a founder make money on PNL?
 >
-> You pitch your idea — costs two dollars. The crowd votes YES or NO with real money. If YES wins, a token for your project is created and listed for trading. And here's the key — **every trade on your token generates fees that go directly to your wallet.**
+> You pitch your idea — two dollars. The crowd votes YES or NO with real money. If YES wins, a token for your project is created and listed for trading. And here's the key — **every trade on your token generates fees that go directly to your wallet.**
 >
-> At $100K daily volume, that's $1,500 a day. At a million? $15,000 a day. No dilution. No pitch meetings. **Trading volume is your fundraise.**
+> $100K daily volume? $1,500 a day. A million? $15,000 a day. **Trading volume is your fundraise.**
 
 ---
 
 ## Slide 8 — How everyone makes money *(15 sec)*
 
-> Not just founders. **Supporters** who vote YES and are right get 65% of the launched token. Vote NO and you're right? You split the losing pool.
+> Not just founders. **Supporters** who vote YES and are right get 65% of the launched token — split among all YES voters. Vote NO and you're right? You split the losing pool.
 >
 > **PNL** earns fees on every vote, every launch, every trade. Everyone is aligned. **Quality wins.**
 
 ---
 
-## Slide 9 — Follow the money + Revenue *(30 sec)*
+## Slide 9 — Follow the money + Revenue *(25 sec)*
 
-> One project, thousand dollar pool. $2 creation fee, $15 in voting fees, $50 completion fee, 2% token supply. **PNL earns $67 per project, plus tokens.**
+> One project, thousand dollar pool. $2 creation fee, $15 voting fees, $50 completion fee, 2% token supply. **PNL earns $67 per project, plus tokens.**
 >
-> Now multiply. 100 projects a month — $52K a year. A thousand — $1.5 million. Ten thousand — $15.5 million.
+> Multiply that. 100 projects a month — $52K a year. A thousand — $1.5 million. Ten thousand — $15.5 million.
 >
-> For context — pump.fun, which is 98% scams, hit 70,000 launches per day. Our 10K per month is half a percent of their peak. **Conservative math.**
+> Pump.fun hit 70,000 launches per day. Our 10K per month is half a percent of their peak. **Conservative math.**
 
 ---
 
@@ -100,13 +102,13 @@
 
 ## Slide 11 — Ask + Roadmap *(30 sec)*
 
-> This is already built and live. Platform on mainnet, web app, mobile in dev, AI analysis, voice rooms, auto-launch.
+> This is already built and live. Platform on mainnet, web app, mobile in dev, AI analysis, voice rooms, auto-launch. 35 connected users — pre-launch, no marketing spend yet.
 >
-> We've spent roughly **$100K to get here** — developer time across three engineers, Solana infrastructure like Helius and QuickNode, hosting on Render and MongoDB Atlas, AI services, user onboarding through hackathons, mobile development, and patent prep. That's real spend, building a live product.
+> We're raising **$1 million at a $10 million valuation**. Capital goes to founder onboarding, seeding the first 50 projects, trader acquisition, and mobile launch.
 >
-> In competitive markets, platforms like this trade at **10x what's been put in**. That gives us a **$10 million valuation**. We're raising **$1 million** — that's 9.1%. Year 5 revenue at $15.5 million, 6x multiple — company worth $93 million. Your stake: **$8.5 million. An 8.5x return.**
+> $1M gets you 9.1%. Year 5 revenue at $15.5 million, 10x multiple — your stake is worth **$14.1 million. A 14x return.**
 >
-> 2026 — launch, mobile, file patent. 2027 — AI agents and conviction markets. 2028 — multi-vertical expansion. Beyond — PNL becomes the oracle every launchpad and AI agent queries.
+> 2026 — launch, mobile, file patent. 2027 — AI agents and conviction markets. 2028 — multi-vertical. And the platform is structured as prediction markets, not securities — similar to how Polymarket operates.
 
 ---
 
@@ -130,5 +132,4 @@
 
 **Total: ~4:50 — leaves 10 sec buffer for pauses**
 
-*Let the slides breathe. Pause after big numbers. The visuals do half the work — you just connect the dots.*
-i
+*Let the slides breathe. Pause after big numbers. Point at the three columns on slide 2 as you walk through them left to right. The visuals do half the work — you just connect the dots.*
