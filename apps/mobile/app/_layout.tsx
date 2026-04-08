@@ -5,9 +5,11 @@
 
 import '../src/config/init'; // Must be first - polyfills + env config
 
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
+import { View, Text } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { Stack, usePathname, router } from 'expo-router';
+import NetInfo from '@react-native-community/netinfo';
 import * as SplashScreen from 'expo-splash-screen';
 import * as Linking from 'expo-linking';
 import { SWRConfig } from 'swr';
@@ -23,6 +25,31 @@ import { StarField } from '../src/components';
 import { MiniVoiceBar } from '../src/components/community';
 
 SplashScreen.preventAutoHideAsync();
+
+function OfflineBanner() {
+  const [isOffline, setIsOffline] = useState(false);
+
+  useEffect(() => {
+    const unsubscribe = NetInfo.addEventListener((state) => {
+      setIsOffline(!(state.isConnected && state.isInternetReachable !== false));
+    });
+    return () => unsubscribe();
+  }, []);
+
+  if (!isOffline) return null;
+
+  return (
+    <View style={{
+      position: 'absolute', top: 0, left: 0, right: 0, zIndex: 9999,
+      backgroundColor: '#ef4444', paddingTop: 54, paddingBottom: 6,
+      alignItems: 'center',
+    }}>
+      <Text style={{ color: '#fff', fontSize: 12, fontWeight: '600' }}>
+        No internet connection
+      </Text>
+    </View>
+  );
+}
 
 function AppContent() {
   const pathname = usePathname();
@@ -108,6 +135,7 @@ function AppContent() {
 export default function RootLayout() {
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
+      <OfflineBanner />
       <PrivyProvider
         appId={PRIVY_APP_ID}
         clientId={PRIVY_CLIENT_ID}
