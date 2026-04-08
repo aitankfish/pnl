@@ -82,7 +82,7 @@ function SpeakerAvatar({
 
   const avatarContent = (
     <div
-      className={`w-14 h-14 rounded-full flex items-center justify-center text-white font-bold text-sm transition-all overflow-hidden ${
+      className={`w-10 h-10 sm:w-14 sm:h-14 rounded-full flex items-center justify-center text-white font-bold text-xs sm:text-sm transition-all overflow-hidden ${
         isSelf
           ? 'bg-gradient-to-br from-cyan-500 to-purple-500'
           : isFounder
@@ -101,7 +101,7 @@ function SpeakerAvatar({
   );
 
   return (
-    <div className="flex flex-col items-center gap-1.5 w-20 relative">
+    <div className="flex flex-col items-center gap-1 sm:gap-1.5 w-16 sm:w-20 relative">
       {/* Avatar with speaking indicator */}
       <div className="relative">
         {isSelf ? (
@@ -624,7 +624,7 @@ export default function VoiceRoom({
           <p className="text-xs text-gray-500 mb-2 flex items-center gap-1">
             <Mic className="w-3 h-3" /> Speakers ({isSpeaker ? speakers.length + 1 : speakers.length}/{MAX_SPEAKERS})
           </p>
-          <div className="flex flex-wrap justify-center gap-4">
+          <div className="flex flex-wrap justify-center gap-2 sm:gap-4">
             {/* Self - only show in speakers if isSpeaker */}
             {isSpeaker && walletAddress && (
               <SpeakerAvatar
@@ -778,7 +778,7 @@ export default function VoiceRoom({
       </div>
 
       {/* Controls */}
-      <div className="flex items-center justify-center gap-3 p-4 border-t border-white/5">
+      <div className="flex items-center justify-center gap-2 p-2 sm:gap-3 sm:p-4 border-t border-white/5">
         <button
           onClick={toggleMute}
           className={`p-4 rounded-full transition-all ${
@@ -788,7 +788,7 @@ export default function VoiceRoom({
           }`}
           title={isMuted ? 'Unmute' : 'Mute'}
         >
-          {isMuted ? <MicOff className="w-6 h-6" /> : <Mic className="w-6 h-6" />}
+          {isMuted ? <MicOff className="w-5 h-5 sm:w-6 sm:h-6" /> : <Mic className="w-5 h-5 sm:w-6 sm:h-6" />}
         </button>
 
         <button
@@ -816,7 +816,7 @@ export default function VoiceRoom({
 
         <button
           onClick={leave}
-          className="px-6 py-3 rounded-full bg-red-500/20 hover:bg-red-500/30 text-red-400 font-medium transition-all flex items-center gap-2"
+          className="px-4 py-2 sm:px-6 sm:py-3 rounded-full bg-red-500/20 hover:bg-red-500/30 text-red-400 font-medium text-sm sm:text-base transition-all flex items-center gap-1.5 sm:gap-2"
         >
           <PhoneOff className="w-5 h-5" />
           Leave

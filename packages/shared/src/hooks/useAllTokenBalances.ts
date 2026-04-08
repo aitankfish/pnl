@@ -61,37 +61,30 @@ async function fetchTokenBalances(walletAddress: string): Promise<TokenBalance[]
 
   if (tokenBalances.length === 0) return [];
 
-  // Fetch metadata for all tokens
+  // Fetch metadata in a single batch request (instead of N individual calls)
   try {
-    const metadataPromises = tokenBalances.map(async (token) => {
-      try {
-        const response = await fetch(apiUrl('/api/tokens/metadata'), {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ mint: token.mint }),
-        });
-
-        if (response.ok) {
-          const data = await response.json();
-          if (data.success && data.metadata) {
-            return {
-              ...token,
-              symbol: data.metadata.symbol || 'UNKNOWN',
-              name: data.metadata.name || 'Unknown Token',
-              logoURI: data.metadata.logoURI,
-            };
-          }
-        }
-        return { ...token, symbol: `${token.mint.slice(0, 4)}...${token.mint.slice(-4)}`, name: 'Unknown Token' };
-      } catch (err) {
-        logger.error('Failed to fetch token metadata', { mint: token.mint, error: err });
-        return { ...token, symbol: `${token.mint.slice(0, 4)}...${token.mint.slice(-4)}`, name: 'Unknown Token' };
-      }
+    const allMints = tokenBalances.map((t) => t.mint);
+    const response = await fetch(apiUrl('/api/tokens/metadata'), {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ mints: allMints }),
     });
 
-    return await Promise.all(metadataPromises);
-  } catch (err) {
-    logger.error('Failed to fetch token metadata batch', err);
+    if (response.ok) {
+      const data = await response.json();
+      if (data.success && data.metadata && Array.isArray(data.metadata)) {
+        const metaMap = new Map(data.metadata.map((m: any) => [m.mint, m]));
+        return tokenBalances.map((token) => {
+          const meta = metaMap.get(token.mint);
+          return meta
+            ? { ...token, symbol: meta.symbol || 'UNKNOWN', name: meta.name || 'Unknown Token', logoURI: meta.logoURI }
+            : { ...token, symbol: `${token.mint.slice(0, 4)}...${token.mint.slice(-4)}`, name: 'Unknown Token' };
+        });
+      }
+    }
+    // Fallback: return tokens without metadata
+    return tokenBalances.map((t) => ({ ...t, symbol: `${t.mint.slice(0, 4)}...${t.mint.slice(-4)}`, name: 'Unknown Token' }));
+  } catch {
     return tokenBalances;
   }
 }

@@ -9,18 +9,9 @@ const logger = createClientLogger();
 
 export async function POST(request: NextRequest) {
   try {
-    const { mint } = await request.json();
+    const body = await request.json();
+    const { mint, mints } = body;
 
-    if (!mint) {
-      return NextResponse.json(
-        { success: false, error: 'Missing mint address' },
-        { status: 400 }
-      );
-    }
-
-    logger.info('Fetching token metadata', { mint });
-
-    // Use Helius DAS API to fetch token metadata
     const heliusApiKey = process.env.HELIUS_API_KEY;
     if (!heliusApiKey) {
       throw new Error('HELIUS_API_KEY not configured');
@@ -28,6 +19,43 @@ export async function POST(request: NextRequest) {
 
     const network = process.env.NEXT_PUBLIC_SOLANA_NETWORK === 'devnet' ? 'devnet' : 'mainnet';
     const heliusUrl = `https://${network}.helius-rpc.com/?api-key=${heliusApiKey}`;
+
+    // ── Batch mode: accept { mints: string[] } ──
+    if (mints && Array.isArray(mints) && mints.length > 0) {
+      const batchMints = mints.slice(0, 100); // Cap at 100
+
+      const response = await fetch(heliusUrl, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          jsonrpc: '2.0',
+          id: 'token-metadata-batch',
+          method: 'getAssetBatch',
+          params: { ids: batchMints },
+        }),
+      });
+
+      if (!response.ok) throw new Error(`Helius batch API error: ${response.status}`);
+      const data = await response.json();
+
+      const results = (data.result || []).map((asset: any) => ({
+        mint: asset?.id,
+        symbol: asset?.content?.metadata?.symbol || asset?.token_info?.symbol || 'UNKNOWN',
+        name: asset?.content?.metadata?.name || asset?.token_info?.name || 'Unknown Token',
+        logoURI: asset?.content?.links?.image || asset?.content?.files?.[0]?.uri,
+        decimals: asset?.token_info?.decimals || 9,
+      }));
+
+      return NextResponse.json({ success: true, metadata: results, batch: true });
+    }
+
+    // ── Single mode (existing behavior) ──
+    if (!mint) {
+      return NextResponse.json(
+        { success: false, error: 'Missing mint address or mints array' },
+        { status: 400 }
+      );
+    }
 
     // Call Helius DAS API getAsset
     const response = await fetch(heliusUrl, {
@@ -37,9 +65,7 @@ export async function POST(request: NextRequest) {
         jsonrpc: '2.0',
         id: 'token-metadata',
         method: 'getAsset',
-        params: {
-          id: mint,
-        },
+        params: { id: mint },
       }),
     });
 
