@@ -22,7 +22,7 @@ export function isMarketDataStale(lastSyncedAt: Date | null | undefined): boolea
 export function convertToGatewayUrl(imageUrl: string | undefined): string | undefined {
   if (!imageUrl) return undefined;
 
-  const gatewayUrl = process.env.PINATA_GATEWAY_URL || process.env.NEXT_PUBLIC_PINATA_GATEWAY_URL;
+  const gatewayUrl = process.env.PINATA_GATEWAY_URL;
   if (!gatewayUrl) return imageUrl.startsWith('http') ? imageUrl : undefined;
 
   // If it's an IPFS URL (ipfs://...), convert to gateway URL

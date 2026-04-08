@@ -6,11 +6,11 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 
-const PINATA_JWT = process.env.NEXT_PUBLIC_PINATA_JWT || process.env.PINATA_JWT || '';
-const PINATA_API_KEY = process.env.NEXT_PUBLIC_PINATA_API_KEY || process.env.PINATA_API_KEY || '';
-const PINATA_SECRET_KEY = process.env.NEXT_PUBLIC_PINATA_SECRET_KEY || process.env.PINATA_SECRET_KEY || '';
+const PINATA_JWT = process.env.PINATA_JWT || '';
+const PINATA_API_KEY = process.env.PINATA_API_KEY || '';
+const PINATA_SECRET_KEY = process.env.PINATA_SECRET_KEY || '';
 const PINATA_GATEWAY =
-  process.env.NEXT_PUBLIC_PINATA_GATEWAY_URL || process.env.PINATA_GATEWAY_URL || 'https://gateway.pinata.cloud';
+  process.env.PINATA_GATEWAY_URL || 'https://gateway.pinata.cloud';
 
 export async function POST(request: NextRequest) {
   try {

@@ -39,8 +39,8 @@ function tryAutoInit(): EnvConfig | null {
         HELIUS_WS_MAINNET: process.env.NEXT_PUBLIC_HELIUS_WS_MAINNET || '',
         API_BASE_URL: '',
         APP_URL: process.env.NEXT_PUBLIC_APP_URL || 'https://pnl.market',
-        PINATA_JWT: process.env.NEXT_PUBLIC_PINATA_JWT || '',
-        PINATA_GATEWAY_URL: process.env.NEXT_PUBLIC_PINATA_GATEWAY_URL || 'https://gateway.pinata.cloud',
+        PINATA_JWT: process.env.PINATA_JWT || '',
+        PINATA_GATEWAY_URL: process.env.PINATA_GATEWAY_URL || 'https://gateway.pinata.cloud',
         PRIVY_APP_ID: process.env.NEXT_PUBLIC_PRIVY_APP_ID || '',
       };
       _config = config;

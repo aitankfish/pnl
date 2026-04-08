@@ -12,8 +12,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import { withAuth } from '@/lib/auth/require-wallet';
 import { checkRateLimit } from '@/lib/auth/rate-limit';
 
-const PINATA_JWT = process.env.PINATA_JWT || process.env.NEXT_PUBLIC_PINATA_JWT || '';
-const PINATA_GATEWAY = process.env.PINATA_GATEWAY_URL || process.env.NEXT_PUBLIC_PINATA_GATEWAY_URL || 'https://gateway.pinata.cloud';
+const PINATA_JWT = process.env.PINATA_JWT || '';
+const PINATA_GATEWAY = process.env.PINATA_GATEWAY_URL || 'https://gateway.pinata.cloud';
 const MAX_FILE_SIZE = 50 * 1024 * 1024; // 50MB
 
 export const POST = withAuth(async (request, authUser) => {

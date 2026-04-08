@@ -77,9 +77,9 @@ class IPFSUtils {
   constructor() {
     const ipfsConfig = getIPFSConfig();
     // Check for both client-side (NEXT_PUBLIC_*) and server-side environment variables
-    this.pinataApiKey = process.env.NEXT_PUBLIC_PINATA_API_KEY || process.env.PINATA_API_KEY || '';
-    this.pinataSecretKey = process.env.NEXT_PUBLIC_PINATA_SECRET_KEY || process.env.PINATA_SECRET_KEY || '';
-    this.pinataJwt = process.env.NEXT_PUBLIC_PINATA_JWT || process.env.PINATA_JWT || '';
+    this.pinataApiKey = process.env.PINATA_API_KEY || '';
+    this.pinataSecretKey = process.env.PINATA_SECRET_KEY || '';
+    this.pinataJwt = process.env.PINATA_JWT || '';
     this.pinataGatewayUrl = ipfsConfig.gatewayUrl;
     
     // Prioritize JWT over API key/secret
