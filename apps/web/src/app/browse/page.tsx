@@ -15,6 +15,7 @@ import ErrorDialog from '@/components/ErrorDialog';
 import { parseError } from '@/lib/utils/errorParser';
 import { Skeleton } from '@/components/ui/skeleton';
 import { getVoteButtonStates, getMarketDisplayStatus } from '@/lib/api-utils';
+import { useWallet } from '@/hooks/useWallet';
 
 // SWR fetcher
 const fetcher = (url: string) => fetch(url).then(res => res.json());
@@ -157,6 +158,26 @@ export default function BrowsePage() {
   const [page, setPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(25);
   const { vote } = useVoting();
+  const { primaryWallet } = useWallet();
+  const walletAddress = primaryWallet?.address || null;
+
+  // Fetch user positions for "You voted" badges
+  const { data: positionsData } = useSWR(
+    walletAddress ? `/api/user/${walletAddress}/positions` : null,
+    fetcher,
+    { refreshInterval: 60000, dedupingInterval: 15000 }
+  );
+  const userPositions = useMemo(() => {
+    const map = new Map<string, { side: string; amount: number }>();
+    if (positionsData?.data?.positions) {
+      for (const p of positionsData.data.positions) {
+        const side = Number(p.yesShares || 0) > Number(p.noShares || 0) ? 'YES' : 'NO';
+        const amount = (Number(p.totalInvested || 0)) / 1e9;
+        if (p.marketAddress) map.set(p.marketAddress, { side, amount });
+      }
+    }
+    return map;
+  }, [positionsData]);
 
   // Socket.IO for real-time updates
   const { marketUpdates, newMarkets, clearNewMarkets, isConnected } = useAllMarketsSocket();
@@ -644,6 +665,20 @@ export default function BrowsePage() {
                     </div>
                     <CountdownTimer expiryTime={project.expiryTime} className="text-[11px]" />
                   </div>
+
+                  {/* Position badge — "You voted YES/NO" */}
+                  {(() => {
+                    const pos = userPositions.get(project.marketAddress);
+                    if (!pos) return null;
+                    return (
+                      <div className={`flex items-center gap-1 text-[10px] font-medium mb-1.5 px-2 py-0.5 rounded-md ${
+                        pos.side === 'YES' ? 'bg-green-500/10 text-green-400' : 'bg-red-500/10 text-red-400'
+                      }`}>
+                        <span>{pos.side === 'YES' ? '↑' : '↓'}</span>
+                        <span>You voted {pos.side} — {pos.amount.toFixed(3)} SOL</span>
+                      </div>
+                    );
+                  })()}
 
                   {/* Adaptive Action Buttons — vote / trade / resolved badge */}
                   {(() => {

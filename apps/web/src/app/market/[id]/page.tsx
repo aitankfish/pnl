@@ -285,6 +285,7 @@ export default function MarketDetailsPage() {
 
   // Contract address copy state
   const [copiedContract, setCopiedContract] = useState(false);
+  const [showMarketInfo, setShowMarketInfo] = useState(false);
 
   // Toast notification state
   const [showToast, setShowToast] = useState(false);
@@ -1957,9 +1958,16 @@ export default function MarketDetailsPage() {
                 </div>
               )}
 
-              {/* Market Info Section */}
+              {/* Market Info Section — Collapsible */}
               <div className="border-t border-white/10 pt-2">
-                <h3 className="text-[10px] font-semibold text-gray-400 mb-1.5">Market Info</h3>
+                <button
+                  onClick={() => setShowMarketInfo(!showMarketInfo)}
+                  className="flex items-center justify-between w-full text-[10px] font-semibold text-gray-400 mb-1.5 hover:text-gray-300 transition-colors"
+                >
+                  <span>Advanced Details</span>
+                  <svg className={`w-3 h-3 transition-transform ${showMarketInfo ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg>
+                </button>
+                {showMarketInfo && (<>
                 <div className="grid grid-cols-2 gap-1.5">
                   {/* Target Pool */}
                   <div className="p-1.5 bg-white/5 rounded">
@@ -2045,6 +2053,7 @@ export default function MarketDetailsPage() {
                     </div>
                   )}
                 </div>
+                </>)}
               </div>
               </>
             </CardContent>
