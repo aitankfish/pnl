@@ -43,6 +43,9 @@ const nextConfig = {
   // Power by header disabled for security
   poweredByHeader: false,
 
+  // Disable source maps in production to reduce build memory
+  productionBrowserSourceMaps: false,
+
   // Experimental features for better performance
   experimental: {
     optimizePackageImports: [
@@ -56,6 +59,8 @@ const nextConfig = {
       'mongodb',
     ],
     instrumentationHook: true, // Enable instrumentation.ts for server-side initialization
+    // Run webpack in a separate worker to reduce main process memory
+    webpackBuildWorker: true,
   },
 
   // Webpack configuration
