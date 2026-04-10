@@ -56,7 +56,6 @@ const nextConfig = {
       '@coral-xyz/anchor',
       'framer-motion',
       'recharts',
-      'mongodb',
     ],
     instrumentationHook: true, // Enable instrumentation.ts for server-side initialization
     // Run webpack in a separate worker to reduce main process memory
