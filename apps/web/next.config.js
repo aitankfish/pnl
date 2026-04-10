@@ -61,6 +61,17 @@ const nextConfig = {
     instrumentationHook: true, // Enable instrumentation.ts for server-side initialization
     // Run webpack in a separate worker to reduce main process memory
     webpackBuildWorker: true,
+    // Skip webpack bundling for server-only packages (major memory savings)
+    serverComponentsExternalPackages: [
+      'mongoose',
+      'mongodb',
+      'winston',
+      'twitter-api-v2',
+      'helius-sdk',
+      '@pump-fun/pump-sdk',
+      'ioredis',
+      'socket.io',
+    ],
   },
 
   // Webpack configuration
