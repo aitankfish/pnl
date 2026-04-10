@@ -5,7 +5,7 @@ services:
     region: oregon
     plan: free
     rootDir: apps/web
-    buildCommand: cd ../.. && npm install -g pnpm && pnpm install && pnpm build:web
+    buildCommand: cd ../.. && npm install -g pnpm && pnpm install && pnpm run build:web
     startCommand: npm start
     envVars:
       - key: NODE_VERSION
