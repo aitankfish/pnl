@@ -34,8 +34,8 @@ const nextConfig = {
   // Standalone output for better deployment
   output: 'standalone',
 
-  // Disable SWC minification due to unicode handling issues
-  swcMinify: false,
+  // Use SWC minifier (faster and lower memory than Terser)
+  swcMinify: true,
 
   // Enable compression
   compress: true,
