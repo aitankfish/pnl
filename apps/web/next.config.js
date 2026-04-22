@@ -97,17 +97,28 @@ const nextConfig = {
       config.resolve.alias['winston'] = false;
     }
 
-    // Force monorepo packages to resolve to a single copy (prevents context mismatches)
-    const webNodeModules = path.resolve(__dirname, 'node_modules');
+    // Force monorepo packages to resolve to a single copy (prevents context mismatches).
+    // Use require.resolve so this works regardless of pnpm hoist layout (local vs CI).
+    const resolvePkg = (name) => {
+      try {
+        return path.dirname(require.resolve(`${name}/package.json`, { paths: [__dirname] }));
+      } catch {
+        return null;
+      }
+    };
+    const privyRoot = resolvePkg('@privy-io/react-auth');
+    const swrRoot = resolvePkg('swr');
+    const web3Root = resolvePkg('@solana/web3.js');
+    const anchorRoot = resolvePkg('@coral-xyz/anchor');
     config.resolve.alias = {
       ...config.resolve.alias,
-      // Privy: alias main + subpath exports to web's single copy
-      '@privy-io/react-auth/solana': path.resolve(webNodeModules, '@privy-io/react-auth/dist/esm/solana.mjs'),
-      '@privy-io/react-auth': path.resolve(webNodeModules, '@privy-io/react-auth'),
-      // Solana: prevent duplicate instances
-      '@solana/web3.js': path.resolve(webNodeModules, '@solana/web3.js'),
-      '@coral-xyz/anchor': path.resolve(webNodeModules, '@coral-xyz/anchor'),
-      'swr': path.resolve(webNodeModules, 'swr'),
+      ...(privyRoot && {
+        '@privy-io/react-auth/solana': path.join(privyRoot, 'dist/esm/solana.mjs'),
+        '@privy-io/react-auth': privyRoot,
+      }),
+      ...(swrRoot && { 'swr': swrRoot }),
+      ...(web3Root && { '@solana/web3.js': web3Root }),
+      ...(anchorRoot && { '@coral-xyz/anchor': anchorRoot }),
     };
 
     // Note: Do NOT alias 'react' or 'react-dom' — Next.js uses its own internal
