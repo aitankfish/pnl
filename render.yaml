@@ -3,7 +3,7 @@ services:
     name: plp-platform
     runtime: node
     region: oregon
-    plan: free
+    plan: standard
     rootDir: apps/web
     buildCommand: cd ../.. && npm install -g pnpm && pnpm install && pnpm -w run build:web
     startCommand: npm start
@@ -12,6 +12,8 @@ services:
         value: 22.16.0
       - key: NODE_ENV
         value: production
+      - key: NODE_OPTIONS
+        value: --max-old-space-size=4096
       - key: NEXT_PUBLIC_PRIVY_APP_ID
         sync: false
       - key: MONGODB_URI
