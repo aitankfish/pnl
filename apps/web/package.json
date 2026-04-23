@@ -19,7 +19,7 @@
     "@coral-xyz/anchor": "^0.32.1",
     "@hookform/resolvers": "^5.2.2",
     "@pnl/shared": "workspace:*",
-    "@privy-io/react-auth": "^3.5.1",
+    "@privy-io/react-auth": "3.14.1",
     "@privy-io/server-auth": "^1.32.5",
     "@pump-fun/pump-sdk": "^1.21.0",
     "@radix-ui/react-dialog": "^1.1.15",

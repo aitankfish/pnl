@@ -6,6 +6,7 @@ const nextConfig = {
   transpilePackages: ['@pnl/shared'],
 
   // Enable faster refresh
+  
   reactStrictMode: true,
 
   // Disable ESLint during production builds (fix errors later)

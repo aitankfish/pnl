@@ -8,6 +8,7 @@
 import { memo, useEffect } from 'react';
 import { PrivyProvider, usePrivy } from '@privy-io/react-auth';
 import type { PrivyClientConfig } from '@privy-io/react-auth';
+import { toSolanaWalletConnectors } from '@privy-io/react-auth/solana';
 import { createSolanaRpc, createSolanaRpcSubscriptions } from '@solana/kit';
 import { setAccessTokenProvider } from '@pnl/shared/utils';
 
@@ -54,6 +55,13 @@ function WalletProviderInner({ children }: WalletProviderProps) {
         createOnLogin: 'all-users', // Changed from 'users-without-wallets' to always load/create wallets
       },
       showWalletUIs: false, // No prompt on signature (replaces noPromptOnSignature)
+    },
+
+    // External wallet connectors — required for Solana wallet login, useWallets, useLoginWithOAuth
+    externalWallets: {
+      solana: {
+        connectors: toSolanaWalletConnectors(),
+      },
     },
 
     // Solana network configuration - Required for embedded wallet UIs
