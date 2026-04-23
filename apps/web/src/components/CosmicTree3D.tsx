@@ -667,6 +667,57 @@ function EnergyPhotons({ startTime }: { startTime: number }) {
   );
 }
 
+// Cursor dust — a small trail of glowing particles that follows the mouse in world-space.
+// Lives in the camera's plane at z=0 so particles feel tangible in the canvas.
+function CursorDust() {
+  const groupRef = useRef<THREE.Group>(null);
+  const { mouse, viewport } = useThree();
+  const DUST_COUNT = 6;
+  const positions = useRef(
+    Array.from({ length: DUST_COUNT }, () => ({ x: 0, y: 0 })),
+  );
+
+  useFrame(() => {
+    if (!groupRef.current) return;
+    // Normalized mouse coords → world coords at z=0
+    const targetX = (mouse.x * viewport.width) / 2;
+    const targetY = (mouse.y * viewport.height) / 2;
+
+    positions.current.forEach((pos, i) => {
+      // Each subsequent dust has more lag → natural trailing tail
+      const lag = 0.22 - i * 0.028;
+      pos.x += (targetX - pos.x) * lag;
+      pos.y += (targetY - pos.y) * lag;
+
+      const mesh = groupRef.current!.children[i] as THREE.Mesh;
+      mesh.position.set(pos.x, pos.y, 1);
+    });
+  });
+
+  return (
+    <group ref={groupRef}>
+      {Array.from({ length: DUST_COUNT }).map((_, i) => {
+        const size = 0.055 - i * 0.006;
+        const opacity = 0.85 - i * 0.12;
+        return (
+          <mesh key={i} renderOrder={20}>
+            <sphereGeometry args={[size, 10, 10]} />
+            <meshBasicMaterial
+              color="#fff4b8"
+              transparent
+              opacity={opacity}
+              toneMapped={false}
+              depthWrite={false}
+              depthTest={false}
+              blending={THREE.AdditiveBlending}
+            />
+          </mesh>
+        );
+      })}
+    </group>
+  );
+}
+
 function Scene({ markets, startTime, onHover }: { markets: LiveMarket[]; startTime: number; onHover: (m: LiveMarket | null, px?: number, py?: number) => void }) {
   const groupRef = useRef<THREE.Group>(null);
   useFrame(({ clock }) => {
@@ -713,6 +764,7 @@ export default function CosmicTree3D({ markets }: { markets: LiveMarket[] }) {
                 else setHoverInfo(null);
               }}
             />
+            <CursorDust />
             <EffectComposer multisampling={0}>
               <ChromaticAberration
                 blendFunction={BlendFunction.NORMAL}

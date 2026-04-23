@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import Link from 'next/link';
 import { Users, Rocket, Shield, Zap, CheckCircle, ExternalLink, ArrowRight, XCircle, ChevronDown } from 'lucide-react';
-import { motion, useScroll, useTransform, useInView, useMotionValueEvent } from 'framer-motion';
+import { motion, useScroll, useTransform, useInView, useMotionValueEvent, type MotionValue } from 'framer-motion';
 import { useEffect, useRef, useState, useMemo } from 'react';
 import { useWallet } from '@/hooks/useWallet';
 import { useRouter } from 'next/navigation';
@@ -908,10 +908,145 @@ function MeteorCursor() {
   return <canvas ref={canvasRef} className="fixed inset-0 pointer-events-none" style={{ zIndex: 100 }} aria-hidden />;
 }
 
+// ─── Sticky chapter companion — a small cosmic tree silhouette that persists across chapters ─────
+// Morphs through 6 states: seed → barrier → shift → grow → bloom → forest
+function ChapterCompanion({ opacity, y, stage }: { opacity: MotionValue<number>; y: MotionValue<string>; stage: MotionValue<number> }) {
+  const [currentStage, setCurrentStage] = useState(0);
+  useMotionValueEvent(stage, 'change', (v) => {
+    const rounded = Math.max(0, Math.min(5, Math.round(v)));
+    if (rounded !== currentStage) setCurrentStage(rounded);
+  });
+
+  return (
+    <motion.div
+      aria-hidden
+      className="hidden lg:block fixed z-[15] pointer-events-none"
+      style={{
+        opacity,
+        y,
+        right: '3vw',
+        top: '50%',
+        transform: 'translateY(-50%)',
+        width: '140px',
+        height: '340px',
+      }}
+    >
+      <svg viewBox="0 0 140 340" className="w-full h-full" aria-hidden>
+        <defs>
+          <linearGradient id="companionTrunk" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stopColor="rgba(236,180,138,0.95)" />
+            <stop offset="50%" stopColor="rgba(236,180,138,0.8)" />
+            <stop offset="100%" stopColor="rgba(138,58,16,0.9)" />
+          </linearGradient>
+          <radialGradient id="companionSun">
+            <stop offset="0%" stopColor="#e89628" stopOpacity="1" />
+            <stop offset="70%" stopColor="#8a3a10" stopOpacity="0.5" />
+            <stop offset="100%" stopColor="#8a3a10" stopOpacity="0" />
+          </radialGradient>
+        </defs>
+
+        {/* Horizon — always present */}
+        <line x1="10" y1="210" x2="130" y2="210" stroke="rgba(230,180,115,0.35)" strokeWidth="0.6" />
+
+        {/* === Stage 0: Seed — just the sun at the horizon === */}
+        <g style={{ opacity: currentStage === 0 ? 1 : 0, transition: 'opacity 0.6s ease-out' }}>
+          <circle cx="70" cy="210" r="9" fill="url(#companionSun)" />
+          <circle cx="70" cy="210" r="4.5" fill="#e89628" />
+        </g>
+
+        {/* === Stage 1: Barrier — seed in cracked earth, dormant === */}
+        <g style={{ opacity: currentStage === 1 ? 1 : 0, transition: 'opacity 0.6s ease-out' }}>
+          <circle cx="70" cy="216" r="7" fill="#8a3a10" opacity="0.85" />
+          <circle cx="70" cy="216" r="3.5" fill="#d67347" opacity="0.95" />
+          {/* Dark earth */}
+          <path d="M 10 215 L 130 215 L 128 225 L 12 228 Z" fill="rgba(74,37,21,0.4)" />
+          {/* Cracks */}
+          <line x1="30" y1="220" x2="50" y2="230" stroke="rgba(74,37,21,0.6)" strokeWidth="0.6" />
+          <line x1="85" y1="222" x2="110" y2="228" stroke="rgba(74,37,21,0.6)" strokeWidth="0.6" />
+        </g>
+
+        {/* === Stage 2: Shift — photon rising from seed === */}
+        <g style={{ opacity: currentStage === 2 ? 1 : 0, transition: 'opacity 0.6s ease-out' }}>
+          <circle cx="70" cy="210" r="9" fill="url(#companionSun)" />
+          <line x1="70" y1="205" x2="70" y2="60" stroke="rgba(255,244,184,0.7)" strokeWidth="1.2" />
+          <circle cx="70" cy="110" r="4" fill="#fff4b8" />
+          <circle cx="70" cy="85" r="2" fill="#fff4b8" opacity="0.7" />
+          <circle cx="70" cy="60" r="1.5" fill="#fff4b8" opacity="0.5" />
+        </g>
+
+        {/* === Stage 3: Grow — trunk forming, two energy streams converging === */}
+        <g style={{ opacity: currentStage === 3 ? 1 : 0, transition: 'opacity 0.6s ease-out' }}>
+          <circle cx="70" cy="210" r="8" fill="url(#companionSun)" />
+          {/* Trunk */}
+          <path d="M 70 205 Q 72 170 68 135 Q 66 100 70 75" stroke="url(#companionTrunk)" strokeWidth="2.5" fill="none" strokeLinecap="round" />
+          {/* Believers stream (left) */}
+          <path d="M 15 100 Q 40 140 68 180" stroke="rgba(63,122,66,0.7)" strokeWidth="1.5" fill="none" strokeLinecap="round" />
+          <circle cx="30" cy="120" r="1.5" fill="#3f7a42" opacity="0.8" />
+          {/* Critics stream (right) */}
+          <path d="M 125 100 Q 100 140 72 180" stroke="rgba(214,115,71,0.7)" strokeWidth="1.5" fill="none" strokeLinecap="round" />
+          <circle cx="110" cy="120" r="1.5" fill="#d67347" opacity="0.8" />
+        </g>
+
+        {/* === Stage 4: Bloom — full tree with canopy leaves === */}
+        <g style={{ opacity: currentStage === 4 ? 1 : 0, transition: 'opacity 0.6s ease-out' }}>
+          <circle cx="70" cy="210" r="7" fill="url(#companionSun)" />
+          {/* Trunk */}
+          <path d="M 70 206 Q 72 180 68 150 Q 66 120 70 95 Q 72 75 70 60" stroke="url(#companionTrunk)" strokeWidth="2.2" fill="none" strokeLinecap="round" />
+          {/* Branches */}
+          <path d="M 70 140 Q 55 125 40 110" stroke="rgba(217,152,117,0.8)" strokeWidth="1.4" fill="none" strokeLinecap="round" />
+          <path d="M 70 135 Q 85 120 100 105" stroke="rgba(217,152,117,0.8)" strokeWidth="1.4" fill="none" strokeLinecap="round" />
+          <path d="M 70 100 Q 55 85 42 70" stroke="rgba(184,97,58,0.7)" strokeWidth="1.1" fill="none" strokeLinecap="round" />
+          <path d="M 70 100 Q 85 85 98 70" stroke="rgba(184,97,58,0.7)" strokeWidth="1.1" fill="none" strokeLinecap="round" />
+          <path d="M 70 75 Q 68 60 70 48" stroke="rgba(184,97,58,0.7)" strokeWidth="1" fill="none" strokeLinecap="round" />
+          {/* Leaves */}
+          {[
+            [40, 110, 3], [100, 105, 3], [42, 70, 3], [98, 70, 3], [70, 48, 3.5],
+            [55, 125, 2.4], [85, 120, 2.4], [55, 85, 2.4], [85, 85, 2.4],
+            [50, 95, 1.8], [90, 95, 1.8], [65, 55, 2], [75, 55, 2],
+          ].map(([x, y, r], i) => (
+            <circle key={i} cx={x as number} cy={y as number} r={r as number} fill="#3f7a42" opacity="0.85" />
+          ))}
+        </g>
+
+        {/* === Stage 5: Forest — multiple tiny trees on the horizon === */}
+        <g style={{ opacity: currentStage === 5 ? 1 : 0, transition: 'opacity 0.6s ease-out' }}>
+          {/* Scattered tiny trees */}
+          {[
+            [22, 80], [40, 60], [55, 75], [70, 50], [85, 70], [100, 55], [118, 75],
+            [30, 100], [48, 90], [62, 105], [78, 92], [94, 102], [112, 95], [14, 95],
+          ].map(([cx, cy], i) => (
+            <g key={i} transform={`translate(${cx} 210)`}>
+              <line x1="0" y1="0" x2="0" y2={-(210 - cy)} stroke="rgba(217,152,117,0.6)" strokeWidth="0.8" />
+              <circle cx="0" cy={-(210 - cy)} r="1.8" fill="rgba(63,122,66,0.7)" />
+            </g>
+          ))}
+          {/* Closest tree — slightly more detailed */}
+          <path d="M 70 210 Q 72 195 70 175 Q 68 155 70 140" stroke="url(#companionTrunk)" strokeWidth="1.4" fill="none" strokeLinecap="round" />
+          <circle cx="70" cy="140" r="3" fill="#3f7a42" opacity="0.85" />
+          <circle cx="63" cy="150" r="2" fill="#3f7a42" opacity="0.7" />
+          <circle cx="78" cy="150" r="2" fill="#3f7a42" opacity="0.7" />
+        </g>
+
+        {/* Chapter label */}
+        <text x="70" y="320" fill="rgba(232,150,96,0.65)" textAnchor="middle" style={{ font: "500 8px ui-monospace, SFMono-Regular, Menlo, monospace", letterSpacing: "0.3em", textTransform: "uppercase" }}>
+          {['I · Seed', 'II · Barrier', 'III · Shift', 'IV · Grow', 'V · Bloom', 'VI · Forest'][currentStage]}
+        </text>
+      </svg>
+    </motion.div>
+  );
+}
+
 export default function HomePage() {
   const { scrollYProgress } = useScroll();
   const heroOpacity = useTransform(scrollYProgress, [0, 0.3], [1, 0]);
   const heroScale = useTransform(scrollYProgress, [0, 0.3], [1, 0.95]);
+
+  // Sticky chapter companion — fades in during chapters I-VI and morphs with scroll.
+  // 0.00-0.14 = hero (hidden), 0.14-0.90 = chapters (visible, morphing), 0.90-1.0 = footer (hidden)
+  const companionOpacity = useTransform(scrollYProgress, [0.10, 0.18, 0.86, 0.94], [0, 0.85, 0.85, 0]);
+  const companionY = useTransform(scrollYProgress, [0.10, 0.90], ['20px', '0px']);
+  // Chapter state — drives which tree silhouette is active (0=seed, 1=barrier, 2=shift, 3=grow, 4=bloom, 5=forest)
+  const companionStage = useTransform(scrollYProgress, [0.14, 0.26, 0.40, 0.55, 0.70, 0.84], [0, 1, 2, 3, 4, 5]);
   const { authenticated, user, login, ready, primaryWallet } = useWallet();
   const router = useRouter();
   const [showOnboardingModal, setShowOnboardingModal] = useState(false);
@@ -932,12 +1067,31 @@ export default function HomePage() {
   const starsMidY = useTransform(heroScroll, [0, 1], ['0%', '-14%']);
   const starsNearY = useTransform(heroScroll, [0, 1], ['0%', '-24%']);
   const launchRef = useRef<HTMLSpanElement>(null);
+  const plantRef = useRef<HTMLDivElement>(null);
   useMotionValueEvent(heroScroll, 'change', (v) => {
     if (!launchRef.current) return;
     const wonk = Math.min(1, Math.max(0, v * 2));
     const soft = 100 - v * 60;
     launchRef.current.style.fontVariationSettings = `'SOFT' ${soft.toFixed(0)}, 'WONK' ${wonk.toFixed(2)}, 'opsz' 144`;
   });
+
+  // Typography breath — gentle sine-wave on the SOFT axis so the hero headline feels alive
+  useEffect(() => {
+    let rafId: number;
+    const start = performance.now();
+    const tick = (now: number) => {
+      const elapsed = (now - start) / 1000;
+      // "Plant the idea" — SOFT cycles 35↔50 over 7.5s, WONK stays 0
+      if (plantRef.current) {
+        const soft = 42 + Math.sin((elapsed * Math.PI * 2) / 7.5) * 7.5;
+        plantRef.current.style.fontVariationSettings = `'SOFT' ${soft.toFixed(1)}, 'WONK' 0, 'opsz' 144`;
+      }
+      rafId = requestAnimationFrame(tick);
+    };
+    rafId = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(rafId);
+  }, []);
+
   const { count: liveMarkets, volume: openVolume, markets: liveMarketList } = useLiveMarkets();
 
 
@@ -1099,6 +1253,9 @@ export default function HomePage() {
 
   return (
     <>
+      {/* Sticky chapter companion — persistent SVG tree that narrates alongside the scroll */}
+      <ChapterCompanion opacity={companionOpacity} y={companionY} stage={companionStage} />
+
       <div className="space-y-12 md:space-y-20 pt-3 sm:pt-4 px-3 sm:px-6 pb-8 md:pb-12 relative overflow-hidden">
 
         {/* ═══════════ Hero — Editorial Cosmic ═══════════ */}
@@ -1210,6 +1367,7 @@ export default function HomePage() {
 
           {/* "Plant the idea," — below the ground (soil side), 4vh below the horizon */}
           <motion.div
+            ref={plantRef}
             aria-hidden
             className="absolute z-[5] serif"
             style={{
@@ -1335,178 +1493,618 @@ export default function HomePage() {
           `}</style>
         </section>
 
-        {/* ═══════════ 01 / Why we built this ═══════════ */}
-        <section className="relative -mx-3 sm:-mx-6 px-6 md:px-10 py-24 md:py-40" style={{ background: '#0a0814' }}>
-          <div className="grid grid-cols-12 gap-6 max-w-[1400px] mx-auto">
-            <div className="col-span-12 md:col-span-2 mono text-[0.64rem] uppercase tracking-[0.26em] mb-6 md:mb-0" style={{ color: '#e89660' }}>
-              01 / Why we built this
+        {/* ═══════════ Live ticker — continuous marquee of real markets right below the hero ═══════════ */}
+        {liveMarketList && liveMarketList.length > 0 && (
+          <div className="relative -mx-3 sm:-mx-6 overflow-hidden border-t border-b py-4"
+            style={{ background: 'rgba(10,8,20,0.75)', borderColor: 'rgba(244,238,228,0.06)' }}>
+            <div
+              className="flex gap-12 mono text-[0.62rem] uppercase tracking-[0.28em] whitespace-nowrap"
+              style={{ color: 'rgba(244,238,228,0.55)', animation: 'liveTickerScroll 80s linear infinite', width: 'max-content' }}
+            >
+              {[...liveMarketList, ...liveMarketList, ...liveMarketList].map((m, i) => {
+                const name = m.name ?? 'Untitled idea';
+                const volume = Number(m.volume) || 0;
+                const participants = Number(m.participants) || 0;
+                const yesPercent = m.yesPercent != null ? Number(m.yesPercent) : null;
+                return (
+                  <span key={`${m.id}-${i}`} className="flex items-center gap-3">
+                    <span style={{ color: '#e89660' }}>◐</span>
+                    <span style={{ color: '#f4eee4' }}>
+                      {name.length > 40 ? name.slice(0, 40) + '…' : name}
+                    </span>
+                    <span>◎{volume.toFixed(2)} staked</span>
+                    <span style={{ color: '#8a7f72' }}>·</span>
+                    <span>{participants} {participants === 1 ? 'voter' : 'voters'}</span>
+                    {yesPercent != null && !Number.isNaN(yesPercent) && (
+                      <>
+                        <span style={{ color: '#8a7f72' }}>·</span>
+                        <span style={{ color: yesPercent >= 50 ? '#3f7a42' : '#d67347' }}>
+                          {Math.round(yesPercent)}% {yesPercent >= 50 ? 'believers' : 'critics'}
+                        </span>
+                      </>
+                    )}
+                    <span className="text-[#8a7f72] opacity-50 ml-4">◆</span>
+                  </span>
+                );
+              })}
             </div>
-            <div className="col-span-12 md:col-span-7">
-              <h2 className="serif leading-[1] tracking-[-0.025em] mb-10"
+            <style jsx>{`
+              @keyframes liveTickerScroll {
+                from { transform: translateX(0); }
+                to { transform: translateX(-33.333%); }
+              }
+            `}</style>
+          </div>
+        )}
+
+        {/* ═══════════ I / The seed ═══════════ */}
+        <section className="relative -mx-3 sm:-mx-6 px-6 md:px-10 py-28 md:py-44 overflow-hidden" style={{ background: '#0a0814' }}>
+          {/* Subtle seed orb — matches the sun color from the hero */}
+          <div aria-hidden className="pointer-events-none absolute left-1/2 -translate-x-1/2 top-[14%] w-6 h-6 rounded-full"
+            style={{
+              background: 'radial-gradient(circle, #e89628 0%, #8a3a10 55%, transparent 100%)',
+              boxShadow: '0 0 40px 10px rgba(232,150,40,0.3), 0 0 90px 25px rgba(232,150,40,0.1)',
+            }} />
+          <div className="grid grid-cols-12 gap-6 max-w-[1400px] mx-auto relative z-10">
+            <div className="col-span-12 md:col-span-2 mono text-[0.64rem] uppercase tracking-[0.26em] mb-6 md:mb-0" style={{ color: '#e89660' }}>
+              I / The seed
+            </div>
+            <div className="col-span-12 md:col-span-9 md:col-start-3">
+              <h2 className="serif leading-[1.05] tracking-[-0.025em] mb-10 max-w-[22ch]"
                 style={{ color: '#f4eee4', fontSize: 'clamp(2.25rem, 5vw, 4.5rem)', fontWeight: 400, fontVariationSettings: "'SOFT' 50, 'opsz' 72" }}>
-                Most ideas stay in a notebook.
+                Every company started as one thought.
               </h2>
+              <p className="serif text-[1.1rem] md:text-[1.25rem] leading-[1.6] max-w-[56ch] mb-5"
+                style={{ color: '#d8cfc0', fontWeight: 400, fontVariationSettings: "'SOFT' 50, 'opsz' 30" }}>
+                It happened to you too. An idea at 2am. A conversation that didn&rsquo;t stop with you. A pattern only you noticed. You told a friend, maybe wrote it down — and life moved on.
+              </p>
               <p className="serif text-[1.1rem] md:text-[1.25rem] leading-[1.6] max-w-[56ch]"
                 style={{ color: '#d8cfc0', fontWeight: 400, fontVariationSettings: "'SOFT' 50, 'opsz' 30" }}>
-                You had the idea last year. You told two friends. One said it was brilliant. One ghosted. You never touched it again.
+                Most ideas end there. Not because they were wrong — because there was nowhere to take them.
               </p>
-              <p className="serif text-[1.1rem] md:text-[1.25rem] leading-[1.6] max-w-[56ch] mt-5"
+            </div>
+          </div>
+        </section>
+
+        {/* ═══════════ II / The barrier ═══════════ */}
+        <section className="relative -mx-3 sm:-mx-6 px-6 md:px-10 py-24 md:py-40 border-t"
+          style={{ background: '#0a0814', borderColor: 'rgba(244,238,228,0.06)' }}>
+          <div className="max-w-[1400px] mx-auto">
+            <div className="mono text-[0.64rem] uppercase tracking-[0.26em] mb-6" style={{ color: '#e89660' }}>II / The barrier</div>
+            <h2 className="serif leading-[1.05] tracking-[-0.025em] mb-14 max-w-[24ch]"
+              style={{ color: '#f4eee4', fontSize: 'clamp(2.25rem, 5vw, 4.5rem)', fontWeight: 400, fontVariationSettings: "'SOFT' 50, 'opsz' 72" }}>
+              The old path keeps most ideas underground.
+            </h2>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 md:gap-8 mb-16">
+              {/* Tile 1 — Venture: a closed gate, most decks never read */}
+              <div className="relative flex flex-col gap-5 p-7 md:p-8 border" style={{ borderColor: 'rgba(244,238,228,0.08)', background: 'rgba(244,238,228,0.02)' }}>
+                <div className="flex items-start justify-between">
+                  <svg width="42" height="42" viewBox="0 0 42 42" fill="none" aria-hidden>
+                    <rect x="6" y="10" width="30" height="26" stroke="#8a7f72" strokeWidth="1.2" />
+                    <line x1="12" y1="10" x2="12" y2="36" stroke="#8a7f72" strokeWidth="1.2" />
+                    <line x1="18" y1="10" x2="18" y2="36" stroke="#8a7f72" strokeWidth="1.2" />
+                    <line x1="24" y1="10" x2="24" y2="36" stroke="#8a7f72" strokeWidth="1.2" />
+                    <line x1="30" y1="10" x2="30" y2="36" stroke="#8a7f72" strokeWidth="1.2" />
+                    <circle cx="36" cy="23" r="2" fill="#e89660" />
+                  </svg>
+                  <div className="serif text-[2.5rem] leading-none" style={{ color: '#ecb48a', fontVariationSettings: "'SOFT' 30, 'opsz' 72" }}>
+                    0.1<span className="text-[1rem] align-top ml-0.5">%</span>
+                  </div>
+                </div>
+                <div className="mono text-[0.64rem] uppercase tracking-[0.26em]" style={{ color: '#8a7f72' }}>Venture</div>
+                <h3 className="serif text-[1.3rem] leading-[1.25] tracking-[-0.01em]" style={{ color: '#f4eee4', fontVariationSettings: "'SOFT' 50, 'opsz' 36" }}>
+                  Of all decks, this is what funds actually read.
+                </h3>
+              </div>
+
+              {/* Tile 2 — Proximity: a wall between two circles */}
+              <div className="relative flex flex-col gap-5 p-7 md:p-8 border" style={{ borderColor: 'rgba(244,238,228,0.08)', background: 'rgba(244,238,228,0.02)' }}>
+                <div className="flex items-start justify-between">
+                  <svg width="42" height="42" viewBox="0 0 42 42" fill="none" aria-hidden>
+                    <circle cx="10" cy="21" r="5" stroke="#8a7f72" strokeWidth="1.2" />
+                    <circle cx="32" cy="21" r="5" stroke="#8a7f72" strokeWidth="1.2" />
+                    <line x1="21" y1="6" x2="21" y2="36" stroke="#e89660" strokeWidth="1.5" strokeDasharray="2 3" />
+                  </svg>
+                  <div className="serif text-[2.5rem] leading-none" style={{ color: '#ecb48a', fontVariationSettings: "'SOFT' 30, 'opsz' 72" }}>
+                    Who
+                  </div>
+                </div>
+                <div className="mono text-[0.64rem] uppercase tracking-[0.26em]" style={{ color: '#8a7f72' }}>Proximity</div>
+                <h3 className="serif text-[1.3rem] leading-[1.25] tracking-[-0.01em]" style={{ color: '#f4eee4', fontVariationSettings: "'SOFT' 50, 'opsz' 36" }}>
+                  Your network, your school, your zip — not your idea.
+                </h3>
+              </div>
+
+              {/* Tile 3 — Geography: a globe with a single lit dot */}
+              <div className="relative flex flex-col gap-5 p-7 md:p-8 border" style={{ borderColor: 'rgba(244,238,228,0.08)', background: 'rgba(244,238,228,0.02)' }}>
+                <div className="flex items-start justify-between">
+                  <svg width="42" height="42" viewBox="0 0 42 42" fill="none" aria-hidden>
+                    <circle cx="21" cy="21" r="15" stroke="#8a7f72" strokeWidth="1.2" />
+                    <path d="M6 21 Q21 14 36 21 Q21 28 6 21" stroke="#8a7f72" strokeWidth="1" fill="none" />
+                    <line x1="21" y1="6" x2="21" y2="36" stroke="#8a7f72" strokeWidth="1" />
+                    <circle cx="12" cy="16" r="2" fill="#e89660" />
+                  </svg>
+                  <div className="serif text-[2.5rem] leading-none" style={{ color: '#ecb48a', fontVariationSettings: "'SOFT' 30, 'opsz' 72" }}>
+                    1
+                    <span className="text-[1rem] align-bottom ml-0.5 text-[#8a7f72]">/195</span>
+                  </div>
+                </div>
+                <div className="mono text-[0.64rem] uppercase tracking-[0.26em]" style={{ color: '#8a7f72' }}>Geography</div>
+                <h3 className="serif text-[1.3rem] leading-[1.25] tracking-[-0.01em]" style={{ color: '#f4eee4', fontVariationSettings: "'SOFT' 50, 'opsz' 36" }}>
+                  One country gets most of the capital. The rest wait.
+                </h3>
+              </div>
+            </div>
+            <p className="serif text-[1.25rem] md:text-[1.5rem] leading-[1.55] max-w-[58ch] italic"
+              style={{ color: '#ecb48a', fontVariationSettings: "'SOFT' 100, 'WONK' 0, 'opsz' 36" }}>
+              We thought that was broken.
+            </p>
+          </div>
+        </section>
+
+        {/* ═══════════ III / The shift — the mission pivot ═══════════ */}
+        <section className="relative -mx-3 sm:-mx-6 px-6 md:px-10 py-32 md:py-56 border-t overflow-hidden"
+          style={{ background: '#0a0814', borderColor: 'rgba(244,238,228,0.06)' }}>
+          {/* Rising photon column — luminous vertical light */}
+          <div aria-hidden className="pointer-events-none absolute left-1/2 -translate-x-1/2 top-0 bottom-0 w-px"
+            style={{ background: 'linear-gradient(to top, transparent 0%, rgba(232,150,96,0.35) 30%, rgba(255,247,232,0.9) 55%, rgba(232,150,96,0.35) 80%, transparent 100%)' }} />
+          {/* Radial starburst rays emanating from the photon core */}
+          <svg aria-hidden className="pointer-events-none absolute left-1/2 top-[35%] -translate-x-1/2 -translate-y-1/2"
+            width="420" height="420" viewBox="0 0 420 420" style={{ mixBlendMode: 'screen', opacity: 0.85 }}>
+            <defs>
+              <radialGradient id="burstCore">
+                <stop offset="0%" stopColor="#ffffff" stopOpacity="1" />
+                <stop offset="18%" stopColor="#fff4b8" stopOpacity="0.95" />
+                <stop offset="50%" stopColor="#e89660" stopOpacity="0.35" />
+                <stop offset="100%" stopColor="#e89660" stopOpacity="0" />
+              </radialGradient>
+              <linearGradient id="rayFade" x1="0.5" y1="0" x2="0.5" y2="1">
+                <stop offset="0%" stopColor="rgba(255,244,184,0)" />
+                <stop offset="50%" stopColor="rgba(255,244,184,0.55)" />
+                <stop offset="100%" stopColor="rgba(255,244,184,0)" />
+              </linearGradient>
+            </defs>
+            {/* 12 thin rays rotated around center */}
+            {Array.from({ length: 12 }).map((_, i) => (
+              <line
+                key={i}
+                x1="210" y1="30" x2="210" y2="130"
+                stroke="url(#rayFade)" strokeWidth="1" strokeLinecap="round"
+                transform={`rotate(${i * 30} 210 210)`}
+                opacity={i % 2 === 0 ? 0.9 : 0.55}
+              />
+            ))}
+            {/* Ambient floating particles around the core */}
+            {[
+              [80, 120, 1.8], [330, 130, 1.5], [70, 250, 1.2], [340, 260, 1.6],
+              [140, 70, 1], [280, 80, 1.2], [160, 340, 1.2], [270, 345, 1],
+              [40, 180, 1], [380, 200, 0.9], [200, 40, 1.4], [210, 380, 1.4],
+            ].map(([x, y, r], i) => (
+              <circle key={i} cx={x as number} cy={y as number} r={r as number} fill="#fff4b8" opacity={0.35 + (i % 3) * 0.15} />
+            ))}
+            {/* Central glowing orb */}
+            <circle cx="210" cy="210" r="170" fill="url(#burstCore)" />
+            <circle cx="210" cy="210" r="8" fill="#fff4b8" />
+            <circle cx="210" cy="210" r="4" fill="#ffffff" />
+          </svg>
+          <div className="max-w-[1400px] mx-auto relative z-10">
+            <div className="mono text-[0.64rem] uppercase tracking-[0.26em] mb-6" style={{ color: '#e89660' }}>III / The shift</div>
+            <h2 className="serif leading-[0.95] tracking-[-0.03em] mb-12 max-w-[14ch]"
+              style={{ color: '#f4eee4', fontSize: 'clamp(3rem, 8vw, 7rem)', fontWeight: 400, fontVariationSettings: "'SOFT' 50, 'opsz' 144" }}>
+              What if the{' '}
+              <em style={{ fontVariationSettings: "'SOFT' 100, 'WONK' 0, 'opsz' 144", color: 'transparent',
+                backgroundImage: 'linear-gradient(178deg, #fff2d8 0%, #ecb48a 35%, #d99875 70%, #d67347 100%)',
+                WebkitBackgroundClip: 'text', backgroundClip: 'text' }}>world decided?</em>
+            </h2>
+            <div className="mono text-[0.68rem] uppercase tracking-[0.3em] mb-8 flex items-center gap-3" style={{ color: '#e89660' }}>
+              <span className="inline-block w-10 h-px" style={{ background: '#e89660' }} />
+              <span>Our mission · give every idea a chance</span>
+            </div>
+            <p className="serif text-[1.25rem] md:text-[1.5rem] leading-[1.55] max-w-[58ch] mb-6"
+              style={{ color: '#f4eee4', fontWeight: 400, fontVariationSettings: "'SOFT' 50, 'opsz' 36" }}>
+              The internet already knows what&rsquo;s interesting. It reacts in tweets, threads, memes, money. Bored in hours, obsessed in weeks.
+            </p>
+            <p className="serif text-[1.15rem] md:text-[1.3rem] leading-[1.6] max-w-[58ch]"
+              style={{ color: '#d8cfc0', fontWeight: 400, fontVariationSettings: "'SOFT' 50, 'opsz' 30" }}>
+              If that reaction could <em style={{ color: '#ecb48a', fontVariationSettings: "'SOFT' 100, 'WONK' 0" }}>fund</em> the things worth building — and the cost of being wrong was nothing — the floor for starting something would drop to zero.
+            </p>
+            <p className="serif text-[1.15rem] md:text-[1.3rem] leading-[1.6] max-w-[58ch] mt-5"
+              style={{ color: '#d8cfc0', fontWeight: 400, fontVariationSettings: "'SOFT' 50, 'opsz' 30" }}>
+              That&rsquo;s PNL. Anyone, anywhere, can pitch. Anyone, anywhere, can back it or push back. The crowd becomes the committee.{' '}
+              <em style={{ color: '#ecb48a', fontVariationSettings: "'SOFT' 100, 'WONK' 0" }}>Conviction becomes capital.</em>
+            </p>
+          </div>
+        </section>
+
+        {/* ═══════════ IV / How it grows — believers vs critics mechanism ═══════════ */}
+        <section className="relative -mx-3 sm:-mx-6 px-6 md:px-10 py-24 md:py-40 border-t"
+          style={{ background: '#0a0814', borderColor: 'rgba(244,238,228,0.06)' }}>
+          <div className="max-w-[1400px] mx-auto">
+            <div className="mono text-[0.64rem] uppercase tracking-[0.26em] mb-6" style={{ color: '#e89660' }}>IV / How it grows</div>
+            <h2 className="serif leading-[1.05] tracking-[-0.025em] mb-6 max-w-[22ch]"
+              style={{ color: '#f4eee4', fontSize: 'clamp(2.25rem, 5vw, 4.5rem)', fontWeight: 400, fontVariationSettings: "'SOFT' 50, 'opsz' 72" }}>
+              Every idea gets two camps. Both matter.
+            </h2>
+            <p className="serif text-[1.1rem] md:text-[1.25rem] leading-[1.6] max-w-[56ch] mb-16"
+              style={{ color: '#d8cfc0', fontWeight: 400, fontVariationSettings: "'SOFT' 50, 'opsz' 30" }}>
+              When you plant an idea, two sides form around it. The outcome is decided by how much conviction flows to each.
+            </p>
+
+            {/* Visual diagram — two energy streams converging on the seed */}
+            <div aria-hidden className="relative w-full max-w-[900px] mx-auto my-16 md:my-20" style={{ aspectRatio: '3 / 1' }}>
+              <svg viewBox="0 0 900 300" className="w-full h-full overflow-visible" preserveAspectRatio="xMidYMid meet">
+                <defs>
+                  <linearGradient id="believerStream" x1="0" y1="0" x2="1" y2="0">
+                    <stop offset="0%" stopColor="rgba(63,122,66,0)" />
+                    <stop offset="60%" stopColor="rgba(63,122,66,0.7)" />
+                    <stop offset="100%" stopColor="rgba(127,200,120,1)" />
+                  </linearGradient>
+                  <linearGradient id="criticStream" x1="1" y1="0" x2="0" y2="0">
+                    <stop offset="0%" stopColor="rgba(214,115,71,0)" />
+                    <stop offset="60%" stopColor="rgba(214,115,71,0.7)" />
+                    <stop offset="100%" stopColor="rgba(236,180,138,1)" />
+                  </linearGradient>
+                  <radialGradient id="seedGlow">
+                    <stop offset="0%" stopColor="#fff4b8" stopOpacity="1" />
+                    <stop offset="50%" stopColor="#e89628" stopOpacity="0.6" />
+                    <stop offset="100%" stopColor="#8a3a10" stopOpacity="0" />
+                  </radialGradient>
+                </defs>
+
+                {/* Believer stream (left to center) */}
+                <path d="M 40 60 Q 240 90 430 140" stroke="url(#believerStream)" strokeWidth="2.5" fill="none" strokeLinecap="round" />
+                <path d="M 40 100 Q 240 120 430 145" stroke="url(#believerStream)" strokeWidth="1.5" fill="none" strokeLinecap="round" opacity="0.6" />
+                <path d="M 40 20 Q 240 60 430 138" stroke="url(#believerStream)" strokeWidth="1" fill="none" strokeLinecap="round" opacity="0.4" />
+
+                {/* Critic stream (right to center) */}
+                <path d="M 860 60 Q 660 90 470 140" stroke="url(#criticStream)" strokeWidth="2.5" fill="none" strokeLinecap="round" />
+                <path d="M 860 100 Q 660 120 470 145" stroke="url(#criticStream)" strokeWidth="1.5" fill="none" strokeLinecap="round" opacity="0.6" />
+                <path d="M 860 20 Q 660 60 470 138" stroke="url(#criticStream)" strokeWidth="1" fill="none" strokeLinecap="round" opacity="0.4" />
+
+                {/* Dotted photon trail (left side, believers) */}
+                {[0, 1, 2, 3, 4].map((i) => (
+                  <circle key={`b-${i}`} cx={100 + i * 70} cy={75 + i * 14} r="1.8" fill="#7fc878" opacity={0.3 + i * 0.12} />
+                ))}
+                {/* Dotted photon trail (right side, critics) */}
+                {[0, 1, 2, 3, 4].map((i) => (
+                  <circle key={`c-${i}`} cx={800 - i * 70} cy={75 + i * 14} r="1.8" fill="#ecb48a" opacity={0.3 + i * 0.12} />
+                ))}
+
+                {/* Central seed */}
+                <circle cx="450" cy="150" r="45" fill="url(#seedGlow)" />
+                <circle cx="450" cy="150" r="13" fill="#fff4b8" opacity="0.95" />
+                <circle cx="450" cy="150" r="7" fill="#ffffff" opacity="0.85" />
+
+                {/* Roots descending from seed */}
+                <path d="M 450 175 Q 430 210 405 245" stroke="rgba(180,120,70,0.55)" strokeWidth="1.5" fill="none" strokeLinecap="round" />
+                <path d="M 450 175 Q 470 210 495 245" stroke="rgba(180,120,70,0.55)" strokeWidth="1.5" fill="none" strokeLinecap="round" />
+                <path d="M 450 175 Q 450 215 450 255" stroke="rgba(180,120,70,0.45)" strokeWidth="1.2" fill="none" strokeLinecap="round" />
+                <path d="M 450 175 Q 415 205 380 230" stroke="rgba(180,120,70,0.35)" strokeWidth="1" fill="none" strokeLinecap="round" />
+                <path d="M 450 175 Q 485 205 520 230" stroke="rgba(180,120,70,0.35)" strokeWidth="1" fill="none" strokeLinecap="round" />
+
+                {/* Labels */}
+                <text x="40" y="140" fill="#3f7a42" style={{ font: "500 11px ui-monospace, SFMono-Regular, Menlo, monospace", letterSpacing: "0.24em", textTransform: "uppercase" }}>BELIEVERS → YES</text>
+                <text x="860" y="140" fill="#d67347" textAnchor="end" style={{ font: "500 11px ui-monospace, SFMono-Regular, Menlo, monospace", letterSpacing: "0.24em", textTransform: "uppercase" }}>NO ← CRITICS</text>
+                <text x="450" y="285" fill="#8a7f72" textAnchor="middle" style={{ font: "400 10px ui-monospace, SFMono-Regular, Menlo, monospace", letterSpacing: "0.28em", textTransform: "uppercase" }}>the idea</text>
+              </svg>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-10 md:gap-16">
+              <article className="flex flex-col gap-5 md:pr-8 md:border-r" style={{ borderColor: 'rgba(63,122,66,0.25)' }}>
+                <div className="mono text-[0.7rem] uppercase tracking-[0.26em]" style={{ color: '#3f7a42' }}>The believers</div>
+                <h3 className="serif text-[1.8rem] leading-[1.1] tracking-[-0.02em]" style={{ color: '#f4eee4', fontWeight: 400, fontVariationSettings: "'SOFT' 50, 'opsz' 48" }}>
+                  They stake on <em style={{ color: '#3f7a42', fontVariationSettings: "'SOFT' 100, 'WONK' 0" }}>yes.</em>
+                </h3>
+                <p className="serif text-[1.05rem] leading-[1.65]" style={{ color: '#d8cfc0', fontVariationSettings: "'SOFT' 50, 'opsz' 30" }}>
+                  People who look at your idea and think <em style={{ color: '#ecb48a', fontVariationSettings: "'SOFT' 100, 'WONK' 0" }}>this should exist.</em> Their conviction is the water, the sun, the capital that lets the idea grow.
+                </p>
+              </article>
+              <article className="flex flex-col gap-5">
+                <div className="mono text-[0.7rem] uppercase tracking-[0.26em]" style={{ color: '#d67347' }}>The critics</div>
+                <h3 className="serif text-[1.8rem] leading-[1.1] tracking-[-0.02em]" style={{ color: '#f4eee4', fontWeight: 400, fontVariationSettings: "'SOFT' 50, 'opsz' 48" }}>
+                  They stake on <em style={{ color: '#d67347', fontVariationSettings: "'SOFT' 100, 'WONK' 0" }}>no.</em>
+                </h3>
+                <p className="serif text-[1.05rem] leading-[1.65]" style={{ color: '#d8cfc0', fontVariationSettings: "'SOFT' 50, 'opsz' 30" }}>
+                  People who look at it and think <em style={{ color: '#ecb48a', fontVariationSettings: "'SOFT' 100, 'WONK' 0" }}>this won&rsquo;t work.</em> Their doubt isn&rsquo;t noise — it&rsquo;s the pressure test that separates real ideas from empty ones.
+                </p>
+              </article>
+            </div>
+            <div className="mt-16 pt-10 border-t max-w-[62ch]" style={{ borderColor: 'rgba(244,238,228,0.08)' }}>
+              <p className="serif text-[1.1rem] md:text-[1.25rem] leading-[1.6]"
                 style={{ color: '#d8cfc0', fontWeight: 400, fontVariationSettings: "'SOFT' 50, 'opsz' 30" }}>
-                Venture funds won't take your call. Pitch decks die in the spam folder. PNL flips the script:{' '}
-                <em style={{ fontVariationSettings: "'SOFT' 100, 'WONK' 1", color: '#ecb48a' }}>
-                  the internet votes on your idea, and if enough people believe, the vote itself funds the launch.
-                </em>
+                The market runs. Prices move. The side with more conviction by the end{' '}
+                <em style={{ color: '#ecb48a', fontVariationSettings: "'SOFT' 100, 'WONK' 0" }}>takes the whole pool</em>.
+                If the <em style={{ color: '#3f7a42', fontVariationSettings: "'SOFT' 100, 'WONK' 0" }}>believers</em> win, the idea launches and they receive the tokens — the critics&rsquo; stakes become the believers&rsquo; reward.
+                If the <em style={{ color: '#d67347', fontVariationSettings: "'SOFT' 100, 'WONK' 0" }}>critics</em> win, they claim the pool in SOL — the believers&rsquo; stakes become the critics&rsquo; reward.
+              </p>
+              <Link href="/whitepaper" className="inline-flex items-center gap-2 mt-8 mono text-[0.66rem] uppercase tracking-[0.24em] hover:text-[#f4eee4] transition-colors" style={{ color: '#e89660' }}>
+                <span>Read the mechanism</span>
+                <span>→</span>
+              </Link>
+            </div>
+          </div>
+        </section>
+
+        {/* ═══════════ V / What could go wrong — the settlement truth ═══════════ */}
+        <section className="relative -mx-3 sm:-mx-6 px-6 md:px-10 py-24 md:py-40 border-t"
+          style={{ background: '#0a0814', borderColor: 'rgba(244,238,228,0.06)' }}>
+          <div className="max-w-[1400px] mx-auto">
+            <div className="mono text-[0.64rem] uppercase tracking-[0.26em] mb-6" style={{ color: '#e89660' }}>V / The settlement</div>
+            <h2 className="serif leading-[1.05] tracking-[-0.025em] mb-6 max-w-[22ch]"
+              style={{ color: '#f4eee4', fontSize: 'clamp(2.25rem, 5vw, 4.5rem)', fontWeight: 400, fontVariationSettings: "'SOFT' 50, 'opsz' 72" }}>
+              Winners take the pool. Losers fund it.
+            </h2>
+            <p className="serif text-[1.1rem] md:text-[1.25rem] leading-[1.6] max-w-[58ch] mb-16"
+              style={{ color: '#d8cfc0', fontWeight: 400, fontVariationSettings: "'SOFT' 50, 'opsz' 30" }}>
+              Prediction markets are honest about stakes. The winning side earns the entire pool — including the losing side&rsquo;s SOL. There&rsquo;s no free conviction; there&rsquo;s also no trapped capital. Either you were right, or you funded the people who were.
+            </p>
+
+            {/* Visual: two outcome trees side by side — bloom vs gently archive */}
+            <div aria-hidden className="grid grid-cols-2 gap-6 md:gap-12 max-w-[900px] mx-auto mb-16 md:mb-20">
+              {/* Bloom tree — believers win */}
+              <div className="relative" style={{ aspectRatio: '1 / 1.15' }}>
+                <svg viewBox="0 0 200 230" className="w-full h-full" preserveAspectRatio="xMidYMax meet">
+                  <defs>
+                    <radialGradient id="bloomGlow">
+                      <stop offset="0%" stopColor="rgba(127,200,120,0.5)" />
+                      <stop offset="100%" stopColor="rgba(127,200,120,0)" />
+                    </radialGradient>
+                  </defs>
+                  {/* Ambient glow */}
+                  <circle cx="100" cy="100" r="95" fill="url(#bloomGlow)" />
+                  {/* Trunk */}
+                  <path d="M 100 210 Q 102 170 100 130 Q 98 90 100 60" stroke="#ecb48a" strokeWidth="3" fill="none" strokeLinecap="round" />
+                  {/* Branches */}
+                  <path d="M 100 130 Q 75 110 55 80" stroke="#d99875" strokeWidth="2" fill="none" strokeLinecap="round" />
+                  <path d="M 100 130 Q 125 110 145 80" stroke="#d99875" strokeWidth="2" fill="none" strokeLinecap="round" />
+                  <path d="M 100 95 Q 80 75 65 50" stroke="#b8613a" strokeWidth="1.5" fill="none" strokeLinecap="round" />
+                  <path d="M 100 95 Q 120 75 135 50" stroke="#b8613a" strokeWidth="1.5" fill="none" strokeLinecap="round" />
+                  <path d="M 100 60 Q 98 40 100 25" stroke="#b8613a" strokeWidth="1.5" fill="none" strokeLinecap="round" />
+                  {/* Green leaves (believers) */}
+                  {[
+                    [55, 80, 4], [65, 50, 3.5], [100, 25, 4.5], [135, 50, 3.5], [145, 80, 4],
+                    [80, 100, 3], [120, 100, 3], [85, 60, 3], [115, 60, 3], [75, 70, 2.5], [125, 70, 2.5],
+                    [50, 65, 2.5], [150, 65, 2.5], [95, 40, 2.5], [105, 40, 2.5],
+                  ].map(([x, y, r], i) => (
+                    <circle key={i} cx={x as number} cy={y as number} r={r as number} fill="#3f7a42" opacity="0.85" />
+                  ))}
+                  {/* Floating golden tokens — new holders receiving */}
+                  <circle cx="40" cy="30" r="2.5" fill="#fff4b8" opacity="0.9" />
+                  <circle cx="170" cy="45" r="2" fill="#fff4b8" opacity="0.8" />
+                  <circle cx="30" cy="110" r="1.8" fill="#fff4b8" opacity="0.7" />
+                  <circle cx="175" cy="120" r="2.2" fill="#fff4b8" opacity="0.85" />
+                  <circle cx="60" cy="20" r="1.5" fill="#fff4b8" opacity="0.6" />
+                  {/* Ground line */}
+                  <line x1="30" y1="212" x2="170" y2="212" stroke="rgba(230,180,115,0.4)" strokeWidth="0.8" />
+                  {/* Label */}
+                  <text x="100" y="227" fill="#3f7a42" textAnchor="middle" style={{ font: "500 9px ui-monospace, SFMono-Regular, Menlo, monospace", letterSpacing: "0.26em", textTransform: "uppercase" }}>
+                    BLOOM · LAUNCH
+                  </text>
+                </svg>
+              </div>
+              {/* Archive — critics win, seed rests */}
+              <div className="relative" style={{ aspectRatio: '1 / 1.15' }}>
+                <svg viewBox="0 0 200 230" className="w-full h-full" preserveAspectRatio="xMidYMax meet">
+                  <defs>
+                    <radialGradient id="archiveGlow">
+                      <stop offset="0%" stopColor="rgba(214,115,71,0.25)" />
+                      <stop offset="100%" stopColor="rgba(214,115,71,0)" />
+                    </radialGradient>
+                  </defs>
+                  <circle cx="100" cy="180" r="70" fill="url(#archiveGlow)" />
+                  {/* Dormant seed underground, gentle roots */}
+                  <circle cx="100" cy="155" r="10" fill="#d67347" opacity="0.85" />
+                  <circle cx="100" cy="155" r="5" fill="#8a3a10" opacity="0.9" />
+                  {/* Roots — descending, muted */}
+                  <path d="M 100 165 Q 85 190 70 210" stroke="rgba(180,120,70,0.5)" strokeWidth="1.5" fill="none" strokeLinecap="round" />
+                  <path d="M 100 165 Q 115 190 130 210" stroke="rgba(180,120,70,0.5)" strokeWidth="1.5" fill="none" strokeLinecap="round" />
+                  <path d="M 100 165 Q 100 195 100 220" stroke="rgba(180,120,70,0.45)" strokeWidth="1.3" fill="none" strokeLinecap="round" />
+                  <path d="M 100 165 Q 70 180 50 195" stroke="rgba(180,120,70,0.35)" strokeWidth="1" fill="none" strokeLinecap="round" />
+                  <path d="M 100 165 Q 130 180 150 195" stroke="rgba(180,120,70,0.35)" strokeWidth="1" fill="none" strokeLinecap="round" />
+                  {/* Refund flow — small arrows returning to earth */}
+                  <path d="M 100 60 Q 100 80 100 100" stroke="rgba(236,180,138,0.5)" strokeWidth="1" fill="none" strokeDasharray="3 3" />
+                  <path d="M 60 50 Q 75 80 95 110" stroke="rgba(236,180,138,0.4)" strokeWidth="1" fill="none" strokeDasharray="3 3" />
+                  <path d="M 140 50 Q 125 80 105 110" stroke="rgba(236,180,138,0.4)" strokeWidth="1" fill="none" strokeDasharray="3 3" />
+                  {/* Falling leaves back to soil */}
+                  <circle cx="70" cy="35" r="2.5" fill="#d67347" opacity="0.6" />
+                  <circle cx="100" cy="25" r="2" fill="#d67347" opacity="0.5" />
+                  <circle cx="135" cy="40" r="2.5" fill="#d67347" opacity="0.6" />
+                  <circle cx="80" cy="60" r="1.8" fill="#d67347" opacity="0.45" />
+                  <circle cx="125" cy="60" r="1.8" fill="#d67347" opacity="0.45" />
+                  {/* Ground line */}
+                  <line x1="30" y1="148" x2="170" y2="148" stroke="rgba(230,180,115,0.4)" strokeWidth="0.8" />
+                  {/* Label */}
+                  <text x="100" y="227" fill="#d67347" textAnchor="middle" style={{ font: "500 9px ui-monospace, SFMono-Regular, Menlo, monospace", letterSpacing: "0.26em", textTransform: "uppercase" }}>
+                    ARCHIVE · CRITICS WIN
+                  </text>
+                </svg>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-10 md:gap-16">
+              <div className="flex flex-col gap-6">
+                <div className="flex items-baseline justify-between pb-4 border-b" style={{ borderColor: 'rgba(63,122,66,0.35)' }}>
+                  <div className="serif text-[1.4rem]" style={{ color: '#f4eee4' }}>If the <em style={{ color: '#3f7a42', fontVariationSettings: "'SOFT' 100, 'WONK' 0" }}>believers</em> win</div>
+                  <div className="mono text-[0.6rem] uppercase tracking-[0.26em]" style={{ color: '#3f7a42' }}>Launch</div>
+                </div>
+                <ul className="flex flex-col gap-4 serif text-[1rem] leading-[1.55]" style={{ color: '#d8cfc0' }}>
+                  <li className="flex gap-4"><span className="mono text-[0.62rem] pt-1.5" style={{ color: '#3f7a42' }}>→</span><span>The token launches on Solana via pump.fun — a real company takes its first breath.</span></li>
+                  <li className="flex gap-4"><span className="mono text-[0.62rem] pt-1.5" style={{ color: '#3f7a42' }}>→</span><span>Believers receive the token airdrop (65% of supply), pro-rata to their stake.</span></li>
+                  <li className="flex gap-4"><span className="mono text-[0.62rem] pt-1.5" style={{ color: '#3f7a42' }}>→</span><span>Critics&rsquo; SOL stakes are absorbed into the launch — their conviction funded the win.</span></li>
+                </ul>
+              </div>
+              <div className="flex flex-col gap-6">
+                <div className="flex items-baseline justify-between pb-4 border-b" style={{ borderColor: 'rgba(214,115,71,0.35)' }}>
+                  <div className="serif text-[1.4rem]" style={{ color: '#f4eee4' }}>If the <em style={{ color: '#d67347', fontVariationSettings: "'SOFT' 100, 'WONK' 0" }}>critics</em> win</div>
+                  <div className="mono text-[0.6rem] uppercase tracking-[0.26em]" style={{ color: '#d67347' }}>Archive</div>
+                </div>
+                <ul className="flex flex-col gap-4 serif text-[1rem] leading-[1.55]" style={{ color: '#d8cfc0' }}>
+                  <li className="flex gap-4"><span className="mono text-[0.62rem] pt-1.5" style={{ color: '#d67347' }}>→</span><span>The idea doesn&rsquo;t launch. Archived on-chain as a permanent signal.</span></li>
+                  <li className="flex gap-4"><span className="mono text-[0.62rem] pt-1.5" style={{ color: '#d67347' }}>→</span><span>Critics claim the entire SOL pool, pro-rata to their stake.</span></li>
+                  <li className="flex gap-4"><span className="mono text-[0.62rem] pt-1.5" style={{ color: '#d67347' }}>→</span><span>Believers&rsquo; SOL stakes become the critics&rsquo; reward — conviction has a cost.</span></li>
+                </ul>
+              </div>
+            </div>
+            <div className="mt-16 pt-10 border-t max-w-[64ch]" style={{ borderColor: 'rgba(244,238,228,0.08)' }}>
+              <div className="mono text-[0.62rem] uppercase tracking-[0.28em] mb-3" style={{ color: '#8a7f72' }}>The exit hatch · tied vote or target not met</div>
+              <p className="serif text-[1.05rem] md:text-[1.15rem] leading-[1.6]"
+                style={{ color: '#d8cfc0', fontVariationSettings: "'SOFT' 50, 'opsz' 30" }}>
+                If believers and critics end exactly balanced — or the market never reaches its funding target — the contract resolves as a refund. Both sides get their SOL back pro-rata. <em style={{ color: '#ecb48a', fontVariationSettings: "'SOFT' 100, 'WONK' 0" }}>No platform fee, no forfeit.</em> It&rsquo;s the clean reset for inconclusive markets.
               </p>
             </div>
-            <aside className="col-span-12 md:col-span-3 mono text-[0.66rem] uppercase tracking-[0.22em] text-[#8a7f72] flex flex-col gap-6 mt-8 md:mt-2 md:pl-8 md:border-l"
-              style={{ borderColor: 'rgba(244,238,228,0.08)' }}>
-              <div><div style={{ color: '#e89660' }}>No gatekeepers</div><div style={{ color: '#d8cfc0', marginTop: '6px', lineHeight: 1.7 }}>Anyone can pitch.<br />The world decides.</div></div>
-              <div><div style={{ color: '#e89660' }}>Real money</div><div style={{ color: '#d8cfc0', marginTop: '6px', lineHeight: 1.7 }}>Winning ideas get<br />launch capital, instantly.</div></div>
-              <div><div style={{ color: '#e89660' }}>On-chain proof</div><div style={{ color: '#d8cfc0', marginTop: '6px', lineHeight: 1.7 }}>Every vote, every launch —<br />permanent on Solana.</div></div>
-            </aside>
+            <p className="serif text-[1.2rem] md:text-[1.4rem] leading-[1.55] max-w-[60ch] mt-14 italic"
+              style={{ color: '#ecb48a', fontVariationSettings: "'SOFT' 100, 'WONK' 0, 'opsz' 36" }}>
+              Being right pays. Being wrong is the cost of having conviction at all.
+            </p>
           </div>
         </section>
 
-        {/* ═══════════ 02 / How it works ═══════════ */}
-        <section className="relative -mx-3 sm:-mx-6 px-6 md:px-10 py-24 md:py-40 border-t"
-          style={{ background: '#0a0814', borderColor: 'rgba(244,238,228,0.06)' }}>
-          <div className="max-w-[1400px] mx-auto">
-            <div className="mono text-[0.64rem] uppercase tracking-[0.26em] mb-6" style={{ color: '#e89660' }}>02 / How it works</div>
-            <h2 className="serif leading-[1] tracking-[-0.025em] mb-16 max-w-[22ch]"
-              style={{ color: '#f4eee4', fontSize: 'clamp(2.25rem, 5vw, 4.5rem)', fontWeight: 400, fontVariationSettings: "'SOFT' 50, 'opsz' 72" }}>
-              Three steps. No pitch deck required.
-            </h2>
-            <div className="grid grid-cols-12 gap-6 md:gap-10">
-              <article className="col-span-12 md:col-span-4 flex flex-col gap-5 md:pr-8 md:border-r" style={{ borderColor: 'rgba(244,238,228,0.08)' }}>
-                <div className="flex items-baseline gap-3">
-                  <span className="serif text-[3rem] leading-none" style={{ color: '#e89660', fontVariationSettings: "'SOFT' 30, 'opsz' 96" }}>01</span>
-                  <span className="mono text-[0.66rem] uppercase tracking-[0.24em] text-[#8a7f72]">Pitch it</span>
-                </div>
-                <h3 className="serif text-[1.7rem] leading-[1.1] tracking-[-0.02em]" style={{ color: '#f4eee4', fontWeight: 400, fontVariationSettings: "'SOFT' 50, 'opsz' 48" }}>Post your idea.</h3>
-                <p className="serif text-[1rem] leading-[1.65]" style={{ color: '#a89d8e' }}>Name it, describe it, done. Takes five minutes. The world starts voting immediately — YES if they believe in it, NO if they don&rsquo;t.</p>
-              </article>
-              <article className="col-span-12 md:col-span-4 flex flex-col gap-5 md:pr-8 md:border-r" style={{ borderColor: 'rgba(244,238,228,0.08)' }}>
-                <div className="flex items-baseline gap-3">
-                  <span className="serif text-[3rem] leading-none" style={{ color: '#e89660', fontVariationSettings: "'SOFT' 30, 'opsz' 96" }}>02</span>
-                  <span className="mono text-[0.66rem] uppercase tracking-[0.24em] text-[#8a7f72]">The world decides</span>
-                </div>
-                <h3 className="serif text-[1.7rem] leading-[1.1] tracking-[-0.02em]" style={{ color: '#f4eee4', fontWeight: 400, fontVariationSettings: "'SOFT' 50, 'opsz' 48" }}>The vote runs.</h3>
-                <p className="serif text-[1rem] leading-[1.65]" style={{ color: '#a89d8e' }}>For a set time, anyone can back YES or NO with real money. Each vote is a prediction. The price moves in real time. No committee. No insiders.</p>
-              </article>
-              <article className="col-span-12 md:col-span-4 flex flex-col gap-5">
-                <div className="flex items-baseline gap-3">
-                  <span className="serif text-[3rem] leading-none" style={{ color: '#e89660', fontVariationSettings: "'SOFT' 30, 'opsz' 96" }}>03</span>
-                  <span className="mono text-[0.66rem] uppercase tracking-[0.24em] text-[#8a7f72]">It launches</span>
-                </div>
-                <h3 className="serif text-[1.7rem] leading-[1.1] tracking-[-0.02em]" style={{ color: '#f4eee4', fontWeight: 400, fontVariationSettings: "'SOFT' 50, 'opsz' 48" }}>Believers fund it.</h3>
-                <p className="serif text-[1rem] leading-[1.65]" style={{ color: '#a89d8e' }}>If YES wins, the entire pool becomes real launch capital. Your token ships on Solana via pump.fun. The people who voted for you get tokens. You&rsquo;re a real company.</p>
-              </article>
-            </div>
-          </div>
-        </section>
-
-        {/* ═══════════ 03 / What you get ═══════════ */}
-        <section className="relative -mx-3 sm:-mx-6 px-6 md:px-10 py-24 md:py-40 border-t"
-          style={{ background: '#0a0814', borderColor: 'rgba(244,238,228,0.06)' }}>
-          <div className="max-w-[1400px] mx-auto">
-            <div className="mono text-[0.64rem] uppercase tracking-[0.26em] mb-6" style={{ color: '#e89660' }}>03 / What you get</div>
-            <h2 className="serif leading-[1] tracking-[-0.025em] mb-16 max-w-[22ch]"
-              style={{ color: '#f4eee4', fontSize: 'clamp(2.25rem, 5vw, 4.5rem)', fontWeight: 400, fontVariationSettings: "'SOFT' 50, 'opsz' 72" }}>
-              No matter what happens, nobody loses their shirt.
-            </h2>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-10 md:gap-16">
-              <div className="flex flex-col gap-6">
-                <div className="flex items-baseline justify-between pb-4 border-b" style={{ borderColor: 'rgba(255,106,61,0.35)' }}>
-                  <div className="serif text-[1.4rem]" style={{ color: '#f4eee4' }}>If the idea <em style={{ fontVariationSettings: "'SOFT' 100, 'WONK' 1", color: '#e89660' }}>wins</em></div>
-                  <div className="mono text-[0.6rem] uppercase tracking-[0.26em] text-[#e89660]">Launch</div>
-                </div>
-                <ul className="flex flex-col gap-4 serif text-[1rem] leading-[1.55]" style={{ color: '#d8cfc0' }}>
-                  <li className="flex gap-4"><span className="mono text-[0.62rem] pt-1.5" style={{ color: '#8a7f72' }}>→</span><span>The entire pool turns into real launch money on pump.fun.</span></li>
-                  <li className="flex gap-4"><span className="mono text-[0.62rem] pt-1.5" style={{ color: '#8a7f72' }}>→</span><span>Everyone who voted YES gets tokens — the more you staked, the more you get.</span></li>
-                  <li className="flex gap-4"><span className="mono text-[0.62rem] pt-1.5" style={{ color: '#8a7f72' }}>→</span><span>The NO side&rsquo;s money gets split to YES voters as winnings. Being right pays.</span></li>
-                </ul>
-              </div>
-              <div className="flex flex-col gap-6">
-                <div className="flex items-baseline justify-between pb-4 border-b" style={{ borderColor: 'rgba(138,127,114,0.35)' }}>
-                  <div className="serif text-[1.4rem]" style={{ color: '#f4eee4' }}>If the idea <em style={{ fontVariationSettings: "'SOFT' 100, 'WONK' 1", color: '#8a7f72' }}>loses</em></div>
-                  <div className="mono text-[0.6rem] uppercase tracking-[0.26em] text-[#8a7f72]">Refund</div>
-                </div>
-                <ul className="flex flex-col gap-4 serif text-[1rem] leading-[1.55]" style={{ color: '#d8cfc0' }}>
-                  <li className="flex gap-4"><span className="mono text-[0.62rem] pt-1.5" style={{ color: '#8a7f72' }}>→</span><span>The token doesn&rsquo;t launch. Clean exit, no bag left holding.</span></li>
-                  <li className="flex gap-4"><span className="mono text-[0.62rem] pt-1.5" style={{ color: '#8a7f72' }}>→</span><span>Everyone who voted NO gets their money back + a share of the YES pool as winnings.</span></li>
-                  <li className="flex gap-4"><span className="mono text-[0.62rem] pt-1.5" style={{ color: '#8a7f72' }}>→</span><span>The idea is archived on-chain. Come back with a better version whenever you&rsquo;re ready.</span></li>
-                </ul>
-              </div>
-            </div>
-          </div>
-        </section>
-
-        {/* ═══════════ 04 / Who it's for ═══════════ */}
-        <section className="relative -mx-3 sm:-mx-6 px-6 md:px-10 py-24 md:py-40 border-t"
-          style={{ background: '#0a0814', borderColor: 'rgba(244,238,228,0.06)' }}>
-          <div className="max-w-[1400px] mx-auto">
-            <div className="mono text-[0.64rem] uppercase tracking-[0.26em] mb-6" style={{ color: '#e89660' }}>04 / Who it's for</div>
-            <h2 className="serif leading-[1] tracking-[-0.025em] mb-16 max-w-[24ch]"
-              style={{ color: '#f4eee4', fontSize: 'clamp(2.25rem, 5vw, 4.5rem)', fontWeight: 400, fontVariationSettings: "'SOFT' 50, 'opsz' 72" }}>
-              Whether you have the idea — or you can spot the next one.
-            </h2>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-10 md:gap-16">
-              <div className="flex flex-col gap-6 md:pr-8 md:border-r" style={{ borderColor: 'rgba(244,238,228,0.08)' }}>
-                <div className="mono text-[0.7rem] uppercase tracking-[0.26em]" style={{ color: '#e89660' }}>If you&rsquo;ve been sitting on an idea</div>
-                <h3 className="serif text-[1.9rem] leading-[1.1] tracking-[-0.02em]" style={{ color: '#f4eee4', fontWeight: 400, fontVariationSettings: "'SOFT' 50, 'opsz' 48" }}>Stop writing docs. Let the world tell you if it&rsquo;s real.</h3>
-                <ul className="flex flex-col gap-5 serif text-[1rem] leading-[1.65]" style={{ color: '#d8cfc0' }}>
-                  <li className="flex gap-3"><span className="text-[#e89660] pt-1">→</span><span>Find out in days, not years, whether your idea resonates.</span></li>
-                  <li className="flex gap-3"><span className="text-[#e89660] pt-1">→</span><span>Build a community of believers before you write a single line of code.</span></li>
-                  <li className="flex gap-3"><span className="text-[#e89660] pt-1">→</span><span>Launch on day one with real money and real users — no begging investors.</span></li>
-                </ul>
-              </div>
-              <div className="flex flex-col gap-6">
-                <div className="mono text-[0.7rem] uppercase tracking-[0.26em]" style={{ color: '#e89660' }}>If you can spot a winner</div>
-                <h3 className="serif text-[1.9rem] leading-[1.1] tracking-[-0.02em]" style={{ color: '#f4eee4', fontWeight: 400, fontVariationSettings: "'SOFT' 50, 'opsz' 48" }}>Back the ideas you believe in. Earn when you&rsquo;re right.</h3>
-                <ul className="flex flex-col gap-5 serif text-[1rem] leading-[1.65]" style={{ color: '#d8cfc0' }}>
-                  <li className="flex gap-3"><span className="text-[#e89660] pt-1">→</span><span>Get in on tomorrow&rsquo;s launches today, before anyone else.</span></li>
-                  <li className="flex gap-3"><span className="text-[#e89660] pt-1">→</span><span>Your conviction becomes the token allocation — you&rsquo;re a day-one holder.</span></li>
-                  <li className="flex gap-3"><span className="text-[#e89660] pt-1">→</span><span>Every vote is a bet on the future. The sharper you are, the more you win.</span></li>
-                </ul>
-              </div>
-            </div>
-          </div>
-        </section>
-
-        {/* ═══════════ 05 / Your turn ═══════════ */}
+        {/* ═══════════ VI / The vision — close the story, invite the reader ═══════════ */}
         <section className="relative -mx-3 sm:-mx-6 px-6 md:px-10 py-32 md:py-48 border-t overflow-hidden"
           style={{ background: '#0a0814', borderColor: 'rgba(244,238,228,0.06)' }}>
+          {/* Warm horizon glow behind the forest */}
           <div aria-hidden className="pointer-events-none absolute left-1/2 -translate-x-1/2 bottom-[-40vh] z-[0]"
-            style={{ width: 'min(120vw, 1400px)', height: 'min(120vw, 1400px)',
-              background: 'radial-gradient(circle at 50% 50%, rgba(255,138,76,0.3) 0%, rgba(255,58,31,0.12) 22%, transparent 55%)' }} />
+            style={{ width: 'min(130vw, 1600px)', height: 'min(130vw, 1600px)',
+              background: 'radial-gradient(circle at 50% 50%, rgba(232,150,96,0.22) 0%, rgba(214,115,71,0.1) 25%, transparent 55%)' }} />
+
+          {/* Forest on the horizon — many trees growing, near to far, proving the vision is already underway */}
+          <svg aria-hidden className="pointer-events-none absolute left-0 right-0 bottom-0 z-[1] w-full"
+            viewBox="0 0 1600 280" preserveAspectRatio="xMidYMax slice" style={{ height: '36vh', minHeight: '200px' }}>
+            <defs>
+              <linearGradient id="horizonLand" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0%" stopColor="rgba(244,238,228,0)" />
+                <stop offset="100%" stopColor="rgba(138,58,16,0.18)" />
+              </linearGradient>
+              <linearGradient id="treeNear" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0%" stopColor="rgba(236,180,138,0.15)" />
+                <stop offset="70%" stopColor="rgba(214,115,71,0.5)" />
+                <stop offset="100%" stopColor="rgba(214,115,71,0.75)" />
+              </linearGradient>
+              <linearGradient id="treeMid" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0%" stopColor="rgba(236,180,138,0.08)" />
+                <stop offset="70%" stopColor="rgba(214,115,71,0.3)" />
+                <stop offset="100%" stopColor="rgba(214,115,71,0.45)" />
+              </linearGradient>
+              <linearGradient id="treeFar" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0%" stopColor="rgba(236,180,138,0.05)" />
+                <stop offset="80%" stopColor="rgba(214,115,71,0.18)" />
+                <stop offset="100%" stopColor="rgba(214,115,71,0.28)" />
+              </linearGradient>
+            </defs>
+
+            {/* Distant land fade */}
+            <rect x="0" y="180" width="1600" height="100" fill="url(#horizonLand)" />
+            {/* Far layer — many distant tiny trees */}
+            <g fill="url(#treeFar)" opacity="0.7">
+              {[70, 130, 175, 225, 285, 335, 395, 455, 520, 580, 640, 700, 770, 830, 895, 955, 1020, 1080, 1145, 1210, 1275, 1340, 1405, 1470, 1540].map((x, i) => {
+                const h = 22 + ((x * 7) % 18);
+                const s = 0.8 + ((x * 3) % 40) / 100;
+                return (
+                  <g key={`far-${i}`} transform={`translate(${x} 230)`}>
+                    <line x1="0" y1="0" x2="0" y2={-h} stroke="url(#treeFar)" strokeWidth="0.6" />
+                    <line x1="0" y1={-h * 0.6} x2={-h * 0.35 * s} y2={-h * 0.9} stroke="url(#treeFar)" strokeWidth="0.5" />
+                    <line x1="0" y1={-h * 0.5} x2={h * 0.35 * s} y2={-h * 0.85} stroke="url(#treeFar)" strokeWidth="0.5" />
+                  </g>
+                );
+              })}
+            </g>
+            {/* Mid layer — medium trees */}
+            <g opacity="0.85">
+              {[110, 225, 330, 455, 580, 700, 830, 955, 1090, 1210, 1340, 1475].map((x, i) => {
+                const h = 50 + ((x * 11) % 30);
+                return (
+                  <g key={`mid-${i}`} transform={`translate(${x} 240)`}>
+                    {/* Trunk */}
+                    <path d={`M 0 0 Q -1 ${-h * 0.4} 0 ${-h * 0.7} Q 1 ${-h * 0.85} 0 ${-h}`}
+                      stroke="url(#treeMid)" strokeWidth="1.3" fill="none" strokeLinecap="round" />
+                    {/* Branches */}
+                    <line x1="0" y1={-h * 0.55} x2={-h * 0.35} y2={-h * 0.85} stroke="url(#treeMid)" strokeWidth="1" strokeLinecap="round" />
+                    <line x1="0" y1={-h * 0.5} x2={h * 0.38} y2={-h * 0.8} stroke="url(#treeMid)" strokeWidth="1" strokeLinecap="round" />
+                    <line x1="0" y1={-h * 0.7} x2={-h * 0.22} y2={-h * 0.92} stroke="url(#treeMid)" strokeWidth="0.8" strokeLinecap="round" />
+                    <line x1="0" y1={-h * 0.72} x2={h * 0.24} y2={-h * 0.94} stroke="url(#treeMid)" strokeWidth="0.8" strokeLinecap="round" />
+                    {/* Glow at canopy */}
+                    <circle cx="0" cy={-h} r="1.6" fill="rgba(232,150,96,0.6)" />
+                    <circle cx={-h * 0.35} cy={-h * 0.85} r="1.2" fill="rgba(232,150,96,0.45)" />
+                    <circle cx={h * 0.38} cy={-h * 0.8} r="1.2" fill="rgba(232,150,96,0.45)" />
+                  </g>
+                );
+              })}
+            </g>
+            {/* Near layer — larger foreground trees */}
+            <g opacity="0.95">
+              {[155, 390, 630, 880, 1125, 1365].map((x, i) => {
+                const h = 85 + ((x * 13) % 40);
+                return (
+                  <g key={`near-${i}`} transform={`translate(${x} 255)`}>
+                    {/* Trunk with S-curve */}
+                    <path d={`M 0 0 Q 2 ${-h * 0.35} -1 ${-h * 0.55} Q -3 ${-h * 0.75} 1 ${-h * 0.9} Q 0 ${-h * 0.97} 0 ${-h}`}
+                      stroke="url(#treeNear)" strokeWidth="2" fill="none" strokeLinecap="round" />
+                    {/* Main branches */}
+                    <path d={`M 0 ${-h * 0.55} Q ${-h * 0.2} ${-h * 0.65} ${-h * 0.42} ${-h * 0.85}`}
+                      stroke="url(#treeNear)" strokeWidth="1.4" fill="none" strokeLinecap="round" />
+                    <path d={`M 0 ${-h * 0.5} Q ${h * 0.25} ${-h * 0.62} ${h * 0.48} ${-h * 0.82}`}
+                      stroke="url(#treeNear)" strokeWidth="1.4" fill="none" strokeLinecap="round" />
+                    <path d={`M 0 ${-h * 0.75} Q ${-h * 0.15} ${-h * 0.85} ${-h * 0.3} ${-h * 0.95}`}
+                      stroke="url(#treeNear)" strokeWidth="1.1" fill="none" strokeLinecap="round" />
+                    <path d={`M 0 ${-h * 0.78} Q ${h * 0.18} ${-h * 0.88} ${h * 0.34} ${-h}`}
+                      stroke="url(#treeNear)" strokeWidth="1.1" fill="none" strokeLinecap="round" />
+                    {/* Warm sun-seed at base */}
+                    <circle cx="0" cy="0" r="3" fill="rgba(232,150,40,0.85)" />
+                    {/* Leaf glows at tips */}
+                    <circle cx={-h * 0.42} cy={-h * 0.85} r="1.6" fill="rgba(127,200,120,0.7)" />
+                    <circle cx={h * 0.48} cy={-h * 0.82} r="1.6" fill="rgba(127,200,120,0.7)" />
+                    <circle cx="0" cy={-h} r="1.8" fill="rgba(127,200,120,0.75)" />
+                    <circle cx={-h * 0.3} cy={-h * 0.95} r="1.2" fill="rgba(127,200,120,0.55)" />
+                    <circle cx={h * 0.34} cy={-h} r="1.2" fill="rgba(127,200,120,0.55)" />
+                  </g>
+                );
+              })}
+            </g>
+            {/* Ground horizon line */}
+            <line x1="0" y1="258" x2="1600" y2="258" stroke="rgba(230,180,115,0.35)" strokeWidth="0.8" />
+          </svg>
           <div className="relative z-10 max-w-[1400px] mx-auto">
-            <div className="mono text-[0.64rem] uppercase tracking-[0.26em] mb-6" style={{ color: '#e89660' }}>05 / Your turn</div>
-            <h2 className="serif leading-[0.95] tracking-[-0.03em] mb-10"
-              style={{ color: '#f4eee4', fontSize: 'clamp(2.75rem, 8vw, 7rem)', fontWeight: 400, fontVariationSettings: "'SOFT' 50, 'opsz' 144" }}>
-              You have ideas.<br />
-              <em style={{ fontVariationSettings: "'SOFT' 100, 'WONK' 1, 'opsz' 144", color: 'transparent',
-                backgroundImage: 'linear-gradient(178deg, #fff2d8 0%, #ffd7a8 25%, #d99875 60%, #d67347 100%)',
-                WebkitBackgroundClip: 'text', backgroundClip: 'text' }}>Time to turn one into a company.</em>
+            <div className="mono text-[0.64rem] uppercase tracking-[0.26em] mb-6" style={{ color: '#e89660' }}>VI / The vision</div>
+            <h2 className="serif leading-[1] tracking-[-0.03em] mb-12 max-w-[18ch]"
+              style={{ color: '#f4eee4', fontSize: 'clamp(2.5rem, 6.5vw, 6rem)', fontWeight: 400, fontVariationSettings: "'SOFT' 50, 'opsz' 144" }}>
+              A more{' '}
+              <em style={{ fontVariationSettings: "'SOFT' 100, 'WONK' 0, 'opsz' 144", color: 'transparent',
+                backgroundImage: 'linear-gradient(178deg, #fff2d8 0%, #ecb48a 35%, #d99875 70%, #d67347 100%)',
+                WebkitBackgroundClip: 'text', backgroundClip: 'text' }}>fertile</em>{' '}
+              internet.
             </h2>
-            <p className="serif text-[1.15rem] md:text-[1.3rem] leading-[1.5] max-w-[52ch] mb-14"
-              style={{ color: '#d8cfc0', fontWeight: 400, fontVariationSettings: "'SOFT' 60, 'opsz' 30" }}>
-              Pitch the idea you&rsquo;ve been sitting on. Back the ones you believe in. No pitch decks, no investors — just you and the world.
+            <p className="serif text-[1.15rem] md:text-[1.3rem] leading-[1.6] max-w-[58ch] mb-5"
+              style={{ color: '#d8cfc0', fontWeight: 400, fontVariationSettings: "'SOFT' 50, 'opsz' 30" }}>
+              Imagine the next 10,000 companies don&rsquo;t begin in a Palo Alto conference room. They begin in a dorm in Mumbai. A cafe in Lagos. A subway in São Paulo. A teenager&rsquo;s bedroom in Iowa.
             </p>
-            <div className="flex flex-col sm:flex-row gap-4 sm:gap-8 items-start">
-              <Link href="/browse" className="group relative inline-flex items-center gap-3 px-7 py-4 mono text-[0.72rem] uppercase tracking-[0.24em] font-semibold transition-colors duration-300"
-                style={{ background: '#e89660', color: '#0a0814' }}>
-                <span>Enter the markets</span>
-                <svg width="20" height="10" viewBox="0 0 20 10" fill="none" className="transition-transform duration-300 group-hover:translate-x-1.5">
-                  <path d="M1 5H19M19 5L14 1M19 5L14 9" stroke="currentColor" strokeWidth="1.5" strokeLinecap="square" />
-                </svg>
-              </Link>
-              <button onClick={handleLaunchClick} className="group inline-flex items-center gap-3 py-4 mono text-[0.72rem] uppercase tracking-[0.24em] transition-colors" style={{ color: '#f4eee4' }}>
-                <span className="relative inline-block after:absolute after:left-0 after:bottom-[-4px] after:h-px after:w-full after:bg-current after:scale-x-0 after:origin-left group-hover:after:scale-x-100 after:transition-transform after:duration-500">Pitch your idea</span>
-                <span className="text-[#8a7f72] group-hover:text-[#e89660] transition-colors">↗</span>
-              </button>
-              <Link href="/whitepaper" className="group inline-flex items-center gap-3 py-4 mono text-[0.72rem] uppercase tracking-[0.24em] transition-colors" style={{ color: '#8a7f72' }}>
-                <span className="relative inline-block after:absolute after:left-0 after:bottom-[-4px] after:h-px after:w-full after:bg-current after:scale-x-0 after:origin-left group-hover:after:scale-x-100 after:transition-transform after:duration-500">Read the thesis</span>
-              </Link>
+            <p className="serif text-[1.15rem] md:text-[1.3rem] leading-[1.6] max-w-[58ch] mb-16"
+              style={{ color: '#d8cfc0', fontWeight: 400, fontVariationSettings: "'SOFT' 50, 'opsz' 30" }}>
+              An internet where anyone with conviction — an idea, or an eye for one — can become a founder. A day-one holder. Both.
+            </p>
+            <div className="pt-12 border-t" style={{ borderColor: 'rgba(244,238,228,0.08)' }}>
+              <h3 className="serif leading-[0.95] tracking-[-0.03em] mb-10"
+                style={{ color: '#f4eee4', fontSize: 'clamp(2.25rem, 6vw, 5rem)', fontWeight: 400, fontVariationSettings: "'SOFT' 50, 'opsz' 144" }}>
+                You have ideas.<br />
+                <em style={{ fontVariationSettings: "'SOFT' 100, 'WONK' 0, 'opsz' 144", color: 'transparent',
+                  backgroundImage: 'linear-gradient(178deg, #fff2d8 0%, #ffd7a8 25%, #d99875 60%, #d67347 100%)',
+                  WebkitBackgroundClip: 'text', backgroundClip: 'text' }}>Time to plant one.</em>
+              </h3>
+              <div className="flex flex-col sm:flex-row gap-4 sm:gap-8 items-start">
+                <button onClick={handleLaunchClick} className="group relative inline-flex items-center gap-3 px-7 py-4 mono text-[0.72rem] uppercase tracking-[0.24em] font-semibold transition-colors duration-300"
+                  style={{ background: '#e89660', color: '#0a0814' }}>
+                  <span>Pitch your idea</span>
+                  <svg width="20" height="10" viewBox="0 0 20 10" fill="none" className="transition-transform duration-300 group-hover:translate-x-1.5">
+                    <path d="M1 5H19M19 5L14 1M19 5L14 9" stroke="currentColor" strokeWidth="1.5" strokeLinecap="square" />
+                  </svg>
+                </button>
+                <Link href="/browse" className="group inline-flex items-center gap-3 py-4 mono text-[0.72rem] uppercase tracking-[0.24em] transition-colors" style={{ color: '#f4eee4' }}>
+                  <span className="relative inline-block after:absolute after:left-0 after:bottom-[-4px] after:h-px after:w-full after:bg-current after:scale-x-0 after:origin-left group-hover:after:scale-x-100 after:transition-transform after:duration-500">Enter the markets</span>
+                  <span className="text-[#8a7f72] group-hover:text-[#e89660] transition-colors">↗</span>
+                </Link>
+                <Link href="/whitepaper" className="group inline-flex items-center gap-3 py-4 mono text-[0.72rem] uppercase tracking-[0.24em] transition-colors" style={{ color: '#8a7f72' }}>
+                  <span className="relative inline-block after:absolute after:left-0 after:bottom-[-4px] after:h-px after:w-full after:bg-current after:scale-x-0 after:origin-left group-hover:after:scale-x-100 after:transition-transform after:duration-500">Read the thesis</span>
+                </Link>
+              </div>
             </div>
           </div>
         </section>
