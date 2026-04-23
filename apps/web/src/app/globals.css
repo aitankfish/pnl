@@ -2,6 +2,11 @@
 @tailwind components;
 @tailwind utilities;
 
+@layer utilities {
+  .serif { font-family: var(--font-fraunces), 'Times New Roman', serif; font-optical-sizing: auto; }
+  .mono { font-family: var(--font-mono), ui-monospace, SFMono-Regular, Menlo, monospace; font-feature-settings: 'ss02' on, 'cv11' on; }
+}
+
 @layer base {
   * {
     @apply border-border;

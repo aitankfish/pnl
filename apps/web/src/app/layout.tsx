@@ -1,6 +1,6 @@
 import '@/lib/shared-init'; // Initialize @pnl/shared env config (must be first)
 import type { Metadata } from 'next';
-import { Inter, Caveat } from 'next/font/google';
+import { Inter, Caveat, Fraunces, JetBrains_Mono } from 'next/font/google';
 import './globals.css';
 import { WalletProvider } from '@/lib/wallet';
 import { ToastProvider } from '@/lib/hooks/useToast';
@@ -15,6 +15,15 @@ import TokenAddress from '@/components/TokenAddress';
 
 const inter = Inter({ subsets: ['latin'] });
 const caveat = Caveat({ subsets: ['latin'], variable: '--font-caveat' });
+const fraunces = Fraunces({
+  subsets: ['latin'],
+  variable: '--font-fraunces',
+  axes: ['SOFT', 'WONK', 'opsz'],
+});
+const jetbrainsMono = JetBrains_Mono({
+  subsets: ['latin'],
+  variable: '--font-mono',
+});
 
 // Force dynamic rendering to avoid SSG issues with Privy
 export const dynamic = 'force-dynamic';
@@ -72,7 +81,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="en" className="dark">
+    <html lang="en" className={`dark ${fraunces.variable} ${jetbrainsMono.variable}`}>
       <body className={`${inter.className} min-h-screen bg-black text-white`}>
         <WalletProvider>
           <AuthModalProvider>
