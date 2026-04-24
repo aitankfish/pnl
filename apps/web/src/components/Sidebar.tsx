@@ -1,48 +1,42 @@
 'use client';
 
-import React, { useState, useEffect, useTransition, useMemo, memo, useCallback } from 'react';
+import React, { useState, useEffect, useTransition, memo, useCallback } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useWallet } from '@/hooks/useWallet';
 import { useUserProfile } from '@/hooks/useUserProfile';
 import { useNotifications } from '@/hooks/useNotifications';
 import { useAuthModal } from '@/contexts/AuthModalContext';
-import {
-  Plus,
-  Target,
-  Rocket,
-  Bell,
-  User,
-  Loader2,
-  ShoppingBag,
-} from 'lucide-react';
+import { User, Loader2 } from 'lucide-react';
 import UserInfo from './UserInfo';
 import GlobalSearch from './GlobalSearch';
 import NotificationDropdown from './NotificationDropdown';
+import { SeedIcon, TreeIcon, BloomIcon, LeafIcon, BasketIcon } from './PlantIcons';
 
-interface SidebarItem {
+interface NavItem {
   id: string;
   label: string;
-  icon: React.ComponentType<{ className?: string }>;
-  href?: string;
-  badge?: string;
-  isActive?: boolean;
+  href: string;
+  Icon: React.ComponentType<{ className?: string }>;
+  badge?: 'new' | 'count';
 }
 
 interface SidebarProps {
   currentPage?: string;
 }
 
-const sidebarItems: SidebarItem[] = [
-  { id: 'create', label: 'Create Project', icon: Plus, href: '/create', badge: 'New' },
-  { id: 'markets', label: 'Browse Markets', icon: Target, href: '/browse' },
-  { id: 'launched', label: 'Launched Projects', icon: Rocket, href: '/launched' },
-  { id: 'notifications', label: 'Notifications', icon: Bell, href: '/notifications' },
+// Plant-themed navigation — each action is a stage of growth.
+//   Plant  → sow an idea (create a market)
+//   Browse → wander the market of ideas (active markets)
+//   Orchard → visit the ideas that fully grew (launched projects)
+const navItems: NavItem[] = [
+  { id: 'create', label: 'Plant', href: '/create', Icon: SeedIcon, badge: 'new' },
+  { id: 'markets', label: 'Browse', href: '/browse', Icon: TreeIcon },
+  { id: 'launched', label: 'Orchard', href: '/launched', Icon: BloomIcon },
 ];
 
 function Sidebar({ currentPage }: SidebarProps) {
-  const [isVisible, setIsVisible] = useState(true);
-  const [lastScrollY, setLastScrollY] = useState(0);
+  const [isScrolled, setIsScrolled] = useState(false);
   const [isPending, startTransition] = useTransition();
   const [walletBalance, setWalletBalance] = useState<number | null>(null);
   const [shouldGlowWallet, setShouldGlowWallet] = useState(false);
@@ -53,6 +47,7 @@ function Sidebar({ currentPage }: SidebarProps) {
   const { displayName, profilePhotoUrl } = useUserProfile();
   const { unreadCount } = useNotifications();
 
+  // Low-balance detection drives the wallet avatar's amber pulse ring
   useEffect(() => {
     const checkBalance = async () => {
       if (!primaryWallet?.address || !authenticated) {
@@ -62,9 +57,10 @@ function Sidebar({ currentPage }: SidebarProps) {
       try {
         const { Connection, PublicKey, LAMPORTS_PER_SOL } = await import('@solana/web3.js');
         const network = process.env.NEXT_PUBLIC_SOLANA_NETWORK || 'devnet';
-        const rpcEndpoint = network === 'mainnet-beta'
-          ? process.env.NEXT_PUBLIC_HELIUS_MAINNET_RPC
-          : process.env.NEXT_PUBLIC_HELIUS_DEVNET_RPC;
+        const rpcEndpoint =
+          network === 'mainnet-beta'
+            ? process.env.NEXT_PUBLIC_HELIUS_MAINNET_RPC
+            : process.env.NEXT_PUBLIC_HELIUS_DEVNET_RPC;
         const connection = new Connection(rpcEndpoint!, 'confirmed');
         const publicKey = new PublicKey(primaryWallet.address);
         const balance = await connection.getBalance(publicKey);
@@ -81,26 +77,13 @@ function Sidebar({ currentPage }: SidebarProps) {
     return () => clearInterval(interval);
   }, [primaryWallet, authenticated]);
 
+  // Scroll-aware styling — transparent at top, picks up dark backdrop on scroll
   useEffect(() => {
-    let ticking = false;
-    const handleScroll = () => {
-      if (!ticking) {
-        window.requestAnimationFrame(() => {
-          const currentScrollY = window.scrollY;
-          if (currentScrollY < lastScrollY) {
-            setIsVisible(true);
-          } else if (currentScrollY > lastScrollY && currentScrollY > 100) {
-            setIsVisible(false);
-          }
-          setLastScrollY(currentScrollY);
-          ticking = false;
-        });
-        ticking = true;
-      }
-    };
+    const handleScroll = () => setIsScrolled(window.scrollY > 20);
     window.addEventListener('scroll', handleScroll, { passive: true });
+    handleScroll();
     return () => window.removeEventListener('scroll', handleScroll);
-  }, [lastScrollY]);
+  }, []);
 
   const handleWalletClick = useCallback(() => {
     if (!ready) return;
@@ -114,236 +97,221 @@ function Sidebar({ currentPage }: SidebarProps) {
   }, [ready, authenticated, showAuthModal, router, startTransition]);
 
   return (
-    <div
-      className={`fixed top-4 left-1/2 -translate-x-1/2 z-50 w-full max-w-6xl px-1 sm:px-4 transition-transform duration-300 ${
-        isVisible ? 'translate-y-0' : '-translate-y-20'
-      }`}
+    <header
+      className="fixed top-0 left-0 right-0 z-50 transition-all duration-300"
+      style={{
+        background: isScrolled ? 'rgba(10,8,20,0.86)' : 'rgba(10,8,20,0)',
+        backdropFilter: isScrolled ? 'blur(14px)' : 'none',
+        WebkitBackdropFilter: isScrolled ? 'blur(14px)' : 'none',
+        borderBottom: `1px solid ${isScrolled ? 'rgba(244,238,228,0.08)' : 'transparent'}`,
+      }}
     >
-      <div
-        className="p-1.5 sm:p-4 relative overflow-visible"
-        style={{
-          background: 'rgba(10,8,20,0.78)',
-          backdropFilter: 'blur(14px)',
-          WebkitBackdropFilter: 'blur(14px)',
-          border: '1px solid rgba(244,238,228,0.08)',
-        }}
-      >
-        {/* Warm amber cosmic specks in the bar backdrop */}
-        <div className="absolute inset-0 opacity-30 overflow-hidden pointer-events-none">
-          <div className="absolute top-2 left-8 w-[3px] h-[3px] rounded-full animate-pulse" style={{ background: '#ffd7a8' }} />
-          <div className="absolute top-3 right-12 w-[2px] h-[2px] rounded-full animate-pulse" style={{ background: '#e89660', animationDelay: '1s' }} />
-          <div className="absolute top-4 left-1/3 w-[2px] h-[2px] rounded-full animate-pulse" style={{ background: '#ecb48a', animationDelay: '2s' }} />
-          <div className="absolute top-2 right-1/4 w-[3px] h-[3px] rounded-full animate-pulse" style={{ background: '#fff5e1', animationDelay: '0.5s' }} />
-          <div className="absolute top-3 left-2/3 w-[2px] h-[2px] rounded-full animate-pulse" style={{ background: '#ffa366', animationDelay: '1.5s' }} />
-        </div>
+      <div className="max-w-[1600px] mx-auto px-4 sm:px-6 h-14 sm:h-[64px] flex items-center justify-between gap-3 sm:gap-4">
+        {/* ─── Logo — matches landing wordmark ─── */}
+        <Link href="/launchpad" prefetch className="flex items-center gap-3 flex-shrink-0 group">
+          <span
+            className="serif text-[1.3rem] sm:text-[1.45rem] leading-none tracking-[-0.02em]"
+            style={{
+              color: '#f4eee4',
+              fontWeight: 500,
+              fontVariationSettings: "'SOFT' 30, 'WONK' 0, 'opsz' 48",
+            }}
+          >
+            P
+            <span
+              className="italic"
+              style={{ fontVariationSettings: "'SOFT' 100, 'WONK' 1, 'opsz' 48" }}
+            >
+              n
+            </span>
+            L
+          </span>
+          <span className="hidden lg:inline-block w-px h-4" style={{ background: 'rgba(138,127,114,0.4)' }} />
+          <span
+            className="hidden lg:inline mono text-[0.6rem] uppercase tracking-[0.24em]"
+            style={{ color: '#8a7f72' }}
+          >
+            Predict &amp; Launch
+          </span>
+        </Link>
 
-        <div className="flex items-center justify-between gap-1 sm:gap-0 relative z-10">
-          {/* Logo — matches landing PnL wordmark */}
-          <div className="flex items-center flex-shrink-0">
-            <Link href="/launchpad" prefetch className="flex items-baseline gap-2.5 hover:opacity-90 transition-opacity mr-1 sm:mr-5 group">
-              <span
-                className="serif text-[1.2rem] sm:text-[1.5rem] leading-none tracking-[-0.02em]"
-                style={{
-                  color: '#f4eee4',
-                  fontWeight: 500,
-                  fontVariationSettings: "'SOFT' 30, 'WONK' 0, 'opsz' 48",
+        {/* ─── Center nav — plant-icon + mono label ─── */}
+        <nav className="flex items-center gap-1 sm:gap-3 md:gap-5 lg:gap-7 flex-1 justify-center min-w-0">
+          {navItems.map((item) => {
+            const isActive = currentPage === item.id;
+            const Icon = item.Icon;
+            return (
+              <Link
+                key={item.id}
+                href={item.href}
+                prefetch
+                className="group relative inline-flex items-center gap-2 py-3 px-2 sm:px-1 transition-colors duration-200"
+                style={{ color: isActive ? '#e89660' : '#d8cfc0' }}
+                onMouseEnter={(e) => {
+                  if (!isActive) e.currentTarget.style.color = '#f4eee4';
                 }}
+                onMouseLeave={(e) => {
+                  if (!isActive) e.currentTarget.style.color = '#d8cfc0';
+                }}
+                title={item.label}
               >
-                P
-                <span
-                  className="italic"
-                  style={{ fontVariationSettings: "'SOFT' 100, 'WONK' 1, 'opsz' 48" }}
-                >
-                  n
+                <Icon className="w-[18px] h-[18px] sm:w-5 sm:h-5 flex-shrink-0" />
+                <span className="hidden md:inline mono text-[0.64rem] uppercase tracking-[0.26em]">
+                  {item.label}
                 </span>
-                L
-              </span>
-              <span
-                className="hidden sm:inline mono text-[0.54rem] uppercase tracking-[0.26em] px-1.5 py-0.5"
-                style={{ color: '#e89660', border: '1px solid rgba(232,150,96,0.35)' }}
-              >
-                Beta
-              </span>
-            </Link>
+                {item.badge === 'new' && (
+                  <span
+                    className="absolute top-2 right-0 sm:-right-1 w-1.5 h-1.5 rounded-full"
+                    style={{ background: '#e89660', boxShadow: '0 0 6px rgba(232,150,96,0.8)' }}
+                  />
+                )}
+                {/* Active underline */}
+                <span
+                  className="absolute left-2 right-2 sm:left-1 sm:right-1 bottom-0 h-px transition-opacity"
+                  style={{
+                    background: '#e89660',
+                    opacity: isActive ? 0.8 : 0,
+                  }}
+                />
+              </Link>
+            );
+          })}
+
+          {/* Divider + search */}
+          <span
+            className="hidden md:inline-block w-px h-4 mx-1"
+            style={{ background: 'rgba(138,127,114,0.3)' }}
+          />
+          <div className="ml-1 sm:ml-2">
+            <GlobalSearch />
           </div>
+        </nav>
 
-          {/* Navigation Icons */}
-          <nav className="flex items-center space-x-1 sm:space-x-2 flex-shrink min-w-0">
-            {sidebarItems.map((item, index) => {
-              const Icon = item.icon;
-              const isActive = currentPage === item.id;
-              const showNotificationBadge = item.id === 'notifications' && unreadCount > 0;
-              const showNewBadge = item.badge === 'New';
-              const isNotification = item.id === 'notifications';
-
-              const baseClasses =
-                'flex items-center justify-center w-9 h-9 sm:w-11 sm:h-11 transition-all duration-200 group relative flex-shrink-0';
-              const activeStyle = isActive
-                ? {
-                    background: 'rgba(232,150,96,0.12)',
-                    color: '#e89660',
-                    border: '1px solid rgba(232,150,96,0.35)',
-                  }
-                : {
-                    background: 'transparent',
-                    color: '#d8cfc0',
-                    border: '1px solid transparent',
-                  };
-              const hoverClasses = isActive ? '' : 'hover:text-[#f4eee4]';
-
-              if (isNotification) {
-                return (
-                  <React.Fragment key={item.id}>
-                    {/* Mobile: direct link */}
-                    <Link
-                      href="/notifications"
-                      prefetch
-                      className={`lg:hidden ${baseClasses} ${hoverClasses}`}
-                      style={activeStyle}
-                      title={item.label}
-                    >
-                      <Icon className="w-4 h-4 sm:w-5 sm:h-5" />
-                      {showNotificationBadge && (
-                        <div
-                          className="absolute -top-1 -right-1 min-w-5 h-5 px-1 flex items-center justify-center"
-                          style={{ background: '#d67347', color: '#0a0814' }}
-                        >
-                          <span className="mono text-[0.56rem] font-bold">{unreadCount > 9 ? '9+' : unreadCount}</span>
-                        </div>
-                      )}
-                    </Link>
-
-                    {/* Desktop: dropdown on hover */}
-                    <div
-                      className="hidden lg:block relative"
-                      onMouseEnter={() => setIsNotificationDropdownOpen(true)}
-                      onMouseLeave={() => setIsNotificationDropdownOpen(false)}
-                    >
-                      <button
-                        className={`${baseClasses} ${hoverClasses}`}
-                        style={
-                          isActive || isNotificationDropdownOpen
-                            ? {
-                                background: 'rgba(232,150,96,0.12)',
-                                color: '#e89660',
-                                border: '1px solid rgba(232,150,96,0.35)',
-                              }
-                            : activeStyle
-                        }
-                        title={item.label}
-                      >
-                        <Icon className="w-4 h-4 sm:w-5 sm:h-5" />
-                        {showNotificationBadge && (
-                          <div
-                            className="absolute -top-1 -right-1 min-w-5 h-5 px-1 flex items-center justify-center"
-                            style={{ background: '#d67347', color: '#0a0814' }}
-                          >
-                            <span className="mono text-[0.56rem] font-bold">{unreadCount > 9 ? '9+' : unreadCount}</span>
-                          </div>
-                        )}
-                      </button>
-                      <NotificationDropdown
-                        isOpen={isNotificationDropdownOpen}
-                        onClose={() => setIsNotificationDropdownOpen(false)}
-                      />
-                    </div>
-                  </React.Fragment>
-                );
-              }
-
-              return (
-                <React.Fragment key={item.id}>
-                  <Link
-                    href={item.href || '#'}
-                    prefetch
-                    className={`${baseClasses} ${hoverClasses}`}
-                    style={activeStyle}
-                    title={item.label}
-                  >
-                    <Icon className="w-4 h-4 sm:w-5 sm:h-5" />
-                    {showNewBadge && (
-                      <span
-                        className="absolute -top-1 -right-1 w-1.5 h-1.5 rounded-full"
-                        style={{ background: '#e89660', boxShadow: '0 0 6px rgba(232,150,96,0.8)' }}
-                      />
-                    )}
-                  </Link>
-                  {/* GlobalSearch between Markets and Launched */}
-                  {index === 1 && <GlobalSearch />}
-                </React.Fragment>
-              );
-            })}
-          </nav>
-
-          {/* User + wallet */}
-          <div className="flex items-center space-x-1 sm:space-x-2 flex-shrink-0">
-            <UserInfo compact className="hidden lg:flex" />
-
-            {/* Merch link — now a subtle tile */}
-            <Link
-              href="/merch"
-              prefetch
-              className="flex items-center justify-center w-9 h-9 sm:w-10 sm:h-10 transition-all duration-200 group relative flex-shrink-0"
-              style={
-                currentPage === 'merch'
-                  ? {
-                      background: 'rgba(232,150,96,0.12)',
-                      color: '#e89660',
-                      border: '1px solid rgba(232,150,96,0.35)',
-                    }
-                  : {
-                      background: 'transparent',
-                      color: '#d8cfc0',
-                      border: '1px solid rgba(244,238,228,0.08)',
-                    }
-              }
-              title="PNL Merch Shop"
-            >
-              <ShoppingBag className="w-4 h-4 sm:w-[18px] sm:h-[18px]" />
-            </Link>
-
-            {/* Wallet button — flat amber block, matches landing primary CTA */}
+        {/* ─── Right: notifications, profile info, wallet ─── */}
+        <div className="flex items-center gap-2 sm:gap-3 flex-shrink-0">
+          {/* Desktop notifications dropdown */}
+          <div
+            className="relative hidden lg:block"
+            onMouseEnter={() => setIsNotificationDropdownOpen(true)}
+            onMouseLeave={() => setIsNotificationDropdownOpen(false)}
+          >
             <button
-              onClick={handleWalletClick}
-              disabled={isPending}
-              className="flex items-center justify-center w-9 h-9 sm:w-10 sm:h-10 transition-all duration-200 cursor-pointer overflow-hidden relative group disabled:opacity-70 disabled:cursor-not-allowed"
+              className="inline-flex items-center justify-center w-9 h-9 transition-colors relative"
               style={{
-                background: shouldGlowWallet ? '#0a0814' : '#e89660',
-                color: shouldGlowWallet ? '#e89660' : '#0a0814',
-                border: shouldGlowWallet ? '1px solid rgba(232,150,96,0.6)' : '1px solid transparent',
-                animation: shouldGlowWallet ? 'walletLowPulse 1.6s ease-in-out infinite' : undefined,
+                color:
+                  currentPage === 'notifications' || isNotificationDropdownOpen
+                    ? '#e89660'
+                    : '#d8cfc0',
               }}
-              title={
-                shouldGlowWallet
-                  ? `Low Balance: ${(Number(walletBalance) || 0).toFixed(4)} SOL — click to deposit`
-                  : authenticated
-                  ? `${displayName} · Wallet & Profile`
-                  : 'Connect Wallet'
-              }
+              title="Notifications"
             >
-              {isPending ? (
-                <Loader2 className="w-4 h-4 sm:w-5 sm:h-5 animate-spin" />
-              ) : authenticated && profilePhotoUrl ? (
-                <img src={profilePhotoUrl} alt={displayName} className="w-full h-full object-cover" />
-              ) : (
-                <User className="w-4 h-4 sm:w-5 sm:h-5" />
-              )}
-              {/* Accent corner matching landing CTA style */}
-              {!authenticated && !isPending && (
-                <span className="absolute -right-0 -top-0 w-1.5 h-1.5" style={{ background: '#0a0814' }} />
+              <LeafIcon className="w-[19px] h-[19px]" />
+              {unreadCount > 0 && (
+                <span
+                  className="absolute -top-0.5 -right-0.5 min-w-[14px] h-[14px] px-0.5 flex items-center justify-center"
+                  style={{ background: '#e89660', color: '#0a0814' }}
+                >
+                  <span className="mono text-[0.5rem] font-bold leading-none">
+                    {unreadCount > 9 ? '9+' : unreadCount}
+                  </span>
+                </span>
               )}
             </button>
+            <NotificationDropdown
+              isOpen={isNotificationDropdownOpen}
+              onClose={() => setIsNotificationDropdownOpen(false)}
+            />
           </div>
+
+          {/* Mobile notifications link */}
+          <Link
+            href="/notifications"
+            prefetch
+            className="lg:hidden inline-flex items-center justify-center w-9 h-9 transition-colors relative"
+            style={{ color: currentPage === 'notifications' ? '#e89660' : '#d8cfc0' }}
+            title="Notifications"
+          >
+            <LeafIcon className="w-[19px] h-[19px]" />
+            {unreadCount > 0 && (
+              <span
+                className="absolute top-1 right-1.5 w-2 h-2 rounded-full"
+                style={{ background: '#e89660', boxShadow: '0 0 6px rgba(232,150,96,0.8)' }}
+              />
+            )}
+          </Link>
+
+          {/* Merch basket (harvest glyph) — desktop only, subtle */}
+          <Link
+            href="/merch"
+            prefetch
+            className="hidden xl:inline-flex items-center justify-center w-9 h-9 transition-colors"
+            style={{ color: currentPage === 'merch' ? '#e89660' : '#8a7f72' }}
+            onMouseEnter={(e) => {
+              if (currentPage !== 'merch') e.currentTarget.style.color = '#f4eee4';
+            }}
+            onMouseLeave={(e) => {
+              if (currentPage !== 'merch') e.currentTarget.style.color = '#8a7f72';
+            }}
+            title="PNL Merch"
+          >
+            <BasketIcon className="w-[19px] h-[19px]" />
+          </Link>
+
+          {/* User info display (username + balance) */}
+          <UserInfo compact className="hidden lg:flex" />
+
+          {/* Wallet button — flat amber block matching landing primary CTA */}
+          <button
+            onClick={handleWalletClick}
+            disabled={isPending}
+            className="flex items-center justify-center w-9 h-9 sm:w-10 sm:h-10 transition-all duration-200 cursor-pointer overflow-hidden relative disabled:opacity-70 disabled:cursor-not-allowed"
+            style={{
+              background: shouldGlowWallet ? '#0a0814' : '#e89660',
+              color: shouldGlowWallet ? '#e89660' : '#0a0814',
+              border: shouldGlowWallet ? '1px solid rgba(232,150,96,0.6)' : '1px solid transparent',
+              animation: shouldGlowWallet ? 'walletLowPulse 1.6s ease-in-out infinite' : undefined,
+            }}
+            title={
+              shouldGlowWallet
+                ? `Low Balance: ${(Number(walletBalance) || 0).toFixed(4)} SOL — click to deposit`
+                : authenticated
+                ? `${displayName} · Wallet`
+                : 'Connect Wallet'
+            }
+          >
+            {isPending ? (
+              <Loader2 className="w-4 h-4 sm:w-5 sm:h-5 animate-spin" />
+            ) : authenticated && profilePhotoUrl ? (
+              <img
+                src={profilePhotoUrl}
+                alt={displayName}
+                className="w-full h-full object-cover"
+              />
+            ) : (
+              <User className="w-4 h-4 sm:w-5 sm:h-5" />
+            )}
+            {!authenticated && !isPending && (
+              <span
+                className="absolute -right-0 -top-0 w-1.5 h-1.5"
+                style={{ background: '#0a0814' }}
+              />
+            )}
+          </button>
         </div>
       </div>
 
       <style jsx>{`
         @keyframes walletLowPulse {
-          0%, 100% { box-shadow: 0 0 0 0 rgba(232,150,96,0.6), 0 0 20px rgba(232,150,96,0.15); }
-          50%      { box-shadow: 0 0 0 4px rgba(232,150,96,0.15), 0 0 30px rgba(232,150,96,0.35); }
+          0%,
+          100% {
+            box-shadow: 0 0 0 0 rgba(232, 150, 96, 0.6), 0 0 20px rgba(232, 150, 96, 0.15);
+          }
+          50% {
+            box-shadow: 0 0 0 4px rgba(232, 150, 96, 0.15), 0 0 30px rgba(232, 150, 96, 0.35);
+          }
         }
       `}</style>
-    </div>
+    </header>
   );
 }
 

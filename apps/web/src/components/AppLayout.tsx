@@ -78,8 +78,8 @@ export default function AppLayout({ children, currentPage }: AppLayoutProps) {
       {/* Top Navigation Bar */}
       <Sidebar currentPage={currentPage} />
 
-      {/* Main Content */}
-      <div className="flex-1 pt-24 overflow-y-auto relative" style={{ zIndex: 1 }}>
+      {/* Main Content — top padding matches embedded masthead height (56px mobile, 64px desktop) */}
+      <div className="flex-1 pt-16 sm:pt-[72px] overflow-y-auto relative" style={{ zIndex: 1 }}>
         {children}
       </div>
     </div>
