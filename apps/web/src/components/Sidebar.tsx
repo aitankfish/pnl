@@ -47,7 +47,8 @@ function Sidebar({ currentPage }: SidebarProps) {
   const { displayName, profilePhotoUrl } = useUserProfile();
   const { unreadCount } = useNotifications();
 
-  // Low-balance detection drives the wallet avatar's amber pulse ring
+  // Low-balance detection — queries the Redis-cached /api/wallet/balance endpoint
+  // so every client shares one RPC call per 5s window instead of each hitting Helius directly.
   useEffect(() => {
     const checkBalance = async () => {
       if (!primaryWallet?.address || !authenticated) {
@@ -55,18 +56,12 @@ function Sidebar({ currentPage }: SidebarProps) {
         return;
       }
       try {
-        const { Connection, PublicKey, LAMPORTS_PER_SOL } = await import('@solana/web3.js');
-        const network = process.env.NEXT_PUBLIC_SOLANA_NETWORK || 'devnet';
-        const rpcEndpoint =
-          network === 'mainnet-beta'
-            ? process.env.NEXT_PUBLIC_HELIUS_MAINNET_RPC
-            : process.env.NEXT_PUBLIC_HELIUS_DEVNET_RPC;
-        const connection = new Connection(rpcEndpoint!, 'confirmed');
-        const publicKey = new PublicKey(primaryWallet.address);
-        const balance = await connection.getBalance(publicKey);
-        const balanceInSOL = balance / LAMPORTS_PER_SOL;
-        setWalletBalance(balanceInSOL);
-        setShouldGlowWallet(balanceInSOL < 0.02);
+        const res = await fetch(`/api/wallet/balance?address=${encodeURIComponent(primaryWallet.address)}`);
+        const data = await res.json();
+        if (data.success && typeof data.sol === 'number') {
+          setWalletBalance(data.sol);
+          setShouldGlowWallet(data.sol < 0.02);
+        }
       } catch (error) {
         console.error('Error fetching balance for glow effect:', error);
         setShouldGlowWallet(false);

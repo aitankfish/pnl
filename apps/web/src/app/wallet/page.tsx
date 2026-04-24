@@ -59,22 +59,31 @@ import { SeedIcon, TreeIcon, BloomIcon, LeafIcon, BasketIcon } from '@/component
 
 const fetcher = (url: string) => fetch(url).then((res) => res.json());
 
-// Enhanced component to display a favorite market with better UI
-function FavoriteMarketCard({ marketId }: { marketId: string }) {
-  const { data: marketData, mutate } = useSWR(`/api/markets/${marketId}`, fetcher, {
-    revalidateOnFocus: false,
-  });
+// Enhanced component to display a favorite market with better UI.
+// Accepts prefetched batch data to avoid N+1 individual /api/markets/{id} fetches.
+// Socket updates still flow in via useMarketSocket for realtime state.
+function FavoriteMarketCard({
+  marketId,
+  prefetchedMarket,
+}: {
+  marketId: string;
+  prefetchedMarket?: any;
+}) {
+  // If no prefetched data was provided, fall back to individual SWR (backward compat)
+  const { data: marketData } = useSWR(
+    prefetchedMarket ? null : `/api/markets/${marketId}`,
+    fetcher,
+    { revalidateOnFocus: false },
+  );
 
-  // Get market address for real-time updates
-  const marketAddress = marketData?.data?.marketAddress;
+  const baseMarket = prefetchedMarket || marketData?.data;
+  const marketAddress = baseMarket?.marketAddress;
   const { marketData: realtimeData } = useMarketSocket(marketAddress || null);
 
-  // Merge real-time updates with SWR data
-  const market = realtimeData
-    ? { ...marketData?.data, ...realtimeData }
-    : marketData?.data;
+  // Merge realtime updates on top of prefetched/static data
+  const market = realtimeData ? { ...baseMarket, ...realtimeData } : baseMarket;
 
-  if (!marketData?.success) {
+  if (!market) {
     return (
       <Card className="bg-white/5 border-white/10">
         <CardContent className="p-4">
@@ -162,6 +171,36 @@ function FavoriteMarketCard({ marketId }: { marketId: string }) {
         </a>
       </CardContent>
     </Card>
+  );
+}
+
+// WatchlistGrid — batch-fetches ALL favorited markets in ONE /api/markets/batch call
+// and passes prefetched data to each FavoriteMarketCard. Kills the N+1 pattern where
+// each card used to fire its own /api/markets/{id} request.
+function WatchlistGrid({
+  favoriteMarkets,
+  showAll,
+}: {
+  favoriteMarkets: string[];
+  showAll: boolean;
+}) {
+  const visibleIds = showAll ? favoriteMarkets : favoriteMarkets.slice(0, 3);
+
+  // One SWR fetch for the whole set — keyed by the comma-joined ids
+  const batchKey = visibleIds.length > 0 ? `/api/markets/batch?ids=${visibleIds.join(',')}` : null;
+  const { data: batch } = useSWR(batchKey, fetcher, { revalidateOnFocus: false });
+  const marketsMap: Record<string, any> = batch?.data?.markets || {};
+
+  return (
+    <div className="space-y-3">
+      {visibleIds.map((marketId: string) => (
+        <FavoriteMarketCard
+          key={marketId}
+          marketId={marketId}
+          prefetchedMarket={marketsMap[marketId]}
+        />
+      ))}
+    </div>
   );
 }
 
@@ -1137,28 +1176,36 @@ export default function WalletPage() {
   );
 
   // Fetch user positions
-  const { data: positionsData, isLoading: positionsLoading, mutate: mutatePositions } = useSWR(
-    primaryWallet?.address ? `/api/user/${primaryWallet.address}/positions` : null,
-    fetcher,
-    {
-      refreshInterval: 15000, // Refresh every 15 seconds
-      revalidateOnFocus: true, // Refresh when user switches back to tab
-    }
-  );
-
-  // Fetch user's created projects
-  const { data: projectsData, isLoading: projectsLoading, mutate: mutateProjects } = useSWR(
-    primaryWallet?.address ? `/api/user/${primaryWallet.address}/projects` : null,
-    fetcher,
-    { refreshInterval: 30000 } // Refresh every 30 seconds
-  );
-
-  // Real-time Socket.IO updates
+  // When the socket is connected we don't need aggressive polling — socket events
+  // will push updates. Fall back to polling only when socket is down.
   const { positions: realtimePositions, isConnected: socketConnected } = useUserSocket(
     primaryWallet?.address || null
   );
 
-  // Real-time position updates - revalidate SWR cache when Socket.IO updates arrive
+  const { data: positionsData, isLoading: positionsLoading, mutate: mutatePositions } = useSWR(
+    primaryWallet?.address ? `/api/user/${primaryWallet.address}/positions` : null,
+    fetcher,
+    {
+      // Poll every 15s only when socket is disconnected. Otherwise the socket keeps
+      // us fresh and we save one DB aggregation per user every 15 seconds.
+      refreshInterval: socketConnected ? 0 : 15000,
+      revalidateOnFocus: true,
+      dedupingInterval: 3000, // protect against back-to-back mutate() calls
+    }
+  );
+
+  // Fetch user's created projects — same polling strategy
+  const { data: projectsData, isLoading: projectsLoading, mutate: mutateProjects } = useSWR(
+    primaryWallet?.address ? `/api/user/${primaryWallet.address}/projects` : null,
+    fetcher,
+    {
+      refreshInterval: socketConnected ? 0 : 30000,
+      dedupingInterval: 5000,
+    }
+  );
+
+  // Real-time position updates — revalidate SWR cache when Socket.IO updates arrive.
+  // Deduping intervals above prevent rapid-fire mutate() calls from stacking.
   useEffect(() => {
     if (realtimePositions && realtimePositions.size > 0) {
       mutatePositions();
@@ -1176,10 +1223,13 @@ export default function WalletPage() {
     const fetchBalance = async () => {
       try {
         setBalanceLoading(true);
-        const connection = new Connection(RPC_ENDPOINT, 'confirmed');
-        const publicKey = new PublicKey(primaryWallet.address);
-        const balance = await connection.getBalance(publicKey);
-        setSolBalance(balance / LAMPORTS_PER_SOL);
+        // Hit the Redis-cached backend endpoint instead of Helius directly —
+        // shared cache across tabs/sessions at 5s TTL.
+        const res = await fetch(`/api/wallet/balance?address=${encodeURIComponent(primaryWallet.address)}`);
+        const data = await res.json();
+        if (data.success && typeof data.sol === 'number') {
+          setSolBalance(data.sol);
+        }
       } catch (error) {
         console.error('Failed to fetch SOL balance:', error);
         setSolBalance(0);
@@ -2729,11 +2779,10 @@ export default function WalletPage() {
           </div>
 
           {profileData?.success && profileData.data?.favoriteMarkets?.length > 0 ? (
-            <div className="space-y-3">
-              {profileData.data.favoriteMarkets.slice(0, showAllWatchlist ? undefined : 3).map((marketId: string) => (
-                <FavoriteMarketCard key={marketId} marketId={marketId} />
-              ))}
-            </div>
+            <WatchlistGrid
+              favoriteMarkets={profileData.data.favoriteMarkets}
+              showAll={showAllWatchlist}
+            />
           ) : (
             <Card className="bg-white/5 border-white/10">
               <CardContent className="p-6">
