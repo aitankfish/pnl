@@ -192,6 +192,36 @@ export const POST = withWalletOwnership(async (request: NextRequest) => {
       // Blockchain sync will eventually update the database
     }
 
+    // Invalidate the "no launched tokens" sentinel for the founder so that
+    // their /api/user/{wallet}/creator-fees call reflects the new launch
+    // immediately instead of waiting up to an hour for the TTL to expire.
+    if (dbUpdateSuccess && tokenMint && resolutionOutcome === 'YesWins') {
+      try {
+        const market = await db.collection(COLLECTIONS.PREDICTION_MARKETS).findOne(
+          { _id: new ObjectId(marketId) },
+          { projection: { projectId: 1 } }
+        );
+        if (market?.projectId) {
+          const project = await db.collection(COLLECTIONS.PROJECTS).findOne(
+            { _id: market.projectId },
+            { projection: { founderWallet: 1 } }
+          );
+          if (project?.founderWallet) {
+            const { getRedisClient, prefixKey } = await import('@/lib/redis/client');
+            const redis = getRedisClient();
+            await redis.del(prefixKey(`creator-fees:none:${project.founderWallet}`));
+            logger.info('Invalidated creator-fees sentinel on launch', {
+              founderWallet: project.founderWallet,
+              marketId,
+            });
+          }
+        }
+      } catch (err) {
+        // Non-fatal — sentinel will expire on its own TTL
+        logger.warn('Failed to invalidate creator-fees sentinel', { err });
+      }
+    }
+
     // Create notifications for all participants
     try {
       await connectMongoose();

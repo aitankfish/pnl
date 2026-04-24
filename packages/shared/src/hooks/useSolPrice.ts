@@ -1,21 +1,30 @@
 /**
- * Hook to fetch SOL price in USD from CoinGecko
- * Uses SWR for global deduplication — all instances share one request
+ * Hook to fetch SOL price in USD.
+ *
+ * Instead of every browser hitting CoinGecko directly (which rate-limits at
+ * scale), we route through our own /api/price/sol endpoint which caches the
+ * result in Redis with a 60s TTL. This means all concurrent users share ONE
+ * CoinGecko call per minute, not one call per client.
+ *
+ * SWR still dedupes + refreshes on the client side.
  */
 
 import useSWR from 'swr';
+import { apiUrl } from '../utils/api';
 
 const FALLBACK_PRICE = 162.53;
 
 async function fetchSolPrice(): Promise<number> {
-  const response = await fetch(
-    'https://api.coingecko.com/api/v3/simple/price?ids=solana&vs_currencies=usd'
-  );
-  if (!response.ok) throw new Error('Failed to fetch SOL price');
-  const data = await response.json();
-  const price = data.solana?.usd;
-  if (!price) throw new Error('SOL price not found in response');
-  return price;
+  try {
+    const response = await fetch(apiUrl('/api/price/sol'));
+    if (!response.ok) throw new Error('Failed to fetch SOL price');
+    const data = await response.json();
+    const price = data?.price;
+    if (typeof price !== 'number') throw new Error('SOL price missing in response');
+    return price;
+  } catch {
+    return FALLBACK_PRICE;
+  }
 }
 
 export function useSolPrice() {

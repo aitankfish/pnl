@@ -1,11 +1,75 @@
 /**
- * API endpoint to fetch token metadata using Helius DAS API
+ * POST /api/tokens/metadata
+ *
+ * Fetch token metadata (symbol, name, logo, decimals) using Helius DAS API.
+ * Token metadata is IMMUTABLE per mint (name/symbol/logo never change), so we
+ * cache aggressively in Redis with a 24h TTL. This turns one-per-user-per-token
+ * Helius calls into one-per-token-per-day across the entire platform.
+ *
+ * Accepts either { mint: string } for a single mint or { mints: string[] }
+ * for a batch request.
  */
 
 import { NextRequest, NextResponse } from 'next/server';
 import { createClientLogger } from '@/lib/logger';
+import { getRedisClient, prefixKey } from '@/lib/redis/client';
 
 const logger = createClientLogger();
+
+// Token metadata is immutable — safe to cache for a long time.
+// A day is a good balance: long enough to dominate cache hits, short enough
+// that platform-side metadata edits (rare) propagate within 24h.
+const METADATA_TTL_SECONDS = 24 * 60 * 60;
+
+interface TokenMetadata {
+  mint?: string;
+  symbol: string;
+  name: string;
+  logoURI?: string;
+  decimals: number;
+}
+
+function metaKey(mint: string): string {
+  return prefixKey(`token-meta:${mint}`);
+}
+
+async function readCachedMetadata(mints: string[]): Promise<Map<string, TokenMetadata>> {
+  const map = new Map<string, TokenMetadata>();
+  if (mints.length === 0) return map;
+  try {
+    const redis = getRedisClient();
+    const keys = mints.map(metaKey);
+    // mget returns an array aligned with the input keys; null for misses
+    const values = await redis.mget(...keys);
+    for (let i = 0; i < mints.length; i++) {
+      const raw = values[i];
+      if (raw) {
+        try {
+          map.set(mints[i], JSON.parse(raw) as TokenMetadata);
+        } catch {
+          // Corrupt cache entry — ignore and treat as miss
+        }
+      }
+    }
+  } catch (err) {
+    logger.warn('[tokens/metadata] redis mget failed', { err });
+  }
+  return map;
+}
+
+async function writeCachedMetadata(records: Array<{ mint: string; meta: TokenMetadata }>): Promise<void> {
+  if (records.length === 0) return;
+  try {
+    const redis = getRedisClient();
+    const pipe = redis.pipeline();
+    for (const { mint, meta } of records) {
+      pipe.set(metaKey(mint), JSON.stringify(meta), 'EX', METADATA_TTL_SECONDS);
+    }
+    await pipe.exec();
+  } catch (err) {
+    logger.warn('[tokens/metadata] redis pipeline write failed', { err });
+  }
+}
 
 export async function POST(request: NextRequest) {
   try {
@@ -22,34 +86,63 @@ export async function POST(request: NextRequest) {
 
     // ── Batch mode: accept { mints: string[] } ──
     if (mints && Array.isArray(mints) && mints.length > 0) {
-      const batchMints = mints.slice(0, 100); // Cap at 100
+      const batchMints: string[] = mints.slice(0, 100).map((m: any) => String(m));
 
-      const response = await fetch(heliusUrl, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          jsonrpc: '2.0',
-          id: 'token-metadata-batch',
-          method: 'getAssetBatch',
-          params: { ids: batchMints },
-        }),
+      // 1. Try Redis for all mints at once
+      const cached = await readCachedMetadata(batchMints);
+
+      // 2. Any misses? Fetch those from Helius in one batch call
+      const misses = batchMints.filter((m) => !cached.has(m));
+      const freshRecords: Array<{ mint: string; meta: TokenMetadata }> = [];
+
+      if (misses.length > 0) {
+        const response = await fetch(heliusUrl, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            jsonrpc: '2.0',
+            id: 'token-metadata-batch',
+            method: 'getAssetBatch',
+            params: { ids: misses },
+          }),
+        });
+
+        if (!response.ok) throw new Error(`Helius batch API error: ${response.status}`);
+        const data = await response.json();
+
+        for (const asset of data.result || []) {
+          if (!asset?.id) continue;
+          const meta: TokenMetadata = {
+            symbol: asset?.content?.metadata?.symbol || asset?.token_info?.symbol || 'UNKNOWN',
+            name: asset?.content?.metadata?.name || asset?.token_info?.name || 'Unknown Token',
+            logoURI: asset?.content?.links?.image || asset?.content?.files?.[0]?.uri,
+            decimals: asset?.token_info?.decimals || 9,
+          };
+          cached.set(asset.id, meta);
+          freshRecords.push({ mint: asset.id, meta });
+        }
+
+        // 3. Write fresh results back to Redis (fire-and-forget)
+        writeCachedMetadata(freshRecords);
+      }
+
+      // 4. Assemble response preserving the order the caller requested
+      const results = batchMints.map((m) => {
+        const meta = cached.get(m);
+        return meta ? { mint: m, ...meta } : { mint: m, symbol: 'UNKNOWN', name: 'Unknown Token', decimals: 9 };
       });
 
-      if (!response.ok) throw new Error(`Helius batch API error: ${response.status}`);
-      const data = await response.json();
-
-      const results = (data.result || []).map((asset: any) => ({
-        mint: asset?.id,
-        symbol: asset?.content?.metadata?.symbol || asset?.token_info?.symbol || 'UNKNOWN',
-        name: asset?.content?.metadata?.name || asset?.token_info?.name || 'Unknown Token',
-        logoURI: asset?.content?.links?.image || asset?.content?.files?.[0]?.uri,
-        decimals: asset?.token_info?.decimals || 9,
-      }));
-
-      return NextResponse.json({ success: true, metadata: results, batch: true });
+      return NextResponse.json({
+        success: true,
+        metadata: results,
+        batch: true,
+        cached: misses.length === 0,
+        cacheHits: batchMints.length - misses.length,
+        cacheMisses: misses.length,
+      });
     }
 
-    // ── Single mode (existing behavior) ──
+    // ── Single mode ──
     if (!mint) {
       return NextResponse.json(
         { success: false, error: 'Missing mint address or mints array' },
@@ -57,7 +150,14 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Call Helius DAS API getAsset
+    // Try cache first
+    const cached = await readCachedMetadata([mint]);
+    const cachedMeta = cached.get(mint);
+    if (cachedMeta) {
+      return NextResponse.json({ success: true, metadata: cachedMeta, cached: true });
+    }
+
+    // Miss — query Helius
     const response = await fetch(heliusUrl, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -83,26 +183,28 @@ export async function POST(request: NextRequest) {
       });
     }
 
-    // Extract metadata from DAS response
     const asset = data.result;
 
-    // Check if this is a fungible token
     if (asset?.interface !== 'FungibleToken' && asset?.interface !== 'FungibleAsset') {
       logger.warn('Asset is not a fungible token', { mint, interface: asset?.interface });
     }
 
-    const metadata = {
+    const metadata: TokenMetadata = {
       symbol: asset?.content?.metadata?.symbol || asset?.token_info?.symbol || 'UNKNOWN',
       name: asset?.content?.metadata?.name || asset?.token_info?.name || 'Unknown Token',
       logoURI: asset?.content?.links?.image || asset?.content?.files?.[0]?.uri,
       decimals: asset?.token_info?.decimals || 9,
     };
 
+    // Write to cache (fire-and-forget)
+    writeCachedMetadata([{ mint, meta: metadata }]);
+
     logger.info('Token metadata fetched successfully', { mint, metadata });
 
     return NextResponse.json({
       success: true,
       metadata,
+      cached: false,
     });
   } catch (error) {
     logger.error('Failed to fetch token metadata:', error);
