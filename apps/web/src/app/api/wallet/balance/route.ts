@@ -41,7 +41,14 @@ export async function GET(request: NextRequest) {
       const { lamports, sol, cachedAt } = JSON.parse(cached);
       return NextResponse.json(
         { success: true, lamports, sol, cached: true, cachedAt },
-        { headers: { 'Cache-Control': `public, max-age=${BALANCE_TTL_SECONDS}` } },
+        {
+          headers: {
+            // Wallet balance can be sensitive — we don't want shared CDN caching (different
+            // viewers should hit our origin so Redis can serve the shared value). Private keeps
+            // it per-browser only.
+            'Cache-Control': `private, max-age=${BALANCE_TTL_SECONDS}`,
+          },
+        },
       );
     }
   } catch (err) {

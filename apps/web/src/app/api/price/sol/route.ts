@@ -47,7 +47,14 @@ export async function GET() {
   if (cached) {
     return NextResponse.json(
       { success: true, price: cached.price, cached: true, cachedAt: cached.cachedAt },
-      { headers: { 'Cache-Control': `public, max-age=${PRICE_TTL_SECONDS}` } },
+      {
+        headers: {
+          // Browser cache + CDN edge cache — lets Vercel/Cloudflare serve identical
+          // responses to every client without re-hitting our origin. stale-while-revalidate
+          // lets clients show the cached price while we asynchronously fetch a fresher one.
+          'Cache-Control': `public, max-age=${PRICE_TTL_SECONDS}, s-maxage=${PRICE_TTL_SECONDS}, stale-while-revalidate=120`,
+        },
+      },
     );
   }
 
@@ -70,7 +77,11 @@ export async function GET() {
 
     return NextResponse.json(
       { success: true, price, cached: false, cachedAt: Date.now() },
-      { headers: { 'Cache-Control': `public, max-age=${PRICE_TTL_SECONDS}` } },
+      {
+        headers: {
+          'Cache-Control': `public, max-age=${PRICE_TTL_SECONDS}, s-maxage=${PRICE_TTL_SECONDS}, stale-while-revalidate=120`,
+        },
+      },
     );
   } catch (err: any) {
     console.warn('[price/sol] CoinGecko fetch failed, returning fallback', err?.message);

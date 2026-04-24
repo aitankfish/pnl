@@ -56,6 +56,7 @@ import { JupiterSwap } from '@/components/JupiterSwap';
 import { useAllTokenBalances } from '@/lib/hooks/useAllTokenBalances';
 import { useCreatorFees } from '@/lib/hooks/useCreatorFees';
 import { SeedIcon, TreeIcon, BloomIcon, LeafIcon, BasketIcon } from '@/components/PlantIcons';
+import { LiveNumber } from '@/components/LiveNumber';
 
 const fetcher = (url: string) => fetch(url).then((res) => res.json());
 
@@ -1675,7 +1676,11 @@ export default function WalletPage() {
           <span className="inline-block w-8 h-px" style={{ background: '#e89660' }} />
         </div>
 
-        {/* Balance display — big serif, warm gradient */}
+        {/* Balance display — big serif, warm gradient.
+            USD/SOL/USDC values use <LiveNumber> which smoothly interpolates on change
+            (via requestAnimationFrame ease-out), so when SOL price ticks or balance
+            updates from a socket event, only the trailing digits visibly roll to the
+            new value — no full-number blink. */}
         <div className="text-center mb-6 px-4">
           <h2
             className="serif leading-[0.98] tracking-[-0.02em] mb-3"
@@ -1689,18 +1694,37 @@ export default function WalletPage() {
               backgroundClip: 'text',
             }}
           >
-            ${isPriceLoading ? '…' : totalUsdValue}
+            {isPriceLoading ? (
+              '$…'
+            ) : (
+              <LiveNumber
+                value={parseFloat(String(totalUsdValue).replace(/,/g, '')) || 0}
+                decimals={2}
+                prefix="$"
+                duration={700}
+              />
+            )}
           </h2>
           <div className="flex items-center justify-center gap-4 flex-wrap mb-3">
             <span className="mono text-[0.72rem] uppercase tracking-[0.24em]" style={{ color: '#f4eee4' }}>
-              ◎{balanceLoading ? '…' : solBalance.toFixed(4)} SOL
+              {balanceLoading ? (
+                '◎…'
+              ) : (
+                <LiveNumber value={solBalance} decimals={4} prefix="◎" suffix=" SOL" duration={650} />
+              )}
               {solPrice && !isPriceLoading && (
-                <span className="ml-2" style={{ color: '#8a7f72' }}>@ ${solPrice.toFixed(2)}</span>
+                <span className="ml-2" style={{ color: '#8a7f72' }}>
+                  @ <LiveNumber value={solPrice} decimals={2} prefix="$" duration={650} />
+                </span>
               )}
             </span>
             <span style={{ color: '#6a6058' }}>·</span>
             <span className="mono text-[0.72rem] uppercase tracking-[0.24em]" style={{ color: '#f4eee4' }}>
-              {isUsdcLoading ? '…' : usdcFormatted} USDC
+              {isUsdcLoading ? (
+                '…'
+              ) : (
+                <LiveNumber value={usdcBalance || 0} decimals={2} suffix=" USDC" duration={650} />
+              )}
             </span>
           </div>
 
@@ -1952,13 +1976,22 @@ export default function WalletPage() {
               <div>
                 <p className="mono text-[0.68rem] uppercase tracking-[0.24em]" style={{ color: '#f4eee4' }}>Solana</p>
                 <p className="mono text-[0.56rem] uppercase tracking-[0.2em] mt-1" style={{ color: '#8a7f72' }}>
-                  ◎{solBalance.toFixed(4)} SOL
+                  <LiveNumber value={solBalance} decimals={4} prefix="◎" suffix=" SOL" duration={650} />
                 </p>
               </div>
             </div>
             <div className="text-right">
               <p className="serif" style={{ color: '#f4eee4', fontSize: '1.05rem', fontVariationSettings: "'SOFT' 50, 'opsz' 36" }}>
-                ${isPriceLoading ? '…' : usdValue}
+                {isPriceLoading ? (
+                  '$…'
+                ) : (
+                  <LiveNumber
+                    value={parseFloat(String(usdValue).replace(/,/g, '')) || 0}
+                    decimals={2}
+                    prefix="$"
+                    duration={700}
+                  />
+                )}
               </p>
             </div>
           </div>

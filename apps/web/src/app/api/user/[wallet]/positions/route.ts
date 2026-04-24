@@ -13,6 +13,12 @@ import { connectToDatabase, getDatabase } from '@/lib/database/index';
 import { COLLECTIONS } from '@/lib/database/models';
 import { createClientLogger } from '@/lib/logger';
 import { convertToGatewayUrl } from '@/lib/api-utils';
+import { getRedisClient, prefixKey } from '@/lib/redis/client';
+
+// Short Redis cache — positions update via socket between trades; a 5s TTL
+// shields against refresh storms without making data feel stale.
+// Cache is keyed per-wallet; can be invalidated from trade-write paths.
+const POSITIONS_CACHE_TTL_SECONDS = 5;
 
 const logger = createClientLogger();
 
@@ -44,6 +50,23 @@ export async function GET(
 ) {
   try {
     const { wallet } = await params;
+
+    // Try Redis cache first (unless ?fresh=1 is passed, e.g. post-trade)
+    const fresh = request.nextUrl.searchParams.get('fresh') === '1';
+    const cacheKey = prefixKey(`positions:${wallet}`);
+    const redis = (() => { try { return getRedisClient(); } catch { return null; } })();
+    if (redis && !fresh) {
+      try {
+        const cached = await redis.get(cacheKey);
+        if (cached) {
+          return NextResponse.json(JSON.parse(cached), {
+            headers: { 'X-Cache': 'HIT' },
+          });
+        }
+      } catch (err) {
+        logger.warn('[positions] redis read failed', { err });
+      }
+    }
 
     logger.info('Fetching user positions', { wallet });
 
@@ -180,7 +203,7 @@ export async function GET(
       claimablePositions: claimablePositions.length,
     });
 
-    return NextResponse.json({
+    const responseBody = {
       success: true,
       data: {
         all: positions,
@@ -188,7 +211,18 @@ export async function GET(
         resolved: resolvedPositions,
         claimable: claimablePositions,
       },
-    });
+    };
+
+    // Fire-and-forget cache write — next request within 5s skips the aggregation
+    if (redis) {
+      try {
+        await redis.set(cacheKey, JSON.stringify(responseBody), 'EX', POSITIONS_CACHE_TTL_SECONDS);
+      } catch (err) {
+        logger.warn('[positions] redis write failed', { err });
+      }
+    }
+
+    return NextResponse.json(responseBody, { headers: { 'X-Cache': 'MISS' } });
   } catch (error) {
     logger.error('Failed to fetch user positions:', error as any);
 

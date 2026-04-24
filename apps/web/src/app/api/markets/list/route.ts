@@ -14,11 +14,17 @@ import {
   getMarketDisplayStatus,
   getVoteButtonStates
 } from '@/lib/api-utils';
+import { getRedisClient, prefixKey } from '@/lib/redis/client';
 
 // Disable Next.js caching for this route - data changes frequently
 export const dynamic = 'force-dynamic';
 
 const logger = createClientLogger();
+
+// The market list is IDENTICAL for every viewer on the same filter/page.
+// A 30s Redis cache lets thousands of concurrent requests share one aggregation.
+// Invalidation is natural via TTL (30s feels live enough for a browse list).
+const LIST_CACHE_TTL_SECONDS = 30;
 
 export async function GET(request: NextRequest) {
   try {
@@ -31,6 +37,26 @@ export async function GET(request: NextRequest) {
     const page = Math.max(1, parseInt(searchParams.get('page') || '1', 10));
     const limit = Math.min(100, Math.max(1, parseInt(searchParams.get('limit') || '25', 10)));
     const skip = (page - 1) * limit;
+
+    // Redis cache key — different filters and pages cache separately
+    const cacheKey = prefixKey(`markets:list:${status}:p${page}:l${limit}`);
+    const redis = (() => { try { return getRedisClient(); } catch { return null; } })();
+    if (redis) {
+      try {
+        const cached = await redis.get(cacheKey);
+        if (cached) {
+          return NextResponse.json(JSON.parse(cached), {
+            headers: {
+              'X-Cache': 'HIT',
+              // Edge/CDN can also cache this since it's shared
+              'Cache-Control': `public, s-maxage=${LIST_CACHE_TTL_SECONDS}, stale-while-revalidate=60`,
+            },
+          });
+        }
+      } catch (err) {
+        logger.warn('[markets/list] redis read failed', { err });
+      }
+    }
 
     // Connect to MongoDB
     await connectToDatabase();
@@ -270,26 +296,33 @@ export async function GET(request: NextRequest) {
       syncHealthy,
     });
 
-    return NextResponse.json(
-      {
-        success: true,
-        data: {
-          markets: marketsWithProjects,
-          total: marketsWithProjects.length,
-          totalCount,
-          pagination,
-          syncHealth,
-          platformStats, // Aggregated stats (doesn't reveal individual vote directions)
-        }
+    const responseBody = {
+      success: true,
+      data: {
+        markets: marketsWithProjects,
+        total: marketsWithProjects.length,
+        totalCount,
+        pagination,
+        syncHealth,
+        platformStats, // Aggregated stats (doesn't reveal individual vote directions)
       },
-      {
-        headers: {
-          // Reduced cache to 2 seconds for near real-time status updates
-          // Markets can change status frequently (voting, expiry, resolution)
-          'Cache-Control': 'public, s-maxage=2, stale-while-revalidate=5',
-        },
+    };
+
+    // Write to Redis — next 30s of requests for this filter/page share this response
+    if (redis) {
+      try {
+        await redis.set(cacheKey, JSON.stringify(responseBody), 'EX', LIST_CACHE_TTL_SECONDS);
+      } catch (err) {
+        logger.warn('[markets/list] redis write failed', { err });
       }
-    );
+    }
+
+    return NextResponse.json(responseBody, {
+      headers: {
+        'X-Cache': 'MISS',
+        'Cache-Control': `public, s-maxage=${LIST_CACHE_TTL_SECONDS}, stale-while-revalidate=60`,
+      },
+    });
 
   } catch (error) {
     logger.error('Failed to fetch markets:', error as any);
