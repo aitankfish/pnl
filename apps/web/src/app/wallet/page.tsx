@@ -1524,72 +1524,100 @@ export default function WalletPage() {
 
   return (
     <div className="min-h-screen pt-3 sm:pt-4 px-4 sm:px-6 pb-4 sm:pb-6 animate-fade-in">
-      {/* Profile & Balance Section */}
-      <div className="max-w-5xl mx-auto mb-6 sm:mb-8">
-        {/* Balance Display */}
+      {/* ─── Dashboard Hero — cosmic editorial styling matching the landing ─── */}
+      <div className="max-w-5xl mx-auto mb-8 sm:mb-12">
+        {/* Top label */}
+        <div className="mono text-[0.62rem] uppercase tracking-[0.3em] mb-5 flex items-center justify-center gap-3"
+          style={{ color: '#e89660' }}>
+          <span className="inline-block w-8 h-px" style={{ background: '#e89660' }} />
+          <span>Your wallet</span>
+          <span className="inline-block w-8 h-px" style={{ background: '#e89660' }} />
+        </div>
+
+        {/* Balance display — big serif, warm gradient */}
         <div className="text-center mb-6 px-4">
-          <h2 className="text-3xl sm:text-4xl md:text-5xl font-bold text-white mb-1">
-            ${isPriceLoading ? '...' : totalUsdValue}
-          </h2>
-          <div className="space-y-1">
-            <p className="text-gray-400 text-base sm:text-lg">
-              {balanceLoading ? '...' : solBalance.toFixed(4)} SOL
-              {solPrice && !isPriceLoading && (
-                <span className="text-xs sm:text-sm text-gray-500 ml-2">
-                  @ ${solPrice.toFixed(2)}
-                </span>
-              )}
-            </p>
-            <p className="text-gray-400 text-sm sm:text-base">
-              {isUsdcLoading ? '...' : usdcFormatted} USDC
-            </p>
-          </div>
-          <button
-            onClick={copyAddress}
-            className="text-xs text-gray-500 mt-2 hover:text-cyan-400 transition-colors cursor-pointer inline-flex items-center gap-1 break-all max-w-full px-2"
+          <h2
+            className="serif leading-[0.98] tracking-[-0.02em] mb-3"
+            style={{
+              fontSize: 'clamp(2.5rem, 6vw, 5rem)',
+              fontWeight: 400,
+              fontVariationSettings: "'SOFT' 50, 'WONK' 0, 'opsz' 144",
+              color: 'transparent',
+              backgroundImage: 'linear-gradient(178deg, #fff2d8 0%, #ecb48a 35%, #d99875 70%, #d67347 100%)',
+              WebkitBackgroundClip: 'text',
+              backgroundClip: 'text',
+            }}
           >
-            <span className="truncate">
-              {primaryWallet.address.slice(0, 8)}...{primaryWallet.address.slice(-6)}
+            ${isPriceLoading ? '…' : totalUsdValue}
+          </h2>
+          <div className="flex items-center justify-center gap-4 flex-wrap mb-3">
+            <span className="mono text-[0.72rem] uppercase tracking-[0.24em]" style={{ color: '#f4eee4' }}>
+              ◎{balanceLoading ? '…' : solBalance.toFixed(4)} SOL
+              {solPrice && !isPriceLoading && (
+                <span className="ml-2" style={{ color: '#8a7f72' }}>@ ${solPrice.toFixed(2)}</span>
+              )}
             </span>
-            {addressCopied ? (
-              <Check className="w-3 h-3 text-green-400 flex-shrink-0" />
-            ) : (
-              <Copy className="w-3 h-3 flex-shrink-0" />
-            )}
-          </button>
-          {addressCopied && (
-            <p className="text-xs text-green-400 mt-1">Copied!</p>
-          )}
-          {/* Real-time Status Indicator */}
-          <div className="flex items-center gap-1 mt-1">
-            <div className={`w-2 h-2 rounded-full ${socketConnected ? 'bg-green-400 animate-pulse' : 'bg-gray-500'}`}></div>
-            <span className="text-xs text-gray-400">
-              {socketConnected ? 'Live updates' : 'Polling mode'}
+            <span style={{ color: '#6a6058' }}>·</span>
+            <span className="mono text-[0.72rem] uppercase tracking-[0.24em]" style={{ color: '#f4eee4' }}>
+              {isUsdcLoading ? '…' : usdcFormatted} USDC
+            </span>
+          </div>
+
+          {/* Address + live indicator */}
+          <div className="flex items-center justify-center gap-3 flex-wrap">
+            <button
+              onClick={copyAddress}
+              className="mono text-[0.6rem] uppercase tracking-[0.24em] inline-flex items-center gap-1.5 transition-colors cursor-pointer"
+              style={{ color: '#8a7f72' }}
+              onMouseEnter={(e) => (e.currentTarget.style.color = '#e89660')}
+              onMouseLeave={(e) => (e.currentTarget.style.color = '#8a7f72')}
+            >
+              <span>{primaryWallet.address.slice(0, 6)}…{primaryWallet.address.slice(-4)}</span>
+              {addressCopied ? (
+                <Check className="w-3 h-3" style={{ color: '#3f7a42' }} />
+              ) : (
+                <Copy className="w-3 h-3" />
+              )}
+            </button>
+            <span style={{ color: '#6a6058' }}>·</span>
+            <span className="inline-flex items-center gap-1.5 mono text-[0.56rem] uppercase tracking-[0.26em]"
+              style={{ color: socketConnected ? '#3f7a42' : '#8a7f72' }}>
+              <span
+                className={`w-1.5 h-1.5 rounded-full ${socketConnected ? 'animate-pulse' : ''}`}
+                style={{ background: socketConnected ? '#3f7a42' : '#8a7f72' }}
+              />
+              {socketConnected ? 'Live' : 'Polling'}
             </span>
           </div>
         </div>
 
-        {/* Profile Photo + Username Input + Bio + Twitter */}
-        <div className="flex flex-col items-center gap-3 max-w-2xl mx-auto w-full px-4">
-          {/* Profile Photo + Username Row */}
-          <div className="flex items-center gap-2">
-            {/* Profile Photo */}
+        {/* Profile row */}
+        <div className="flex flex-col items-center gap-4 max-w-2xl mx-auto w-full px-4 mt-8">
+          <div className="flex items-center gap-3">
             <div className="relative group">
-              <div className="w-14 h-14 rounded-full bg-gradient-to-r from-purple-500 to-pink-500 flex items-center justify-center overflow-hidden ring-2 ring-white/20">
+              <div
+                className="w-14 h-14 flex items-center justify-center overflow-hidden"
+                style={{
+                  background: 'rgba(244,238,228,0.04)',
+                  border: '1px solid rgba(232,150,96,0.35)',
+                }}
+              >
                 {isUploadingPhoto ? (
-                  <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-white"></div>
+                  <div className="animate-spin rounded-full h-5 w-5" style={{ border: '1.5px solid rgba(232,150,96,0.25)', borderTopColor: '#e89660' }} />
                 ) : profilePhotoUrl ? (
                   <img src={profilePhotoUrl} alt="Profile" className="w-full h-full object-cover" />
                 ) : (
-                  <User className="w-7 h-7 text-white" />
+                  <User className="w-6 h-6" style={{ color: '#e89660' }} />
                 )}
               </div>
               <button
                 onClick={handlePhotoUpload}
                 disabled={isUploadingPhoto}
-                className="absolute bottom-0 right-0 w-5 h-5 bg-cyan-500 rounded-full flex items-center justify-center hover:bg-cyan-600 transition-colors shadow-lg disabled:opacity-50"
+                className="absolute -bottom-1 -right-1 w-5 h-5 flex items-center justify-center transition-colors disabled:opacity-50"
+                style={{ background: '#e89660', color: '#0a0814' }}
+                title="Upload new photo"
               >
-                <Camera className="w-3 h-3 text-white" />
+                <Camera className="w-3 h-3" />
               </button>
             </div>
 
@@ -1597,108 +1625,121 @@ export default function WalletPage() {
               value={username}
               onChange={(e) => setUsername(e.target.value)}
               onBlur={() => handleUsernameChange(username)}
-              className="bg-white/5 border-white/10 text-white font-medium w-32 sm:w-40 h-9"
+              className="mono text-[0.75rem] w-32 sm:w-44 h-10 rounded-none border"
+              style={{
+                background: 'rgba(244,238,228,0.04)',
+                borderColor: 'rgba(244,238,228,0.12)',
+                color: '#f4eee4',
+                letterSpacing: '0.05em',
+              }}
               placeholder="username"
             />
           </div>
 
-          {/* Bio Input */}
+          {/* Bio */}
           <div className="w-full max-w-md">
             <textarea
               value={bio}
               onChange={(e) => setBio(e.target.value)}
               onBlur={() => handleBioChange(bio)}
-              className="w-full bg-white/5 border border-white/10 text-white text-sm rounded-md p-2 min-h-[60px] max-h-[100px] resize-none placeholder:text-gray-500 focus:outline-none focus:ring-1 focus:ring-cyan-400"
-              placeholder="Write a short bio..."
+              className="serif w-full text-[0.95rem] leading-[1.55] p-3 min-h-[64px] max-h-[100px] resize-none focus:outline-none"
+              style={{
+                background: 'rgba(244,238,228,0.04)',
+                border: '1px solid rgba(244,238,228,0.1)',
+                color: '#f4eee4',
+                fontStyle: 'italic',
+                fontVariationSettings: "'SOFT' 100, 'opsz' 30",
+              }}
+              placeholder="Write a short bio…"
               maxLength={150}
             />
-            <p className="text-xs text-gray-500 mt-1 text-right">{bio.length}/150</p>
+            <p className="mono text-[0.54rem] uppercase tracking-[0.26em] mt-1 text-right" style={{ color: '#6a6058' }}>
+              {bio.length} / 150
+            </p>
           </div>
 
-          {/* Twitter Handle Input */}
+          {/* Twitter */}
           <div className="w-full max-w-md">
             <div className="relative">
-              <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm">@</span>
+              <span className="absolute left-3 top-1/2 -translate-y-1/2 mono text-[0.72rem]" style={{ color: '#8a7f72' }}>@</span>
               <Input
                 value={twitterHandle}
                 onChange={(e) => setTwitterHandle(e.target.value)}
                 onBlur={() => handleTwitterChange(twitterHandle)}
-                className="bg-white/5 border-white/10 text-white text-sm pl-8"
+                className="mono text-[0.75rem] h-10 pl-8 rounded-none border"
+                style={{
+                  background: 'rgba(244,238,228,0.04)',
+                  borderColor: 'rgba(244,238,228,0.12)',
+                  color: '#f4eee4',
+                  letterSpacing: '0.05em',
+                }}
                 placeholder="X handle"
               />
             </div>
           </div>
         </div>
 
-        {/* Action Buttons */}
-        <div className="flex flex-wrap items-center justify-center gap-2 mt-3">
-            <Button
-              onClick={handleRefresh}
-              disabled={balanceLoading}
-              variant="outline"
-              size="sm"
-              className="border-white/10 text-white hover:bg-white/5"
-            >
-              <RefreshCw className={`w-4 h-4 sm:mr-2 ${balanceLoading ? 'animate-spin' : ''}`} />
-              <span className="hidden sm:inline">Refresh</span>
-            </Button>
-            <Button
-              onClick={handleBuySol}
-              variant="outline"
-              size="sm"
-              className="border-green-500/50 text-green-400 hover:bg-green-500/10"
-            >
-              <ShoppingCart className="w-4 h-4 sm:mr-2" />
-              <span className="hidden sm:inline">Buy SOL</span>
-            </Button>
-            <Button
-              onClick={() => setShowSwapModal(true)}
-              variant="outline"
-              size="sm"
-              className="border-cyan-500/50 text-cyan-400 hover:bg-cyan-500/10"
-            >
-              <ArrowLeftRight className="w-4 h-4 sm:mr-2" />
-              <span className="hidden sm:inline">Swap</span>
-            </Button>
-            <Button
-              onClick={() => setShowDepositModal(true)}
-              variant="outline"
-              size="sm"
-              className="border-white/10 text-white hover:bg-white/5"
-            >
-              <Download className="w-4 h-4 sm:mr-2" />
-              <span className="hidden sm:inline">Deposit</span>
-            </Button>
-            <Button
-              onClick={() => setShowSendModal(true)}
-              variant="outline"
-              size="sm"
-              className="border-white/10 text-white hover:bg-white/5"
-            >
-              <Send className="w-4 h-4 sm:mr-2" />
-              <span className="hidden sm:inline">Withdraw</span>
-            </Button>
-            <Button
-              onClick={() => setShowSettingsModal(true)}
-              variant="outline"
-              size="sm"
-              className="border-white/10 text-white hover:bg-white/5"
-            >
-              <Settings className="w-4 h-4 sm:mr-2" />
-              <span className="hidden sm:inline">Security</span>
-            </Button>
+        {/* Action buttons — flat mono tiles matching landing */}
+        <div className="flex flex-wrap items-center justify-center gap-2 mt-6">
+          {[
+            { label: 'Refresh', icon: RefreshCw, onClick: handleRefresh, disabled: balanceLoading, spinning: balanceLoading },
+            { label: 'Buy SOL', icon: ShoppingCart, onClick: handleBuySol, accent: true },
+            { label: 'Swap', icon: ArrowLeftRight, onClick: () => setShowSwapModal(true) },
+            { label: 'Deposit', icon: Download, onClick: () => setShowDepositModal(true) },
+            { label: 'Withdraw', icon: Send, onClick: () => setShowSendModal(true) },
+            { label: 'Security', icon: Settings, onClick: () => setShowSettingsModal(true) },
+          ].map((action) => {
+            const Icon = action.icon;
+            return (
+              <button
+                key={action.label}
+                onClick={action.onClick}
+                disabled={action.disabled}
+                className="group inline-flex items-center gap-2 px-4 py-2.5 mono text-[0.62rem] uppercase tracking-[0.24em] transition-colors duration-300 disabled:opacity-40"
+                style={{
+                  background: action.accent ? '#e89660' : 'transparent',
+                  color: action.accent ? '#0a0814' : '#d8cfc0',
+                  border: action.accent
+                    ? '1px solid #e89660'
+                    : '1px solid rgba(244,238,228,0.12)',
+                }}
+                onMouseEnter={(e) => {
+                  if (!action.accent) {
+                    e.currentTarget.style.borderColor = 'rgba(232,150,96,0.4)';
+                    e.currentTarget.style.color = '#f4eee4';
+                  }
+                }}
+                onMouseLeave={(e) => {
+                  if (!action.accent) {
+                    e.currentTarget.style.borderColor = 'rgba(244,238,228,0.12)';
+                    e.currentTarget.style.color = '#d8cfc0';
+                  }
+                }}
+              >
+                <Icon className={`w-3.5 h-3.5 ${action.spinning ? 'animate-spin' : ''}`} />
+                <span className="hidden sm:inline">{action.label}</span>
+              </button>
+            );
+          })}
         </div>
 
-        {/* Follower/Following Stats */}
+        {/* Follower/Following */}
         {profileData?.success && (
-          <div className="flex items-center justify-center gap-6 mt-4">
-            <a href={`/profile/${primaryWallet.address}/followers`} className="text-center hover:opacity-80 transition-opacity">
-              <div className="text-xl font-bold text-white">{profileData.data.followerCount || 0}</div>
-              <div className="text-xs text-gray-400">Followers</div>
+          <div className="flex items-center justify-center gap-8 mt-6">
+            <a href={`/profile/${primaryWallet.address}/followers`} className="text-center transition-opacity hover:opacity-70">
+              <div className="serif text-[1.4rem] leading-none"
+                style={{ color: '#f4eee4', fontVariationSettings: "'SOFT' 50, 'opsz' 48" }}>
+                {profileData.data.followerCount || 0}
+              </div>
+              <div className="mono text-[0.56rem] uppercase tracking-[0.28em] mt-1" style={{ color: '#8a7f72' }}>Followers</div>
             </a>
-            <a href={`/profile/${primaryWallet.address}/following`} className="text-center hover:opacity-80 transition-opacity">
-              <div className="text-xl font-bold text-white">{profileData.data.followingCount || 0}</div>
-              <div className="text-xs text-gray-400">Following</div>
+            <span className="w-px h-8" style={{ background: 'rgba(244,238,228,0.08)' }} />
+            <a href={`/profile/${primaryWallet.address}/following`} className="text-center transition-opacity hover:opacity-70">
+              <div className="serif text-[1.4rem] leading-none"
+                style={{ color: '#f4eee4', fontVariationSettings: "'SOFT' 50, 'opsz' 48" }}>
+                {profileData.data.followingCount || 0}
+              </div>
+              <div className="mono text-[0.56rem] uppercase tracking-[0.28em] mt-1" style={{ color: '#8a7f72' }}>Following</div>
             </a>
           </div>
         )}
