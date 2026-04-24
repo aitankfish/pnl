@@ -1,5 +1,6 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useWallet } from './useWallet';
+import { useSocket } from './useSocket';
 import { apiUrl } from '../utils/api';
 
 export interface Notification {
@@ -97,6 +98,59 @@ export function useNotifications() {
   useEffect(() => {
     fetchNotifications();
   }, [fetchNotifications]);
+
+  // ─── Real-time notification push via Socket.IO ───
+  // The server emits a 'notification' event into the user:{wallet} room whenever
+  // a new notification is created. We listen here so the bell badge updates
+  // instantly without a refresh.
+  const { socket, isConnected } = useSocket();
+  const seenIdsRef = useRef<Set<string>>(new Set());
+
+  useEffect(() => {
+    if (!socket || !isConnected || !authenticated || !primaryWallet?.address) return;
+
+    const walletAddress = primaryWallet.address;
+
+    // Subscribe to user room (useUserSocket also subscribes — Socket.IO handles
+    // duplicate subscriptions gracefully).
+    const subscribe = async () => {
+      let token: string | undefined;
+      try {
+        const { getAccessToken } = await import('../utils/authenticated-fetch');
+        const t = await getAccessToken();
+        if (t) token = t;
+      } catch {}
+      socket.emit('subscribe:user', walletAddress, token);
+    };
+    subscribe();
+
+    const handleNotification = (data: any) => {
+      const apiNotification = data?.notification;
+      if (!apiNotification?._id) return;
+
+      // Guard against duplicate socket events delivering the same notification
+      const id = String(apiNotification._id);
+      if (seenIdsRef.current.has(id)) return;
+      seenIdsRef.current.add(id);
+
+      const transformed = transformNotification(apiNotification);
+
+      setNotifications((prev) => {
+        // Avoid duplicating if server already has this id (race with API fetch)
+        if (prev.some((n) => n.id === transformed.id)) return prev;
+        return [transformed, ...prev];
+      });
+      if (!transformed.isRead) {
+        setUnreadCount((prev) => prev + 1);
+      }
+    };
+
+    socket.on('notification', handleNotification);
+
+    return () => {
+      socket.off('notification', handleNotification);
+    };
+  }, [socket, isConnected, authenticated, primaryWallet?.address]);
 
   // Mark single notification as read
   const markAsRead = async (id: string) => {

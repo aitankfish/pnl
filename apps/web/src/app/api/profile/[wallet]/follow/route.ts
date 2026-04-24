@@ -112,6 +112,25 @@ export const POST = withAuth(async (
       followingWallet,
     });
 
+    // Real-time: push updated counts into both users' socket rooms so their
+    // follower/following numbers tick without a page refresh.
+    try {
+      const [followedProfile, followerProfile] = await Promise.all([
+        UserProfile.findOne({ walletAddress: followingWallet }, { followerCount: 1 }).lean() as any,
+        UserProfile.findOne({ walletAddress: followerWallet }, { followingCount: 1 }).lean() as any,
+      ]);
+      const { broadcastUserStats } = await import('@/services/socket/socket-server');
+      if (followedProfile?.followerCount != null) {
+        broadcastUserStats(followingWallet, { followerCount: followedProfile.followerCount });
+      }
+      if (followerProfile?.followingCount != null) {
+        broadcastUserStats(followerWallet, { followingCount: followerProfile.followingCount });
+      }
+    } catch (err) {
+      // Non-fatal — follow succeeded, socket broadcast is nice-to-have
+      logger.warn('[follow] failed to broadcast user-stats', { err });
+    }
+
     return NextResponse.json({
       success: true,
       message: 'Successfully followed user',
@@ -196,6 +215,23 @@ export const DELETE = withAuth(async (
       followerWallet,
       followingWallet,
     });
+
+    // Real-time: push updated counts so the UI ticks down without a refresh.
+    try {
+      const [followedProfile, followerProfile] = await Promise.all([
+        UserProfile.findOne({ walletAddress: followingWallet }, { followerCount: 1 }).lean() as any,
+        UserProfile.findOne({ walletAddress: followerWallet }, { followingCount: 1 }).lean() as any,
+      ]);
+      const { broadcastUserStats } = await import('@/services/socket/socket-server');
+      if (followedProfile?.followerCount != null) {
+        broadcastUserStats(followingWallet, { followerCount: followedProfile.followerCount });
+      }
+      if (followerProfile?.followingCount != null) {
+        broadcastUserStats(followerWallet, { followingCount: followerProfile.followingCount });
+      }
+    } catch (err) {
+      logger.warn('[unfollow] failed to broadcast user-stats', { err });
+    }
 
     return NextResponse.json({
       success: true,

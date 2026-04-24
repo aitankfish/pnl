@@ -66,12 +66,17 @@ export async function GET(
       );
     }
 
+    // Support ?fresh=1 to bypass cache — used after a claim tx confirms so the
+    // UI shows the post-claim vault balance immediately instead of waiting for
+    // the 5-min TTL.
+    const fresh = request.nextUrl.searchParams.get('fresh') === '1';
+
     // Early-return check — is this wallet known to have NO launched tokens?
     // Most users will never launch; we cache this negative result so we skip the
     // expensive $lookup aggregation on every page load for them.
     const redis = (() => { try { return getRedisClient(); } catch { return null; } })();
     const noTokensKey = prefixKey(`creator-fees:none:${wallet}`);
-    if (redis) {
+    if (redis && !fresh) {
       try {
         const sentinel = await redis.get(noTokensKey);
         if (sentinel === '1') {
@@ -140,9 +145,10 @@ export async function GET(
     const vaultCacheKey = prefixKey(`creator-fees:vault:${creatorVault.toBase58()}`);
 
     // Try cache first (vault balances change rarely, ~5min TTL is safe)
+    // Skip cache entirely when `?fresh=1` is set (post-claim scenarios).
     let totalClaimableLamports = BigInt(0);
     let vaultCached = false;
-    if (redis) {
+    if (redis && !fresh) {
       try {
         const cached = await redis.get(vaultCacheKey);
         if (cached) {

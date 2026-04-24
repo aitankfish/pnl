@@ -168,8 +168,24 @@ export function useCreatorFees(walletAddress: string | null): UseCreatorFeesRetu
       await connection.confirmTransaction(signature, 'confirmed');
       console.log('Transaction confirmed!');
 
-      // Refresh the balance after successful claim
-      await mutate();
+      // Post-claim: fetch with ?fresh=1 so the server skips its 5-min Redis
+      // cache on the vault balance and reads the real on-chain post-claim value.
+      // This is wrapped in a try so the "claim succeeded" return happens even if
+      // the follow-up refresh hiccups.
+      try {
+        if (walletAddress) {
+          const freshResp = await fetch(
+            apiUrl(`/api/user/${walletAddress}/creator-fees?fresh=1`),
+            { cache: 'no-store' },
+          );
+          const freshJson = await freshResp.json();
+          // Seed SWR cache with the fresh result so the UI updates instantly
+          await mutate(freshJson, { revalidate: false });
+        }
+      } catch (refreshErr) {
+        // Non-fatal — fall back to normal mutate which will refetch eventually
+        await mutate();
+      }
 
       return { success: true, signature };
     } catch (error: any) {

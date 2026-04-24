@@ -1178,9 +1178,11 @@ export default function WalletPage() {
   // Fetch user positions
   // When the socket is connected we don't need aggressive polling — socket events
   // will push updates. Fall back to polling only when socket is down.
-  const { positions: realtimePositions, isConnected: socketConnected } = useUserSocket(
-    primaryWallet?.address || null
-  );
+  const {
+    positions: realtimePositions,
+    isConnected: socketConnected,
+    userStats: realtimeUserStats,
+  } = useUserSocket(primaryWallet?.address || null);
 
   const { data: positionsData, isLoading: positionsLoading, mutate: mutatePositions } = useSWR(
     primaryWallet?.address ? `/api/user/${primaryWallet.address}/positions` : null,
@@ -1862,13 +1864,13 @@ export default function WalletPage() {
           })}
         </div>
 
-        {/* Follower/Following */}
+        {/* Follower/Following — socket-pushed counts override profileData when available */}
         {profileData?.success && (
           <div className="flex items-center justify-center gap-8 mt-6">
             <a href={`/profile/${primaryWallet.address}/followers`} className="text-center transition-opacity hover:opacity-70">
               <div className="serif text-[1.4rem] leading-none"
                 style={{ color: '#f4eee4', fontVariationSettings: "'SOFT' 50, 'opsz' 48" }}>
-                {profileData.data.followerCount || 0}
+                {realtimeUserStats?.followerCount ?? profileData.data.followerCount ?? 0}
               </div>
               <div className="mono text-[0.56rem] uppercase tracking-[0.28em] mt-1" style={{ color: '#8a7f72' }}>Followers</div>
             </a>
@@ -1876,7 +1878,7 @@ export default function WalletPage() {
             <a href={`/profile/${primaryWallet.address}/following`} className="text-center transition-opacity hover:opacity-70">
               <div className="serif text-[1.4rem] leading-none"
                 style={{ color: '#f4eee4', fontVariationSettings: "'SOFT' 50, 'opsz' 48" }}>
-                {profileData.data.followingCount || 0}
+                {realtimeUserStats?.followingCount ?? profileData.data.followingCount ?? 0}
               </div>
               <div className="mono text-[0.56rem] uppercase tracking-[0.28em] mt-1" style={{ color: '#8a7f72' }}>Following</div>
             </a>

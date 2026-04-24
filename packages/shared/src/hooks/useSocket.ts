@@ -226,6 +226,7 @@ export function useUserSocket(walletAddress: string | null) {
   const { socket, isConnected } = useSocket();
   const [positions, setPositions] = useState<Map<string, any>>(new Map());
   const [notifications, setNotifications] = useState<any[]>([]);
+  const [userStats, setUserStats] = useState<{ followerCount?: number; followingCount?: number }>({});
   const isMountedRef = useRef(true);
 
   useEffect(() => {
@@ -263,14 +264,24 @@ export function useUserSocket(walletAddress: string | null) {
       setNotifications((prev) => [data.notification, ...prev]);
     };
 
+    // Listen for follower/following count changes — drives the "live tick" on profile pages.
+    const handleUserStats = (data: any) => {
+      if (!isMountedRef.current) return;
+      if (data?.stats) {
+        setUserStats((prev) => ({ ...prev, ...data.stats }));
+      }
+    };
+
     socket.on('position:update', handlePositionUpdate);
     socket.on('notification', handleNotification);
+    socket.on('user:stats', handleUserStats);
 
     // Cleanup
     return () => {
       isMountedRef.current = false;
       socket.off('position:update', handlePositionUpdate);
       socket.off('notification', handleNotification);
+      socket.off('user:stats', handleUserStats);
       logger.info(`Unsubscribed from user: ${walletAddress}`);
     };
   }, [socket, isConnected, walletAddress]);
@@ -278,6 +289,7 @@ export function useUserSocket(walletAddress: string | null) {
   return {
     positions,
     notifications,
+    userStats,
     isConnected,
   };
 }

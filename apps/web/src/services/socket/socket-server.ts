@@ -382,6 +382,21 @@ export class SocketServer {
   }
 
   /**
+   * Broadcast follower/following count change to a user's room.
+   * Both the viewer and the target can listen — viewer to see their own
+   * "following" count tick, target to see their "followers" count tick.
+   */
+  broadcastUserStats(walletAddress: string, stats: { followerCount?: number; followingCount?: number }): void {
+    if (!this.io) return;
+    logger.debug(`👤 Broadcasting user-stats update to ${walletAddress.slice(0, 8)}...`);
+    this.io.to(`user:${walletAddress}`).emit('user:stats', {
+      walletAddress,
+      stats,
+      timestamp: Date.now(),
+    });
+  }
+
+  /**
    * Broadcast new market created to all-markets subscribers
    */
   broadcastNewMarket(marketData: any): void {
@@ -533,6 +548,14 @@ export function broadcastPositionUpdate(
 export function broadcastNotification(walletAddress: string, notification: any): void {
   const server = getSocketServer();
   server.broadcastNotification(walletAddress, notification);
+}
+
+export function broadcastUserStats(
+  walletAddress: string,
+  stats: { followerCount?: number; followingCount?: number },
+): void {
+  const server = getSocketServer();
+  server.broadcastUserStats(walletAddress, stats);
 }
 
 export function broadcastNewMarket(marketData: any): void {
