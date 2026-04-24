@@ -908,6 +908,53 @@ function MeteorCursor() {
   return <canvas ref={canvasRef} className="fixed inset-0 pointer-events-none" style={{ zIndex: 100 }} aria-hidden />;
 }
 
+// ─── Chapter starfield — simpler twinkle-only starfield that persists behind all chapters ────────
+// No parallax, no constellation, no shooting stars — just stars so the cosmic atmosphere extends
+// past the hero instead of dropping into solid black.
+function ChapterStarfield() {
+  const [stars, setStars] = useState<Array<{ x: number; y: number; size: number; color: string; opacity: number; twinkleDur: number; twinkleDelay: number }>>([]);
+  useEffect(() => {
+    const COLORS = ['#fff5e1', '#ffd7a8', '#ffa366', '#d99875'];
+    const generated = [];
+    // 180 stars spread across a tall area (covers scroll below hero)
+    for (let i = 0; i < 180; i++) {
+      generated.push({
+        x: Math.random() * 100,
+        y: Math.random() * 100,
+        size: 1 + Math.random() * 1.2,
+        color: COLORS[Math.floor(Math.random() * COLORS.length)],
+        opacity: 0.3 + Math.random() * 0.35,
+        twinkleDur: 3.5 + Math.random() * 5,
+        twinkleDelay: Math.random() * 6,
+      });
+    }
+    setStars(generated);
+  }, []);
+
+  return (
+    <div aria-hidden className="fixed inset-0 pointer-events-none" style={{ zIndex: 0 }}>
+      {stars.map((s, i) => (
+        <span
+          key={i}
+          style={{
+            position: 'absolute',
+            left: `${s.x}%`,
+            top: `${s.y}%`,
+            width: `${s.size}px`,
+            height: `${s.size}px`,
+            borderRadius: '50%',
+            background: s.color,
+            opacity: s.opacity,
+            boxShadow: `0 0 ${s.size * 2}px ${s.color}`,
+            animation: `starTwinkle ${s.twinkleDur}s ease-in-out infinite`,
+            animationDelay: `${s.twinkleDelay}s`,
+          }}
+        />
+      ))}
+    </div>
+  );
+}
+
 // ─── Sticky chapter companion — a small cosmic tree silhouette that persists across chapters ─────
 // Morphs through 6 states: seed → barrier → shift → grow → bloom → forest
 function ChapterCompanion({ opacity, y, stage }: { opacity: MotionValue<number>; y: MotionValue<string>; stage: MotionValue<number> }) {
@@ -1253,6 +1300,8 @@ export default function HomePage() {
 
   return (
     <>
+      {/* Persistent cosmic sky — twinkling stars behind every chapter below the hero */}
+      <ChapterStarfield />
       {/* Sticky chapter companion — persistent SVG tree that narrates alongside the scroll */}
       <ChapterCompanion opacity={companionOpacity} y={companionY} stage={companionStage} />
 
@@ -1399,7 +1448,7 @@ export default function HomePage() {
             <div className="hidden md:flex items-center gap-5 mono text-[0.68rem] uppercase tracking-[0.24em] text-[#8a7f72]">
               <Link href="/launchpad" className="hover:text-[#f4eee4] transition-colors">Launchpad</Link>
               <span className="w-px h-3 bg-[#8a7f72]/30" />
-              <Link href="/whitepaper" className="hover:text-[#f4eee4] transition-colors">Thesis</Link>
+              <a href="#thesis" onClick={(e) => { e.preventDefault(); document.getElementById('thesis')?.scrollIntoView({ behavior: 'smooth', block: 'start' }); }} className="hover:text-[#f4eee4] transition-colors cursor-pointer">Thesis</a>
             </div>
           </nav>
 
@@ -1538,7 +1587,7 @@ export default function HomePage() {
         )}
 
         {/* ═══════════ I / The seed ═══════════ */}
-        <section className="relative -mx-3 sm:-mx-6 px-6 md:px-10 py-28 md:py-44 overflow-hidden" style={{ background: '#0a0814' }}>
+        <section className="relative -mx-3 sm:-mx-6 px-6 md:px-10 py-28 md:py-44 overflow-hidden" style={{ background: 'rgba(10,8,20,0.55)' }}>
           {/* Subtle seed orb — matches the sun color from the hero */}
           <div aria-hidden className="pointer-events-none absolute left-1/2 -translate-x-1/2 top-[14%] w-6 h-6 rounded-full"
             style={{
@@ -1568,7 +1617,7 @@ export default function HomePage() {
 
         {/* ═══════════ II / The barrier ═══════════ */}
         <section className="relative -mx-3 sm:-mx-6 px-6 md:px-10 py-24 md:py-40 border-t"
-          style={{ background: '#0a0814', borderColor: 'rgba(244,238,228,0.06)' }}>
+          style={{ background: 'rgba(10,8,20,0.55)', borderColor: 'rgba(244,238,228,0.06)' }}>
           <div className="max-w-[1400px] mx-auto">
             <div className="mono text-[0.64rem] uppercase tracking-[0.26em] mb-6" style={{ color: '#e89660' }}>II / The barrier</div>
             <h2 className="serif leading-[1.05] tracking-[-0.025em] mb-14 max-w-[24ch]"
@@ -1643,82 +1692,135 @@ export default function HomePage() {
         </section>
 
         {/* ═══════════ III / The shift — the mission pivot ═══════════ */}
-        <section className="relative -mx-3 sm:-mx-6 px-6 md:px-10 py-32 md:py-56 border-t overflow-hidden"
-          style={{ background: '#0a0814', borderColor: 'rgba(244,238,228,0.06)' }}>
-          {/* Rising photon column — luminous vertical light */}
-          <div aria-hidden className="pointer-events-none absolute left-1/2 -translate-x-1/2 top-0 bottom-0 w-px"
-            style={{ background: 'linear-gradient(to top, transparent 0%, rgba(232,150,96,0.35) 30%, rgba(255,247,232,0.9) 55%, rgba(232,150,96,0.35) 80%, transparent 100%)' }} />
-          {/* Radial starburst rays emanating from the photon core */}
-          <svg aria-hidden className="pointer-events-none absolute left-1/2 top-[35%] -translate-x-1/2 -translate-y-1/2"
-            width="420" height="420" viewBox="0 0 420 420" style={{ mixBlendMode: 'screen', opacity: 0.85 }}>
-            <defs>
-              <radialGradient id="burstCore">
-                <stop offset="0%" stopColor="#ffffff" stopOpacity="1" />
-                <stop offset="18%" stopColor="#fff4b8" stopOpacity="0.95" />
-                <stop offset="50%" stopColor="#e89660" stopOpacity="0.35" />
-                <stop offset="100%" stopColor="#e89660" stopOpacity="0" />
-              </radialGradient>
-              <linearGradient id="rayFade" x1="0.5" y1="0" x2="0.5" y2="1">
-                <stop offset="0%" stopColor="rgba(255,244,184,0)" />
-                <stop offset="50%" stopColor="rgba(255,244,184,0.55)" />
-                <stop offset="100%" stopColor="rgba(255,244,184,0)" />
-              </linearGradient>
-            </defs>
-            {/* 12 thin rays rotated around center */}
-            {Array.from({ length: 12 }).map((_, i) => (
-              <line
-                key={i}
-                x1="210" y1="30" x2="210" y2="130"
-                stroke="url(#rayFade)" strokeWidth="1" strokeLinecap="round"
-                transform={`rotate(${i * 30} 210 210)`}
-                opacity={i % 2 === 0 ? 0.9 : 0.55}
-              />
-            ))}
-            {/* Ambient floating particles around the core */}
-            {[
-              [80, 120, 1.8], [330, 130, 1.5], [70, 250, 1.2], [340, 260, 1.6],
-              [140, 70, 1], [280, 80, 1.2], [160, 340, 1.2], [270, 345, 1],
-              [40, 180, 1], [380, 200, 0.9], [200, 40, 1.4], [210, 380, 1.4],
-            ].map(([x, y, r], i) => (
-              <circle key={i} cx={x as number} cy={y as number} r={r as number} fill="#fff4b8" opacity={0.35 + (i % 3) * 0.15} />
-            ))}
-            {/* Central glowing orb */}
-            <circle cx="210" cy="210" r="170" fill="url(#burstCore)" />
-            <circle cx="210" cy="210" r="8" fill="#fff4b8" />
-            <circle cx="210" cy="210" r="4" fill="#ffffff" />
-          </svg>
-          <div className="max-w-[1400px] mx-auto relative z-10">
-            <div className="mono text-[0.64rem] uppercase tracking-[0.26em] mb-6" style={{ color: '#e89660' }}>III / The shift</div>
-            <h2 className="serif leading-[0.95] tracking-[-0.03em] mb-12 max-w-[14ch]"
-              style={{ color: '#f4eee4', fontSize: 'clamp(3rem, 8vw, 7rem)', fontWeight: 400, fontVariationSettings: "'SOFT' 50, 'opsz' 144" }}>
-              What if the{' '}
-              <em style={{ fontVariationSettings: "'SOFT' 100, 'WONK' 0, 'opsz' 144", color: 'transparent',
-                backgroundImage: 'linear-gradient(178deg, #fff2d8 0%, #ecb48a 35%, #d99875 70%, #d67347 100%)',
-                WebkitBackgroundClip: 'text', backgroundClip: 'text' }}>world decided?</em>
-            </h2>
-            <div className="mono text-[0.68rem] uppercase tracking-[0.3em] mb-8 flex items-center gap-3" style={{ color: '#e89660' }}>
-              <span className="inline-block w-10 h-px" style={{ background: '#e89660' }} />
-              <span>Our mission · give every idea a chance</span>
+        <section className="relative -mx-3 sm:-mx-6 px-6 md:px-10 py-32 md:py-52 border-t overflow-hidden"
+          style={{ background: 'rgba(10,8,20,0.55)', borderColor: 'rgba(244,238,228,0.06)' }}>
+          <div className="max-w-[1400px] mx-auto relative z-10 grid grid-cols-12 gap-8 md:gap-12 items-center">
+            {/* Left — the message */}
+            <div className="col-span-12 md:col-span-7">
+              <div className="mono text-[0.64rem] uppercase tracking-[0.26em] mb-6" style={{ color: '#e89660' }}>III / The shift</div>
+              <h2 className="serif leading-[0.95] tracking-[-0.03em] mb-10 max-w-[16ch]"
+                style={{ color: '#f4eee4', fontSize: 'clamp(2.75rem, 7vw, 6.5rem)', fontWeight: 400, fontVariationSettings: "'SOFT' 50, 'opsz' 144" }}>
+                What if <br className="hidden md:inline" />the{' '}
+                <em style={{ fontVariationSettings: "'SOFT' 100, 'WONK' 0, 'opsz' 144", color: 'transparent',
+                  backgroundImage: 'linear-gradient(178deg, #fff2d8 0%, #ecb48a 35%, #d99875 70%, #d67347 100%)',
+                  WebkitBackgroundClip: 'text', backgroundClip: 'text' }}>world</em>{' '}decided?
+              </h2>
+              <div className="mono text-[0.66rem] uppercase tracking-[0.3em] mb-10 flex items-center gap-3" style={{ color: '#e89660' }}>
+                <span className="inline-block w-10 h-px" style={{ background: '#e89660' }} />
+                <span>PNL&rsquo;s mission · give every idea a chance</span>
+              </div>
+              <p className="serif text-[1.2rem] md:text-[1.45rem] leading-[1.5] max-w-[48ch] mb-6"
+                style={{ color: '#f4eee4', fontWeight: 400, fontVariationSettings: "'SOFT' 50, 'opsz' 36" }}>
+                The internet already knows what&rsquo;s interesting.
+              </p>
+              <p className="serif text-[1.05rem] md:text-[1.2rem] leading-[1.65] max-w-[48ch] mb-5"
+                style={{ color: '#d8cfc0', fontWeight: 400, fontVariationSettings: "'SOFT' 50, 'opsz' 30" }}>
+                It reacts in tweets, threads, memes, money. Bored in hours. Obsessed in weeks. If that reaction could <em style={{ color: '#ecb48a', fontVariationSettings: "'SOFT' 100, 'WONK' 0" }}>fund</em> what&rsquo;s worth building — and being wrong cost nothing — the floor for starting something drops to zero.
+              </p>
+              <p className="serif text-[1.1rem] md:text-[1.3rem] leading-[1.5] max-w-[48ch] mt-8"
+                style={{ color: '#f4eee4', fontWeight: 400, fontVariationSettings: "'SOFT' 50, 'opsz' 30" }}>
+                That&rsquo;s PNL. The crowd becomes the committee.{' '}
+                <em style={{ color: '#ecb48a', fontVariationSettings: "'SOFT' 100, 'WONK' 0" }}>Conviction becomes capital.</em>
+              </p>
             </div>
-            <p className="serif text-[1.25rem] md:text-[1.5rem] leading-[1.55] max-w-[58ch] mb-6"
-              style={{ color: '#f4eee4', fontWeight: 400, fontVariationSettings: "'SOFT' 50, 'opsz' 36" }}>
-              The internet already knows what&rsquo;s interesting. It reacts in tweets, threads, memes, money. Bored in hours, obsessed in weeks.
-            </p>
-            <p className="serif text-[1.15rem] md:text-[1.3rem] leading-[1.6] max-w-[58ch]"
-              style={{ color: '#d8cfc0', fontWeight: 400, fontVariationSettings: "'SOFT' 50, 'opsz' 30" }}>
-              If that reaction could <em style={{ color: '#ecb48a', fontVariationSettings: "'SOFT' 100, 'WONK' 0" }}>fund</em> the things worth building — and the cost of being wrong was nothing — the floor for starting something would drop to zero.
-            </p>
-            <p className="serif text-[1.15rem] md:text-[1.3rem] leading-[1.6] max-w-[58ch] mt-5"
-              style={{ color: '#d8cfc0', fontWeight: 400, fontVariationSettings: "'SOFT' 50, 'opsz' 30" }}>
-              That&rsquo;s PNL. Anyone, anywhere, can pitch. Anyone, anywhere, can back it or push back. The crowd becomes the committee.{' '}
-              <em style={{ color: '#ecb48a', fontVariationSettings: "'SOFT' 100, 'WONK' 0" }}>Conviction becomes capital.</em>
-            </p>
+
+            {/* Right — the world deciding: a constellation of voices converging on one verdict */}
+            <div className="col-span-12 md:col-span-5 flex items-center justify-center mt-8 md:mt-0">
+              <div className="relative w-full max-w-[520px] aspect-square">
+                <svg viewBox="0 0 600 600" className="w-full h-full" style={{ animation: 'globeDrift 24s ease-in-out infinite' }} aria-hidden>
+                  <defs>
+                    <radialGradient id="globeCore">
+                      <stop offset="0%" stopColor="#fff4b8" stopOpacity="1" />
+                      <stop offset="30%" stopColor="#e89628" stopOpacity="0.7" />
+                      <stop offset="70%" stopColor="#d67347" stopOpacity="0.2" />
+                      <stop offset="100%" stopColor="#e89628" stopOpacity="0" />
+                    </radialGradient>
+                  </defs>
+
+                  {/* Sphere wireframe — abstract globe */}
+                  <circle cx="300" cy="300" r="230" stroke="rgba(232,150,96,0.22)" strokeWidth="1" fill="none" />
+                  <ellipse cx="300" cy="300" rx="230" ry="75" stroke="rgba(232,150,96,0.16)" strokeWidth="0.7" fill="none" />
+                  <ellipse cx="300" cy="300" rx="230" ry="150" stroke="rgba(232,150,96,0.12)" strokeWidth="0.6" fill="none" />
+                  <ellipse cx="300" cy="300" rx="75" ry="230" stroke="rgba(232,150,96,0.12)" strokeWidth="0.6" fill="none" />
+                  <ellipse cx="300" cy="300" rx="150" ry="230" stroke="rgba(232,150,96,0.1)" strokeWidth="0.6" fill="none" />
+
+                  {/* Conviction lines: 12 voices flowing inward to the center verdict */}
+                  {Array.from({ length: 12 }).map((_, i) => {
+                    const angle = (i / 12) * Math.PI * 2 - Math.PI / 2;
+                    const x = 300 + Math.cos(angle) * 230;
+                    const y = 300 + Math.sin(angle) * 230;
+                    return (
+                      <line
+                        key={`line-${i}`}
+                        x1={x} y1={y} x2={300} y2={300}
+                        stroke="rgba(232,150,96,0.28)" strokeWidth="0.8" strokeDasharray="3 5"
+                        style={{ animation: `convictionFlow 4.5s ease-in-out infinite`, animationDelay: `${i * 0.25}s` }}
+                      />
+                    );
+                  })}
+
+                  {/* The voices — 36 dots around the sphere, mixed believers/critics/neutral */}
+                  {Array.from({ length: 36 }).map((_, i) => {
+                    const angle = (i / 36) * Math.PI * 2 + (i % 3) * 0.08;
+                    const radius = 230 + ((i * 11) % 7) - 3;
+                    const x = 300 + Math.cos(angle) * radius;
+                    const y = 300 + Math.sin(angle) * radius;
+                    const size = 1.8 + ((i * 5) % 3);
+                    const kind = i % 5;
+                    const color = kind === 0 ? '#3f7a42' : kind === 1 ? '#d67347' : '#fff4b8';
+                    const dur = 2.8 + ((i * 7) % 30) / 10;
+                    const delay = ((i * 13) % 50) / 10;
+                    return (
+                      <circle
+                        key={`dot-${i}`}
+                        cx={x} cy={y} r={size} fill={color}
+                        style={{
+                          animation: `voiceTwinkle ${dur}s ease-in-out infinite`,
+                          animationDelay: `${delay}s`,
+                          transformOrigin: `${x}px ${y}px`,
+                        }}
+                      />
+                    );
+                  })}
+
+                  {/* Pulsing central verdict — collective conviction */}
+                  <circle cx="300" cy="300" r="130" fill="url(#globeCore)"
+                    style={{ animation: 'verdictPulse 4s ease-in-out infinite', transformOrigin: '300px 300px' }} />
+                  <circle cx="300" cy="300" r="16" fill="#fff4b8" />
+                  <circle cx="300" cy="300" r="8" fill="#ffffff" />
+                </svg>
+                {/* Caption */}
+                <div className="absolute left-0 right-0 -bottom-2 text-center mono text-[0.6rem] uppercase tracking-[0.32em]"
+                  style={{ color: 'rgba(232,150,96,0.55)' }}>
+                  The crowd · the verdict
+                </div>
+              </div>
+            </div>
           </div>
+
+          <style jsx>{`
+            @keyframes voiceTwinkle {
+              0%, 100% { opacity: 0.25; transform: scale(0.75); }
+              50%      { opacity: 1;    transform: scale(1.25); }
+            }
+            @keyframes convictionFlow {
+              0%, 100% { opacity: 0.08; stroke-dashoffset: 0; }
+              50%      { opacity: 0.55; stroke-dashoffset: -8; }
+            }
+            @keyframes verdictPulse {
+              0%, 100% { opacity: 0.55; transform: scale(0.96); }
+              50%      { opacity: 0.95; transform: scale(1.06); }
+            }
+            @keyframes globeDrift {
+              0%, 100% { transform: translateY(0) rotate(0deg); }
+              50%      { transform: translateY(-6px) rotate(0.6deg); }
+            }
+          `}</style>
         </section>
 
         {/* ═══════════ IV / How it grows — believers vs critics mechanism ═══════════ */}
         <section className="relative -mx-3 sm:-mx-6 px-6 md:px-10 py-24 md:py-40 border-t"
-          style={{ background: '#0a0814', borderColor: 'rgba(244,238,228,0.06)' }}>
+          style={{ background: 'rgba(10,8,20,0.55)', borderColor: 'rgba(244,238,228,0.06)' }}>
           <div className="max-w-[1400px] mx-auto">
             <div className="mono text-[0.64rem] uppercase tracking-[0.26em] mb-6" style={{ color: '#e89660' }}>IV / How it grows</div>
             <h2 className="serif leading-[1.05] tracking-[-0.025em] mb-6 max-w-[22ch]"
@@ -1827,7 +1929,7 @@ export default function HomePage() {
 
         {/* ═══════════ V / What could go wrong — the settlement truth ═══════════ */}
         <section className="relative -mx-3 sm:-mx-6 px-6 md:px-10 py-24 md:py-40 border-t"
-          style={{ background: '#0a0814', borderColor: 'rgba(244,238,228,0.06)' }}>
+          style={{ background: 'rgba(10,8,20,0.55)', borderColor: 'rgba(244,238,228,0.06)' }}>
           <div className="max-w-[1400px] mx-auto">
             <div className="mono text-[0.64rem] uppercase tracking-[0.26em] mb-6" style={{ color: '#e89660' }}>V / The settlement</div>
             <h2 className="serif leading-[1.05] tracking-[-0.025em] mb-6 max-w-[22ch]"
@@ -1959,9 +2061,158 @@ export default function HomePage() {
           </div>
         </section>
 
+        {/* ═══════════ The thesis — why this really matters ═══════════ */}
+        <section id="thesis" className="relative -mx-3 sm:-mx-6 px-6 md:px-10 py-32 md:py-52 border-t overflow-hidden"
+          style={{ background: 'rgba(10,8,20,0.55)', borderColor: 'rgba(244,238,228,0.06)' }}>
+          <div className="max-w-[1400px] mx-auto relative z-10 grid grid-cols-12 gap-8 md:gap-14">
+            {/* Left — the invitation */}
+            <div className="col-span-12 md:col-span-5">
+              <div className="mono text-[0.64rem] uppercase tracking-[0.3em] mb-6 flex items-center gap-3" style={{ color: '#e89660' }}>
+                <span className="inline-block w-10 h-px" style={{ background: '#e89660' }} />
+                <span>The thesis</span>
+              </div>
+              <h2 className="serif leading-[0.98] tracking-[-0.025em] mb-10"
+                style={{ color: '#f4eee4', fontSize: 'clamp(2.25rem, 5vw, 4.5rem)', fontWeight: 400, fontVariationSettings: "'SOFT' 50, 'opsz' 144" }}>
+                What we&rsquo;re{' '}
+                <em style={{ fontVariationSettings: "'SOFT' 100, 'WONK' 0, 'opsz' 144", color: 'transparent',
+                  backgroundImage: 'linear-gradient(178deg, #fff2d8 0%, #ecb48a 35%, #d99875 70%, #d67347 100%)',
+                  WebkitBackgroundClip: 'text', backgroundClip: 'text' }}>really</em>{' '}
+                building.
+              </h2>
+              <p className="serif text-[1.1rem] md:text-[1.25rem] leading-[1.6] max-w-[42ch] mb-8"
+                style={{ color: '#d8cfc0', fontVariationSettings: "'SOFT' 50, 'opsz' 30" }}>
+                &ldquo;VCs&rdquo; and &ldquo;fundraising&rdquo; are shorthand — easy words to make an unfamiliar idea land. The actual game is much bigger.
+              </p>
+
+              {/* Gateway visual — two columns of light + threshold, a sacred place for ideas to come from */}
+              <div aria-hidden className="relative w-full max-w-[340px] mt-8 hidden md:block" style={{ aspectRatio: '5 / 4' }}>
+                <svg viewBox="0 0 500 400" className="w-full h-full" style={{ animation: 'gatewayBreath 8s ease-in-out infinite' }}>
+                  <defs>
+                    <radialGradient id="thresholdGlow" cx="0.5" cy="0.65" r="0.7">
+                      <stop offset="0%" stopColor="#fff4b8" stopOpacity="0.85" />
+                      <stop offset="40%" stopColor="#e89628" stopOpacity="0.35" />
+                      <stop offset="100%" stopColor="#e89628" stopOpacity="0" />
+                    </radialGradient>
+                    <linearGradient id="columnGrad" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="0%" stopColor="rgba(236,180,138,0.15)" />
+                      <stop offset="50%" stopColor="rgba(236,180,138,0.9)" />
+                      <stop offset="100%" stopColor="rgba(138,58,16,0.85)" />
+                    </linearGradient>
+                  </defs>
+
+                  {/* Radiant threshold behind the columns — light from within */}
+                  <ellipse cx="250" cy="260" rx="180" ry="200" fill="url(#thresholdGlow)" />
+
+                  {/* Ground line */}
+                  <line x1="40" y1="360" x2="460" y2="360" stroke="rgba(232,150,96,0.35)" strokeWidth="0.8" />
+
+                  {/* Left column */}
+                  <line x1="155" y1="80" x2="155" y2="360" stroke="url(#columnGrad)" strokeWidth="4" strokeLinecap="round" />
+                  {/* Right column */}
+                  <line x1="345" y1="80" x2="345" y2="360" stroke="url(#columnGrad)" strokeWidth="4" strokeLinecap="round" />
+
+                  {/* Architrave — subtle horizontal beam */}
+                  <line x1="140" y1="78" x2="360" y2="78" stroke="rgba(236,180,138,0.6)" strokeWidth="2" strokeLinecap="round" />
+                  <line x1="125" y1="68" x2="375" y2="68" stroke="rgba(236,180,138,0.25)" strokeWidth="1" strokeLinecap="round" />
+
+                  {/* Ideas drifting through the gateway — tiny floating dots */}
+                  {[
+                    [220, 160, 2], [265, 135, 1.8], [195, 210, 1.5], [290, 230, 2],
+                    [240, 290, 2.5], [215, 255, 1.6], [275, 185, 1.4], [250, 120, 1.2],
+                  ].map(([x, y, r], i) => (
+                    <circle key={i} cx={x as number} cy={y as number} r={r as number} fill="#fff4b8"
+                      style={{
+                        animation: `ideaDrift ${4 + (i % 3)}s ease-in-out infinite`,
+                        animationDelay: `${i * 0.3}s`,
+                        transformOrigin: `${x}px ${y}px`,
+                      }} />
+                  ))}
+
+                  {/* Central bright orb at threshold base — the source */}
+                  <circle cx="250" cy="340" r="10" fill="#fff4b8" style={{ animation: 'verdictPulse 5s ease-in-out infinite', transformOrigin: '250px 340px' }} />
+                  <circle cx="250" cy="340" r="5" fill="#ffffff" />
+                </svg>
+                <div className="absolute left-0 right-0 -bottom-2 text-center mono text-[0.58rem] uppercase tracking-[0.32em]"
+                  style={{ color: 'rgba(232,150,96,0.5)' }}>
+                  The gateway
+                </div>
+              </div>
+            </div>
+
+            {/* Right — the 5 claims */}
+            <div className="col-span-12 md:col-span-7 md:pl-8 md:border-l" style={{ borderColor: 'rgba(244,238,228,0.08)' }}>
+              <div className="flex flex-col gap-10 md:gap-12">
+                {[
+                  {
+                    numeral: 'I',
+                    headline: 'Ideas need a home before they need funding.',
+                    body: 'Before a pitch deck, before a round, every company is a thought looking for its first listener. PNL is built for that earliest moment — when an idea is still fragile, still forming, still asking whether it belongs in the world.',
+                  },
+                  {
+                    numeral: 'II',
+                    headline: 'In the age of AI, human origination becomes sacred.',
+                    body: 'As machines learn to execute, what remains uniquely ours is the spark itself — the intuition, the pattern only you saw. PNL is the digital gathering-ground where that origination can happen publicly, without gatekeepers.',
+                  },
+                  {
+                    numeral: 'III',
+                    headline: 'Conviction reveals what opinion hides.',
+                    body: 'The internet runs on reactions; most of them free, most of them empty. Prediction markets turn reactions into commitments — and commitments show which ideas actually have weight behind them, not just attention.',
+                  },
+                  {
+                    numeral: 'IV',
+                    headline: 'Venture capital isn\u2019t wrong — just narrow.',
+                    body: 'VCs optimize for patterns they can already recognize. A global market of believers and critics sees further — catching ideas from places no fund is flying to. PNL doesn\u2019t replace venture. It opens a door venture couldn\u2019t reach.',
+                  },
+                  {
+                    numeral: 'V',
+                    headline: 'Every pitched idea joins a library of human imagination.',
+                    body: 'On-chain permanence means nothing fully dies. Ideas that didn\u2019t launch remain as signals — for the author to return to, for future builders to learn from. Over time, PNL accumulates as a record of humans attempting themselves.',
+                  },
+                ].map((claim) => (
+                  <article key={claim.numeral} className="grid grid-cols-[auto_1fr] gap-5 md:gap-7 items-baseline">
+                    <span className="serif text-[1.9rem] md:text-[2.1rem] leading-none"
+                      style={{ color: '#e89660', fontVariationSettings: "'SOFT' 30, 'opsz' 72", letterSpacing: '0.02em' }}>
+                      {claim.numeral}
+                    </span>
+                    <div className="flex flex-col gap-3">
+                      <h3 className="serif text-[1.3rem] md:text-[1.55rem] leading-[1.2] tracking-[-0.015em]"
+                        style={{ color: '#f4eee4', fontWeight: 400, fontVariationSettings: "'SOFT' 50, 'opsz' 48" }}>
+                        {claim.headline}
+                      </h3>
+                      <p className="serif text-[0.98rem] md:text-[1.05rem] leading-[1.65] max-w-[56ch]"
+                        style={{ color: '#d8cfc0', fontVariationSettings: "'SOFT' 50, 'opsz' 30" }}>
+                        {claim.body}
+                      </p>
+                    </div>
+                  </article>
+                ))}
+              </div>
+              <div className="mt-14 pt-8 border-t" style={{ borderColor: 'rgba(244,238,228,0.08)' }}>
+                <Link href="/whitepaper" className="group inline-flex items-center gap-3 mono text-[0.72rem] uppercase tracking-[0.26em] hover:text-[#f4eee4] transition-colors" style={{ color: '#e89660' }}>
+                  <span className="relative inline-block after:absolute after:left-0 after:bottom-[-4px] after:h-px after:w-full after:bg-current after:scale-x-0 after:origin-left group-hover:after:scale-x-100 after:transition-transform after:duration-500">
+                    Read the full thesis
+                  </span>
+                  <span className="transition-transform duration-300 group-hover:translate-x-1">→</span>
+                </Link>
+              </div>
+            </div>
+          </div>
+
+          <style jsx>{`
+            @keyframes ideaDrift {
+              0%, 100% { opacity: 0.4; transform: translateY(0) scale(0.85); }
+              50%      { opacity: 1;   transform: translateY(-4px) scale(1.15); }
+            }
+            @keyframes gatewayBreath {
+              0%, 100% { transform: scale(1); }
+              50%      { transform: scale(1.015); }
+            }
+          `}</style>
+        </section>
+
         {/* ═══════════ VI / The vision — close the story, invite the reader ═══════════ */}
         <section className="relative -mx-3 sm:-mx-6 px-6 md:px-10 py-32 md:py-48 border-t overflow-hidden"
-          style={{ background: '#0a0814', borderColor: 'rgba(244,238,228,0.06)' }}>
+          style={{ background: 'rgba(10,8,20,0.55)', borderColor: 'rgba(244,238,228,0.06)' }}>
           {/* Warm horizon glow behind the forest */}
           <div aria-hidden className="pointer-events-none absolute left-1/2 -translate-x-1/2 bottom-[-40vh] z-[0]"
             style={{ width: 'min(130vw, 1600px)', height: 'min(130vw, 1600px)',
