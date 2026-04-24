@@ -91,9 +91,9 @@ function FavoriteMarketCard({ marketId }: { marketId: string }) {
   const getStatusBadge = () => {
     switch (market.resolution) {
       case 'YesWins':
-        return 'bg-green-500/20 text-green-400 border-green-400/30';
+        return 'mono text-[0.56rem] uppercase tracking-[0.24em] text-[#3f7a42] border border-[#3f7a42]/40 bg-[#3f7a42]/10';
       case 'NoWins':
-        return 'bg-red-500/20 text-red-400 border-red-400/30';
+        return 'mono text-[0.56rem] uppercase tracking-[0.24em] text-[#d67347] border border-[#d67347]/40 bg-[#d67347]/10';
       case 'Refund':
         return 'bg-yellow-500/20 text-yellow-400 border-yellow-400/30';
       default:
@@ -108,27 +108,27 @@ function FavoriteMarketCard({ marketId }: { marketId: string }) {
   };
 
   return (
-    <Card className="bg-gradient-to-br from-gray-900/50 to-gray-800/30 backdrop-blur-sm border-cyan-500/20 hover:border-cyan-400/40 transition-all hover:scale-[1.02] group overflow-hidden">
+    <Card className="bg-gradient-to-br from-gray-900/50 to-gray-800/30 backdrop-blur-sm border-[#e89660]/20 hover:border-[#e89660]/40 transition-all hover:scale-[1.02] group overflow-hidden">
       <CardContent className="p-4">
         <a href={`/market/${marketId}`} className="block">
           <div className="flex items-start justify-between mb-3">
             <div className="flex items-center space-x-3 flex-1 min-w-0">
               {market.image ? (
                 <div className="flex-shrink-0 relative">
-                  <div className="absolute inset-0 bg-cyan-500/30 rounded-lg blur-md opacity-50 animate-pulse"></div>
+                  <div className="absolute inset-0 bg-[#e89660]/30 rounded-lg blur-md opacity-50 animate-pulse"></div>
                   <img
                     src={market.image}
                     alt={market.name}
-                    className="relative w-12 h-12 rounded-lg object-cover ring-2 ring-cyan-500/50 group-hover:ring-cyan-400 transition-all transform group-hover:scale-110"
+                    className="relative w-12 h-12 rounded-lg object-cover ring-2 ring-[#e89660]/50 group-hover:ring-[#e89660] transition-all transform group-hover:scale-110"
                   />
                 </div>
               ) : (
-                <div className="w-12 h-12 rounded-lg bg-gradient-to-br from-red-500 via-pink-500 to-purple-500 flex items-center justify-center ring-2 ring-pink-500/50 group-hover:ring-pink-400 transition-all transform group-hover:scale-110 flex-shrink-0">
+                <div className="w-12 h-12 rounded-lg bg-[#d67347]/15 border border-[#d67347]/40 flex items-center justify-center ring-2 ring-[#d67347]/50 group-hover:ring-[#d67347] transition-all transform group-hover:scale-110 flex-shrink-0">
                   <span className="text-xl font-bold text-white/90">{market.name.charAt(0)}</span>
                 </div>
               )}
               <div className="flex-1 min-w-0">
-                <h4 className="text-white font-semibold group-hover:text-cyan-400 transition-colors truncate">
+                <h4 className="text-white font-semibold group-hover:text-[#e89660] transition-colors truncate">
                   {market.name}
                 </h4>
                 <p className="text-xs text-gray-400 group-hover:text-gray-300 transition-colors">{market.tokenSymbol}</p>
@@ -140,7 +140,7 @@ function FavoriteMarketCard({ marketId }: { marketId: string }) {
           </div>
 
           <div className="grid grid-cols-2 gap-3 text-sm">
-            <div className="bg-gradient-to-br from-white/10 to-white/5 rounded-lg p-2.5 border border-white/20 group-hover:border-cyan-400/30 transition-all">
+            <div className="bg-gradient-to-br from-white/10 to-white/5 rounded-lg p-2.5 border border-white/20 group-hover:border-[#e89660]/35 transition-all">
               <div className="text-gray-400 text-xs mb-1">Pool Progress</div>
               <div className="font-bold text-white text-base">
                 {(market.poolProgressPercentage || 0).toFixed(0)}%
@@ -149,9 +149,9 @@ function FavoriteMarketCard({ marketId }: { marketId: string }) {
                 {((market.poolBalance || 0) / 1e9).toFixed(2)} / {((market.targetPool || 0) / 1e9).toFixed(0)} SOL
               </div>
             </div>
-            <div className="bg-gradient-to-br from-green-500/10 to-emerald-500/5 rounded-lg p-2.5 border border-green-400/20 group-hover:border-green-400/40 transition-all">
+            <div className="bg-[#3f7a42]/10 p-2.5 border border-[#3f7a42]/25 group-hover:border-[#3f7a42]/50 transition-all">
               <div className="text-gray-400 text-xs mb-1">YES Rate</div>
-              <div className="font-bold text-green-400 text-base">
+              <div className="font-bold text-[#3f7a42] text-base">
                 {(market.sharesYesPercentage || 0).toFixed(1)}%
               </div>
               <div className="text-xs text-gray-500 mt-0.5">
@@ -181,10 +181,10 @@ function VoteHistory({ marketId, walletAddress }: { marketId: string; walletAddr
           e.stopPropagation();
           setIsOpen(!isOpen);
         }}
-        className="p-1.5 rounded-lg bg-white/5 hover:bg-cyan-500/20 border border-white/10 hover:border-cyan-400/30 transition-all group"
+        className="p-1.5 rounded-lg bg-white/5 hover:bg-[#e89660]/15 border border-white/10 hover:border-[#e89660]/35 transition-all group"
         title="View vote history"
       >
-        <History className="w-4 h-4 text-gray-400 group-hover:text-cyan-400 transition-colors" />
+        <History className="w-4 h-4 text-gray-400 group-hover:text-[#e89660] transition-colors" />
       </button>
 
       {/* Vote History Modal/Dropdown */}
@@ -194,12 +194,12 @@ function VoteHistory({ marketId, walletAddress }: { marketId: string; walletAddr
           onClick={() => setIsOpen(false)}
         >
           <div
-            className="bg-gradient-to-br from-gray-900 to-gray-800 border border-cyan-500/30 rounded-lg max-w-lg w-full max-h-[80vh] overflow-hidden"
+            className="bg-gradient-to-br from-gray-900 to-gray-800 border border-[#e89660]/30 rounded-lg max-w-lg w-full max-h-[80vh] overflow-hidden"
             onClick={(e) => e.stopPropagation()}
           >
             <div className="p-4 border-b border-white/10 flex items-center justify-between">
               <div className="flex items-center gap-2">
-                <History className="w-5 h-5 text-cyan-400" />
+                <History className="w-5 h-5 text-[#e89660]" />
                 <h3 className="text-lg font-semibold text-white">Vote History</h3>
               </div>
               <button
@@ -215,18 +215,18 @@ function VoteHistory({ marketId, walletAddress }: { marketId: string; walletAddr
                 <div className="space-y-4">
                   {/* Summary */}
                   <div className="grid grid-cols-2 gap-3">
-                    <div className="bg-green-500/10 border border-green-500/20 rounded-lg p-3">
+                    <div className="bg-[#3f7a42]/10 border border-[#3f7a42]/30 rounded-lg p-3">
                       <div className="text-xs text-gray-400 mb-1">YES Votes</div>
-                      <div className="font-bold text-green-400 text-lg">
+                      <div className="font-bold text-[#3f7a42] text-lg">
                         {voteHistory.data.summary.yesTradeCount}
                       </div>
                       <div className="text-xs text-gray-300">
                         {(Number(voteHistory.data.summary.totalYesAmount) || 0).toFixed(2)} SOL
                       </div>
                     </div>
-                    <div className="bg-red-500/10 border border-red-500/20 rounded-lg p-3">
+                    <div className="bg-[#d67347]/10 border border-[#d67347]/30 rounded-lg p-3">
                       <div className="text-xs text-gray-400 mb-1">NO Votes</div>
-                      <div className="font-bold text-red-400 text-lg">
+                      <div className="font-bold text-[#d67347] text-lg">
                         {voteHistory.data.summary.noTradeCount}
                       </div>
                       <div className="text-xs text-gray-300">
@@ -258,8 +258,8 @@ function VoteHistory({ marketId, walletAddress }: { marketId: string; walletAddr
                           <div className="flex items-center gap-3 flex-1">
                             <span className={`px-2 py-1 rounded font-medium text-xs ${
                               trade.voteType === 'yes'
-                                ? 'bg-green-500/20 text-green-400 border border-green-500/30'
-                                : 'bg-red-500/20 text-red-400 border border-red-500/30'
+                                ? 'mono text-[0.56rem] uppercase tracking-[0.24em] text-[#3f7a42] border border-[#3f7a42]/40 bg-[#3f7a42]/10'
+                                : 'mono text-[0.56rem] uppercase tracking-[0.24em] text-[#d67347] border border-[#d67347]/40 bg-[#d67347]/10'
                             }`}>
                               {trade.voteType.toUpperCase()}
                             </span>
@@ -280,7 +280,7 @@ function VoteHistory({ marketId, walletAddress }: { marketId: string; walletAddr
                             href={`https://orb.helius.dev/tx/${trade.signature}${SOLANA_NETWORK === 'devnet' ? '?cluster=devnet' : ''}`}
                             target="_blank"
                             rel="noopener noreferrer"
-                            className="text-cyan-400 hover:text-cyan-300 p-2 hover:bg-cyan-500/10 rounded transition-colors"
+                            className="text-[#e89660] hover:text-[#ecb48a] p-2 hover:bg-[#e89660]/10 rounded transition-colors"
                             onClick={(e) => e.stopPropagation()}
                           >
                             <ExternalLink className="w-4 h-4" />
@@ -310,9 +310,9 @@ function MyProjectCard({ project }: { project: any }) {
   const getStatusBadge = () => {
     switch (project.status) {
       case 'Launched':
-        return 'bg-green-500/20 text-green-400 border-green-400/30';
+        return 'mono text-[0.56rem] uppercase tracking-[0.24em] text-[#3f7a42] border border-[#3f7a42]/40 bg-[#3f7a42]/10';
       case 'Not Launched':
-        return 'bg-red-500/20 text-red-400 border-red-400/30';
+        return 'mono text-[0.56rem] uppercase tracking-[0.24em] text-[#d67347] border border-[#d67347]/40 bg-[#d67347]/10';
       case 'Pending Resolution':
         return 'bg-yellow-500/20 text-yellow-400 border-yellow-400/30';
       default:
@@ -333,12 +333,12 @@ function MyProjectCard({ project }: { project: any }) {
                   className="w-10 h-10 rounded-lg object-cover flex-shrink-0"
                 />
               ) : (
-                <div className="w-10 h-10 bg-gradient-to-r from-purple-500 to-pink-500 rounded-lg flex items-center justify-center flex-shrink-0">
+                <div className="w-10 h-10 bg-[#e89660]/15 border border-[#e89660]/40 rounded-lg flex items-center justify-center flex-shrink-0">
                   <Rocket className="w-5 h-5 text-white" />
                 </div>
               )}
               <div className="flex-1 min-w-0">
-                <h4 className="text-white font-semibold group-hover:text-cyan-400 transition-colors truncate">
+                <h4 className="text-white font-semibold group-hover:text-[#e89660] transition-colors truncate">
                   {project.name}
                 </h4>
                 <p className="text-xs text-gray-400">{project.tokenSymbol}</p>
@@ -361,7 +361,7 @@ function MyProjectCard({ project }: { project: any }) {
             </div>
             <div className="bg-white/5 rounded p-2 border border-white/10">
               <div className="text-gray-400 text-xs">YES Rate</div>
-              <div className="font-semibold text-green-400">
+              <div className="font-semibold text-[#3f7a42]">
                 {(project.sharesYesPercentage || 0).toFixed(1)}%
               </div>
               <div className="text-xs text-gray-500">
@@ -537,7 +537,7 @@ function SendModal({ isOpen, onClose, onSend, solBalance, tokens }: SendModalPro
                     }}
                   />
                 ) : (
-                  <div className="w-8 h-8 rounded-full bg-gradient-to-r from-purple-500 to-pink-500 flex items-center justify-center text-xs font-bold">
+                  <div className="w-8 h-8 rounded-full bg-[#e89660]/15 border border-[#e89660]/40 flex items-center justify-center text-xs font-bold">
                     {selectedToken.symbol.slice(0, 2)}
                   </div>
                 )}
@@ -591,7 +591,7 @@ function SendModal({ isOpen, onClose, onSend, solBalance, tokens }: SendModalPro
                               }}
                             />
                           ) : (
-                            <div className="w-6 h-6 rounded-full bg-gradient-to-r from-purple-500 to-pink-500 flex items-center justify-center text-[10px] font-bold">
+                            <div className="w-6 h-6 rounded-full bg-[#e89660]/15 border border-[#e89660]/40 flex items-center justify-center text-[10px] font-bold">
                               {token.symbol.slice(0, 2)}
                             </div>
                           )}
@@ -634,7 +634,7 @@ function SendModal({ isOpen, onClose, onSend, solBalance, tokens }: SendModalPro
               />
               <button
                 onClick={handleMaxClick}
-                className="absolute right-2 top-1/2 -translate-y-1/2 text-xs text-cyan-400 hover:text-cyan-300"
+                className="absolute right-2 top-1/2 -translate-y-1/2 text-xs text-[#e89660] hover:text-[#ecb48a]"
               >
                 MAX
               </button>
@@ -645,7 +645,7 @@ function SendModal({ isOpen, onClose, onSend, solBalance, tokens }: SendModalPro
           </div>
 
           {error && (
-            <div className="p-3 bg-red-500/10 border border-red-500/20 rounded-lg text-red-400 text-sm">
+            <div className="p-3 bg-[#d67347]/10 border border-[#d67347]/30 rounded-lg text-[#d67347] text-sm">
               {error}
             </div>
           )}
@@ -661,7 +661,7 @@ function SendModal({ isOpen, onClose, onSend, solBalance, tokens }: SendModalPro
             <Button
               onClick={handleSendClick}
               disabled={isSending}
-              className="flex-1 bg-gradient-to-r from-cyan-500 to-blue-500 hover:from-cyan-600 hover:to-blue-600"
+              className="flex-1 bg-[#e89660] hover:bg-[#ecb48a] text-[#0a0814]"
             >
               {isSending ? 'Sending...' : `Send ${selectedToken.symbol}`}
             </Button>
@@ -721,7 +721,7 @@ function DepositModal({ isOpen, onClose, address }: { isOpen: boolean; onClose: 
             </div>
           </div>
 
-          <div className="p-3 bg-cyan-500/10 border border-cyan-500/20 rounded-lg text-cyan-400 text-sm">
+          <div className="p-3 bg-[#e89660]/10 border border-[#e89660]/25 rounded-lg text-[#e89660] text-sm">
             <p className="font-semibold mb-1 flex items-center gap-2">
               <Wallet className="w-4 h-4" />
               Supported Tokens:
@@ -740,7 +740,7 @@ function DepositModal({ isOpen, onClose, address }: { isOpen: boolean; onClose: 
 
           <Button
             onClick={onClose}
-            className="w-full bg-gradient-to-r from-green-500 to-emerald-500 hover:from-green-600 hover:to-emerald-600"
+            className="w-full bg-[#3f7a42] hover:bg-[#4a8a4d] text-[#0a0814]"
           >
             Done
           </Button>
@@ -945,7 +945,7 @@ function SettingsModal({ isOpen, onClose, wallet, onLogout, primaryWallet, expor
 
             {!exportWarningShown ? (
               <div className="space-y-3">
-                <div className="p-4 bg-red-500/10 border border-red-500/20 rounded-lg text-red-400 text-sm">
+                <div className="p-4 bg-[#d67347]/10 border border-[#d67347]/30 rounded-lg text-[#d67347] text-sm">
                   <p className="font-semibold mb-2 flex items-center space-x-2">
                     <Shield className="w-4 h-4" />
                     <span>Security Warning</span>
@@ -980,7 +980,7 @@ function SettingsModal({ isOpen, onClose, wallet, onLogout, primaryWallet, expor
                 </div>
 
                 {exportError && (
-                  <div className="p-3 bg-red-500/10 border border-red-500/20 rounded-lg text-red-400 text-sm">
+                  <div className="p-3 bg-[#d67347]/10 border border-[#d67347]/30 rounded-lg text-[#d67347] text-sm">
                     {exportError}
                   </div>
                 )}
@@ -997,7 +997,7 @@ function SettingsModal({ isOpen, onClose, wallet, onLogout, primaryWallet, expor
                         onClick={handleExportPrivateKey}
                         disabled={isExporting}
                         size="sm"
-                        className="bg-cyan-500 hover:bg-cyan-600"
+                        className="bg-[#e89660] hover:bg-[#ecb48a] text-[#0a0814]"
                       >
                         {isExporting ? 'Opening...' : 'Export'}
                       </Button>
@@ -1038,13 +1038,13 @@ function SettingsModal({ isOpen, onClose, wallet, onLogout, primaryWallet, expor
             <Button
               onClick={onLogout}
               variant="outline"
-              className="flex-1 border-red-500/50 text-red-400 hover:bg-red-500/10"
+              className="flex-1 border-[#d67347]/50 text-[#d67347] hover:bg-[#d67347]/10"
             >
               Logout
             </Button>
             <Button
               onClick={onClose}
-              className="flex-1 bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600"
+              className="flex-1 bg-[#e89660]/15 border border-[#e89660]/40 hover:border-[#e89660]/70"
             >
               Close
             </Button>
@@ -1532,7 +1532,7 @@ export default function WalletPage() {
     return (
       <div className="min-h-screen flex items-center justify-center p-4 sm:p-6">
         <div className="text-center space-y-4">
-          <Loader2 className="w-10 h-10 sm:w-12 sm:h-12 mx-auto text-cyan-400 animate-spin" />
+          <Loader2 className="w-10 h-10 sm:w-12 sm:h-12 mx-auto text-[#e89660] animate-spin" />
           <p className="text-gray-400 text-sm sm:text-base">Loading wallet...</p>
         </div>
       </div>
@@ -1544,7 +1544,7 @@ export default function WalletPage() {
     return (
       <div className="min-h-screen flex items-center justify-center p-4 sm:p-6">
         <div className="text-center space-y-4">
-          <Loader2 className="w-10 h-10 sm:w-12 sm:h-12 mx-auto text-cyan-400 animate-spin" />
+          <Loader2 className="w-10 h-10 sm:w-12 sm:h-12 mx-auto text-[#e89660] animate-spin" />
           <p className="text-gray-400 text-sm sm:text-base">Setting up your wallet...</p>
         </div>
       </div>
@@ -1556,7 +1556,7 @@ export default function WalletPage() {
       <div className="min-h-screen flex items-center justify-center p-4 sm:p-6">
         <Card className="bg-white/5 border-white/10 text-white w-full max-w-md">
           <CardContent className="p-6 sm:p-8 text-center space-y-4">
-            <Wallet className="w-12 h-12 sm:w-16 sm:h-16 mx-auto text-cyan-400" />
+            <Wallet className="w-12 h-12 sm:w-16 sm:h-16 mx-auto text-[#e89660]" />
             <div>
               <h2 className="text-xl sm:text-2xl font-semibold mb-2">Sign in to Continue</h2>
               <p className="text-sm sm:text-base text-gray-400 mb-2">
@@ -1565,7 +1565,7 @@ export default function WalletPage() {
             </div>
             <button
               onClick={showAuthModal}
-              className="w-full px-4 sm:px-6 py-2.5 sm:py-3 bg-gradient-to-r from-cyan-500 to-blue-500 hover:from-cyan-600 hover:to-blue-600 rounded-lg font-semibold transition-all text-sm sm:text-base"
+              className="w-full px-4 sm:px-6 py-2.5 sm:py-3 bg-[#e89660] hover:bg-[#ecb48a] text-[#0a0814] rounded-lg font-semibold transition-all text-sm sm:text-base"
             >
               Sign in
             </button>
@@ -1866,11 +1866,31 @@ export default function WalletPage() {
           )}
         </div>
 
-        {/* SOL - Always show first */}
-        <div className="bg-white/5 border border-white/10 rounded-lg hover:bg-white/10 transition-colors cursor-pointer">
+        {/* SOL — the native seed, always first */}
+        <div
+          className="transition-colors cursor-pointer"
+          style={{
+            background: 'rgba(244,238,228,0.03)',
+            border: '1px solid rgba(244,238,228,0.08)',
+          }}
+          onMouseEnter={(e) => {
+            e.currentTarget.style.background = 'rgba(232,150,96,0.06)';
+            e.currentTarget.style.borderColor = 'rgba(232,150,96,0.25)';
+          }}
+          onMouseLeave={(e) => {
+            e.currentTarget.style.background = 'rgba(244,238,228,0.03)';
+            e.currentTarget.style.borderColor = 'rgba(244,238,228,0.08)';
+          }}
+        >
           <div className="flex items-center justify-between p-3">
-            <div className="flex items-center space-x-2.5">
-              <div className="w-9 h-9 rounded-full bg-gradient-to-r from-purple-500 to-cyan-500 flex items-center justify-center p-1.5">
+            <div className="flex items-center gap-3">
+              <div
+                className="w-9 h-9 flex items-center justify-center p-1.5 overflow-hidden"
+                style={{
+                  background: 'rgba(244,238,228,0.04)',
+                  border: '1px solid rgba(232,150,96,0.25)',
+                }}
+              >
                 <img
                   src="https://raw.githubusercontent.com/solana-labs/token-list/main/assets/mainnet/So11111111111111111111111111111111111111112/logo.png"
                   alt="Solana"
@@ -1878,22 +1898,46 @@ export default function WalletPage() {
                 />
               </div>
               <div>
-                <h3 className="text-white font-medium text-sm">Solana</h3>
-                <p className="text-[11px] text-gray-400">{solBalance.toFixed(4)} SOL</p>
+                <p className="mono text-[0.68rem] uppercase tracking-[0.24em]" style={{ color: '#f4eee4' }}>Solana</p>
+                <p className="mono text-[0.56rem] uppercase tracking-[0.2em] mt-1" style={{ color: '#8a7f72' }}>
+                  ◎{solBalance.toFixed(4)} SOL
+                </p>
               </div>
             </div>
             <div className="text-right">
-              <p className="text-white font-medium text-sm">${isPriceLoading ? '...' : usdValue}</p>
+              <p className="serif" style={{ color: '#f4eee4', fontSize: '1.05rem', fontVariationSettings: "'SOFT' 50, 'opsz' 36" }}>
+                ${isPriceLoading ? '…' : usdValue}
+              </p>
             </div>
           </div>
         </div>
 
-        {/* USDC - Show if balance > 0 */}
+        {/* USDC - show if balance > 0 */}
         {usdcBalance > 0 && (
-          <div className="bg-white/5 border border-white/10 rounded-lg hover:bg-white/10 transition-colors cursor-pointer">
+          <div
+            className="transition-colors cursor-pointer"
+            style={{
+              background: 'rgba(244,238,228,0.03)',
+              border: '1px solid rgba(244,238,228,0.08)',
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.background = 'rgba(232,150,96,0.06)';
+              e.currentTarget.style.borderColor = 'rgba(232,150,96,0.25)';
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.background = 'rgba(244,238,228,0.03)';
+              e.currentTarget.style.borderColor = 'rgba(244,238,228,0.08)';
+            }}
+          >
             <div className="flex items-center justify-between p-3">
-              <div className="flex items-center space-x-2.5">
-                <div className="w-9 h-9 rounded-full bg-gradient-to-r from-blue-500 to-green-500 flex items-center justify-center p-1.5">
+              <div className="flex items-center gap-3">
+                <div
+                  className="w-9 h-9 flex items-center justify-center p-1.5 overflow-hidden"
+                  style={{
+                    background: 'rgba(244,238,228,0.04)',
+                    border: '1px solid rgba(232,150,96,0.25)',
+                  }}
+                >
                   <img
                     src="https://raw.githubusercontent.com/solana-labs/token-list/main/assets/mainnet/EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v/logo.png"
                     alt="USDC"
@@ -1901,12 +1945,16 @@ export default function WalletPage() {
                   />
                 </div>
                 <div>
-                  <h3 className="text-white font-medium text-sm">USD Coin</h3>
-                  <p className="text-[11px] text-gray-400">{usdcFormatted} USDC</p>
+                  <p className="mono text-[0.68rem] uppercase tracking-[0.24em]" style={{ color: '#f4eee4' }}>USD Coin</p>
+                  <p className="mono text-[0.56rem] uppercase tracking-[0.2em] mt-1" style={{ color: '#8a7f72' }}>
+                    {usdcFormatted} USDC
+                  </p>
                 </div>
               </div>
               <div className="text-right">
-                <p className="text-white font-medium text-sm">${usdcFormatted}</p>
+                <p className="serif" style={{ color: '#f4eee4', fontSize: '1.05rem', fontVariationSettings: "'SOFT' 50, 'opsz' 36" }}>
+                  ${usdcFormatted}
+                </p>
               </div>
             </div>
           </div>
@@ -1925,29 +1973,51 @@ export default function WalletPage() {
                 const isPositive = priceChange !== null && priceChange >= 0;
 
                 return (
-                <div key={token.mint} className="bg-white/5 border border-white/10 rounded-lg hover:bg-white/10 transition-colors cursor-pointer">
+                <div
+                  key={token.mint}
+                  className="transition-colors cursor-pointer"
+                  style={{
+                    background: 'rgba(244,238,228,0.03)',
+                    border: '1px solid rgba(244,238,228,0.08)',
+                  }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.background = 'rgba(232,150,96,0.06)';
+                    e.currentTarget.style.borderColor = 'rgba(232,150,96,0.25)';
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.background = 'rgba(244,238,228,0.03)';
+                    e.currentTarget.style.borderColor = 'rgba(244,238,228,0.08)';
+                  }}
+                >
                   <div className="flex items-center justify-between p-3">
-                    <div className="flex items-center space-x-2.5 flex-1 min-w-0">
-                      <div className="w-9 h-9 rounded-full bg-gradient-to-r from-pink-500 to-purple-500 flex items-center justify-center p-1.5 overflow-hidden flex-shrink-0">
+                    <div className="flex items-center gap-3 flex-1 min-w-0">
+                      <div
+                        className="w-9 h-9 flex items-center justify-center overflow-hidden flex-shrink-0"
+                        style={{
+                          background: 'rgba(244,238,228,0.04)',
+                          border: '1px solid rgba(232,150,96,0.25)',
+                        }}
+                      >
                         {token.logoURI ? (
                           <img
                             src={token.logoURI}
                             alt={token.symbol}
-                            className="w-full h-full object-cover rounded-full"
+                            className="w-full h-full object-cover"
                             onError={(e) => {
-                              // Fallback to gradient if image fails to load
                               (e.target as HTMLImageElement).style.display = 'none';
                             }}
                           />
                         ) : (
-                          <span className="text-white font-bold text-xs">
+                          <span className="mono text-[0.58rem] uppercase tracking-[0.12em]" style={{ color: '#e89660' }}>
                             {token.symbol?.slice(0, 3).toUpperCase() || 'TKN'}
                           </span>
                         )}
                       </div>
                       <div className="flex-1 min-w-0">
-                        <h3 className="text-white font-medium text-sm truncate">{token.name}</h3>
-                        <p className="text-[11px] text-gray-400 truncate">
+                        <p className="mono text-[0.68rem] uppercase tracking-[0.24em] truncate" style={{ color: '#f4eee4' }}>
+                          {token.name}
+                        </p>
+                        <p className="mono text-[0.56rem] uppercase tracking-[0.2em] mt-1 truncate" style={{ color: '#8a7f72' }}>
                           {token.uiAmount.toLocaleString(undefined, {
                             maximumFractionDigits: token.decimals > 6 ? 4 : 2,
                           })} {token.symbol}
@@ -1958,38 +2028,42 @@ export default function WalletPage() {
                     <div className="text-right flex-shrink-0 mx-3">
                       {price !== null ? (
                         <>
-                          <p className="text-white font-medium text-sm">
+                          <p className="serif" style={{ color: '#f4eee4', fontSize: '0.95rem', fontVariationSettings: "'SOFT' 50, 'opsz' 36" }}>
                             {usdValue !== null ? (
                               usdValue >= 1000 ? `$${(usdValue / 1000).toFixed(2)}K` :
                               usdValue >= 1 ? `$${usdValue.toFixed(2)}` :
                               `$${usdValue.toFixed(4)}`
-                            ) : '-'}
+                            ) : '—'}
                           </p>
-                          <div className="flex items-center justify-end gap-1">
-                            <span className="text-[10px] text-gray-500">
+                          <div className="flex items-center justify-end gap-1.5 mt-0.5">
+                            <span className="mono text-[0.5rem] uppercase tracking-[0.2em]" style={{ color: '#6a6058' }}>
                               @{price < 0.000001 ? price.toExponential(1) : price < 0.01 ? `$${price.toFixed(6)}` : `$${price.toFixed(4)}`}
                             </span>
                             {priceChange !== null && (
-                              <span className={`text-[10px] font-medium ${isPositive ? 'text-green-400' : 'text-red-400'}`}>
+                              <span className="mono text-[0.56rem] uppercase tracking-[0.16em]"
+                                style={{ color: isPositive ? '#3f7a42' : '#d67347' }}>
                                 {isPositive ? '+' : ''}{priceChange.toFixed(1)}%
                               </span>
                             )}
                           </div>
                         </>
                       ) : (
-                        <p className="text-gray-500 text-xs">
-                          {isLoadingTokenStats ? '...' : '-'}
+                        <p className="mono text-[0.58rem] uppercase tracking-[0.24em]" style={{ color: '#6a6058' }}>
+                          {isLoadingTokenStats ? '…' : '—'}
                         </p>
                       )}
                     </div>
                     {/* Actions Column */}
-                    <div className="text-right flex-shrink-0 flex flex-col gap-1">
+                    <div className="text-right flex-shrink-0 flex flex-col gap-1.5">
                       <a
                         href={`https://pump.fun/${token.mint}`}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="text-[11px] text-green-400 hover:text-green-300 flex items-center gap-0.5 justify-end"
+                        className="mono text-[0.56rem] uppercase tracking-[0.24em] flex items-center gap-1 justify-end transition-colors"
+                        style={{ color: '#3f7a42' }}
                         onClick={(e) => e.stopPropagation()}
+                        onMouseEnter={(e) => (e.currentTarget.style.color = '#5fa062')}
+                        onMouseLeave={(e) => (e.currentTarget.style.color = '#3f7a42')}
                         title="Trade on Pump.fun"
                       >
                         <TrendingUp className="w-2.5 h-2.5" /> Trade
@@ -1998,8 +2072,11 @@ export default function WalletPage() {
                         href={`https://orb.helius.dev/address/${token.mint}${SOLANA_NETWORK === 'devnet' ? '?cluster=devnet' : ''}`}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="text-[11px] text-cyan-400 hover:text-cyan-300 flex items-center gap-0.5 justify-end"
+                        className="mono text-[0.56rem] uppercase tracking-[0.24em] flex items-center gap-1 justify-end transition-colors"
+                        style={{ color: '#8a7f72' }}
                         onClick={(e) => e.stopPropagation()}
+                        onMouseEnter={(e) => (e.currentTarget.style.color = '#e89660')}
+                        onMouseLeave={(e) => (e.currentTarget.style.color = '#8a7f72')}
                       >
                         View <ExternalLink className="w-2.5 h-2.5" />
                       </a>
@@ -2013,20 +2090,27 @@ export default function WalletPage() {
 
         {/* Loading State */}
         {isTokensLoading && allTokens.length === 0 && (
-          <div className="bg-white/5 border border-white/10 rounded-lg">
-            <div className="text-center text-gray-400 py-6">
-              <RefreshCw className="w-5 h-5 mx-auto mb-2 animate-spin" />
-              <p className="text-xs">Loading tokens...</p>
+          <div style={{ background: 'rgba(244,238,228,0.02)', border: '1px solid rgba(244,238,228,0.08)' }}>
+            <div className="text-center py-6">
+              <RefreshCw className="w-4 h-4 mx-auto mb-2 animate-spin" style={{ color: '#e89660' }} />
+              <p className="mono text-[0.58rem] uppercase tracking-[0.26em]" style={{ color: '#8a7f72' }}>Loading seeds…</p>
             </div>
           </div>
         )}
 
-        {/* Empty State */}
+        {/* Empty State — no seeds yet */}
         {!isTokensLoading && allTokens.length === 0 && usdcBalance === 0 && (
-          <div className="bg-white/5 border border-white/10 rounded-lg">
-            <div className="text-center text-gray-400 py-6">
-              <p className="text-xs">No tokens found</p>
-              <p className="text-[11px] mt-1 text-gray-500">Claim rewards from markets to receive tokens</p>
+          <div style={{ background: 'rgba(244,238,228,0.02)', border: '1px solid rgba(244,238,228,0.08)' }}>
+            <div className="text-center py-8 px-4">
+              <span style={{ color: 'rgba(232,150,96,0.45)', display: 'inline-flex' }}>
+                <SeedIcon className="w-6 h-6 mx-auto mb-3" />
+              </span>
+              <p className="serif italic" style={{ color: '#d8cfc0', fontSize: '0.98rem', fontVariationSettings: "'SOFT' 100, 'opsz' 30" }}>
+                No seeds yet.
+              </p>
+              <p className="mono text-[0.56rem] uppercase tracking-[0.26em] mt-2" style={{ color: '#8a7f72' }}>
+                Back a market or launch one to start collecting
+              </p>
             </div>
           </div>
         )}
@@ -2070,10 +2154,28 @@ export default function WalletPage() {
             {launchedTokens.map((token) => (
               <div
                 key={token.tokenAddress}
-                className="flex items-center gap-3 p-3 bg-white/5 border border-white/10 rounded-lg hover:bg-white/[0.07] transition-colors"
+                className="flex items-center gap-3 p-3 transition-colors"
+                style={{
+                  background: 'rgba(244,238,228,0.03)',
+                  border: '1px solid rgba(244,238,228,0.08)',
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.background = 'rgba(232,150,96,0.06)';
+                  e.currentTarget.style.borderColor = 'rgba(232,150,96,0.25)';
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.background = 'rgba(244,238,228,0.03)';
+                  e.currentTarget.style.borderColor = 'rgba(244,238,228,0.08)';
+                }}
               >
                 {/* Token image */}
-                <div className="w-9 h-9 rounded-lg overflow-hidden bg-gradient-to-br from-green-500/20 to-emerald-500/20 flex-shrink-0">
+                <div
+                  className="w-9 h-9 overflow-hidden flex-shrink-0"
+                  style={{
+                    background: 'rgba(244,238,228,0.04)',
+                    border: '1px solid rgba(63,122,66,0.3)',
+                  }}
+                >
                   {token.imageUrl ? (
                     <img
                       src={token.imageUrl.replace('ipfs://', 'https://ipfs.io/ipfs/')}
@@ -2085,7 +2187,9 @@ export default function WalletPage() {
                     />
                   ) : (
                     <div className="w-full h-full flex items-center justify-center">
-                      <Coins className="w-4 h-4 text-green-400" />
+                      <span style={{ color: '#3f7a42', display: 'inline-flex' }}>
+                        <BloomIcon className="w-4 h-4" />
+                      </span>
                     </div>
                   )}
                 </div>
@@ -2093,11 +2197,11 @@ export default function WalletPage() {
                 {/* Token info */}
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2">
-                    <span className="font-medium text-white text-sm truncate">{token.name}</span>
-                    <span className="text-xs text-gray-500">${token.symbol}</span>
+                    <span className="mono text-[0.68rem] uppercase tracking-[0.22em] truncate" style={{ color: '#f4eee4' }}>{token.name}</span>
+                    <span className="mono text-[0.56rem] uppercase tracking-[0.18em]" style={{ color: '#8a7f72' }}>${token.symbol}</span>
                   </div>
-                  <p className="text-[11px] text-gray-500 truncate">
-                    Generating creator fees from trades
+                  <p className="mono text-[0.54rem] uppercase tracking-[0.22em] mt-1 truncate" style={{ color: '#6a6058' }}>
+                    Generating creator fees · pump.fun
                   </p>
                 </div>
 
@@ -2106,7 +2210,10 @@ export default function WalletPage() {
                   href={`https://pump.fun/coin/${token.tokenAddress}`}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="p-1.5 text-gray-500 hover:text-cyan-400 transition-colors"
+                  className="p-1.5 transition-colors"
+                  style={{ color: '#8a7f72' }}
+                  onMouseEnter={(e) => (e.currentTarget.style.color = '#e89660')}
+                  onMouseLeave={(e) => (e.currentTarget.style.color = '#8a7f72')}
                   title="View on pump.fun"
                 >
                   <ExternalLink className="w-4 h-4" />
@@ -2115,31 +2222,46 @@ export default function WalletPage() {
             ))}
           </div>
 
-          {/* Total claimable card */}
-          <Card className="bg-gradient-to-br from-green-500/10 via-emerald-500/5 to-cyan-500/10 border-green-500/20 overflow-hidden relative">
-            <CardContent className="p-4 relative">
+          {/* Total claimable — the ripe harvest */}
+          <div
+            className="relative overflow-hidden"
+            style={{
+              background: 'rgba(63,122,66,0.06)',
+              border: '1px solid rgba(63,122,66,0.25)',
+            }}
+          >
+            <div
+              aria-hidden
+              className="absolute -top-12 -right-12 w-48 h-48 pointer-events-none"
+              style={{
+                background: 'radial-gradient(circle, rgba(63,122,66,0.18) 0%, transparent 70%)',
+              }}
+            />
+            <div className="p-4 relative">
               <div className="flex items-center justify-between gap-4">
                 <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-green-500 to-emerald-500 flex items-center justify-center flex-shrink-0">
-                    <Coins className="w-5 h-5 text-white" />
+                  <div
+                    className="w-10 h-10 flex items-center justify-center flex-shrink-0"
+                    style={{ background: 'rgba(63,122,66,0.15)', border: '1px solid rgba(63,122,66,0.4)', color: '#3f7a42' }}
+                  >
+                    <BasketIcon className="w-5 h-5" />
                   </div>
                   <div>
-                    <p className="text-xs text-gray-400">Total Claimable</p>
-                    <div className="flex items-baseline gap-2">
-                      <span className="text-xl font-bold text-white">
-                        {isCreatorFeesLoading ? '...' : creatorFeesClaimable.toFixed(4)}
+                    <p className="mono text-[0.56rem] uppercase tracking-[0.26em]" style={{ color: '#8a7f72' }}>Ripe to harvest</p>
+                    <div className="flex items-baseline gap-2 mt-1">
+                      <span className="serif" style={{ color: '#f4eee4', fontSize: '1.4rem', fontVariationSettings: "'SOFT' 50, 'opsz' 48" }}>
+                        ◎{isCreatorFeesLoading ? '…' : creatorFeesClaimable.toFixed(4)}
                       </span>
-                      <span className="text-sm text-gray-400">SOL</span>
                       {solPrice && !isPriceLoading && creatorFeesClaimable > 0 && (
-                        <span className="text-xs text-gray-500">
-                          (${(creatorFeesClaimable * solPrice).toFixed(2)})
+                        <span className="mono text-[0.58rem] uppercase tracking-[0.2em]" style={{ color: '#8a7f72' }}>
+                          ≈ ${(creatorFeesClaimable * solPrice).toFixed(2)}
                         </span>
                       )}
                     </div>
                   </div>
                 </div>
 
-                <Button
+                <button
                   onClick={async () => {
                     const result = await claimFees();
                     if (result.success) {
@@ -2149,34 +2271,35 @@ export default function WalletPage() {
                     }
                   }}
                   disabled={!hasClaimableFees || isClaimingFees}
-                  className={`px-5 py-2 text-sm font-semibold transition-all ${
-                    hasClaimableFees
-                      ? 'bg-gradient-to-r from-green-500 to-emerald-500 hover:from-green-600 hover:to-emerald-600 text-white'
-                      : 'bg-gray-700 text-gray-400 cursor-not-allowed'
-                  }`}
+                  className="group relative inline-flex items-center gap-2 px-5 py-2.5 mono text-[0.64rem] uppercase tracking-[0.24em] font-semibold transition-all duration-300 disabled:opacity-40 disabled:cursor-not-allowed"
+                  style={{
+                    background: hasClaimableFees ? '#3f7a42' : 'rgba(244,238,228,0.04)',
+                    color: hasClaimableFees ? '#0a0814' : '#8a7f72',
+                    border: hasClaimableFees ? 'none' : '1px solid rgba(244,238,228,0.1)',
+                  }}
                 >
                   {isClaimingFees ? (
-                    <span className="flex items-center gap-2">
-                      <Loader2 className="w-4 h-4 animate-spin" />
-                      Claiming...
-                    </span>
+                    <>
+                      <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                      <span>Picking…</span>
+                    </>
                   ) : hasClaimableFees ? (
-                    <span className="flex items-center gap-2">
-                      <Gift className="w-4 h-4" />
-                      Claim All
-                    </span>
+                    <>
+                      <BasketIcon className="w-3.5 h-3.5" />
+                      <span>Harvest all</span>
+                    </>
                   ) : (
-                    'No Rewards Yet'
+                    <span>Nothing ripe yet</span>
                   )}
-                </Button>
+                </button>
               </div>
 
-              {/* Note about combined fees */}
-              <p className="text-[10px] text-gray-600 mt-3 pt-3 border-t border-white/5">
-                Note: Creator fees from all your tokens are pooled together by pump.fun
+              <p className="mono text-[0.52rem] uppercase tracking-[0.24em] mt-3 pt-3"
+                style={{ color: '#6a6058', borderTop: '1px solid rgba(244,238,228,0.05)' }}>
+                Fees pool across all your tokens · paid out together by pump.fun
               </p>
-            </CardContent>
-          </Card>
+            </div>
+          </div>
         </div>
       )}
 
@@ -2255,7 +2378,7 @@ export default function WalletPage() {
                     {positionsData.data.active.length > 3 && (
                       <button
                         onClick={() => setShowAllPositions(!showAllPositions)}
-                        className="text-xs text-cyan-400 hover:text-cyan-300 transition-colors"
+                        className="text-xs text-[#e89660] hover:text-[#ecb48a] transition-colors"
                       >
                         {showAllPositions ? 'View Less' : `View All (${positionsData.data.active.length})`}
                       </button>
@@ -2275,16 +2398,16 @@ export default function WalletPage() {
                                     className="w-9 h-9 sm:w-10 sm:h-10 rounded-lg object-cover flex-shrink-0"
                                   />
                                 ) : (
-                                  <div className={`w-9 h-9 sm:w-10 sm:h-10 bg-gradient-to-r ${
+                                  <div className={`w-9 h-9 sm:w-10 sm:h-10 flex items-center justify-center flex-shrink-0 ${
                                     position.voteType === 'yes'
-                                      ? 'from-green-500 to-emerald-500'
-                                      : 'from-red-500 to-pink-500'
-                                  } rounded-lg flex items-center justify-center flex-shrink-0`}>
-                                    <TrendingUp className="w-4 h-4 sm:w-5 sm:h-5 text-white" />
+                                      ? 'bg-[#3f7a42]/15 border border-[#3f7a42]/40 text-[#3f7a42]'
+                                      : 'bg-[#d67347]/15 border border-[#d67347]/40 text-[#d67347]'
+                                  }`}>
+                                    {position.voteType === 'yes' ? <TreeIcon className="w-5 h-5" /> : <LeafIcon className="w-5 h-5" />}
                                   </div>
                                 )}
                                 <div className="flex-1 min-w-0">
-                                  <h4 className="text-sm sm:text-base text-white font-semibold group-hover:text-cyan-400 transition-colors truncate">
+                                  <h4 className="text-sm sm:text-base text-white font-semibold group-hover:text-[#e89660] transition-colors truncate">
                                     {position.marketName}
                                   </h4>
                                   <p className="text-xs text-gray-400">{position.tokenSymbol || 'TKN'}</p>
@@ -2293,8 +2416,8 @@ export default function WalletPage() {
                               <div className="flex items-center gap-2 ml-11 sm:ml-[52px]">
                                 <span className={`px-2 py-0.5 sm:py-1 rounded text-xs border whitespace-nowrap ${
                                   position.voteType === 'yes'
-                                    ? 'bg-green-500/20 text-green-400 border-green-400/30'
-                                    : 'bg-red-500/20 text-red-400 border-red-400/30'
+                                    ? 'mono text-[0.56rem] uppercase tracking-[0.24em] text-[#3f7a42] border border-[#3f7a42]/40 bg-[#3f7a42]/10'
+                                    : 'mono text-[0.56rem] uppercase tracking-[0.24em] text-[#d67347] border border-[#d67347]/40 bg-[#d67347]/10'
                                 }`}>
                                   {position.voteType.toUpperCase()}
                                 </span>
@@ -2315,7 +2438,7 @@ export default function WalletPage() {
                               <div className="bg-white/5 rounded p-2 border border-white/10">
                                 <div className="text-gray-400 text-xs">Current Price</div>
                                 <div className={`font-semibold ${
-                                  position.voteType === 'yes' ? 'text-green-400' : 'text-red-400'
+                                  position.voteType === 'yes' ? 'text-[#3f7a42]' : 'text-[#d67347]'
                                 }`}>
                                   {position.voteType === 'yes' ? (Number(position.currentYesPrice) || 0).toFixed(1) : (Number(position.currentNoPrice) || 0).toFixed(1)}%
                                 </div>
@@ -2338,7 +2461,7 @@ export default function WalletPage() {
                   <h4 className="text-sm font-medium text-gray-400">Claimable Rewards</h4>
                   <div className="grid gap-4 sm:grid-cols-2">
                     {positionsData.data.claimable.map((position: any) => (
-                      <Card key={position.marketId} className="bg-gradient-to-r from-green-500/10 to-emerald-500/10 border-green-500/20 hover:border-green-500/40 transition-colors">
+                      <Card key={position.marketId} className="bg-[#3f7a42]/8 border-[#3f7a42]/25 hover:border-[#3f7a42]/50 transition-colors">
                         <CardContent className="p-3 sm:p-4">
                           <a href={`/market/${position.marketId}`} className="block group">
                             <div className="mb-3">
@@ -2350,19 +2473,19 @@ export default function WalletPage() {
                                     className="w-9 h-9 sm:w-10 sm:h-10 rounded-lg object-cover flex-shrink-0"
                                   />
                                 ) : (
-                                  <div className="w-9 h-9 sm:w-10 sm:h-10 bg-gradient-to-r from-green-500 to-emerald-500 rounded-lg flex items-center justify-center flex-shrink-0">
+                                  <div className="w-9 h-9 sm:w-10 sm:h-10 flex items-center justify-center flex-shrink-0 bg-[#3f7a42]/15 border border-[#3f7a42]/40">
                                     <Trophy className="w-4 h-4 sm:w-5 sm:h-5 text-white" />
                                   </div>
                                 )}
                                 <div className="flex-1 min-w-0">
-                                  <h4 className="text-sm sm:text-base text-white font-semibold group-hover:text-cyan-400 transition-colors truncate">
+                                  <h4 className="text-sm sm:text-base text-white font-semibold group-hover:text-[#e89660] transition-colors truncate">
                                     {position.marketName}
                                   </h4>
                                   <p className="text-xs text-gray-400">{position.tokenSymbol || 'TKN'}</p>
                                 </div>
                               </div>
                               <div className="flex items-center gap-2 ml-11 sm:ml-[52px]">
-                                <span className="px-2 py-0.5 sm:py-1 rounded text-xs border bg-green-500/20 text-green-400 border-green-400/30 whitespace-nowrap">
+                                <span className="px-2 py-0.5 sm:py-1 rounded text-xs border mono text-[0.56rem] uppercase tracking-[0.24em] text-[#3f7a42] border border-[#3f7a42]/40 bg-[#3f7a42]/10 whitespace-nowrap">
                                   WON
                                 </span>
                                 <VoteHistory marketId={position.marketId} walletAddress={primaryWallet?.address!} />
@@ -2381,7 +2504,7 @@ export default function WalletPage() {
                               </div>
                               <div className="bg-white/5 rounded p-2 border border-white/10">
                                 <div className="text-gray-400 text-xs">Resolution</div>
-                                <div className="font-semibold text-green-400">
+                                <div className="font-semibold text-[#3f7a42]">
                                   {position.resolution || 'YesWins'}
                                 </div>
                                 <div className="text-xs text-gray-500">
@@ -2390,7 +2513,7 @@ export default function WalletPage() {
                               </div>
                             </div>
 
-                            <div className="px-4 py-2 bg-gradient-to-r from-green-500 to-emerald-500 hover:from-green-600 hover:to-emerald-600 rounded-lg text-white font-semibold transition-all text-center">
+                            <div className="px-4 py-2 text-[#0a0814] bg-[#3f7a42] hover:bg-[#4a8a4d] font-semibold transition-all text-center">
                               Claim Rewards
                             </div>
                           </a>
@@ -2407,7 +2530,7 @@ export default function WalletPage() {
                   <h4 className="text-sm font-medium text-gray-400">Claimed Rewards</h4>
                   <div className="grid gap-4 sm:grid-cols-2">
                     {positionsData.data.resolved.filter((p: any) => p.isWinner && p.claimed).map((position: any) => (
-                      <Card key={position.marketId} className="bg-green-500/5 border-green-500/20 opacity-80 hover:opacity-100 transition-opacity">
+                      <Card key={position.marketId} className="bg-[#3f7a42]/5 border-[#3f7a42]/25 opacity-80 hover:opacity-100 transition-opacity">
                         <CardContent className="p-3 sm:p-4">
                           <a href={`/market/${position.marketId}`} className="block group">
                             <div className="mb-3">
@@ -2419,19 +2542,19 @@ export default function WalletPage() {
                                     className="w-9 h-9 sm:w-10 sm:h-10 rounded-lg object-cover flex-shrink-0"
                                   />
                                 ) : (
-                                  <div className="w-9 h-9 sm:w-10 sm:h-10 bg-gradient-to-r from-green-500 to-emerald-500 rounded-lg flex items-center justify-center flex-shrink-0">
+                                  <div className="w-9 h-9 sm:w-10 sm:h-10 flex items-center justify-center flex-shrink-0 bg-[#3f7a42]/15 border border-[#3f7a42]/40">
                                     <Trophy className="w-4 h-4 sm:w-5 sm:h-5 text-white" />
                                   </div>
                                 )}
                                 <div className="flex-1 min-w-0">
-                                  <h4 className="text-sm sm:text-base text-white font-semibold group-hover:text-cyan-400 transition-colors truncate">
+                                  <h4 className="text-sm sm:text-base text-white font-semibold group-hover:text-[#e89660] transition-colors truncate">
                                     {position.marketName}
                                   </h4>
                                   <p className="text-xs text-gray-400">{position.tokenSymbol || 'TKN'}</p>
                                 </div>
                               </div>
                               <div className="ml-11 sm:ml-[52px]">
-                                <span className="inline-block px-2 py-0.5 sm:py-1 rounded text-xs border bg-green-500/20 text-green-400 border-green-400/30 whitespace-nowrap">
+                                <span className="inline-block px-2 py-0.5 sm:py-1 rounded text-xs border mono text-[0.56rem] uppercase tracking-[0.24em] text-[#3f7a42] border border-[#3f7a42]/40 bg-[#3f7a42]/10 whitespace-nowrap">
                                   CLAIMED
                                 </span>
                               </div>
@@ -2449,7 +2572,7 @@ export default function WalletPage() {
                               </div>
                               <div className="bg-white/5 rounded p-2 border border-white/10">
                                 <div className="text-gray-400 text-xs">Resolution</div>
-                                <div className="font-semibold text-green-400">
+                                <div className="font-semibold text-[#3f7a42]">
                                   {position.resolution || 'YesWins'}
                                 </div>
                                 <div className="text-xs text-gray-500">
@@ -2488,14 +2611,14 @@ export default function WalletPage() {
                                   </div>
                                 )}
                                 <div className="flex-1 min-w-0">
-                                  <h4 className="text-sm sm:text-base text-white font-semibold group-hover:text-cyan-400 transition-colors truncate">
+                                  <h4 className="text-sm sm:text-base text-white font-semibold group-hover:text-[#e89660] transition-colors truncate">
                                     {position.marketName}
                                   </h4>
                                   <p className="text-xs text-gray-400">{position.tokenSymbol || 'TKN'}</p>
                                 </div>
                               </div>
                               <div className="ml-11 sm:ml-[52px]">
-                                <span className="inline-block px-2 py-0.5 sm:py-1 rounded text-xs border bg-red-500/20 text-red-400 border-red-400/30 whitespace-nowrap">
+                                <span className="inline-block px-2 py-0.5 sm:py-1 rounded text-xs border mono text-[0.56rem] uppercase tracking-[0.24em] text-[#d67347] border border-[#d67347]/40 bg-[#d67347]/10 whitespace-nowrap">
                                   LOST
                                 </span>
                               </div>
@@ -2513,7 +2636,7 @@ export default function WalletPage() {
                               </div>
                               <div className="bg-white/5 rounded p-2 border border-white/10">
                                 <div className="text-gray-400 text-xs">Resolution</div>
-                                <div className="font-semibold text-red-400">
+                                <div className="font-semibold text-[#d67347]">
                                   {position.resolution || 'NoWins'}
                                 </div>
                                 <div className="text-xs text-gray-500">
@@ -2549,7 +2672,7 @@ export default function WalletPage() {
             {projectsData?.success && projectsData.data?.projects?.length > 4 && (
               <button
                 onClick={() => setShowAllProjects(!showAllProjects)}
-                className="text-sm text-cyan-400 hover:text-cyan-300 transition-colors ml-auto"
+                className="text-sm text-[#e89660] hover:text-[#ecb48a] transition-colors ml-auto"
               >
                 {showAllProjects ? 'View Less' : `View All (${projectsData.data.projects.length})`}
               </button>
@@ -2580,7 +2703,7 @@ export default function WalletPage() {
                   <p className="text-xs mt-2">Start by creating your first prediction market</p>
                   <a
                     href="/create"
-                    className="inline-block mt-4 px-4 py-2 bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 rounded-lg text-white font-semibold transition-all text-sm"
+                    className="inline-block mt-4 px-4 py-2 bg-[#e89660]/15 border border-[#e89660]/40 hover:border-[#e89660]/70 rounded-lg text-white font-semibold transition-all text-sm"
                   >
                     Create Project
                   </a>
@@ -2598,7 +2721,7 @@ export default function WalletPage() {
             {profileData?.success && profileData.data?.favoriteMarkets?.length > 4 && (
               <button
                 onClick={() => setShowAllWatchlist(!showAllWatchlist)}
-                className="text-sm text-cyan-400 hover:text-cyan-300 transition-colors ml-auto"
+                className="text-sm text-[#e89660] hover:text-[#ecb48a] transition-colors ml-auto"
               >
                 {showAllWatchlist ? 'View Less' : `View All (${profileData.data.favoriteMarkets.length})`}
               </button>
