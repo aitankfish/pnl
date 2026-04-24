@@ -12,6 +12,7 @@ import { DirectWalletProvider } from '@/contexts/DirectWalletContext';
 import { VoiceRoomProvider } from '@/lib/context/VoiceRoomContext';
 import FloatingVoicePanel from '@/components/voice/FloatingVoicePanel';
 import TokenAddress from '@/components/TokenAddress';
+import RouteTransition from '@/components/RouteTransition';
 
 const inter = Inter({ subsets: ['latin'] });
 const caveat = Caveat({ subsets: ['latin'], variable: '--font-caveat' });
@@ -90,6 +91,7 @@ export default function RootLayout({
                 <VoiceRoomProvider>
                 <ToastProvider>
                 <FloatingVoicePanel />
+                <RouteTransition />
                 <AppLayoutWrapper footer={
                 <footer className="py-4 border-t border-white/5">
                   <div className="container px-4 sm:px-6">

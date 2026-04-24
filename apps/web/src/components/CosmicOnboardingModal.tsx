@@ -2,7 +2,6 @@
 
 import { motion, AnimatePresence } from 'framer-motion';
 import { authFetch } from '@/lib/auth/fetch-with-auth';
-import { Sparkles, Rocket, ArrowRight, UserCircle } from 'lucide-react';
 import { usePrivy } from '@privy-io/react-auth';
 import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
@@ -21,47 +20,25 @@ import {
 interface CosmicOnboardingModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onJoinUniverse?: () => void; // Now optional, kept for backwards compatibility
-  onContinueAsGuest?: () => void; // Optional - not needed when skipGreeting is true
+  onJoinUniverse?: () => void;
+  onContinueAsGuest?: () => void;
   isSettingUpProfile?: boolean;
-  skipGreeting?: boolean; // Skip to auth selection directly
+  skipGreeting?: boolean;
 }
 
-// Random cosmic names for greeting
-const cosmicNames = [
-  'Stardust Voyager',
-  'Nebula Pioneer',
-  'Cosmic Wanderer',
-  'Stellar Explorer',
-  'Galaxy Seeker',
-  'Astral Traveler',
-  'Quantum Dreamer',
-  'Celestial Navigator',
-  'Space Visionary',
-  'Nova Chaser',
-  'Pulsar Rider',
-  'Comet Hunter',
-  'Meteor Mage',
-  'Solar Sage',
-  'Lunar Legend',
-];
-
-// Random username prefixes and suffixes
+// Kept only for username auto-generation (not shown in greeting anymore)
 const usernamePrefixes = [
   'Cosmic', 'Stellar', 'Nebula', 'Quantum', 'Astral', 'Galactic',
   'Void', 'Pulsar', 'Nova', 'Meteor', 'Solar', 'Lunar', 'Celestial',
   'Comet', 'Asteroid', 'Photon', 'Quasar', 'Supernova', 'Orbit',
-  'Eclipse', 'Zenith', 'Aurora', 'Stardust', 'Plasma', 'Gravity'
+  'Eclipse', 'Zenith', 'Aurora', 'Stardust', 'Plasma', 'Gravity',
 ];
-
 const usernameSuffixes = [
   'Voyager', 'Pioneer', 'Explorer', 'Seeker', 'Wanderer', 'Traveler',
   'Navigator', 'Dreamer', 'Hunter', 'Rider', 'Mage', 'Sage', 'Legend',
   'Keeper', 'Guardian', 'Walker', 'Runner', 'Drifter', 'Chaser',
-  'Observer', 'Watcher', 'Master', 'Knight', 'Phantom', 'Spirit'
 ];
 
-// Template cosmic avatars
 const cosmicAvatars = [
   { id: 'nebula', name: 'Nebula', path: '/cosmic-avatars/nebula.svg' },
   { id: 'galaxy', name: 'Galaxy', path: '/cosmic-avatars/galaxy.svg' },
@@ -75,13 +52,27 @@ const cosmicAvatars = [
 
 type OnboardingStep = 'greeting' | 'welcome' | 'choice' | 'auth-selection' | 'profile';
 
-export function CosmicOnboardingModal({ isOpen, onClose, onJoinUniverse, onContinueAsGuest, isSettingUpProfile = false, skipGreeting = false }: CosmicOnboardingModalProps) {
-  const { user, authenticated } = usePrivy();
+// Shared easing
+const EASE_OUT = [0.22, 1, 0.36, 1] as [number, number, number, number];
+
+// Reusable arrow SVG matching landing style
+const ArrowRightSvg = ({ className = '' }: { className?: string }) => (
+  <svg width="20" height="10" viewBox="0 0 20 10" fill="none" className={className}>
+    <path d="M1 5H19M19 5L14 1M19 5L14 9" stroke="currentColor" strokeWidth="1.5" strokeLinecap="square" />
+  </svg>
+);
+
+export function CosmicOnboardingModal({
+  isOpen,
+  onClose,
+  onJoinUniverse,
+  onContinueAsGuest,
+  isSettingUpProfile = false,
+  skipGreeting = false,
+}: CosmicOnboardingModalProps) {
+  const { user } = usePrivy();
   const router = useRouter();
-  // Start at auth-selection if skipping greeting, otherwise start at choice
   const [step, setStep] = useState<OnboardingStep>(skipGreeting ? 'auth-selection' : 'choice');
-  const [cosmicName, setCosmicName] = useState('');
-  const [displayedName, setDisplayedName] = useState('');
   const [username, setUsername] = useState('');
   const [profilePicture, setProfilePicture] = useState<File | null>(null);
   const [profilePreview, setProfilePreview] = useState<string>('');
@@ -91,10 +82,8 @@ export function CosmicOnboardingModal({ isOpen, onClose, onJoinUniverse, onConti
   const [isResendingCode, setIsResendingCode] = useState(false);
   const hasRedirectedRef = useRef(false);
 
-  // Headless auth hook
   const {
     state: authState,
-    authenticated: isAuthenticated,
     selectEmail,
     selectWallet,
     handleSendCode,
@@ -106,7 +95,6 @@ export function CosmicOnboardingModal({ isOpen, onClose, onJoinUniverse, onConti
     solanaWallets,
   } = useHeadlessAuth();
 
-  // Generate random username
   const generateRandomUsername = async (): Promise<string> => {
     let attempts = 0;
     while (attempts < 10) {
@@ -114,21 +102,13 @@ export function CosmicOnboardingModal({ isOpen, onClose, onJoinUniverse, onConti
       const suffix = usernameSuffixes[Math.floor(Math.random() * usernameSuffixes.length)];
       const randomNum = Math.floor(Math.random() * 999);
       const generatedUsername = `${prefix}${suffix}${randomNum}`;
-
-      // Check if username is unique
       const isUnique = await checkUsernameUniqueness(generatedUsername);
-      if (isUnique) {
-        return generatedUsername;
-      }
+      if (isUnique) return generatedUsername;
       attempts++;
     }
-
-    // Fallback: add timestamp if all attempts fail
-    const timestamp = Date.now().toString().slice(-6);
-    return `CosmicUser${timestamp}`;
+    return `CosmicUser${Date.now().toString().slice(-6)}`;
   };
 
-  // Check username uniqueness via API
   const checkUsernameUniqueness = async (usernameToCheck: string): Promise<boolean> => {
     try {
       const response = await authFetch(`/api/profile/check-username?username=${encodeURIComponent(usernameToCheck)}`);
@@ -136,26 +116,19 @@ export function CosmicOnboardingModal({ isOpen, onClose, onJoinUniverse, onConti
       return data.available || false;
     } catch (error) {
       console.error('Error checking username:', error);
-      return true; // Assume available on error
+      return true;
     }
   };
 
-  // Handle auth success - check for existing profile or show profile setup
   useEffect(() => {
     const handleAuthSuccess = async () => {
-      // Only handle auth success when modal is open - prevents redirect when navigating to other pages
       if (!isOpen || authState.status !== 'success' || hasRedirectedRef.current) return;
-
-      // Check if user already has a profile
       const walletAddress = user?.wallet?.address;
       if (walletAddress) {
         try {
           const response = await authFetch(`/api/profile/${walletAddress}`);
           const result = await response.json();
-
           if (result.success && result.data?.username) {
-            // User already has a profile - skip setup and redirect
-            console.log('✅ Existing profile found, redirecting to /wallet...');
             hasRedirectedRef.current = true;
             onClose();
             router.push('/wallet');
@@ -165,21 +138,13 @@ export function CosmicOnboardingModal({ isOpen, onClose, onJoinUniverse, onConti
           console.error('Error checking profile:', error);
         }
       }
-
-      // No existing profile - show profile setup
       setStep('profile');
     };
-
     handleAuthSuccess();
   }, [isOpen, authState.status, user?.wallet?.address, onClose, router]);
 
-  // Generate random cosmic name when modal opens
   useEffect(() => {
     if (isOpen) {
-      const randomName = cosmicNames[Math.floor(Math.random() * cosmicNames.length)];
-      setCosmicName(randomName);
-      setDisplayedName('');
-      // Skip to auth-selection if skipGreeting is true, otherwise start at greeting
       setStep(skipGreeting ? 'auth-selection' : 'greeting');
       setUsername('');
       setProfilePicture(null);
@@ -190,53 +155,30 @@ export function CosmicOnboardingModal({ isOpen, onClose, onJoinUniverse, onConti
     }
   }, [isOpen, resetAuth, skipGreeting]);
 
-  // Set the full name immediately for the animation
-  useEffect(() => {
-    if (step === 'greeting' && cosmicName) {
-      setDisplayedName(cosmicName);
-    }
-  }, [step, cosmicName]);
-
-  // Auto-advance from greeting to welcome
+  // Auto-advance from greeting → welcome (1.3s) → choice (1.5s)
   useEffect(() => {
     if (step === 'greeting') {
-      const timer = setTimeout(() => setStep('welcome'), 4000); // After animation completes
+      const timer = setTimeout(() => setStep('welcome'), 1300);
       return () => clearTimeout(timer);
     }
   }, [step]);
 
-  // Auto-advance from welcome to choice
   useEffect(() => {
     if (step === 'welcome') {
-      const timer = setTimeout(() => setStep('choice'), 2000);
+      const timer = setTimeout(() => setStep('choice'), 1500);
       return () => clearTimeout(timer);
     }
   }, [step]);
 
-  const handleGuestProceed = () => {
-    onContinueAsGuest?.();
-  };
-
-  const handleJoinClick = () => {
-    setStep('auth-selection');
-  };
-
-  // Skip greeting/welcome animations
+  const handleGuestProceed = () => { onContinueAsGuest?.(); };
+  const handleJoinClick = () => setStep('auth-selection');
   const handleSkipToChoice = () => {
-    if (step === 'greeting' || step === 'welcome') {
-      setStep('choice');
-    }
+    if (step === 'greeting' || step === 'welcome') setStep('choice');
   };
-
-  // Auth method handlers
   const handleAuthBack = () => {
-    if (authState.status === 'idle') {
-      setStep('choice');
-    } else {
-      authGoBack();
-    }
+    if (authState.status === 'idle') setStep('choice');
+    else authGoBack();
   };
-
   const handleResendCode = async () => {
     if (authState.email) {
       setIsResendingCode(true);
@@ -244,58 +186,42 @@ export function CosmicOnboardingModal({ isOpen, onClose, onJoinUniverse, onConti
       setIsResendingCode(false);
     }
   };
-
   const handleRandomUsername = async () => {
     setIsCheckingUsername(true);
     const randomUsername = await generateRandomUsername();
     setUsername(randomUsername);
     setIsCheckingUsername(false);
   };
-
   const handleTemplateSelect = (templatePath: string) => {
     setSelectedTemplate(templatePath);
     setProfilePreview(templatePath);
-    setProfilePicture(null); // Clear custom upload if template selected
+    setProfilePicture(null);
+  };
+  const handleProfilePictureChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      setProfilePicture(file);
+      const reader = new FileReader();
+      reader.onloadend = () => setProfilePreview(reader.result as string);
+      reader.readAsDataURL(file);
+    }
   };
 
-  // Save profile to backend after successful login
   const saveProfileToBackend = async (walletAddress: string) => {
     try {
-      console.log('🚀 Starting profile save...', { walletAddress, username });
       setIsSavingProfile(true);
-
       let finalUsername = username.trim();
       let profilePhotoUrl = '';
-
-      // Generate defaults if user didn't provide them
-      if (!finalUsername) {
-        console.log('📝 Generating random username...');
-        finalUsername = await generateRandomUsername();
-        console.log('✅ Generated username:', finalUsername);
-      }
-
-      // Use template avatar if selected
+      if (!finalUsername) finalUsername = await generateRandomUsername();
       if (selectedTemplate) {
         profilePhotoUrl = selectedTemplate;
-        console.log('🎨 Using template avatar:', selectedTemplate);
-      }
-      // Upload custom profile picture to IPFS if provided
-      else if (profilePicture) {
-        console.log('📸 Uploading custom photo to IPFS...');
+      } else if (profilePicture) {
         const ipfsUri = await ipfsUtils.uploadImage(profilePicture);
         profilePhotoUrl = ipfsUtils.getGatewayUrl(ipfsUri);
-        console.log('✅ Photo uploaded:', profilePhotoUrl);
-      }
-      // Generate random template if no picture selected
-      else {
+      } else {
         const randomAvatar = cosmicAvatars[Math.floor(Math.random() * cosmicAvatars.length)];
         profilePhotoUrl = randomAvatar.path;
-        console.log('🎲 Using random avatar:', randomAvatar.name);
       }
-
-      console.log('💾 Saving to backend...', { finalUsername, profilePhotoUrl });
-
-      // Save to backend using the same API as wallet page
       const response = await authFetch('/api/profile/update', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -306,36 +232,15 @@ export function CosmicOnboardingModal({ isOpen, onClose, onJoinUniverse, onConti
           email: user?.email,
         }),
       });
-
       const result = await response.json();
-      console.log('📦 Backend response:', result);
-
       if (result.success) {
-        console.log('✅ Profile saved successfully! Redirecting to /wallet...');
-        // Close the modal first, then redirect
         onClose();
         router.push('/wallet');
-      } else {
-        console.error('❌ Profile save failed:', result);
       }
     } catch (error) {
-      console.error('💥 Error saving profile:', error);
+      console.error('Error saving profile:', error);
     } finally {
       setIsSavingProfile(false);
-    }
-  };
-
-  // Auto-save logic has been moved to page.tsx to prevent duplicate profile creation
-
-  const handleProfilePictureChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) {
-      setProfilePicture(file);
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        setProfilePreview(reader.result as string);
-      };
-      reader.readAsDataURL(file);
     }
   };
 
@@ -343,185 +248,199 @@ export function CosmicOnboardingModal({ isOpen, onClose, onJoinUniverse, onConti
     <AnimatePresence mode="wait">
       {isOpen && (
         <>
-          {/* Background Layer - Consistent dark overlay for all steps */}
+          {/* Cosmic backdrop — same atmospheric dark as landing, with soft amber halo */}
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            transition={{ duration: 0.8, ease: [0.16, 1, 0.3, 1] }}
+            transition={{ duration: 0.6, ease: EASE_OUT }}
             className="fixed inset-0 z-50 overflow-hidden"
             style={{
-              background: 'rgba(0, 0, 0, 0.85)',
-              backdropFilter: 'blur(8px)',
+              background: 'rgba(10,8,20,0.94)',
+              backdropFilter: 'blur(10px)',
+              WebkitBackdropFilter: 'blur(10px)',
             }}
-          />
+          >
+            {/* Radial warm glow, centered — matches landing's sun character */}
+            <div
+              aria-hidden
+              className="absolute inset-0 pointer-events-none"
+              style={{
+                background:
+                  'radial-gradient(circle at 50% 55%, rgba(232,150,96,0.16) 0%, rgba(214,115,71,0.06) 28%, transparent 60%)',
+              }}
+            />
+            {/* Faint static star grid for cosmic depth */}
+            <div aria-hidden className="absolute inset-0 pointer-events-none opacity-[0.35]" style={{
+              backgroundImage:
+                'radial-gradient(1px 1px at 18% 22%, #fff5e1, transparent),' +
+                'radial-gradient(1px 1px at 62% 12%, #ffd7a8, transparent),' +
+                'radial-gradient(1.5px 1.5px at 85% 30%, #fff5e1, transparent),' +
+                'radial-gradient(1px 1px at 8% 78%, #ffa366, transparent),' +
+                'radial-gradient(1px 1px at 38% 88%, #fff5e1, transparent),' +
+                'radial-gradient(1.5px 1.5px at 72% 72%, #ffd7a8, transparent),' +
+                'radial-gradient(1px 1px at 48% 45%, #fff5e1, transparent),' +
+                'radial-gradient(1px 1px at 92% 82%, #ffd7a8, transparent)',
+              backgroundSize: '100% 100%',
+            }} />
+          </motion.div>
 
-          {/* Full-Screen Loading Overlay for Profile Save */}
+          {/* Saving overlay */}
           {(isSavingProfile || isSettingUpProfile) && (
             <motion.div
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
-              className="fixed inset-0 z-[60] bg-black/80 backdrop-blur-lg flex items-center justify-center px-4"
+              className="fixed inset-0 z-[60] flex items-center justify-center px-4"
+              style={{ background: 'rgba(10,8,20,0.96)', backdropFilter: 'blur(12px)' }}
             >
               <CosmicLoader
-                message={isSettingUpProfile ? 'Setting up your account...' : 'Setting up your cosmic profile...'}
+                message={isSettingUpProfile ? 'Preparing your account' : 'Saving your profile'}
                 size="lg"
               />
             </motion.div>
           )}
 
-          {/* Content Container */}
+          {/* Content container */}
           <div
-            className={`fixed inset-0 z-50 flex flex-col items-center justify-center p-4 ${(step === 'greeting' || step === 'welcome') ? 'cursor-pointer' : ''}`}
-            onClick={(step === 'greeting' || step === 'welcome') ? handleSkipToChoice : undefined}
+            className={`fixed inset-0 z-50 flex flex-col items-center justify-center p-4 ${
+              step === 'greeting' || step === 'welcome' ? 'cursor-pointer' : ''
+            }`}
+            onClick={step === 'greeting' || step === 'welcome' ? handleSkipToChoice : undefined}
           >
             <AnimatePresence mode="wait">
-              {/* Step 1: Greeting */}
+              {/* ─── Greeting ─── */}
               {step === 'greeting' && (
                 <motion.div
                   key="greeting"
-                  initial={{ opacity: 0, scale: 0.8 }}
-                  animate={{ opacity: 1, scale: 1 }}
-                  exit={{ opacity: 0, scale: 1.2 }}
-                  transition={{ duration: 0.6, ease: [0.16, 1, 0.3, 1] }}
-                  className="text-center px-4 w-full max-w-4xl"
+                  initial={{ opacity: 0, y: 16 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -10 }}
+                  transition={{ duration: 0.6, ease: EASE_OUT }}
+                  className="text-center px-4 w-full max-w-3xl"
                 >
-                  <div className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-bold overflow-hidden flex flex-col sm:flex-row items-center justify-center gap-2 sm:gap-3">
-                    <motion.span
-                      className="bg-gradient-to-r from-cyan-300 via-purple-300 to-pink-300 bg-clip-text text-transparent inline-block"
-                      initial={{ y: 20, opacity: 0 }}
-                      animate={{ y: 0, opacity: 1 }}
-                      transition={{ delay: 0.3, duration: 0.8, ease: [0.16, 1, 0.3, 1] }}
-                    >
-                      Hi,
-                    </motion.span>
-                    <motion.span
-                      className="bg-gradient-to-r from-cyan-300 via-purple-300 to-pink-300 bg-clip-text text-transparent inline-block"
-                      style={{
-                        overflow: 'hidden',
-                        display: 'inline-block',
-                      }}
-                      initial={{ maxWidth: 0, opacity: 0 }}
-                      animate={{ maxWidth: '100%', opacity: 1 }}
-                      transition={{
-                        maxWidth: { duration: 2.5, delay: 1.0, ease: [0.16, 1, 0.3, 1] },
-                        opacity: { duration: 0.4, delay: 1.0, ease: 'easeOut' }
-                      }}
-                    >
-                      <span className="inline-block whitespace-nowrap">{displayedName}</span>
-                    </motion.span>
+                  <div className="mono text-[0.64rem] uppercase tracking-[0.32em] mb-5" style={{ color: '#e89660' }}>
+                    · Welcome ·
                   </div>
-                  <motion.div
-                    initial={{ opacity: 0 }}
-                    animate={{ opacity: 1 }}
-                    transition={{ delay: 3.0, duration: 0.4, ease: 'easeOut' }}
-                    className="mt-4"
+                  <h2
+                    className="serif leading-[0.95] tracking-[-0.025em]"
+                    style={{
+                      color: '#f4eee4',
+                      fontSize: 'clamp(2rem, 6vw, 4.5rem)',
+                      fontWeight: 400,
+                      fontVariationSettings: "'SOFT' 50, 'WONK' 0, 'opsz' 144",
+                    }}
                   >
-                    <Sparkles className="w-10 h-10 sm:w-12 sm:h-12 mx-auto text-yellow-300 animate-pulse" />
-                  </motion.div>
+                    Hello,{' '}
+                    <em
+                      style={{
+                        fontVariationSettings: "'SOFT' 100, 'WONK' 0, 'opsz' 144",
+                        color: 'transparent',
+                        backgroundImage: 'linear-gradient(178deg, #fff2d8 0%, #ecb48a 35%, #d99875 70%, #d67347 100%)',
+                        WebkitBackgroundClip: 'text',
+                        backgroundClip: 'text',
+                      }}
+                    >
+                      stranger.
+                    </em>
+                  </h2>
                 </motion.div>
               )}
 
-              {/* Step 2: Welcome Message */}
+              {/* ─── Welcome line ─── */}
               {step === 'welcome' && (
                 <motion.div
                   key="welcome"
-                  initial={{ opacity: 0, y: 30 }}
+                  initial={{ opacity: 0, y: 12 }}
                   animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0, y: -30 }}
-                  transition={{ duration: 0.8, ease: [0.16, 1, 0.3, 1] }}
-                  className="text-center max-w-2xl px-4 sm:px-6"
+                  exit={{ opacity: 0, y: -10 }}
+                  transition={{ duration: 0.7, ease: EASE_OUT }}
+                  className="text-center max-w-[46ch] px-4 sm:px-6"
                 >
-                  <motion.p
-                    className="text-lg sm:text-xl md:text-2xl lg:text-3xl text-white leading-relaxed"
-                    initial={{ opacity: 0 }}
-                    animate={{ opacity: 1 }}
-                    transition={{ delay: 0.3 }}
+                  <p
+                    className="serif italic leading-[1.35] tracking-[-0.015em]"
+                    style={{
+                      color: '#f4eee4',
+                      fontSize: 'clamp(1.4rem, 3.5vw, 2.25rem)',
+                      fontWeight: 400,
+                      fontVariationSettings: "'SOFT' 100, 'WONK' 0, 'opsz' 48",
+                    }}
                   >
-                    Welcome to the <span className="text-cyan-300 font-semibold">vastness of the universe</span> where you'll witness{' '}
-                    <span className="text-purple-300 font-semibold">clashes of ideas</span>,{' '}
-                    <span className="text-pink-300 font-semibold">new kinds of innovation</span>, and the birth of tomorrow's breakthroughs.
-                  </motion.p>
+                    A place for ideas to come from.
+                  </p>
                 </motion.div>
               )}
 
-              {/* Step 3: Choice */}
+              {/* ─── Choice ─── */}
               {step === 'choice' && (
                 <motion.div
                   key="choice"
-                  initial={{ opacity: 0, scale: 0.9 }}
-                  animate={{ opacity: 1, scale: 1 }}
-                  exit={{ opacity: 0, scale: 0.9 }}
-                  transition={{ duration: 0.5 }}
+                  initial={{ opacity: 0, y: 16 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -12 }}
+                  transition={{ duration: 0.5, ease: EASE_OUT }}
                   className="w-full max-w-md px-4 sm:px-0"
                 >
-                  <motion.div
-                    initial={{ y: -20, opacity: 0 }}
-                    animate={{ y: 0, opacity: 1 }}
-                    transition={{ delay: 0.2 }}
-                    className="text-center mb-6 sm:mb-8"
+                  <div className="mono text-[0.62rem] uppercase tracking-[0.3em] mb-5 flex items-center gap-3"
+                    style={{ color: '#e89660' }}>
+                    <span className="inline-block w-8 h-px" style={{ background: '#e89660' }} />
+                    <span>Before we plant your idea</span>
+                  </div>
+                  <h2
+                    className="serif leading-[1.05] tracking-[-0.02em] mb-8"
+                    style={{
+                      color: '#f4eee4',
+                      fontSize: 'clamp(1.85rem, 4.5vw, 2.8rem)',
+                      fontWeight: 400,
+                      fontVariationSettings: "'SOFT' 50, 'WONK' 0, 'opsz' 72",
+                    }}
                   >
-                    <h2 className="text-2xl sm:text-3xl md:text-4xl font-bold text-white mb-2 sm:mb-3">
-                      How would you like to proceed?
-                    </h2>
-                    <p className="text-sm sm:text-base text-gray-400">Choose your path through the cosmos</p>
-                  </motion.div>
+                    Sign in to pitch — or look around first.
+                  </h2>
 
-                  <motion.div
-                    initial={{ y: 20, opacity: 0 }}
-                    animate={{ y: 0, opacity: 1 }}
-                    transition={{ delay: 0.4 }}
-                    className="space-y-3 sm:space-y-4"
-                  >
-                    {/* Join Button */}
+                  <div className="flex flex-col gap-3">
+                    {/* Primary — Sign in to pitch */}
                     <button
                       onClick={handleJoinClick}
-                      className="w-full group relative overflow-hidden bg-gradient-to-r from-purple-600 to-cyan-600 hover:from-purple-500 hover:to-cyan-500 rounded-xl sm:rounded-2xl px-4 sm:px-8 py-4 sm:py-6 transition-all duration-300 transform hover:scale-105"
+                      className="group relative inline-flex items-center justify-between gap-3 px-6 py-4 mono text-[0.72rem] uppercase tracking-[0.24em] font-semibold transition-colors duration-300 w-full"
+                      style={{ background: '#e89660', color: '#0a0814' }}
                     >
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-3 sm:gap-4">
-                          <Rocket className="w-6 h-6 sm:w-8 sm:h-8 text-white flex-shrink-0" />
-                          <div className="text-left">
-                            <div className="text-base sm:text-xl font-bold text-white">Join the Universe</div>
-                            <div className="text-xs sm:text-sm text-white/80">Create account & unlock full power</div>
-                          </div>
-                        </div>
-                        <ArrowRight className="w-5 h-5 sm:w-6 sm:h-6 text-white group-hover:translate-x-2 transition-transform flex-shrink-0" />
-                      </div>
+                      <span className="flex items-center gap-3">
+                        <span>Sign in to pitch</span>
+                      </span>
+                      <ArrowRightSvg className="transition-transform duration-300 group-hover:translate-x-1.5" />
+                      <span className="absolute -right-0 -top-0 w-2 h-2" style={{ background: '#0a0814' }} />
                     </button>
 
-                    {/* Guest Button */}
+                    {/* Secondary — Just looking */}
                     <button
                       onClick={handleGuestProceed}
-                      className="w-full group relative overflow-hidden bg-white/5 hover:bg-white/10 border border-white/10 hover:border-white/20 rounded-xl sm:rounded-2xl px-4 sm:px-8 py-4 sm:py-6 transition-all duration-300"
+                      className="group inline-flex items-center justify-between gap-3 px-6 py-4 mono text-[0.72rem] uppercase tracking-[0.24em] transition-colors duration-300 w-full border"
+                      style={{ color: '#d8cfc0', borderColor: 'rgba(244,238,228,0.15)' }}
                     >
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-3 sm:gap-4">
-                          <UserCircle className="w-6 h-6 sm:w-8 sm:h-8 text-gray-400 group-hover:text-white transition-colors flex-shrink-0" />
-                          <div className="text-left">
-                            <div className="text-base sm:text-xl font-bold text-white">Continue as Guest</div>
-                            <div className="text-xs sm:text-sm text-gray-400">Explore without commitment</div>
-                          </div>
-                        </div>
-                        <ArrowRight className="w-5 h-5 sm:w-6 sm:h-6 text-gray-400 group-hover:text-white group-hover:translate-x-2 transition-all flex-shrink-0" />
-                      </div>
+                      <span className="relative inline-block after:absolute after:left-0 after:bottom-[-4px] after:h-px after:w-full after:bg-current after:scale-x-0 after:origin-left group-hover:after:scale-x-100 after:transition-transform after:duration-500">
+                        Just looking for now
+                      </span>
+                      <span className="text-[#8a7f72] group-hover:text-[#e89660] transition-colors">↗</span>
                     </button>
-                  </motion.div>
+                  </div>
+
+                  <p className="mt-6 mono text-[0.58rem] uppercase tracking-[0.28em] text-center" style={{ color: '#8a7f72' }}>
+                    No pitch deck required · you can leave anytime
+                  </p>
                 </motion.div>
               )}
 
-              {/* Step 4: Auth Selection (Headless) */}
+              {/* ─── Auth selection (delegated) ─── */}
               {step === 'auth-selection' && (
                 <motion.div
                   key="auth-selection"
                   initial={{ opacity: 0 }}
                   animate={{ opacity: 1 }}
                   exit={{ opacity: 0 }}
-                  transition={{ duration: 0.3 }}
+                  transition={{ duration: 0.3, ease: EASE_OUT }}
                   className="w-full flex items-center justify-center"
                 >
-                  {/* Auth Method Selection */}
                   {authState.status === 'idle' && (
                     <AuthMethodSelection
                       onSelectEmail={selectEmail}
@@ -532,7 +451,6 @@ export function CosmicOnboardingModal({ isOpen, onClose, onJoinUniverse, onConti
                     />
                   )}
 
-                  {/* Email Input */}
                   {authState.status === 'email-input' && (
                     <EmailInput
                       onSubmit={handleSendCode}
@@ -542,18 +460,12 @@ export function CosmicOnboardingModal({ isOpen, onClose, onJoinUniverse, onConti
                     />
                   )}
 
-                  {/* Sending Code Loading */}
                   {authState.status === 'email-sending' && (
-                    <motion.div
-                      initial={{ opacity: 0 }}
-                      animate={{ opacity: 1 }}
-                      className="w-full max-w-md px-4"
-                    >
-                      <CosmicLoader message="Sending verification code..." />
-                    </motion.div>
+                    <div className="w-full max-w-md px-4">
+                      <CosmicLoader message="Sending verification code" />
+                    </div>
                   )}
 
-                  {/* OTP Input */}
                   {(authState.status === 'otp-input' || authState.status === 'otp-verifying') && (
                     <OTPInput
                       email={authState.email || ''}
@@ -566,23 +478,15 @@ export function CosmicOnboardingModal({ isOpen, onClose, onJoinUniverse, onConti
                     />
                   )}
 
-                  {/* OAuth Pending */}
                   {authState.status === 'oauth-pending' && authState.provider && (
                     <OAuthPending
                       provider={authState.provider}
-                      onCancel={() => {
-                        resetAuth();
-                      }}
-                      onRetry={() => {
-                        if (authState.provider) {
-                          handleOAuth(authState.provider);
-                        }
-                      }}
+                      onCancel={() => resetAuth()}
+                      onRetry={() => { if (authState.provider) handleOAuth(authState.provider); }}
                       error={authState.error ? getErrorMessage(authState.error) : null}
                     />
                   )}
 
-                  {/* Wallet Selection */}
                   {(authState.status === 'wallet-selecting' || authState.status === 'wallet-connecting') && (
                     <WalletSelection
                       onSelectWallet={handleConnectWallet}
@@ -596,60 +500,66 @@ export function CosmicOnboardingModal({ isOpen, onClose, onJoinUniverse, onConti
                 </motion.div>
               )}
 
-              {/* Step 5: Profile Setup */}
+              {/* ─── Profile setup ─── */}
               {step === 'profile' && (
                 <motion.div
                   key="profile"
-                  initial={{ opacity: 0, scale: 0.95 }}
-                  animate={{ opacity: 1, scale: 1 }}
-                  exit={{ opacity: 0, scale: 0.95 }}
-                  transition={{ duration: 0.6, ease: [0.16, 1, 0.3, 1] }}
+                  initial={{ opacity: 0, y: 16 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -12 }}
+                  transition={{ duration: 0.55, ease: EASE_OUT }}
                   className="relative w-full max-w-md px-4 sm:px-0 max-h-[90vh] overflow-y-auto"
                 >
-                  <div className="bg-transparent backdrop-blur-sm p-4 sm:p-8">
-                    <motion.div
-                      initial={{ y: -20, opacity: 0 }}
-                      animate={{ y: 0, opacity: 1 }}
-                      transition={{ delay: 0.2 }}
-                      className="text-center mb-6 sm:mb-8"
+                  <div className="p-4 sm:p-6">
+                    <div className="mono text-[0.62rem] uppercase tracking-[0.3em] mb-4 flex items-center gap-3"
+                      style={{ color: '#e89660' }}>
+                      <span className="inline-block w-8 h-px" style={{ background: '#e89660' }} />
+                      <span>Almost there</span>
+                    </div>
+                    <h2
+                      className="serif leading-[1.05] tracking-[-0.02em] mb-6"
+                      style={{
+                        color: '#f4eee4',
+                        fontSize: 'clamp(1.7rem, 4vw, 2.4rem)',
+                        fontWeight: 400,
+                        fontVariationSettings: "'SOFT' 50, 'WONK' 0, 'opsz' 72",
+                      }}
                     >
-                      <h2 className="text-2xl sm:text-3xl md:text-4xl font-bold text-white mb-2 sm:mb-3">
-                        Create Your Identity
-                      </h2>
-                      <p className="text-sm sm:text-base text-gray-400">Set up your cosmic profile</p>
-                    </motion.div>
+                      One last thing.
+                    </h2>
+                    <p className="serif text-[0.95rem] md:text-[1rem] leading-[1.6] mb-8"
+                      style={{ color: '#d8cfc0', fontVariationSettings: "'SOFT' 50, 'opsz' 30" }}>
+                      Pick an avatar and a name. You can change both later.
+                    </p>
 
-                    <motion.div
-                      initial={{ y: 20, opacity: 0 }}
-                      animate={{ y: 0, opacity: 1 }}
-                      transition={{ delay: 0.4 }}
-                      className="space-y-4 sm:space-y-6"
-                    >
-                      {/* Profile Picture Selection */}
+                    <div className="space-y-6">
+                      {/* Avatar section */}
                       <div>
-                        <label className="block text-xs sm:text-sm font-medium text-gray-400 mb-2 sm:mb-3 text-center">
-                          Choose Your Avatar
+                        <label className="mono text-[0.58rem] uppercase tracking-[0.28em] mb-3 block"
+                          style={{ color: '#8a7f72' }}>
+                          Avatar
                         </label>
-
-                        {/* Template Avatars Grid */}
-                        <div className="grid grid-cols-4 gap-2 sm:gap-3 mb-3 sm:mb-4">
-                          {cosmicAvatars.map((avatar) => (
-                            <button
-                              key={avatar.id}
-                              onClick={() => handleTemplateSelect(avatar.path)}
-                              className={`relative aspect-square rounded-lg sm:rounded-xl overflow-hidden transition-all ${
-                                selectedTemplate === avatar.path
-                                  ? 'ring-2 ring-cyan-400 scale-105'
-                                  : 'ring-1 ring-white/10 hover:ring-white/30 hover:scale-105'
-                              }`}
-                            >
-                              <img src={avatar.path} alt={avatar.name} className="w-full h-full object-cover" />
-                            </button>
-                          ))}
+                        <div className="grid grid-cols-4 gap-2 mb-3">
+                          {cosmicAvatars.map((avatar) => {
+                            const isSelected = selectedTemplate === avatar.path;
+                            return (
+                              <button
+                                key={avatar.id}
+                                onClick={() => handleTemplateSelect(avatar.path)}
+                                className="relative aspect-square overflow-hidden transition-all duration-300"
+                                style={{
+                                  border: isSelected ? '1px solid #e89660' : '1px solid rgba(244,238,228,0.08)',
+                                  background: 'rgba(244,238,228,0.02)',
+                                  outline: isSelected ? '2px solid rgba(232,150,96,0.4)' : 'none',
+                                  outlineOffset: '2px',
+                                }}
+                              >
+                                <img src={avatar.path} alt={avatar.name} className="w-full h-full object-cover" />
+                              </button>
+                            );
+                          })}
                         </div>
-
-                        {/* Custom Upload Option */}
-                        <div className="text-center">
+                        <div className="flex items-center justify-between gap-3">
                           <input
                             type="file"
                             accept="image/*"
@@ -659,61 +569,57 @@ export function CosmicOnboardingModal({ isOpen, onClose, onJoinUniverse, onConti
                           />
                           <label
                             htmlFor="profile-upload"
-                            className="inline-flex items-center gap-2 px-3 sm:px-4 py-2 bg-white/5 hover:bg-white/10 border border-white/10 hover:border-white/20 rounded-lg text-xs sm:text-sm text-gray-400 hover:text-white cursor-pointer transition-all"
+                            className="mono text-[0.6rem] uppercase tracking-[0.26em] cursor-pointer hover:text-[#f4eee4] transition-colors"
+                            style={{ color: '#8a7f72' }}
                           >
-                            <UserCircle className="w-4 h-4" />
-                            Or upload custom photo
+                            ↗ Upload custom photo
                           </label>
-                        </div>
-
-                        {/* Selected Preview */}
-                        {profilePreview && (
-                          <div className="flex justify-center mt-3 sm:mt-4">
-                            <div className="w-20 h-20 sm:w-24 sm:h-24 rounded-full overflow-hidden ring-2 ring-cyan-400">
+                          {profilePreview && (
+                            <div className="w-12 h-12 overflow-hidden" style={{ border: '1px solid rgba(232,150,96,0.4)' }}>
                               <img src={profilePreview} alt="Selected" className="w-full h-full object-cover" />
                             </div>
-                          </div>
-                        )}
+                          )}
+                        </div>
                       </div>
 
-                      {/* Username Input */}
+                      {/* Username section */}
                       <div>
-                        <label className="block text-xs sm:text-sm font-medium text-gray-400 mb-2">
-                          Choose Username <span className="text-gray-600 text-xs">(optional)</span>
+                        <label className="mono text-[0.58rem] uppercase tracking-[0.28em] mb-3 flex items-center justify-between"
+                          style={{ color: '#8a7f72' }}>
+                          <span>Name</span>
+                          <span style={{ color: '#6a6058' }}>optional</span>
                         </label>
                         <div className="flex gap-2">
                           <input
                             type="text"
                             value={username}
                             onChange={(e) => setUsername(e.target.value)}
-                            placeholder="Enter cosmic name or leave empty"
-                            className="flex-1 px-3 sm:px-4 py-2.5 sm:py-3 bg-white/5 border border-white/10 rounded-lg sm:rounded-xl text-sm sm:text-base text-white placeholder-gray-600 focus:outline-none focus:border-white/30 focus:bg-white/10 transition-all"
+                            placeholder="Or leave empty — we'll pick one"
+                            className="flex-1 px-4 py-3 mono text-[0.8rem] transition-all"
+                            style={{
+                              background: 'rgba(244,238,228,0.04)',
+                              border: '1px solid rgba(244,238,228,0.1)',
+                              color: '#f4eee4',
+                              letterSpacing: '0.05em',
+                            }}
                           />
                           <button
                             onClick={handleRandomUsername}
                             disabled={isCheckingUsername}
-                            className="px-3 sm:px-4 py-2.5 sm:py-3 bg-white/5 hover:bg-white/10 border border-white/10 hover:border-white/20 rounded-lg sm:rounded-xl text-white transition-all disabled:opacity-50"
-                            title="Generate random username"
+                            className="px-4 py-3 mono text-[0.62rem] uppercase tracking-[0.24em] transition-all disabled:opacity-40"
+                            style={{
+                              background: 'rgba(244,238,228,0.04)',
+                              border: '1px solid rgba(244,238,228,0.1)',
+                              color: '#e89660',
+                            }}
+                            title="Generate random name"
                           >
-                            {isCheckingUsername ? (
-                              <motion.div
-                                animate={{ rotate: 360 }}
-                                transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
-                              >
-                                <Sparkles className="w-4 h-4 sm:w-5 sm:h-5" />
-                              </motion.div>
-                            ) : (
-                              <Sparkles className="w-4 h-4 sm:w-5 sm:h-5" />
-                            )}
+                            {isCheckingUsername ? '···' : 'Random'}
                           </button>
                         </div>
-                        <p className="text-xs text-gray-600 mt-2">
-                          {username ? 'Perfect! ' : 'No worries! '}
-                          {username ? 'You can change this later.' : "We'll generate one for you."}
-                        </p>
                       </div>
 
-                      {/* Complete Setup Button */}
+                      {/* Submit */}
                       <button
                         onClick={() => {
                           if (user?.wallet?.address) {
@@ -722,48 +628,29 @@ export function CosmicOnboardingModal({ isOpen, onClose, onJoinUniverse, onConti
                           }
                         }}
                         disabled={isSavingProfile}
-                        className="w-full group relative overflow-hidden bg-gradient-to-r from-purple-600 to-cyan-600 hover:from-purple-500 hover:to-cyan-500 disabled:from-gray-600 disabled:to-gray-600 rounded-lg sm:rounded-xl px-4 sm:px-6 py-3 sm:py-4 transition-all duration-300"
+                        className="group relative inline-flex items-center justify-between gap-3 px-6 py-4 mono text-[0.72rem] uppercase tracking-[0.24em] font-semibold transition-colors duration-300 w-full mt-2 disabled:opacity-50"
+                        style={{ background: '#e89660', color: '#0a0814' }}
                       >
-                        <div className="relative flex items-center justify-center gap-2">
-                          {isSavingProfile ? (
-                            <>
-                              <motion.div
-                                animate={{ rotate: 360 }}
-                                transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
-                              >
-                                <Sparkles className="w-4 h-4 sm:w-5 sm:h-5 text-white" />
-                              </motion.div>
-                              <span className="text-sm sm:text-base font-semibold text-white">Setting up...</span>
-                            </>
-                          ) : (
-                            <>
-                              <Rocket className="w-4 h-4 sm:w-5 sm:h-5 text-white" />
-                              <span className="text-sm sm:text-base font-semibold text-white">Complete Setup</span>
-                              <ArrowRight className="w-4 h-4 sm:w-5 sm:h-5 text-white group-hover:translate-x-2 transition-transform" />
-                            </>
-                          )}
-                        </div>
+                        <span>{isSavingProfile ? 'Planting seed…' : "Let's begin"}</span>
+                        <ArrowRightSvg className="transition-transform duration-300 group-hover:translate-x-1.5" />
+                        <span className="absolute -right-0 -top-0 w-2 h-2" style={{ background: '#0a0814' }} />
                       </button>
-
-                      <p className="text-xs text-center text-gray-500">
-                        You can customize these later in your profile
-                      </p>
-                    </motion.div>
+                    </div>
                   </div>
                 </motion.div>
               )}
-
             </AnimatePresence>
 
-            {/* Skip hint - only show during greeting/welcome */}
+            {/* Skip hint */}
             {(step === 'greeting' || step === 'welcome') && (
               <motion.p
                 initial={{ opacity: 0 }}
-                animate={{ opacity: 0.6 }}
-                transition={{ delay: 2.0, duration: 0.3 }}
-                className="absolute bottom-8 text-gray-400 text-sm"
+                animate={{ opacity: 0.45 }}
+                transition={{ delay: 0.8, duration: 0.4 }}
+                className="absolute bottom-8 mono text-[0.58rem] uppercase tracking-[0.32em]"
+                style={{ color: '#8a7f72' }}
               >
-                Tap anywhere to skip
+                Tap anywhere to continue
               </motion.p>
             )}
           </div>
@@ -773,5 +660,4 @@ export function CosmicOnboardingModal({ isOpen, onClose, onJoinUniverse, onConti
   );
 }
 
-// Default export for backward compatibility
 export default CosmicOnboardingModal;

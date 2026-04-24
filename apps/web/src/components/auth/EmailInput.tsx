@@ -2,7 +2,8 @@
 
 import { useState } from 'react';
 import { motion } from 'framer-motion';
-import { Mail, ArrowRight, ArrowLeft } from 'lucide-react';
+
+const EASE_OUT = [0.22, 1, 0.36, 1] as [number, number, number, number];
 
 interface EmailInputProps {
   onSubmit: (email: string) => void;
@@ -15,10 +16,7 @@ export function EmailInput({ onSubmit, onBack, isLoading, error }: EmailInputPro
   const [email, setEmail] = useState('');
   const [validationError, setValidationError] = useState('');
 
-  const validateEmail = (email: string) => {
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    return emailRegex.test(email);
-  };
+  const validateEmail = (v: string) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -34,120 +32,91 @@ export function EmailInput({ onSubmit, onBack, isLoading, error }: EmailInputPro
 
   return (
     <motion.div
-      initial={{ opacity: 0, x: 30 }}
-      animate={{ opacity: 1, x: 0 }}
-      exit={{ opacity: 0, x: -30 }}
-      transition={{ duration: 0.5, ease: [0.16, 1, 0.3, 1] }}
+      initial={{ opacity: 0, y: 16 }}
+      animate={{ opacity: 1, y: 0 }}
+      exit={{ opacity: 0, y: -10 }}
+      transition={{ duration: 0.5, ease: EASE_OUT }}
       className="w-full max-w-md px-4"
     >
-      {/* Back button */}
-      <motion.button
+      <button
         onClick={onBack}
         disabled={isLoading}
-        className="flex items-center gap-2 text-gray-400 hover:text-white mb-6 transition-colors disabled:opacity-50"
-        whileHover={{ x: -4 }}
-        whileTap={{ scale: 0.95 }}
+        className="group inline-flex items-center gap-2 mb-8 mono text-[0.6rem] uppercase tracking-[0.26em] transition-colors disabled:opacity-40"
+        style={{ color: '#8a7f72' }}
+        onMouseEnter={(e) => (e.currentTarget.style.color = '#f4eee4')}
+        onMouseLeave={(e) => (e.currentTarget.style.color = '#8a7f72')}
       >
-        <ArrowLeft className="w-4 h-4" />
-        Back
-      </motion.button>
+        <span className="transition-transform group-hover:-translate-x-1">←</span>
+        <span>Back</span>
+      </button>
 
-      {/* Icon */}
-      <div className="flex justify-center mb-6">
-        <motion.div
-          initial={{ scale: 0 }}
-          animate={{ scale: 1 }}
-          transition={{ type: 'spring', stiffness: 200, damping: 15 }}
-          className="w-16 h-16 rounded-2xl bg-gradient-to-r from-blue-500 to-cyan-500 flex items-center justify-center"
+      <div className="mb-8">
+        <div className="mono text-[0.62rem] uppercase tracking-[0.3em] mb-4 flex items-center gap-3" style={{ color: '#e89660' }}>
+          <span className="inline-block w-8 h-px" style={{ background: '#e89660' }} />
+          <span>Email</span>
+        </div>
+        <h2
+          className="serif leading-[1.05] tracking-[-0.02em] mb-3"
+          style={{
+            color: '#f4eee4',
+            fontSize: 'clamp(1.6rem, 4vw, 2.25rem)',
+            fontWeight: 400,
+            fontVariationSettings: "'SOFT' 50, 'WONK' 0, 'opsz' 72",
+          }}
         >
-          <Mail className="w-8 h-8 text-white" />
-        </motion.div>
+          What&rsquo;s your email?
+        </h2>
+        <p className="serif text-[0.95rem] leading-[1.55]" style={{ color: '#d8cfc0', fontVariationSettings: "'SOFT' 50, 'opsz' 30" }}>
+          We&rsquo;ll send a verification code.
+        </p>
       </div>
 
-      {/* Header */}
-      <motion.div
-        initial={{ opacity: 0, y: -10 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.1, duration: 0.4, ease: [0.16, 1, 0.3, 1] }}
-        className="text-center mb-8"
-      >
-        <h2 className="text-2xl sm:text-3xl font-bold text-white mb-2">
-          Enter your email
-        </h2>
-        <p className="text-gray-400 text-sm sm:text-base">
-          We'll send you a verification code
-        </p>
-      </motion.div>
-
-      {/* Form */}
       <form onSubmit={handleSubmit} className="space-y-4">
-        <motion.div
-          initial={{ opacity: 0, y: 10 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.2 }}
-        >
-          <motion.input
+        <div>
+          <input
             type="email"
             value={email}
             onChange={(e) => {
               setEmail(e.target.value);
               if (validationError) setValidationError('');
             }}
-            placeholder="your@email.com"
+            placeholder="you@domain.com"
             disabled={isLoading}
-            className={`
-              w-full px-4 py-4 rounded-xl
-              bg-white/5 border-2 text-white placeholder-gray-500
-              focus:outline-none transition-all duration-200
-              disabled:opacity-50 disabled:cursor-not-allowed
-              ${displayError
-                ? 'border-red-400 focus:border-red-400'
-                : 'border-white/10 focus:border-cyan-400 focus:bg-white/10'
-              }
-            `}
-            whileFocus={{ scale: 1.01 }}
+            autoFocus
+            className="w-full px-4 py-4 mono text-[0.85rem] transition-all disabled:opacity-50"
+            style={{
+              background: 'rgba(244,238,228,0.04)',
+              border: displayError ? '1px solid rgba(214,115,71,0.6)' : '1px solid rgba(244,238,228,0.12)',
+              color: '#f4eee4',
+              letterSpacing: '0.05em',
+            }}
           />
           {displayError && (
             <motion.p
-              initial={{ opacity: 0, y: -10 }}
+              initial={{ opacity: 0, y: -6 }}
               animate={{ opacity: 1, y: 0 }}
-              className="text-red-400 text-sm mt-2"
+              className="mono text-[0.58rem] uppercase tracking-[0.24em] mt-3"
+              style={{ color: '#d67347' }}
             >
               {displayError}
             </motion.p>
           )}
-        </motion.div>
+        </div>
 
-        <motion.button
+        <button
           type="submit"
           disabled={isLoading || !email}
-          initial={{ opacity: 0, y: 10 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.3 }}
-          className={`
-            w-full py-4 rounded-xl font-semibold
-            flex items-center justify-center gap-2
-            bg-gradient-to-r from-purple-600 to-cyan-600
-            hover:from-purple-500 hover:to-cyan-500
-            disabled:opacity-50 disabled:cursor-not-allowed
-            transition-all duration-200 text-white
-          `}
-          whileHover={{ scale: isLoading ? 1 : 1.02 }}
-          whileTap={{ scale: isLoading ? 1 : 0.98 }}
+          className="group relative inline-flex items-center justify-between gap-3 px-6 py-4 mono text-[0.72rem] uppercase tracking-[0.24em] font-semibold transition-colors duration-300 w-full disabled:opacity-40"
+          style={{ background: '#e89660', color: '#0a0814' }}
         >
-          {isLoading ? (
-            <motion.div
-              animate={{ rotate: 360 }}
-              transition={{ duration: 1, repeat: Infinity, ease: 'linear' }}
-              className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full"
-            />
-          ) : (
-            <>
-              Send Code
-              <ArrowRight className="w-5 h-5" />
-            </>
+          <span>{isLoading ? 'Sending…' : 'Send code'}</span>
+          {!isLoading && (
+            <svg width="20" height="10" viewBox="0 0 20 10" fill="none" className="transition-transform duration-300 group-hover:translate-x-1.5">
+              <path d="M1 5H19M19 5L14 1M19 5L14 9" stroke="currentColor" strokeWidth="1.5" strokeLinecap="square" />
+            </svg>
           )}
-        </motion.button>
+          <span className="absolute -right-0 -top-0 w-2 h-2" style={{ background: '#0a0814' }} />
+        </button>
       </form>
     </motion.div>
   );

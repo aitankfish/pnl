@@ -7,14 +7,15 @@ interface CosmicLoaderProps {
   size?: 'sm' | 'md' | 'lg';
 }
 
+// Loader = a small cosmic seed/sun with orbiting amber photons, matching the landing's palette.
 export function CosmicLoader({ message, size = 'md' }: CosmicLoaderProps) {
-  const sizeClasses = {
-    sm: { container: 'w-12 h-12', particle: 'w-2 h-2', orbit: 20, center: 'w-4 h-4' },
-    md: { container: 'w-20 h-20', particle: 'w-3 h-3', orbit: 30, center: 'w-8 h-8' },
-    lg: { container: 'w-28 h-28', particle: 'w-4 h-4', orbit: 40, center: 'w-10 h-10' },
+  const sizeMap = {
+    sm: { container: 48, orbit: 18, particle: 3, core: 6 },
+    md: { container: 80, orbit: 28, particle: 4, core: 10 },
+    lg: { container: 112, orbit: 38, particle: 5, core: 14 },
   };
-
-  const s = sizeClasses[size];
+  const s = sizeMap[size];
+  const half = s.container / 2;
 
   return (
     <motion.div
@@ -24,79 +25,74 @@ export function CosmicLoader({ message, size = 'md' }: CosmicLoaderProps) {
       transition={{ duration: 0.3 }}
       className="flex flex-col items-center"
     >
-      <div className={`relative ${s.container} mx-auto mb-4`}>
-        {/* Orbiting particles */}
-        {[0, 1, 2].map((i) => (
-          <motion.div
-            key={i}
-            className={`absolute ${s.particle} rounded-full`}
-            style={{
-              background: `linear-gradient(135deg, ${i === 0 ? '#06b6d4' : i === 1 ? '#a855f7' : '#ec4899'}, ${i === 0 ? '#3b82f6' : i === 1 ? '#6366f1' : '#f43f5e'})`,
-              top: '50%',
-              left: '50%',
-              marginTop: `-${parseInt(s.particle.split(' ')[0].slice(2)) / 2}px`,
-              marginLeft: `-${parseInt(s.particle.split(' ')[0].slice(2)) / 2}px`,
-              boxShadow: `0 0 10px ${i === 0 ? '#06b6d4' : i === 1 ? '#a855f7' : '#ec4899'}`,
-            }}
-            animate={{
-              x: [
-                s.orbit * Math.cos((i * 2 * Math.PI) / 3),
-                s.orbit * Math.cos((i * 2 * Math.PI) / 3 + Math.PI / 2),
-                s.orbit * Math.cos((i * 2 * Math.PI) / 3 + Math.PI),
-                s.orbit * Math.cos((i * 2 * Math.PI) / 3 + (3 * Math.PI) / 2),
-                s.orbit * Math.cos((i * 2 * Math.PI) / 3),
-              ],
-              y: [
-                s.orbit * Math.sin((i * 2 * Math.PI) / 3),
-                s.orbit * Math.sin((i * 2 * Math.PI) / 3 + Math.PI / 2),
-                s.orbit * Math.sin((i * 2 * Math.PI) / 3 + Math.PI),
-                s.orbit * Math.sin((i * 2 * Math.PI) / 3 + (3 * Math.PI) / 2),
-                s.orbit * Math.sin((i * 2 * Math.PI) / 3),
-              ],
-            }}
-            transition={{
-              duration: 2,
-              repeat: Infinity,
-              ease: 'linear',
-              delay: i * 0.15,
-            }}
-          />
-        ))}
-
-        {/* Center pulse */}
+      <div className="relative mx-auto mb-5" style={{ width: s.container, height: s.container }}>
+        {/* Outer ring */}
         <motion.div
-          className={`absolute inset-0 m-auto ${s.center} rounded-full bg-gradient-to-r from-purple-500 to-cyan-500`}
-          animate={{
-            scale: [1, 1.2, 1],
-            opacity: [0.7, 1, 0.7],
-          }}
-          transition={{
-            duration: 1.5,
-            repeat: Infinity,
-            ease: 'easeInOut',
-          }}
+          className="absolute inset-0 rounded-full"
+          style={{ border: '1px solid rgba(232,150,96,0.25)' }}
+          animate={{ scale: [1, 1.08, 1], opacity: [0.35, 0.7, 0.35] }}
+          transition={{ duration: 2.4, repeat: Infinity, ease: 'easeInOut' }}
         />
 
-        {/* Outer glow ring */}
+        {/* Central seed/sun */}
         <motion.div
-          className="absolute inset-0 rounded-full border-2 border-cyan-400/30"
-          animate={{
-            scale: [1, 1.1, 1],
-            opacity: [0.3, 0.6, 0.3],
+          className="absolute rounded-full"
+          style={{
+            width: s.core,
+            height: s.core,
+            top: half - s.core / 2,
+            left: half - s.core / 2,
+            background: '#e89628',
+            boxShadow: '0 0 16px rgba(232,150,40,0.7), 0 0 40px rgba(232,150,40,0.25)',
           }}
-          transition={{
-            duration: 2,
-            repeat: Infinity,
-            ease: 'easeInOut',
-          }}
+          animate={{ scale: [1, 1.18, 1], opacity: [0.85, 1, 0.85] }}
+          transition={{ duration: 1.8, repeat: Infinity, ease: 'easeInOut' }}
         />
+
+        {/* 3 orbiting photons at 120° offsets */}
+        {[0, 1, 2].map((i) => {
+          const phaseOffset = (i * 2 * Math.PI) / 3;
+          const colors = ['#fff4b8', '#ecb48a', '#d99875'];
+          return (
+            <motion.div
+              key={i}
+              className="absolute rounded-full"
+              style={{
+                width: s.particle,
+                height: s.particle,
+                top: half - s.particle / 2,
+                left: half - s.particle / 2,
+                background: colors[i],
+                boxShadow: `0 0 8px ${colors[i]}`,
+              }}
+              animate={{
+                x: [
+                  s.orbit * Math.cos(phaseOffset),
+                  s.orbit * Math.cos(phaseOffset + Math.PI / 2),
+                  s.orbit * Math.cos(phaseOffset + Math.PI),
+                  s.orbit * Math.cos(phaseOffset + (3 * Math.PI) / 2),
+                  s.orbit * Math.cos(phaseOffset),
+                ],
+                y: [
+                  s.orbit * Math.sin(phaseOffset),
+                  s.orbit * Math.sin(phaseOffset + Math.PI / 2),
+                  s.orbit * Math.sin(phaseOffset + Math.PI),
+                  s.orbit * Math.sin(phaseOffset + (3 * Math.PI) / 2),
+                  s.orbit * Math.sin(phaseOffset),
+                ],
+              }}
+              transition={{ duration: 2.4, repeat: Infinity, ease: 'linear', delay: i * 0.15 }}
+            />
+          );
+        })}
       </div>
 
       {message && (
         <motion.p
-          className="text-white text-base sm:text-lg text-center"
-          animate={{ opacity: [0.7, 1, 0.7] }}
-          transition={{ duration: 2, repeat: Infinity }}
+          className="mono text-[0.62rem] uppercase tracking-[0.28em] text-center"
+          style={{ color: '#d8cfc0' }}
+          animate={{ opacity: [0.55, 1, 0.55] }}
+          transition={{ duration: 2, repeat: Infinity, ease: 'easeInOut' }}
         >
           {message}
         </motion.p>

@@ -12,6 +12,7 @@ import { useWallet } from '@/hooks/useWallet';
 import { useRouter } from 'next/navigation';
 import CosmicOnboardingModal from '@/components/CosmicOnboardingModal';
 import TokenAddress from '@/components/TokenAddress';
+import { triggerRouteTransition } from '@/components/RouteTransition';
 import dynamic from 'next/dynamic';
 
 const CosmicTree3D = dynamic(() => import('@/components/CosmicTree3D'), { ssr: false });
@@ -1237,7 +1238,7 @@ export default function HomePage() {
   // Route an authenticated pitcher: /wallet if they need to top up, /create if they're launch-ready
   const routeAuthenticatedPitcher = async () => {
     if (!primaryWallet?.address) {
-      router.push('/wallet');
+      triggerRouteTransition('/wallet', 'Deposit');
       return;
     }
     try {
@@ -1249,10 +1250,10 @@ export default function HomePage() {
       const connection = new Connection(rpcEndpoint!, 'confirmed');
       const lamports = await connection.getBalance(new PublicKey(primaryWallet.address));
       const sol = lamports / LAMPORTS_PER_SOL;
-      router.push(sol < PITCH_MIN_SOL ? '/wallet' : '/create');
+      triggerRouteTransition(sol < PITCH_MIN_SOL ? '/wallet' : '/create', sol < PITCH_MIN_SOL ? 'Deposit' : 'Pitch your idea');
     } catch (err) {
       console.error('[pitch] balance check failed, routing to /wallet', err);
-      router.push('/wallet');
+      triggerRouteTransition('/wallet', 'Deposit');
     }
   };
 
@@ -1446,7 +1447,7 @@ export default function HomePage() {
               <span className="mono text-[0.62rem] uppercase tracking-[0.24em] text-[#8a7f72]">Predict &amp; Launch</span>
             </Link>
             <div className="hidden md:flex items-center gap-5 mono text-[0.68rem] uppercase tracking-[0.24em] text-[#8a7f72]">
-              <Link href="/launchpad" className="hover:text-[#f4eee4] transition-colors">Launchpad</Link>
+              <a href="/launchpad" onClick={(e) => { e.preventDefault(); triggerRouteTransition('/launchpad', 'Launchpad'); }} className="hover:text-[#f4eee4] transition-colors cursor-pointer">Launchpad</a>
               <span className="w-px h-3 bg-[#8a7f72]/30" />
               <a href="#thesis" onClick={(e) => { e.preventDefault(); document.getElementById('thesis')?.scrollIntoView({ behavior: 'smooth', block: 'start' }); }} className="hover:text-[#f4eee4] transition-colors cursor-pointer">Thesis</a>
             </div>
@@ -1919,10 +1920,10 @@ export default function HomePage() {
                 If the <em style={{ color: '#3f7a42', fontVariationSettings: "'SOFT' 100, 'WONK' 0" }}>believers</em> win, the idea launches and they receive the tokens — the critics&rsquo; stakes become the believers&rsquo; reward.
                 If the <em style={{ color: '#d67347', fontVariationSettings: "'SOFT' 100, 'WONK' 0" }}>critics</em> win, they claim the pool in SOL — the believers&rsquo; stakes become the critics&rsquo; reward.
               </p>
-              <Link href="/whitepaper" className="inline-flex items-center gap-2 mt-8 mono text-[0.66rem] uppercase tracking-[0.24em] hover:text-[#f4eee4] transition-colors" style={{ color: '#e89660' }}>
+              <a href="/whitepaper" onClick={(e) => { e.preventDefault(); triggerRouteTransition('/whitepaper', 'The mechanism'); }} className="inline-flex items-center gap-2 mt-8 mono text-[0.66rem] uppercase tracking-[0.24em] hover:text-[#f4eee4] transition-colors cursor-pointer" style={{ color: '#e89660' }}>
                 <span>Read the mechanism</span>
                 <span>→</span>
-              </Link>
+              </a>
             </div>
           </div>
         </section>
@@ -2188,12 +2189,12 @@ export default function HomePage() {
                 ))}
               </div>
               <div className="mt-14 pt-8 border-t" style={{ borderColor: 'rgba(244,238,228,0.08)' }}>
-                <Link href="/whitepaper" className="group inline-flex items-center gap-3 mono text-[0.72rem] uppercase tracking-[0.26em] hover:text-[#f4eee4] transition-colors" style={{ color: '#e89660' }}>
+                <a href="/whitepaper" onClick={(e) => { e.preventDefault(); triggerRouteTransition('/whitepaper', 'The thesis'); }} className="group inline-flex items-center gap-3 mono text-[0.72rem] uppercase tracking-[0.26em] hover:text-[#f4eee4] transition-colors cursor-pointer" style={{ color: '#e89660' }}>
                   <span className="relative inline-block after:absolute after:left-0 after:bottom-[-4px] after:h-px after:w-full after:bg-current after:scale-x-0 after:origin-left group-hover:after:scale-x-100 after:transition-transform after:duration-500">
                     Read the full thesis
                   </span>
                   <span className="transition-transform duration-300 group-hover:translate-x-1">→</span>
-                </Link>
+                </a>
               </div>
             </div>
           </div>
@@ -2348,13 +2349,13 @@ export default function HomePage() {
                     <path d="M1 5H19M19 5L14 1M19 5L14 9" stroke="currentColor" strokeWidth="1.5" strokeLinecap="square" />
                   </svg>
                 </button>
-                <Link href="/browse" className="group inline-flex items-center gap-3 py-4 mono text-[0.72rem] uppercase tracking-[0.24em] transition-colors" style={{ color: '#f4eee4' }}>
+                <a href="/browse" onClick={(e) => { e.preventDefault(); triggerRouteTransition('/browse', 'The markets'); }} className="group inline-flex items-center gap-3 py-4 mono text-[0.72rem] uppercase tracking-[0.24em] transition-colors cursor-pointer" style={{ color: '#f4eee4' }}>
                   <span className="relative inline-block after:absolute after:left-0 after:bottom-[-4px] after:h-px after:w-full after:bg-current after:scale-x-0 after:origin-left group-hover:after:scale-x-100 after:transition-transform after:duration-500">Enter the markets</span>
                   <span className="text-[#8a7f72] group-hover:text-[#e89660] transition-colors">↗</span>
-                </Link>
-                <Link href="/whitepaper" className="group inline-flex items-center gap-3 py-4 mono text-[0.72rem] uppercase tracking-[0.24em] transition-colors" style={{ color: '#8a7f72' }}>
+                </a>
+                <a href="/whitepaper" onClick={(e) => { e.preventDefault(); triggerRouteTransition('/whitepaper', 'The thesis'); }} className="group inline-flex items-center gap-3 py-4 mono text-[0.72rem] uppercase tracking-[0.24em] transition-colors cursor-pointer" style={{ color: '#8a7f72' }}>
                   <span className="relative inline-block after:absolute after:left-0 after:bottom-[-4px] after:h-px after:w-full after:bg-current after:scale-x-0 after:origin-left group-hover:after:scale-x-100 after:transition-transform after:duration-500">Read the thesis</span>
-                </Link>
+                </a>
               </div>
             </div>
           </div>

@@ -1,78 +1,25 @@
 'use client';
 
 import { motion } from 'framer-motion';
-import { ArrowLeft, ExternalLink } from 'lucide-react';
-import { useState, useEffect } from 'react';
 import type { WalletType } from '@/hooks/useHeadlessAuth';
+
+const EASE_OUT = [0.22, 1, 0.36, 1] as [number, number, number, number];
 
 interface Wallet {
   id: WalletType;
   name: string;
   description: string;
-  color: string;
   downloadUrl: string;
 }
 
 const wallets: Wallet[] = [
-  {
-    id: 'phantom',
-    name: 'Phantom',
-    description: 'Most popular Solana wallet',
-    color: 'from-purple-500 to-purple-700',
-    downloadUrl: 'https://phantom.app',
-  },
-  {
-    id: 'backpack',
-    name: 'Backpack',
-    description: 'Multi-chain wallet by Coral',
-    color: 'from-red-500 to-orange-500',
-    downloadUrl: 'https://backpack.app',
-  },
-  {
-    id: 'solflare',
-    name: 'Solflare',
-    description: 'Built for Solana',
-    color: 'from-orange-400 to-yellow-500',
-    downloadUrl: 'https://solflare.com',
-  },
+  { id: 'phantom', name: 'Phantom', description: 'The most popular Solana wallet', downloadUrl: 'https://phantom.app' },
+  { id: 'backpack', name: 'Backpack', description: 'Multi-chain wallet by Coral', downloadUrl: 'https://backpack.app' },
+  { id: 'solflare', name: 'Solflare', description: 'Built for Solana', downloadUrl: 'https://solflare.com' },
 ];
 
-// Direct browser detection for wallets
-function useDetectedWallets() {
-  const [detected, setDetected] = useState<Record<WalletType, boolean>>({
-    phantom: false,
-    backpack: false,
-    solflare: false,
-  });
-
-  useEffect(() => {
-    // Check after a small delay to let extensions inject
-    const checkWallets = () => {
-      const win = window as any;
-      setDetected({
-        phantom: !!(win.phantom?.solana || win.solana?.isPhantom),
-        backpack: !!(win.backpack || win.xnft),
-        solflare: !!(win.solflare?.isSolflare || win.solana?.isSolflare),
-      });
-    };
-
-    // Check immediately and after delays (wallets inject at different times)
-    checkWallets();
-    const timer1 = setTimeout(checkWallets, 100);
-    const timer2 = setTimeout(checkWallets, 500);
-
-    return () => {
-      clearTimeout(timer1);
-      clearTimeout(timer2);
-    };
-  }, []);
-
-  return detected;
-}
-
-// Simple wallet icons as SVG
 const PhantomIcon = () => (
-  <svg className="w-8 h-8" viewBox="0 0 128 128" fill="none">
+  <svg className="w-7 h-7" viewBox="0 0 128 128" fill="none">
     <rect width="128" height="128" rx="26" fill="url(#phantom-gradient)" />
     <path
       d="M110.584 64.9142H99.142C99.142 41.7651 80.173 23 56.7724 23C33.6612 23 14.8716 41.3057 14.4118 64.0583C13.936 87.5709 33.5473 107.559 57.1325 107.559H60.4907C81.5466 107.559 99.8814 93.0694 104.835 72.5837C105.533 69.6797 108.072 67.5781 111.063 67.5781H110.584V64.9142Z"
@@ -90,7 +37,7 @@ const PhantomIcon = () => (
 );
 
 const BackpackIcon = () => (
-  <svg className="w-8 h-8" viewBox="0 0 128 128" fill="none">
+  <svg className="w-7 h-7" viewBox="0 0 128 128" fill="none">
     <rect width="128" height="128" rx="26" fill="url(#backpack-gradient)" />
     <path
       d="M64 28C47.432 28 34 41.432 34 58V78C34 86.837 41.163 94 50 94H78C86.837 94 94 86.837 94 78V58C94 41.432 80.568 28 64 28Z"
@@ -107,16 +54,10 @@ const BackpackIcon = () => (
 );
 
 const SolflareIcon = () => (
-  <svg className="w-8 h-8" viewBox="0 0 128 128" fill="none">
+  <svg className="w-7 h-7" viewBox="0 0 128 128" fill="none">
     <rect width="128" height="128" rx="26" fill="url(#solflare-gradient)" />
-    <path
-      d="M64 24L96 48V80L64 104L32 80V48L64 24Z"
-      fill="white"
-    />
-    <path
-      d="M64 40L80 52V76L64 88L48 76V52L64 40Z"
-      fill="#FC7227"
-    />
+    <path d="M64 24L96 48V80L64 104L32 80V48L64 24Z" fill="white" />
+    <path d="M64 40L80 52V76L64 88L48 76V52L64 40Z" fill="#FC7227" />
     <defs>
       <linearGradient id="solflare-gradient" x1="0" y1="0" x2="128" y2="128">
         <stop stopColor="#FC7227" />
@@ -138,7 +79,7 @@ interface WalletSelectionProps {
   isConnecting: boolean;
   connectingWallet?: WalletType;
   error?: string | null;
-  detectedWallets?: string[]; // Names of detected wallets
+  detectedWallets?: string[];
 }
 
 export function WalletSelection({
@@ -149,146 +90,149 @@ export function WalletSelection({
   error,
   detectedWallets = [],
 }: WalletSelectionProps) {
-  // Check if a wallet is installed
-  const isWalletInstalled = (walletName: string) => {
-    return detectedWallets.some(
-      (detected) => detected.toLowerCase() === walletName.toLowerCase()
-    );
-  };
+  const isWalletInstalled = (walletName: string) =>
+    detectedWallets.some((detected) => detected.toLowerCase() === walletName.toLowerCase());
+
   return (
     <motion.div
-      initial={{ opacity: 0, x: 30 }}
-      animate={{ opacity: 1, x: 0 }}
-      exit={{ opacity: 0, x: -30 }}
-      transition={{ duration: 0.5, ease: [0.16, 1, 0.3, 1] }}
+      initial={{ opacity: 0, y: 16 }}
+      animate={{ opacity: 1, y: 0 }}
+      exit={{ opacity: 0, y: -10 }}
+      transition={{ duration: 0.5, ease: EASE_OUT }}
       className="w-full max-w-md px-4"
     >
-      {/* Back button */}
-      <motion.button
+      <button
         onClick={onBack}
         disabled={isConnecting}
-        className="flex items-center gap-2 text-gray-400 hover:text-white mb-6 transition-colors disabled:opacity-50"
-        whileHover={{ x: -4 }}
-        whileTap={{ scale: 0.95 }}
+        className="group inline-flex items-center gap-2 mb-8 mono text-[0.6rem] uppercase tracking-[0.26em] transition-colors disabled:opacity-40"
+        style={{ color: '#8a7f72' }}
+        onMouseEnter={(e) => (e.currentTarget.style.color = '#f4eee4')}
+        onMouseLeave={(e) => (e.currentTarget.style.color = '#8a7f72')}
       >
-        <ArrowLeft className="w-4 h-4" />
-        Back
-      </motion.button>
+        <span className="transition-transform group-hover:-translate-x-1">←</span>
+        <span>Back</span>
+      </button>
 
-      {/* Header */}
-      <motion.div
-        initial={{ opacity: 0, y: -10 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.1, duration: 0.4, ease: [0.16, 1, 0.3, 1] }}
-        className="text-center mb-8"
-      >
-        <h2 className="text-2xl sm:text-3xl font-bold text-white mb-2">
-          Connect Wallet
+      <div className="mb-8">
+        <div className="mono text-[0.62rem] uppercase tracking-[0.3em] mb-4 flex items-center gap-3" style={{ color: '#e89660' }}>
+          <span className="inline-block w-8 h-px" style={{ background: '#e89660' }} />
+          <span>Wallet</span>
+        </div>
+        <h2
+          className="serif leading-[1.05] tracking-[-0.02em] mb-3"
+          style={{
+            color: '#f4eee4',
+            fontSize: 'clamp(1.6rem, 4vw, 2.25rem)',
+            fontWeight: 400,
+            fontVariationSettings: "'SOFT' 50, 'WONK' 0, 'opsz' 72",
+          }}
+        >
+          Choose your wallet.
         </h2>
-        <p className="text-gray-400 text-sm sm:text-base">
-          Select your Solana wallet
+        <p className="serif text-[0.95rem] leading-[1.55]" style={{ color: '#d8cfc0', fontVariationSettings: "'SOFT' 50, 'opsz' 30" }}>
+          Any Solana wallet works. Pick one you already use.
         </p>
-      </motion.div>
+      </div>
 
-      {/* Error message */}
       {error && (
         <motion.div
-          initial={{ opacity: 0, y: -10 }}
+          initial={{ opacity: 0, y: -6 }}
           animate={{ opacity: 1, y: 0 }}
-          className="mb-4 p-3 rounded-lg bg-red-500/10 border border-red-500/20"
+          className="mb-6 p-3 border"
+          style={{ background: 'rgba(214,115,71,0.08)', borderColor: 'rgba(214,115,71,0.35)' }}
         >
-          <p className="text-red-400 text-sm text-center">{error}</p>
+          <p className="mono text-[0.58rem] uppercase tracking-[0.24em] text-center" style={{ color: '#d67347' }}>
+            {error}
+          </p>
         </motion.div>
       )}
 
-      {/* Wallet options */}
       <motion.div
-        className="space-y-3"
+        className="flex flex-col gap-3"
         initial="initial"
         animate="animate"
-        variants={{
-          animate: {
-            transition: { staggerChildren: 0.08 },
-          },
-        }}
+        variants={{ animate: { transition: { staggerChildren: 0.06 } } }}
       >
         {wallets.map((wallet) => {
           const isThisConnecting = isConnecting && connectingWallet === wallet.id;
           const installed = isWalletInstalled(wallet.name);
-
           return (
             <motion.button
               key={wallet.id}
-              variants={{
-                initial: { opacity: 0, y: 20 },
-                animate: { opacity: 1, y: 0 },
-              }}
-              whileHover={{ scale: isConnecting || !installed ? 1 : 1.02 }}
-              whileTap={{ scale: isConnecting || !installed ? 1 : 0.98 }}
+              variants={{ initial: { opacity: 0, y: 8 }, animate: { opacity: 1, y: 0 } }}
               onClick={() => {
-                if (installed) {
-                  onSelectWallet(wallet.id);
-                } else {
-                  // Open download URL in new tab
-                  window.open(wallet.downloadUrl, '_blank');
-                }
+                if (installed) onSelectWallet(wallet.id);
+                else window.open(wallet.downloadUrl, '_blank');
               }}
               disabled={isConnecting}
-              className={`
-                w-full flex items-center gap-4 p-4 rounded-xl
-                bg-white/5 border-2 border-white/10
-                hover:bg-white/10 hover:border-cyan-400/50
-                transition-all duration-200
-                disabled:opacity-50 disabled:cursor-not-allowed
-                ${isThisConnecting ? 'border-cyan-400 bg-cyan-400/10' : ''}
-                ${!installed ? 'opacity-60' : ''}
-              `}
+              className="group w-full flex items-center gap-4 p-4 transition-colors duration-300 disabled:opacity-40 border"
+              style={{
+                background: isThisConnecting ? 'rgba(232,150,96,0.08)' : 'rgba(244,238,228,0.03)',
+                borderColor: isThisConnecting ? 'rgba(232,150,96,0.5)' : 'rgba(244,238,228,0.12)',
+                opacity: !installed ? 0.55 : 1,
+              }}
+              onMouseEnter={(e) => {
+                if (!isConnecting) {
+                  e.currentTarget.style.background = 'rgba(232,150,96,0.08)';
+                  e.currentTarget.style.borderColor = 'rgba(232,150,96,0.35)';
+                }
+              }}
+              onMouseLeave={(e) => {
+                if (!isThisConnecting) {
+                  e.currentTarget.style.background = 'rgba(244,238,228,0.03)';
+                  e.currentTarget.style.borderColor = 'rgba(244,238,228,0.12)';
+                }
+              }}
             >
               <div className="flex-shrink-0">{walletIcons[wallet.id]}</div>
               <div className="flex-1 text-left">
-                <p className="text-white font-semibold flex items-center gap-2">
-                  {wallet.name}
+                <div className="flex items-center gap-2 mb-1">
+                  <span className="mono text-[0.72rem] uppercase tracking-[0.24em]" style={{ color: '#f4eee4' }}>
+                    {wallet.name}
+                  </span>
                   {!installed && (
-                    <span className="text-xs px-2 py-0.5 bg-gray-600/50 rounded text-gray-300">
+                    <span className="mono text-[0.52rem] uppercase tracking-[0.24em] px-1.5 py-0.5" style={{ color: '#8a7f72', background: 'rgba(244,238,228,0.05)' }}>
                       Not installed
                     </span>
                   )}
-                </p>
-                <p className="text-gray-400 text-sm">
-                  {installed ? wallet.description : `Click to install ${wallet.name}`}
+                </div>
+                <p className="mono text-[0.58rem] uppercase tracking-[0.2em]" style={{ color: '#8a7f72' }}>
+                  {installed ? wallet.description : `Click to install`}
                 </p>
               </div>
-              {isThisConnecting && (
+              {isThisConnecting ? (
                 <motion.div
                   animate={{ rotate: 360 }}
-                  transition={{ duration: 1, repeat: Infinity, ease: 'linear' }}
-                  className="w-5 h-5 border-2 border-cyan-400/30 border-t-cyan-400 rounded-full"
+                  transition={{ duration: 1.2, repeat: Infinity, ease: 'linear' }}
+                  className="w-4 h-4 rounded-full"
+                  style={{ border: '1.5px solid rgba(232,150,96,0.25)', borderTopColor: '#e89660' }}
                 />
-              )}
-              {!installed && !isThisConnecting && (
-                <ExternalLink className="w-4 h-4 text-gray-400" />
+              ) : (
+                <span style={{ color: installed ? '#8a7f72' : '#6a6058' }} className="group-hover:text-[#e89660] transition-colors">
+                  {installed ? '→' : '↗'}
+                </span>
               )}
             </motion.button>
           );
         })}
       </motion.div>
 
-      {/* Get wallet link */}
       <motion.p
         initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        transition={{ delay: 0.5 }}
-        className="text-center text-gray-500 text-sm mt-6"
+        animate={{ opacity: 0.85 }}
+        transition={{ delay: 0.4 }}
+        className="mono text-[0.55rem] uppercase tracking-[0.26em] text-center mt-8"
+        style={{ color: '#6a6058' }}
       >
-        Don't have a wallet?{' '}
+        No wallet yet?{' '}
         <a
           href="https://phantom.app"
           target="_blank"
           rel="noopener noreferrer"
-          className="text-cyan-400 hover:underline inline-flex items-center gap-1"
+          className="underline transition-colors hover:text-[#f4eee4]"
+          style={{ color: '#8a7f72' }}
         >
-          Get Phantom
-          <ExternalLink className="w-3 h-3" />
+          Get Phantom ↗
         </a>
       </motion.p>
     </motion.div>
