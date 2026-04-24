@@ -55,6 +55,7 @@ import { useNetwork } from '@/lib/hooks/useNetwork';
 import { JupiterSwap } from '@/components/JupiterSwap';
 import { useAllTokenBalances } from '@/lib/hooks/useAllTokenBalances';
 import { useCreatorFees } from '@/lib/hooks/useCreatorFees';
+import { SeedIcon, TreeIcon, BloomIcon, LeafIcon, BasketIcon } from '@/components/PlantIcons';
 
 const fetcher = (url: string) => fetch(url).then((res) => res.json());
 
@@ -749,7 +750,7 @@ function DepositModal({ isOpen, onClose, address }: { isOpen: boolean; onClose: 
   );
 }
 
-// First-time user onboarding banner for zero-balance accounts
+// First-time user banner — a dry seed bed waiting for water (zero-balance onboarding)
 function FirstTimeUserBanner({
   onBuySol,
   onDeposit,
@@ -759,64 +760,123 @@ function FirstTimeUserBanner({
 }) {
   return (
     <div className="max-w-4xl mx-auto mb-6">
-      <Card className="bg-gradient-to-br from-cyan-500/10 via-purple-500/10 to-pink-500/10 border-cyan-500/30 overflow-hidden relative">
-        {/* Decorative elements */}
-        <div className="absolute top-0 right-0 w-32 h-32 bg-cyan-500/10 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2"></div>
-        <div className="absolute bottom-0 left-0 w-24 h-24 bg-purple-500/10 rounded-full blur-2xl translate-y-1/2 -translate-x-1/2"></div>
+      <div
+        className="relative overflow-hidden"
+        style={{
+          background: 'rgba(232,150,96,0.05)',
+          border: '1px solid rgba(232,150,96,0.2)',
+        }}
+      >
+        {/* Warm radial glow, bottom-left — implies warmth / potential */}
+        <div
+          aria-hidden
+          className="absolute -bottom-16 -left-16 w-64 h-64 pointer-events-none"
+          style={{
+            background: 'radial-gradient(circle, rgba(232,150,96,0.15) 0%, transparent 70%)',
+          }}
+        />
 
-        <CardContent className="p-5 sm:p-6 relative">
+        <div className="p-5 sm:p-7 relative">
           <div className="flex items-start gap-4">
-            <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-cyan-500 to-purple-500 flex items-center justify-center flex-shrink-0">
-              <Sparkles className="w-6 h-6 text-white" />
+            {/* Seed glyph instead of sparkle/rocket */}
+            <div
+              className="w-12 h-12 flex items-center justify-center flex-shrink-0"
+              style={{
+                background: 'rgba(232,150,96,0.1)',
+                border: '1px solid rgba(232,150,96,0.3)',
+                color: '#e89660',
+              }}
+            >
+              <SeedIcon className="w-6 h-6" />
             </div>
             <div className="flex-1 min-w-0">
-              <h3 className="text-lg sm:text-xl font-semibold text-white mb-1">
-                Welcome to P&L! 🚀
+              <div className="mono text-[0.58rem] uppercase tracking-[0.3em] mb-2" style={{ color: '#e89660' }}>
+                · Welcome, new gardener ·
+              </div>
+              <h3
+                className="serif leading-[1.1] tracking-[-0.015em] mb-2"
+                style={{
+                  color: '#f4eee4',
+                  fontSize: 'clamp(1.3rem, 3vw, 1.8rem)',
+                  fontWeight: 400,
+                  fontVariationSettings: "'SOFT' 50, 'WONK' 0, 'opsz' 48",
+                }}
+              >
+                Your garden is ready.
               </h3>
-              <p className="text-sm text-gray-300 mb-4">
-                Add funds to your wallet to start trading on prediction markets.
+              <p className="serif text-[0.98rem] leading-[1.6] mb-5"
+                style={{ color: '#d8cfc0', fontVariationSettings: "'SOFT' 50, 'opsz' 30" }}>
+                It just needs water. Add SOL to start planting ideas and backing the ones you believe in.
               </p>
 
-              {/* Funding options */}
+              {/* Funding options — flat mono tiles, no gradients */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                {/* Buy with Card */}
                 <button
                   onClick={onBuySol}
-                  className="group flex items-center gap-3 p-3 rounded-xl bg-white/5 border border-white/10 hover:bg-white/10 hover:border-green-400/30 transition-all text-left"
+                  className="group flex items-center gap-3 p-3.5 transition-colors duration-300 text-left"
+                  style={{
+                    background: 'rgba(244,238,228,0.02)',
+                    border: '1px solid rgba(244,238,228,0.1)',
+                  }}
+                  onMouseEnter={(e) => (e.currentTarget.style.borderColor = 'rgba(232,150,96,0.5)')}
+                  onMouseLeave={(e) => (e.currentTarget.style.borderColor = 'rgba(244,238,228,0.1)')}
                 >
-                  <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-green-500 to-emerald-500 flex items-center justify-center flex-shrink-0 group-hover:scale-110 transition-transform">
-                    <CreditCard className="w-5 h-5 text-white" />
+                  <div
+                    className="w-10 h-10 flex items-center justify-center flex-shrink-0"
+                    style={{ background: '#e89660', color: '#0a0814' }}
+                  >
+                    <CreditCard className="w-4 h-4" />
                   </div>
                   <div className="flex-1 min-w-0">
-                    <p className="font-medium text-white text-sm">Buy with Card</p>
-                    <p className="text-xs text-gray-400">Use credit/debit card</p>
+                    <p className="mono text-[0.66rem] uppercase tracking-[0.24em]" style={{ color: '#f4eee4' }}>
+                      Fund with card
+                    </p>
+                    <p className="mono text-[0.54rem] uppercase tracking-[0.24em] mt-1" style={{ color: '#8a7f72' }}>
+                      Instant · credit or debit
+                    </p>
                   </div>
-                  <ArrowRight className="w-4 h-4 text-gray-500 group-hover:text-green-400 group-hover:translate-x-1 transition-all" />
+                  <span style={{ color: '#8a7f72' }} className="group-hover:text-[#e89660] transition-colors">→</span>
                 </button>
 
-                {/* Deposit from Wallet */}
                 <button
                   onClick={onDeposit}
-                  className="group flex items-center gap-3 p-3 rounded-xl bg-white/5 border border-white/10 hover:bg-white/10 hover:border-cyan-400/30 transition-all text-left"
+                  className="group flex items-center gap-3 p-3.5 transition-colors duration-300 text-left"
+                  style={{
+                    background: 'rgba(244,238,228,0.02)',
+                    border: '1px solid rgba(244,238,228,0.1)',
+                  }}
+                  onMouseEnter={(e) => (e.currentTarget.style.borderColor = 'rgba(232,150,96,0.5)')}
+                  onMouseLeave={(e) => (e.currentTarget.style.borderColor = 'rgba(244,238,228,0.1)')}
                 >
-                  <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-cyan-500 to-blue-500 flex items-center justify-center flex-shrink-0 group-hover:scale-110 transition-transform">
-                    <Download className="w-5 h-5 text-white" />
+                  <div
+                    className="w-10 h-10 flex items-center justify-center flex-shrink-0"
+                    style={{
+                      background: 'transparent',
+                      border: '1px solid rgba(232,150,96,0.5)',
+                      color: '#e89660',
+                    }}
+                  >
+                    <Download className="w-4 h-4" />
                   </div>
                   <div className="flex-1 min-w-0">
-                    <p className="font-medium text-white text-sm">Deposit Crypto</p>
-                    <p className="text-xs text-gray-400">From another wallet</p>
+                    <p className="mono text-[0.66rem] uppercase tracking-[0.24em]" style={{ color: '#f4eee4' }}>
+                      Deposit SOL
+                    </p>
+                    <p className="mono text-[0.54rem] uppercase tracking-[0.24em] mt-1" style={{ color: '#8a7f72' }}>
+                      From another wallet
+                    </p>
                   </div>
-                  <ArrowRight className="w-4 h-4 text-gray-500 group-hover:text-cyan-400 group-hover:translate-x-1 transition-all" />
+                  <span style={{ color: '#8a7f72' }} className="group-hover:text-[#e89660] transition-colors">→</span>
                 </button>
               </div>
 
-              <p className="text-xs text-gray-500 mt-3">
-                💡 Tip: You'll need SOL to pay for trades and transaction fees on Solana.
+              <p className="mono text-[0.54rem] uppercase tracking-[0.26em] mt-4" style={{ color: '#6a6058' }}>
+                · A sip of SOL covers fees · the rest fuels your ideas
               </p>
             </div>
           </div>
-        </CardContent>
-      </Card>
+        </div>
+      </div>
     </div>
   );
 }
@@ -1524,13 +1584,42 @@ export default function WalletPage() {
 
   return (
     <div className="min-h-screen pt-3 sm:pt-4 px-4 sm:px-6 pb-4 sm:pb-6 animate-fade-in">
+      {/* ─── Garden page title ─── */}
+      <div className="max-w-5xl mx-auto mb-6 sm:mb-8 text-center">
+        <h1
+          className="serif leading-[0.98] tracking-[-0.02em] mb-2"
+          style={{
+            fontSize: 'clamp(1.8rem, 3.5vw, 2.75rem)',
+            fontWeight: 400,
+            fontVariationSettings: "'SOFT' 50, 'WONK' 0, 'opsz' 72",
+            color: '#f4eee4',
+          }}
+        >
+          Your{' '}
+          <em
+            style={{
+              fontVariationSettings: "'SOFT' 100, 'WONK' 0, 'opsz' 72",
+              color: 'transparent',
+              backgroundImage: 'linear-gradient(178deg, #fff2d8 0%, #ecb48a 35%, #d99875 70%, #d67347 100%)',
+              WebkitBackgroundClip: 'text',
+              backgroundClip: 'text',
+            }}
+          >
+            garden.
+          </em>
+        </h1>
+        <p className="mono text-[0.56rem] uppercase tracking-[0.3em]" style={{ color: '#8a7f72' }}>
+          What you&rsquo;ve planted · what&rsquo;s growing · what has bloomed
+        </p>
+      </div>
+
       {/* ─── Dashboard Hero — cosmic editorial styling matching the landing ─── */}
       <div className="max-w-5xl mx-auto mb-8 sm:mb-12">
         {/* Top label */}
         <div className="mono text-[0.62rem] uppercase tracking-[0.3em] mb-5 flex items-center justify-center gap-3"
           style={{ color: '#e89660' }}>
           <span className="inline-block w-8 h-px" style={{ background: '#e89660' }} />
-          <span>Your wallet</span>
+          <span>Water reserves</span>
           <span className="inline-block w-8 h-px" style={{ background: '#e89660' }} />
         </div>
 
@@ -1753,12 +1842,27 @@ export default function WalletPage() {
         />
       )}
 
-      {/* Tokens List */}
-      <div className="max-w-4xl mx-auto space-y-3">
-        <div className="flex items-center justify-between px-2 sm:px-0 mb-3">
-          <h3 className="text-base font-semibold text-white">Your Tokens</h3>
+      {/* ─── Seeds in your pouch (tokens held) ─── */}
+      <div className="max-w-4xl mx-auto space-y-2 mt-10">
+        <div className="flex items-center justify-between px-2 sm:px-0 mb-4">
+          <div className="flex items-center gap-3">
+            <span style={{ color: '#e89660', display: 'inline-flex' }}>
+              <SeedIcon className="w-[18px] h-[18px]" />
+            </span>
+            <h3
+              className="serif tracking-[-0.015em]"
+              style={{
+                color: '#f4eee4',
+                fontSize: 'clamp(1.05rem, 2vw, 1.3rem)',
+                fontWeight: 400,
+                fontVariationSettings: "'SOFT' 50, 'WONK' 0, 'opsz' 48",
+              }}
+            >
+              Seeds in your pouch
+            </h3>
+          </div>
           {isTokensLoading && (
-            <RefreshCw className="w-3 h-3 text-cyan-400 animate-spin" />
+            <RefreshCw className="w-3 h-3 animate-spin" style={{ color: '#e89660' }} />
           )}
         </div>
 
@@ -1928,18 +2032,33 @@ export default function WalletPage() {
         )}
       </div>
 
-      {/* Fundraising Rewards Section - Creator fees from pump.fun */}
+      {/* ─── Your harvest (creator fees from pump.fun) ─── */}
       {launchedTokenCount > 0 && (
-        <div className="max-w-4xl mx-auto space-y-3 mt-6">
-          <div className="flex items-center justify-between px-2 sm:px-0">
-            <div className="flex items-center space-x-2">
-              <Gift className="w-5 h-5 text-green-400" />
-              <h3 className="text-base font-semibold text-white">Fundraising Rewards</h3>
+        <div className="max-w-4xl mx-auto space-y-2 mt-10">
+          <div className="flex items-center justify-between px-2 sm:px-0 mb-4">
+            <div className="flex items-center gap-3">
+              <span style={{ color: '#e89660', display: 'inline-flex' }}>
+                <BasketIcon className="w-[18px] h-[18px]" />
+              </span>
+              <h3
+                className="serif tracking-[-0.015em]"
+                style={{
+                  color: '#f4eee4',
+                  fontSize: 'clamp(1.05rem, 2vw, 1.3rem)',
+                  fontWeight: 400,
+                  fontVariationSettings: "'SOFT' 50, 'WONK' 0, 'opsz' 48",
+                }}
+              >
+                Your harvest
+              </h3>
             </div>
             <button
               onClick={refreshCreatorFees}
               disabled={isCreatorFeesLoading}
-              className="text-sm text-cyan-400 hover:text-cyan-300 transition-colors flex items-center gap-1"
+              className="mono text-[0.58rem] uppercase tracking-[0.26em] transition-colors flex items-center gap-1.5"
+              style={{ color: '#8a7f72' }}
+              onMouseEnter={(e) => (e.currentTarget.style.color = '#e89660')}
+              onMouseLeave={(e) => (e.currentTarget.style.color = '#8a7f72')}
             >
               <RefreshCw className={`w-3 h-3 ${isCreatorFeesLoading ? 'animate-spin' : ''}`} />
               Refresh
@@ -2061,34 +2180,50 @@ export default function WalletPage() {
         </div>
       )}
 
-      {/* Portfolio Section with Tabs */}
-      <div className="max-w-4xl mx-auto space-y-6 mt-8">
-        {/* Tab Navigation */}
-        <div className="flex items-center justify-center gap-2 px-2 sm:px-0 flex-wrap">
+      {/* ─── Portfolio — Growing / Bloomed / Watching ─── */}
+      <div className="max-w-4xl mx-auto space-y-6 mt-12">
+        {/* Tab Navigation — plant-stage labels with plant icons */}
+        <div className="flex items-center justify-center gap-1 sm:gap-2 px-2 sm:px-0 flex-wrap">
           {[
-            { value: 'predictions' as const, label: 'Predictions', icon: TrendingUp, count: positionsData?.data?.all?.length || 0 },
-            { value: 'projects' as const, label: 'Projects', icon: Rocket, count: projectsData?.data?.projects?.length || 0 },
-            { value: 'watchlist' as const, label: 'Watchlist', icon: Heart, count: profileData?.data?.favoriteMarkets?.length || 0 },
+            { value: 'predictions' as const, label: 'Growing', Icon: TreeIcon, count: positionsData?.data?.all?.length || 0 },
+            { value: 'projects' as const, label: 'Bloomed', Icon: BloomIcon, count: projectsData?.data?.projects?.length || 0 },
+            { value: 'watchlist' as const, label: 'Watching', Icon: LeafIcon, count: profileData?.data?.favoriteMarkets?.length || 0 },
           ].map((tab) => {
-            const IconComponent = tab.icon;
+            const Icon = tab.Icon;
+            const isActive = portfolioTab === tab.value;
             return (
               <button
                 key={tab.value}
                 onClick={() => setPortfolioTab(tab.value)}
-                className={`flex items-center gap-2 px-3 sm:px-4 py-2 text-xs sm:text-sm font-medium rounded-lg transition-all ${
-                  portfolioTab === tab.value
-                    ? 'bg-gradient-to-r from-purple-500 to-cyan-500 text-white shadow-lg shadow-purple-500/25'
-                    : 'bg-white/5 text-gray-400 hover:bg-white/10 hover:text-white border border-white/10'
-                }`}
+                className="flex items-center gap-2 px-4 sm:px-5 py-2.5 mono text-[0.64rem] uppercase tracking-[0.26em] transition-colors duration-300"
+                style={{
+                  background: isActive ? 'rgba(232,150,96,0.12)' : 'transparent',
+                  color: isActive ? '#e89660' : '#8a7f72',
+                  border: isActive ? '1px solid rgba(232,150,96,0.4)' : '1px solid rgba(244,238,228,0.08)',
+                }}
+                onMouseEnter={(e) => {
+                  if (!isActive) {
+                    e.currentTarget.style.color = '#f4eee4';
+                    e.currentTarget.style.borderColor = 'rgba(244,238,228,0.2)';
+                  }
+                }}
+                onMouseLeave={(e) => {
+                  if (!isActive) {
+                    e.currentTarget.style.color = '#8a7f72';
+                    e.currentTarget.style.borderColor = 'rgba(244,238,228,0.08)';
+                  }
+                }}
               >
-                <IconComponent className={`w-4 h-4 ${tab.value === 'watchlist' && portfolioTab === tab.value ? 'fill-current' : ''}`} />
+                <Icon className="w-4 h-4" />
                 <span>{tab.label}</span>
                 {tab.count > 0 && (
-                  <span className={`px-1.5 py-0.5 text-xs rounded-full ${
-                    portfolioTab === tab.value
-                      ? 'bg-white/20 text-white'
-                      : 'bg-white/10 text-gray-400'
-                  }`}>
+                  <span
+                    className="mono text-[0.56rem] tracking-[0.1em] px-1.5 py-0.5 ml-1"
+                    style={{
+                      background: isActive ? 'rgba(232,150,96,0.15)' : 'rgba(244,238,228,0.06)',
+                      color: isActive ? '#e89660' : '#d8cfc0',
+                    }}
+                  >
                     {tab.count}
                   </span>
                 )}

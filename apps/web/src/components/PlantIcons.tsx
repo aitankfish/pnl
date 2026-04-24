@@ -142,3 +142,53 @@ export const SunIcon = ({ className = '', strokeWidth = 1.2 }: IconProps) => (
     ))}
   </svg>
 );
+
+// BOW & ARROW — wordless brand mark for the app (replaces "PnL | Predict & Launch" inside the product).
+// A drawn bow pulled right, arrow loaded and aimed — "ready to launch" visualized.
+export const BowMark = ({ className = '', strokeWidth = 1.4 }: IconProps) => (
+  <svg viewBox="0 0 42 22" fill="none" className={className} aria-hidden>
+    {/* Bow arc — curves outward on the left, the archer's grip */}
+    <path
+      d="M 5 2 Q -0.5 11 5 20"
+      stroke="currentColor"
+      strokeWidth={strokeWidth}
+      strokeLinecap="round"
+      fill="none"
+    />
+    {/* Bowstring pulled into a V — tension apex at the nock */}
+    <path
+      d="M 5 2 L 12 11 L 5 20"
+      stroke="currentColor"
+      strokeWidth={strokeWidth * 0.6}
+      strokeLinecap="round"
+      fill="none"
+      opacity="0.7"
+    />
+    {/* Arrow shaft — stretched horizontally to the right */}
+    <line
+      x1="11"
+      y1="11"
+      x2="34"
+      y2="11"
+      stroke="currentColor"
+      strokeWidth={strokeWidth}
+      strokeLinecap="round"
+    />
+    {/* Fletching — two feather strokes near the nock */}
+    <path
+      d="M 13 11 L 10 8.2 M 13 11 L 10 13.8"
+      stroke="currentColor"
+      strokeWidth={strokeWidth * 0.75}
+      strokeLinecap="round"
+      fill="none"
+    />
+    {/* Arrowhead — solid triangle aimed forward */}
+    <path
+      d="M 32 7 L 39 11 L 32 15 Z"
+      stroke="currentColor"
+      strokeWidth={strokeWidth * 0.85}
+      strokeLinejoin="round"
+      fill="currentColor"
+    />
+  </svg>
+);

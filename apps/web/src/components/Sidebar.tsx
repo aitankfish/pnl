@@ -11,7 +11,7 @@ import { User, Loader2 } from 'lucide-react';
 import UserInfo from './UserInfo';
 import GlobalSearch from './GlobalSearch';
 import NotificationDropdown from './NotificationDropdown';
-import { SeedIcon, TreeIcon, BloomIcon, LeafIcon, BasketIcon } from './PlantIcons';
+import { SeedIcon, TreeIcon, BloomIcon, LeafIcon, BasketIcon, BowMark } from './PlantIcons';
 
 interface NavItem {
   id: string;
@@ -107,32 +107,19 @@ function Sidebar({ currentPage }: SidebarProps) {
       }}
     >
       <div className="max-w-[1600px] mx-auto px-4 sm:px-6 h-14 sm:h-[64px] flex items-center justify-between gap-3 sm:gap-4">
-        {/* ─── Logo — matches landing wordmark ─── */}
-        <Link href="/launchpad" prefetch className="flex items-center gap-3 flex-shrink-0 group">
-          <span
-            className="serif text-[1.3rem] sm:text-[1.45rem] leading-none tracking-[-0.02em]"
-            style={{
-              color: '#f4eee4',
-              fontWeight: 500,
-              fontVariationSettings: "'SOFT' 30, 'WONK' 0, 'opsz' 48",
-            }}
-          >
-            P
-            <span
-              className="italic"
-              style={{ fontVariationSettings: "'SOFT' 100, 'WONK' 1, 'opsz' 48" }}
-            >
-              n
-            </span>
-            L
-          </span>
-          <span className="hidden lg:inline-block w-px h-4" style={{ background: 'rgba(138,127,114,0.4)' }} />
-          <span
-            className="hidden lg:inline mono text-[0.6rem] uppercase tracking-[0.24em]"
-            style={{ color: '#8a7f72' }}
-          >
-            Predict &amp; Launch
-          </span>
+        {/* ─── Brand mark — wordless drawn bow, aimed right (app-only) ─── */}
+        <Link
+          href="/launchpad"
+          prefetch
+          className="flex items-center flex-shrink-0 group transition-opacity hover:opacity-85"
+          aria-label="PnL — home"
+          title="PnL"
+          style={{ color: '#f4eee4' }}
+        >
+          <BowMark
+            className="w-[42px] sm:w-[50px] h-auto transition-transform duration-300 group-hover:translate-x-0.5"
+            strokeWidth={1.4}
+          />
         </Link>
 
         {/* ─── Center nav — plant-icon + mono label ─── */}
