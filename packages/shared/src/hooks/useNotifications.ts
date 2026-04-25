@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useWallet } from './useWallet';
-import { useSocket } from './useSocket';
+import { useUserSocket } from './useSocket';
 import { apiUrl } from '../utils/api';
 
 export interface Notification {
@@ -99,58 +99,40 @@ export function useNotifications() {
     fetchNotifications();
   }, [fetchNotifications]);
 
-  // ─── Real-time notification push via Socket.IO ───
-  // The server emits a 'notification' event into the user:{wallet} room whenever
-  // a new notification is created. We listen here so the bell badge updates
-  // instantly without a refresh.
-  const { socket, isConnected } = useSocket();
+  // ─── Real-time bell updates via Socket.IO ───
+  // Mirrors the pattern in usePositions — go through useUserSocket so we
+  // don't open a second socket connection. The server pushes the raw API
+  // notification into the user:{wallet} room; we transform + dedupe + prepend.
+  const walletAddress = primaryWallet?.address ?? null;
+  const { notifications: socketNotifications } = useUserSocket(walletAddress);
   const seenIdsRef = useRef<Set<string>>(new Set());
 
   useEffect(() => {
-    if (!socket || !isConnected || !authenticated || !primaryWallet?.address) return;
+    if (!socketNotifications || socketNotifications.length === 0) return;
 
-    const walletAddress = primaryWallet.address;
-
-    // Subscribe to user room (useUserSocket also subscribes — Socket.IO handles
-    // duplicate subscriptions gracefully).
-    const subscribe = async () => {
-      let token: string | undefined;
-      try {
-        const { getAccessToken } = await import('../utils/authenticated-fetch');
-        const t = await getAccessToken();
-        if (t) token = t;
-      } catch {}
-      socket.emit('subscribe:user', walletAddress, token);
-    };
-    subscribe();
-
-    const handleNotification = (data: any) => {
-      const apiNotification = data?.notification;
-      if (!apiNotification?._id) return;
-
-      // Guard against duplicate socket events delivering the same notification
+    // socketNotifications is an array of raw API notifications, newest first.
+    // Walk it and prepend any ids we haven't already merged.
+    const fresh: Notification[] = [];
+    for (const apiNotification of socketNotifications) {
+      if (!apiNotification?._id) continue;
       const id = String(apiNotification._id);
-      if (seenIdsRef.current.has(id)) return;
+      if (seenIdsRef.current.has(id)) continue;
       seenIdsRef.current.add(id);
+      fresh.push(transformNotification(apiNotification));
+    }
+    if (fresh.length === 0) return;
 
-      const transformed = transformNotification(apiNotification);
-
-      setNotifications((prev) => {
-        // Avoid duplicating if server already has this id (race with API fetch)
-        if (prev.some((n) => n.id === transformed.id)) return prev;
-        return [transformed, ...prev];
-      });
-      if (!transformed.isRead) {
-        setUnreadCount((prev) => prev + 1);
-      }
-    };
-
-    socket.on('notification', handleNotification);
-
-    return () => {
-      socket.off('notification', handleNotification);
-    };
-  }, [socket, isConnected, authenticated, primaryWallet?.address]);
+    setNotifications((prev) => {
+      // Race-guard against a concurrent fetchNotifications result that already
+      // contains the same id.
+      const existing = new Set(prev.map((n) => n.id));
+      const toPrepend = fresh.filter((n) => !existing.has(n.id));
+      if (toPrepend.length === 0) return prev;
+      return [...toPrepend, ...prev];
+    });
+    const unreadDelta = fresh.filter((n) => !n.isRead).length;
+    if (unreadDelta > 0) setUnreadCount((prev) => prev + unreadDelta);
+  }, [socketNotifications]);
 
   // Mark single notification as read
   const markAsRead = async (id: string) => {

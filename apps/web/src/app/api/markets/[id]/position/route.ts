@@ -10,11 +10,17 @@ import { connectToDatabase, PredictionParticipant, PredictionMarket } from '@/li
 import { COLLECTIONS } from '@/lib/database/models';
 import { ObjectId } from 'mongodb';
 import { createClientLogger } from '@/lib/logger';
+import { getRedisClient, prefixKey } from '@/lib/redis/client';
 
 // Force dynamic rendering - this route uses request.url
 export const dynamic = 'force-dynamic';
 
 const logger = createClientLogger();
+
+// Position is per-(market, wallet) and changes only on user vote/claim. A 5s
+// cache guards against tab-refresh storms while the socket position:update
+// keeps the live state fresh between cache writes. Wallet-scoped key.
+const POSITION_CACHE_TTL_SECONDS = 5;
 
 // Helper to check if string is valid MongoDB ObjectId
 function isValidObjectId(id: string): boolean {
@@ -38,6 +44,33 @@ export async function GET(
         },
         { status: 400 }
       );
+    }
+
+    // Redis cache — wallet-scoped key. Bypassable via ?fresh=1 (used after
+    // a user votes or claims, so the new state shows immediately).
+    const fresh = searchParams.get('fresh') === '1';
+    const cacheKey = prefixKey(`markets:position:${marketId}:${userWallet}`);
+    const redis = (() => {
+      try {
+        return getRedisClient();
+      } catch {
+        return null;
+      }
+    })();
+    if (redis && !fresh) {
+      try {
+        const cached = await redis.get(cacheKey);
+        if (cached) {
+          return NextResponse.json(JSON.parse(cached), {
+            headers: {
+              'X-Cache': 'HIT',
+              'Cache-Control': `private, max-age=${POSITION_CACHE_TTL_SECONDS}`,
+            },
+          });
+        }
+      } catch (err) {
+        logger.warn('[markets/position] redis read failed', { err });
+      }
     }
 
     logger.info('Checking user position', { marketId, userWallet });
@@ -167,7 +200,7 @@ export async function GET(
       claimed,
     });
 
-    return NextResponse.json({
+    const responseBody = {
       success: true,
       data: {
         hasPosition: true,
@@ -175,6 +208,26 @@ export async function GET(
         totalAmount: totalAmount / 1_000_000_000, // Convert to SOL
         tradeCount: userTrades.length,
         claimed,
+      },
+    };
+
+    if (redis) {
+      try {
+        await redis.set(
+          cacheKey,
+          JSON.stringify(responseBody),
+          'EX',
+          POSITION_CACHE_TTL_SECONDS,
+        );
+      } catch (err) {
+        logger.warn('[markets/position] redis write failed', { err });
+      }
+    }
+
+    return NextResponse.json(responseBody, {
+      headers: {
+        'X-Cache': 'MISS',
+        'Cache-Control': `private, max-age=${POSITION_CACHE_TTL_SECONDS}`,
       },
     });
   } catch (error) {

@@ -23,6 +23,7 @@ export default function AppLayoutWrapper({ children, footer }: AppLayoutWrapperP
     if (pathname === '/launched') return 'launched';
     if (pathname === '/notifications') return 'notifications';
     if (pathname === '/wallet') return 'wallet';
+    if (pathname === '/merch') return 'merch';
     return undefined;
   };
 

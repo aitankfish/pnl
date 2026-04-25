@@ -1,17 +1,53 @@
 'use client';
 
 import { useState, useEffect, useMemo } from 'react';
-import Sidebar from '@/components/Sidebar';
-import { ShoppingBag, Shirt, Coffee, Package, Sparkles, Loader2, RefreshCw, AlertCircle, Check, X, ChevronDown, CreditCard, ExternalLink } from 'lucide-react';
+import {
+  Loader2,
+  RefreshCw,
+  AlertCircle,
+  Check,
+  X,
+  ChevronDown,
+  ExternalLink,
+  Shirt,
+} from 'lucide-react';
+import {
+  BasketIcon,
+  SeedIcon,
+  BloomIcon,
+  SunIcon,
+  LeafIcon,
+} from '@/components/PlantIcons';
 import { useSolPrice } from '@/hooks/useSolPrice';
 import { useWallet } from '@/hooks/useWallet';
 import { useAuthModal } from '@/contexts/AuthModalContext';
-import { useWallets, useSignAndSendTransaction, useStandardWallets } from '@privy-io/react-auth/solana';
+import {
+  useWallets,
+  useSignAndSendTransaction,
+  useStandardWallets,
+} from '@privy-io/react-auth/solana';
 import { useNetwork } from '@/lib/hooks/useNetwork';
 import { useToast } from '@/lib/hooks/useToast';
 import { getSolanaConnection } from '@/lib/solana';
-import { PublicKey, Transaction, SystemProgram, LAMPORTS_PER_SOL } from '@solana/web3.js';
+import {
+  PublicKey,
+  Transaction,
+  SystemProgram,
+  LAMPORTS_PER_SOL,
+} from '@solana/web3.js';
 import bs58 from 'bs58';
+
+// ── Cosmic-plant palette (shared with rest of app) ──
+const BG = '#0a0814';
+const CREAM = '#f4eee4';
+const CREAM_DIM = 'rgba(244,238,228,0.65)';
+const CREAM_FAINT = 'rgba(244,238,228,0.4)';
+const HAIR = 'rgba(244,238,228,0.08)';
+const HAIR_STRONG = 'rgba(244,238,228,0.14)';
+const AMBER = '#e89660';
+const PEACH = '#ecb48a';
+const FOREST = '#3f7a42';
+const EARTH = '#d67347';
 
 // Payment receiving address for merch
 const MERCH_PAYMENT_ADDRESS = 'BoK57Rf2NV1bdiFvvDeev1HPp5g2B72eH8SCoVkkSVsb';
@@ -50,7 +86,15 @@ interface Product {
   visible: boolean;
 }
 
-type PaymentStatus = 'idle' | 'connecting' | 'preparing' | 'signing' | 'confirming' | 'creating_order' | 'success' | 'error';
+type PaymentStatus =
+  | 'idle'
+  | 'connecting'
+  | 'preparing'
+  | 'signing'
+  | 'confirming'
+  | 'creating_order'
+  | 'success'
+  | 'error';
 
 export default function MerchPage() {
   const [products, setProducts] = useState<Product[]>([]);
@@ -89,10 +133,12 @@ export default function MerchPage() {
   const { network } = useNetwork();
   const { showToast } = useToast();
 
+  // Plant glyph per category — basket for "all", shirt stays for apparel since
+  // it reads instantly, leaf for accessories (smaller things, second skin).
   const categories = [
-    { id: 'all', label: 'All', icon: Package },
-    { id: 'apparel', label: 'Apparel', icon: Shirt },
-    { id: 'accessories', label: 'Accessories', icon: Coffee },
+    { id: 'all', label: 'All', Icon: BasketIcon as React.ComponentType<{ className?: string }> },
+    { id: 'apparel', label: 'Apparel', Icon: Shirt as React.ComponentType<{ className?: string }> },
+    { id: 'accessories', label: 'Accessories', Icon: LeafIcon as React.ComponentType<{ className?: string }> },
   ];
 
   const fetchProducts = async () => {
@@ -119,7 +165,6 @@ export default function MerchPage() {
     fetchProducts();
   }, []);
 
-  // Convert USD to SOL
   const usdToSol = (usd: number): number => {
     if (!solPrice || solPrice === 0) return 0;
     return usd / solPrice;
@@ -130,16 +175,17 @@ export default function MerchPage() {
     return sol > 0 ? sol.toFixed(4) : '...';
   };
 
-  // Filter products by category
-  const filteredProducts = selectedCategory === 'all'
-    ? products
-    : products.filter(p => p.category === selectedCategory);
+  const filteredProducts =
+    selectedCategory === 'all'
+      ? products
+      : products.filter((p) => p.category === selectedCategory);
 
-  // Parse variant options from variant title (e.g., "Black / S" -> { Color: "Black", Size: "S" })
-  const parseVariantOptions = (variant: ProductVariant, product: Product): Record<string, string> => {
+  const parseVariantOptions = (
+    variant: ProductVariant,
+    product: Product,
+  ): Record<string, string> => {
     const options: Record<string, string> = {};
     if (!product.options || product.options.length === 0) return options;
-
     const parts = variant.title.split(' / ');
     product.options.forEach((opt, index) => {
       if (parts[index]) {
@@ -149,45 +195,35 @@ export default function MerchPage() {
     return options;
   };
 
-  // Get image for selected variant
   const getVariantImage = useMemo(() => {
-    if (!selectedProduct) return selectedProduct?.image || null;
-
-    // If we have a selected variant, find an image that includes this variant
+    if (!selectedProduct) return null;
     if (selectedVariant) {
-      const variantImage = selectedProduct.images.find(img =>
-        img.variantIds.includes(selectedVariant.id)
+      const variantImage = selectedProduct.images.find((img) =>
+        img.variantIds.includes(selectedVariant.id),
       );
       if (variantImage) return variantImage.src;
     }
-
-    // Fallback to default image or first image
-    const defaultImg = selectedProduct.images.find(img => img.isDefault);
+    const defaultImg = selectedProduct.images.find((img) => img.isDefault);
     if (defaultImg) return defaultImg.src;
-
     return selectedProduct.images[0]?.src || selectedProduct.image;
   }, [selectedProduct, selectedVariant]);
 
-  // Get unique option values from variants
   const getOptionValues = useMemo(() => {
-    if (!selectedProduct?.options) return {};
+    if (!selectedProduct?.options) return {} as Record<string, string[]>;
 
     const optionValues: Record<string, Set<string>> = {};
-    selectedProduct.options.forEach(opt => {
+    selectedProduct.options.forEach((opt) => {
       optionValues[opt.name] = new Set();
     });
 
-    selectedProduct.variants.forEach(variant => {
+    selectedProduct.variants.forEach((variant) => {
       if (!variant.available) return;
       const parsed = parseVariantOptions(variant, selectedProduct);
       Object.entries(parsed).forEach(([key, value]) => {
-        if (optionValues[key]) {
-          optionValues[key].add(value);
-        }
+        if (optionValues[key]) optionValues[key].add(value);
       });
     });
 
-    // Convert to arrays
     const result: Record<string, string[]> = {};
     Object.entries(optionValues).forEach(([key, values]) => {
       result[key] = Array.from(values);
@@ -195,47 +231,41 @@ export default function MerchPage() {
     return result;
   }, [selectedProduct]);
 
-  // Find matching variant based on selected options
   useEffect(() => {
     if (!selectedProduct) return;
 
-    // If no options, use first available variant
     if (!selectedProduct.options || selectedProduct.options.length === 0) {
-      const firstAvailable = selectedProduct.variants.find(v => v.available);
+      const firstAvailable = selectedProduct.variants.find((v) => v.available);
       setSelectedVariant(firstAvailable || null);
       return;
     }
 
-    // Find variant matching all selected options
-    const allOptionsSelected = selectedProduct.options.every(opt => selectedOptions[opt.name]);
+    const allOptionsSelected = selectedProduct.options.every(
+      (opt) => selectedOptions[opt.name],
+    );
     if (!allOptionsSelected) {
       setSelectedVariant(null);
       return;
     }
 
-    const matchingVariant = selectedProduct.variants.find(variant => {
+    const matchingVariant = selectedProduct.variants.find((variant) => {
       if (!variant.available) return false;
       const variantOpts = parseVariantOptions(variant, selectedProduct);
-      return selectedProduct.options!.every(opt =>
-        variantOpts[opt.name] === selectedOptions[opt.name]
+      return selectedProduct.options!.every(
+        (opt) => variantOpts[opt.name] === selectedOptions[opt.name],
       );
     });
 
     setSelectedVariant(matchingVariant || null);
   }, [selectedOptions, selectedProduct]);
 
-  // Check if shipping address is complete
-  const isShippingComplete = () => {
-    return (
-      shippingAddress.fullName.trim() !== '' &&
-      shippingAddress.email.trim() !== '' &&
-      shippingAddress.address.trim() !== '' &&
-      shippingAddress.city.trim() !== '' &&
-      shippingAddress.country.trim() !== ''
-    );
-  };
+  const isShippingComplete = () =>
+    shippingAddress.fullName.trim() !== '' &&
+    shippingAddress.email.trim() !== '' &&
+    shippingAddress.address.trim() !== '' &&
+    shippingAddress.city.trim() !== '' &&
+    shippingAddress.country.trim() !== '';
 
-  // Open product modal
   const openProductModal = (product: Product) => {
     setSelectedProduct(product);
     setSelectedOptions({});
@@ -254,23 +284,19 @@ export default function MerchPage() {
       country: '',
     });
 
-    // Auto-select first option for each
     if (product.options) {
       const initialOptions: Record<string, string> = {};
-      product.options.forEach(opt => {
-        const firstAvailable = product.variants.find(v => v.available);
+      product.options.forEach((opt) => {
+        const firstAvailable = product.variants.find((v) => v.available);
         if (firstAvailable) {
           const parsed = parseVariantOptions(firstAvailable, product);
-          if (parsed[opt.name]) {
-            initialOptions[opt.name] = parsed[opt.name];
-          }
+          if (parsed[opt.name]) initialOptions[opt.name] = parsed[opt.name];
         }
       });
       setSelectedOptions(initialOptions);
     }
   };
 
-  // Close product modal
   const closeProductModal = () => {
     setSelectedProduct(null);
     setSelectedVariant(null);
@@ -288,17 +314,14 @@ export default function MerchPage() {
     });
   };
 
-  // Handle SOL payment
   const handlePayment = async () => {
     if (!selectedVariant || !selectedProduct) return;
 
-    // Check shipping address
     if (!isShippingComplete()) {
       setPaymentError('Please fill in all required shipping fields.');
       return;
     }
 
-    // Check wallet connection
     if (!authenticated || !primaryWallet) {
       showAuthModal();
       return;
@@ -314,47 +337,43 @@ export default function MerchPage() {
     setPaymentError(null);
 
     try {
-      // Get connection and create transaction
       const connection = await getSolanaConnection();
       const fromPubkey = new PublicKey(primaryWallet.address);
       const toPubkey = new PublicKey(MERCH_PAYMENT_ADDRESS);
 
-      // Create transfer transaction
       const transaction = new Transaction();
       transaction.add(
         SystemProgram.transfer({
           fromPubkey,
           toPubkey,
           lamports: Math.floor(solAmount * LAMPORTS_PER_SOL),
-        })
+        }),
       );
 
-      // Get recent blockhash
       const { blockhash, lastValidBlockHeight } = await connection.getLatestBlockhash('confirmed');
       transaction.recentBlockhash = blockhash;
       transaction.feePayer = fromPubkey;
 
       setPaymentStatus('signing');
 
-      // Get Solana wallet
       let solanaWallet;
       if (wallets && wallets.length > 0) {
         solanaWallet = wallets[0];
       } else if (standardWallets && standardWallets.length > 0) {
-        const privyWallet = standardWallets.find((w: any) => w.isPrivyWallet || w.name === 'Privy');
+        const privyWallet = standardWallets.find(
+          (w: any) => w.isPrivyWallet || w.name === 'Privy',
+        );
         if (!privyWallet) throw new Error('No Privy wallet found');
         solanaWallet = privyWallet;
       } else {
         throw new Error('No Solana wallet found');
       }
 
-      // Serialize transaction
       const serializedTx = transaction.serialize({
         requireAllSignatures: false,
         verifySignatures: false,
       });
 
-      // Sign and send with Privy
       const result = await signAndSendTransaction({
         transaction: serializedTx,
         wallet: solanaWallet as any,
@@ -365,14 +384,11 @@ export default function MerchPage() {
       setTxSignature(signature);
       setPaymentStatus('confirming');
 
-      // Wait for confirmation
-      await connection.confirmTransaction({
-        signature,
-        blockhash,
-        lastValidBlockHeight,
-      }, 'confirmed');
+      await connection.confirmTransaction(
+        { signature, blockhash, lastValidBlockHeight },
+        'confirmed',
+      );
 
-      // Create order on Printify
       setPaymentStatus('creating_order');
 
       try {
@@ -392,7 +408,6 @@ export default function MerchPage() {
 
         if (orderResult.success) {
           setPrintifyOrderId(orderResult.data.orderId);
-          console.log('Printify order created:', orderResult.data.orderId);
           showToast({
             type: 'success',
             title: 'Order Placed!',
@@ -400,20 +415,17 @@ export default function MerchPage() {
             details: [`Shipping to: ${shippingAddress.city}, ${shippingAddress.country}`],
           });
         } else if (orderResult.isTestMode) {
-          // Test mode - payment went through but no real order created
-          console.log('Test mode: Printify order skipped');
           showToast({
             type: 'success',
             title: 'Test Payment Successful!',
             message: 'Payment confirmed on devnet. No real order created (test mode).',
           });
         } else {
-          // Log error but don't fail - payment was successful
           console.error('Failed to create Printify order:', orderResult.error);
           showToast({
             type: 'success',
             title: 'Payment Successful',
-            message: 'Payment confirmed! Order creation pending - we\'ll process it manually.',
+            message: "Payment confirmed! Order creation pending — we'll process it manually.",
           });
         }
       } catch (orderErr) {
@@ -421,82 +433,110 @@ export default function MerchPage() {
         showToast({
           type: 'success',
           title: 'Payment Successful',
-          message: 'Payment confirmed! Order creation pending - we\'ll process it manually.',
+          message: "Payment confirmed! Order creation pending — we'll process it manually.",
         });
       }
 
       setPaymentStatus('success');
-
     } catch (err: any) {
       console.error('Payment failed:', err);
       const errorMessage = err.message || 'Payment failed. Please try again.';
       setPaymentError(errorMessage);
       setPaymentStatus('error');
-      showToast({
-        type: 'error',
-        title: 'Payment Failed',
-        message: errorMessage,
-      });
+      showToast({ type: 'error', title: 'Payment Failed', message: errorMessage });
     }
   };
 
-  // Get Solscan URL for transaction
   const getSolscanUrl = (signature: string) => {
     const cluster = network === 'devnet' ? '?cluster=devnet' : '';
     return `https://solscan.io/tx/${signature}${cluster}`;
   };
 
-  return (
-    <div className="min-h-screen pb-20">
-      <Sidebar currentPage="merch" />
+  // Reusable text-input class for the shipping form
+  const inputCls =
+    'w-full bg-transparent text-sm placeholder:text-[rgba(244,238,228,0.35)] focus:outline-none px-3 py-2 transition-colors';
 
-      <div className="pt-20 px-4 md:px-8">
+  return (
+    <div className="pb-20 px-4 md:px-8" style={{ color: CREAM }}>
+      <div className="pt-6 sm:pt-10">
         <div className="max-w-6xl mx-auto">
-          {/* Header */}
-          <div className="text-center mb-6">
-            <div className="inline-flex items-center gap-2 px-3 py-1.5 bg-gradient-to-r from-pink-500/20 to-orange-500/20 rounded-full border border-pink-500/30 mb-2">
-              <Sparkles className="w-3 h-3 text-pink-400" />
-              <span className="text-xs text-pink-300">Official Merch</span>
-            </div>
-            <h1 className="text-3xl md:text-4xl font-bold text-white mb-2">
-              P&L Merch Shop
-            </h1>
-            <p className="text-gray-400 text-sm max-w-xl mx-auto">
-              Wear your belief. Rep the revolution.
+          {/* ─── Editorial header ─── */}
+          <header className="text-center mb-10 sm:mb-12">
+            <p
+              className="mono uppercase tracking-[0.32em] text-[0.6rem] mb-3"
+              style={{ color: AMBER }}
+            >
+              The harvest stand
             </p>
-            {/* SOL Price Indicator */}
+            <h1
+              className="text-4xl sm:text-5xl md:text-6xl leading-[1.05] mb-3"
+              style={{
+                color: CREAM,
+                fontFamily: 'var(--font-fraunces, serif)',
+                fontWeight: 350,
+                fontFeatureSettings: '"ss01"',
+              }}
+            >
+              Wear the grove.
+            </h1>
+            <p
+              className="text-base sm:text-lg max-w-md mx-auto"
+              style={{ color: CREAM_DIM, fontFamily: 'var(--font-fraunces, serif)' }}
+            >
+              Goods from the orchard — paid in SOL, shipped from Printify.
+            </p>
             {!solPriceLoading && solPrice && (
-              <p className="text-gray-500 text-xs mt-1">
-                1 SOL = ${solPrice.toFixed(2)} USD
+              <p
+                className="mono text-[0.62rem] uppercase tracking-[0.24em] mt-4"
+                style={{ color: CREAM_FAINT }}
+              >
+                1 SOL · ${solPrice.toFixed(2)} USD
               </p>
             )}
-          </div>
+          </header>
 
-          {/* Category Filter */}
-          <div className="flex justify-center gap-2 mb-4 flex-wrap">
+          {/* ─── Category chips ─── */}
+          <div className="flex justify-center gap-2 mb-6 flex-wrap">
             {categories.map((cat) => {
-              const Icon = cat.icon;
-              const count = cat.id === 'all'
-                ? products.length
-                : products.filter(p => p.category === cat.id).length;
+              const Icon = cat.Icon;
+              const active = selectedCategory === cat.id;
+              const count =
+                cat.id === 'all'
+                  ? products.length
+                  : products.filter((p) => p.category === cat.id).length;
               return (
                 <button
                   key={cat.id}
                   onClick={() => setSelectedCategory(cat.id)}
-                  className={`
-                    flex items-center gap-2 px-4 py-2 rounded-xl transition-all
-                    ${selectedCategory === cat.id
-                      ? 'bg-gradient-to-r from-pink-500 to-orange-500 text-white'
-                      : 'bg-white/5 text-gray-400 hover:bg-white/10 hover:text-white'
+                  className="mono text-[0.6rem] uppercase tracking-[0.22em] px-3 py-2 inline-flex items-center gap-2 transition-colors"
+                  style={{
+                    background: active ? AMBER : 'transparent',
+                    color: active ? BG : CREAM_DIM,
+                    border: `1px solid ${active ? AMBER : HAIR_STRONG}`,
+                  }}
+                  onMouseEnter={(e) => {
+                    if (!active) {
+                      e.currentTarget.style.color = CREAM;
+                      e.currentTarget.style.borderColor = 'rgba(232,150,96,0.5)';
                     }
-                  `}
+                  }}
+                  onMouseLeave={(e) => {
+                    if (!active) {
+                      e.currentTarget.style.color = CREAM_DIM;
+                      e.currentTarget.style.borderColor = HAIR_STRONG;
+                    }
+                  }}
                 >
-                  <Icon className="w-4 h-4" />
-                  <span className="text-sm font-medium">{cat.label}</span>
+                  <Icon className="w-3.5 h-3.5" />
+                  <span>{cat.label}</span>
                   {count > 0 && (
-                    <span className={`text-xs px-1.5 py-0.5 rounded-full ${
-                      selectedCategory === cat.id ? 'bg-white/20' : 'bg-white/10'
-                    }`}>
+                    <span
+                      className="text-[0.55rem] px-1 py-0.5"
+                      style={{
+                        background: active ? 'rgba(10,8,20,0.18)' : HAIR_STRONG,
+                        color: active ? BG : CREAM_DIM,
+                      }}
+                    >
                       {count}
                     </span>
                   )}
@@ -504,298 +544,428 @@ export default function MerchPage() {
               );
             })}
 
-            {/* Refresh Button */}
+            {/* Refresh */}
             <button
               onClick={fetchProducts}
               disabled={isLoading}
-              className="flex items-center gap-2 px-4 py-2 rounded-xl bg-white/5 text-gray-400 hover:bg-white/10 hover:text-white transition-all disabled:opacity-50"
+              className="px-3 py-2 inline-flex items-center justify-center transition-colors disabled:opacity-50"
+              style={{ color: CREAM_DIM, border: `1px solid ${HAIR_STRONG}` }}
+              onMouseEnter={(e) => {
+                if (!isLoading) {
+                  e.currentTarget.style.color = CREAM;
+                  e.currentTarget.style.borderColor = 'rgba(232,150,96,0.5)';
+                }
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.color = CREAM_DIM;
+                e.currentTarget.style.borderColor = HAIR_STRONG;
+              }}
               title="Refresh products"
             >
-              <RefreshCw className={`w-4 h-4 ${isLoading ? 'animate-spin' : ''}`} />
+              <RefreshCw className={`w-3.5 h-3.5 ${isLoading ? 'animate-spin' : ''}`} />
             </button>
           </div>
 
-          {/* Loading State */}
+          {/* ─── Loading ─── */}
           {isLoading && (
-            <div className="flex flex-col items-center justify-center py-20">
-              <Loader2 className="w-10 h-10 text-pink-500 animate-spin mb-4" />
-              <p className="text-gray-400">Loading products...</p>
+            <div className="flex flex-col items-center justify-center py-24">
+              <div
+                className="w-7 h-7 mb-4 animate-spin"
+                style={{
+                  border: `1.5px solid ${HAIR_STRONG}`,
+                  borderTopColor: AMBER,
+                  borderRadius: '50%',
+                }}
+              />
+              <p
+                className="mono text-[0.62rem] uppercase tracking-[0.24em]"
+                style={{ color: CREAM_FAINT }}
+              >
+                Gathering goods…
+              </p>
             </div>
           )}
 
-          {/* Error State */}
+          {/* ─── Error ─── */}
           {error && !isLoading && (
-            <div className="bg-red-500/10 border border-red-500/30 rounded-xl p-6 mb-8">
+            <div
+              className="mb-8 p-5"
+              style={{
+                background: 'rgba(214,115,71,0.08)',
+                border: `1px solid ${EARTH}55`,
+              }}
+            >
               <div className="flex items-start gap-3">
-                <AlertCircle className="w-6 h-6 text-red-400 flex-shrink-0 mt-0.5" />
+                <AlertCircle className="w-5 h-5 flex-shrink-0 mt-0.5" style={{ color: EARTH }} />
                 <div>
-                  <h3 className="text-red-400 font-semibold mb-1">Failed to load products</h3>
-                  <p className="text-gray-400 text-sm mb-3">{error}</p>
+                  <h3
+                    className="mb-1"
+                    style={{ color: EARTH, fontFamily: 'var(--font-fraunces, serif)', fontSize: '1rem' }}
+                  >
+                    The stand is empty.
+                  </h3>
+                  <p className="text-sm mb-3" style={{ color: CREAM_DIM }}>
+                    {error}
+                  </p>
                   <button
                     onClick={fetchProducts}
-                    className="px-4 py-2 bg-red-500/20 text-red-400 rounded-lg hover:bg-red-500/30 transition-colors text-sm"
+                    className="mono text-[0.6rem] uppercase tracking-[0.22em] px-3 py-1.5 transition-colors"
+                    style={{ color: EARTH, border: `1px solid ${EARTH}55` }}
                   >
-                    Try Again
+                    Try again
                   </button>
                 </div>
               </div>
             </div>
           )}
 
-          {/* Products Grid */}
+          {/* ─── Product grid ─── */}
           {!isLoading && !error && filteredProducts.length > 0 && (
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 mb-12">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5 mb-12">
               {filteredProducts.map((product) => (
-                <div
+                <button
                   key={product.id}
-                  className="group bg-white/5 backdrop-blur-sm rounded-2xl border border-white/10 overflow-hidden hover:border-pink-500/50 transition-all hover:scale-[1.02] cursor-pointer"
+                  type="button"
                   onClick={() => openProductModal(product)}
+                  className="group text-left transition-colors"
+                  style={{
+                    background: 'rgba(244,238,228,0.025)',
+                    border: `1px solid ${HAIR_STRONG}`,
+                  }}
+                  onMouseEnter={(e) =>
+                    (e.currentTarget.style.borderColor = 'rgba(232,150,96,0.55)')
+                  }
+                  onMouseLeave={(e) => (e.currentTarget.style.borderColor = HAIR_STRONG)}
                 >
-                  {/* Product Image */}
-                  <div className="aspect-square bg-gradient-to-br from-pink-500/10 to-orange-500/10 flex items-center justify-center overflow-hidden relative">
+                  {/* Image */}
+                  <div
+                    className="aspect-square flex items-center justify-center overflow-hidden relative"
+                    style={{ background: 'rgba(232,150,96,0.06)' }}
+                  >
                     {product.image ? (
                       <img
                         src={product.image}
                         alt={product.title}
-                        className="w-full h-full object-cover group-hover:scale-105 transition-transform"
+                        className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
                       />
                     ) : (
-                      <ShoppingBag className="w-16 h-16 text-white/20 group-hover:text-white/40 transition-colors" />
+                      <BasketIcon className="w-14 h-14" />
                     )}
-                    {/* Buy Icon Overlay */}
-                    <button
-                      className="absolute top-2 right-2 p-2 bg-gradient-to-r from-pink-500 to-orange-500 rounded-full shadow-lg hover:scale-110 transition-transform opacity-0 group-hover:opacity-100"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        openProductModal(product);
-                      }}
-                      title="Buy now"
-                    >
-                      <ShoppingBag className="w-4 h-4 text-white" />
-                    </button>
                   </div>
 
-                  {/* Product Info */}
-                  <div className="p-3">
-                    <h3 className="text-white font-medium text-sm line-clamp-1 mb-1">{product.title}</h3>
+                  {/* Info */}
+                  <div className="px-4 py-3">
+                    <h3
+                      className="line-clamp-1 mb-1"
+                      style={{
+                        color: CREAM,
+                        fontFamily: 'var(--font-fraunces, serif)',
+                        fontWeight: 400,
+                        fontSize: '0.95rem',
+                      }}
+                    >
+                      {product.title}
+                    </h3>
                     <div className="flex items-center justify-between">
-                      <span className="text-purple-400 font-bold">
+                      <span
+                        className="mono tracking-[0.05em]"
+                        style={{ color: AMBER, fontSize: '0.78rem' }}
+                      >
                         {usdToSolString(product.priceUSD)} SOL
                       </span>
-                      <span className="text-gray-500 text-xs">
+                      <span
+                        className="mono text-[0.6rem] uppercase tracking-[0.18em]"
+                        style={{ color: CREAM_FAINT }}
+                      >
                         ${product.priceUSD.toFixed(0)}
                       </span>
                     </div>
                   </div>
-                </div>
+                </button>
               ))}
             </div>
           )}
 
-          {/* Empty State */}
+          {/* ─── Empty: no products at all ─── */}
           {!isLoading && !error && filteredProducts.length === 0 && products.length === 0 && (
-            <div className="text-center py-20">
-              <ShoppingBag className="w-16 h-16 text-gray-600 mx-auto mb-4" />
-              <h3 className="text-xl font-semibold text-white mb-2">No products yet</h3>
-              <p className="text-gray-400 mb-6">
-                Products will appear here once they&apos;re added to the Printify store.
+            <div
+              className="text-center py-16 px-6"
+              style={{ background: 'rgba(244,238,228,0.02)', border: `1px solid ${HAIR}` }}
+            >
+              <BasketIcon className="w-12 h-12 mx-auto mb-4" />
+              <h3
+                className="mb-2"
+                style={{ color: CREAM, fontFamily: 'var(--font-fraunces, serif)', fontSize: '1.25rem' }}
+              >
+                The stand isn't stocked yet.
+              </h3>
+              <p className="mono text-[0.6rem] uppercase tracking-[0.22em]" style={{ color: CREAM_FAINT }}>
+                Goods will appear here once the grove ships.
               </p>
             </div>
           )}
 
-          {/* No results for filter */}
+          {/* ─── Empty: filter mismatch ─── */}
           {!isLoading && !error && filteredProducts.length === 0 && products.length > 0 && (
-            <div className="text-center py-20">
-              <Package className="w-16 h-16 text-gray-600 mx-auto mb-4" />
-              <h3 className="text-xl font-semibold text-white mb-2">No products in this category</h3>
-              <p className="text-gray-400">
-                Try selecting a different category or view all products.
+            <div
+              className="text-center py-16 px-6"
+              style={{ background: 'rgba(244,238,228,0.02)', border: `1px solid ${HAIR}` }}
+            >
+              <SeedIcon className="w-12 h-12 mx-auto mb-4" />
+              <h3
+                className="mb-2"
+                style={{ color: CREAM, fontFamily: 'var(--font-fraunces, serif)', fontSize: '1.25rem' }}
+              >
+                Nothing in this row.
+              </h3>
+              <p className="mono text-[0.6rem] uppercase tracking-[0.22em]" style={{ color: CREAM_FAINT }}>
+                Try a different category or view all.
               </p>
             </div>
           )}
 
-          {/* Order Info & Support */}
-          <div className="bg-gradient-to-br from-pink-500/10 to-orange-500/10 rounded-2xl border border-pink-500/30 p-6">
-            <div className="space-y-4">
+          {/* ─── Order info & support ─── */}
+          <div
+            className="mt-12 p-6 sm:p-8"
+            style={{ background: 'rgba(244,238,228,0.025)', border: `1px solid ${HAIR_STRONG}` }}
+          >
+            <div className="space-y-5">
               <div className="flex items-start gap-4">
-                <div className="p-3 bg-gradient-to-br from-pink-500 to-orange-500 rounded-xl flex-shrink-0">
-                  <Package className="w-6 h-6 text-white" />
+                <div
+                  className="w-12 h-12 flex items-center justify-center flex-shrink-0"
+                  style={{ background: `${AMBER}22`, border: `1px solid ${AMBER}55`, color: AMBER }}
+                >
+                  <BasketIcon className="w-5 h-5" />
                 </div>
                 <div>
-                  <h3 className="text-lg font-bold text-white mb-1">Order & Shipping</h3>
-                  <p className="text-gray-400 text-sm">
-                    You&apos;ll receive email updates from Printify when your order is confirmed, in production, and shipped with tracking info.
+                  <h3
+                    className="mb-1"
+                    style={{
+                      color: CREAM,
+                      fontFamily: 'var(--font-fraunces, serif)',
+                      fontSize: '1.1rem',
+                      fontWeight: 400,
+                    }}
+                  >
+                    Order &amp; shipping
+                  </h3>
+                  <p className="text-sm" style={{ color: CREAM_DIM }}>
+                    Printify will email you when your order is confirmed, in production, and shipped with tracking.
                   </p>
                 </div>
               </div>
 
-              <div className="border-t border-white/10 pt-4">
-                <h4 className="text-white font-medium mb-2">Need Help?</h4>
-                <p className="text-gray-400 text-sm mb-3">
-                  If you have any issues with your order, reach out to us on Discord with your wallet address or transaction signature.
+              <div className="pt-4" style={{ borderTop: `1px solid ${HAIR}` }}>
+                <h4
+                  className="mb-2"
+                  style={{
+                    color: CREAM,
+                    fontFamily: 'var(--font-fraunces, serif)',
+                    fontSize: '0.95rem',
+                  }}
+                >
+                  Need help?
+                </h4>
+                <p className="text-sm mb-3" style={{ color: CREAM_DIM }}>
+                  Reach out on Discord with your wallet address or transaction signature.
                 </p>
                 <a
                   href="https://discord.gg/38pkg4vm"
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="inline-flex items-center gap-2 px-4 py-2 bg-[#5865F2]/20 text-[#5865F2] rounded-lg border border-[#5865F2]/30 hover:bg-[#5865F2]/30 transition-colors text-sm font-medium"
+                  className="mono text-[0.62rem] uppercase tracking-[0.22em] inline-flex items-center gap-2 px-3 py-2 transition-colors"
+                  style={{ color: '#5865F2', border: '1px solid rgba(88,101,242,0.4)' }}
+                  onMouseEnter={(e) => (e.currentTarget.style.background = 'rgba(88,101,242,0.1)')}
+                  onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}
                 >
-                  <svg className="w-5 h-5" viewBox="0 0 24 24" fill="currentColor">
-                    <path d="M20.317 4.37a19.791 19.791 0 0 0-4.885-1.515.074.074 0 0 0-.079.037c-.21.375-.444.864-.608 1.25a18.27 18.27 0 0 0-5.487 0 12.64 12.64 0 0 0-.617-1.25.077.077 0 0 0-.079-.037A19.736 19.736 0 0 0 3.677 4.37a.07.07 0 0 0-.032.027C.533 9.046-.32 13.58.099 18.057a.082.082 0 0 0 .031.057 19.9 19.9 0 0 0 5.993 3.03.078.078 0 0 0 .084-.028 14.09 14.09 0 0 0 1.226-1.994.076.076 0 0 0-.041-.106 13.107 13.107 0 0 1-1.872-.892.077.077 0 0 1-.008-.128 10.2 10.2 0 0 0 .372-.292.074.074 0 0 1 .077-.01c3.928 1.793 8.18 1.793 12.062 0a.074.074 0 0 1 .078.01c.12.098.246.198.373.292a.077.077 0 0 1-.006.127 12.299 12.299 0 0 1-1.873.892.077.077 0 0 0-.041.107c.36.698.772 1.362 1.225 1.993a.076.076 0 0 0 .084.028 19.839 19.839 0 0 0 6.002-3.03.077.077 0 0 0 .032-.054c.5-5.177-.838-9.674-3.549-13.66a.061.061 0 0 0-.031-.03zM8.02 15.33c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.956-2.419 2.157-2.419 1.21 0 2.176 1.096 2.157 2.42 0 1.333-.956 2.418-2.157 2.418zm7.975 0c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.955-2.419 2.157-2.419 1.21 0 2.176 1.096 2.157 2.42 0 1.333-.946 2.418-2.157 2.418z"/>
+                  <svg className="w-4 h-4" viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M20.317 4.37a19.791 19.791 0 0 0-4.885-1.515.074.074 0 0 0-.079.037c-.21.375-.444.864-.608 1.25a18.27 18.27 0 0 0-5.487 0 12.64 12.64 0 0 0-.617-1.25.077.077 0 0 0-.079-.037A19.736 19.736 0 0 0 3.677 4.37a.07.07 0 0 0-.032.027C.533 9.046-.32 13.58.099 18.057a.082.082 0 0 0 .031.057 19.9 19.9 0 0 0 5.993 3.03.078.078 0 0 0 .084-.028 14.09 14.09 0 0 0 1.226-1.994.076.076 0 0 0-.041-.106 13.107 13.107 0 0 1-1.872-.892.077.077 0 0 1-.008-.128 10.2 10.2 0 0 0 .372-.292.074.074 0 0 1 .077-.01c3.928 1.793 8.18 1.793 12.062 0a.074.074 0 0 1 .078.01c.12.098.246.198.373.292a.077.077 0 0 1-.006.127 12.299 12.299 0 0 1-1.873.892.077.077 0 0 0-.041.107c.36.698.772 1.362 1.225 1.993a.076.076 0 0 0 .084.028 19.839 19.839 0 0 0 6.002-3.03.077.077 0 0 0 .032-.054c.5-5.177-.838-9.674-3.549-13.66a.061.061 0 0 0-.031-.03zM8.02 15.33c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.956-2.419 2.157-2.419 1.21 0 2.176 1.096 2.157 2.42 0 1.333-.956 2.418-2.157 2.418zm7.975 0c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.955-2.419 2.157-2.419 1.21 0 2.176 1.096 2.157 2.42 0 1.333-.946 2.418-2.157 2.418z" />
                   </svg>
-                  Join our Discord
+                  Join the Discord
                 </a>
               </div>
 
-              <div className="flex flex-wrap gap-2 pt-2">
-                <div className="px-3 py-1.5 bg-green-500/20 text-green-400 text-xs rounded-lg border border-green-500/30">
-                  Print-on-Demand
-                </div>
-                <div className="px-3 py-1.5 bg-blue-500/20 text-blue-400 text-xs rounded-lg border border-blue-500/30">
-                  US & Canada Only
-                </div>
-                <div className="px-3 py-1.5 bg-purple-500/20 text-purple-400 text-xs rounded-lg border border-purple-500/30">
+              <div className="flex flex-wrap gap-2 pt-1">
+                <span
+                  className="mono text-[0.55rem] uppercase tracking-[0.22em] px-2 py-1"
+                  style={{ color: FOREST, border: `1px solid ${FOREST}55` }}
+                >
+                  Print on demand
+                </span>
+                <span
+                  className="mono text-[0.55rem] uppercase tracking-[0.22em] px-2 py-1"
+                  style={{ color: PEACH, border: `1px solid ${PEACH}55` }}
+                >
+                  US &amp; Canada only
+                </span>
+                <span
+                  className="mono text-[0.55rem] uppercase tracking-[0.22em] px-2 py-1"
+                  style={{ color: AMBER, border: `1px solid ${AMBER}55` }}
+                >
                   Pay with SOL
-                </div>
+                </span>
               </div>
             </div>
           </div>
         </div>
       </div>
 
-      {/* Product Modal */}
+      {/* ─── Product modal ─── */}
       {selectedProduct && (
         <div
-          className="fixed inset-0 z-50 flex items-center justify-center p-0 sm:p-4 bg-black/90 backdrop-blur-md overflow-hidden"
+          className="fixed inset-0 z-50 flex items-center justify-center p-0 sm:p-4 overflow-hidden"
+          style={{ background: 'rgba(10,8,20,0.92)', backdropFilter: 'blur(14px)' }}
           onClick={closeProductModal}
         >
-          {/* Cosmic Background Effects */}
+          {/* Cosmic warm starfield (matches landing palette) */}
           <div className="absolute inset-0 overflow-hidden pointer-events-none">
-            {/* Stars */}
             <div
               className="absolute inset-0 opacity-40"
               style={{
                 backgroundImage: `
-                  radial-gradient(2px 2px at 20% 30%, white, transparent),
-                  radial-gradient(2px 2px at 60% 70%, white, transparent),
-                  radial-gradient(1px 1px at 50% 50%, white, transparent),
-                  radial-gradient(1px 1px at 80% 10%, cyan, transparent),
-                  radial-gradient(2px 2px at 90% 60%, white, transparent),
-                  radial-gradient(1px 1px at 33% 80%, #ec4899, transparent),
-                  radial-gradient(1px 1px at 70% 40%, white, transparent),
-                  radial-gradient(2px 2px at 10% 90%, #f97316, transparent),
-                  radial-gradient(1px 1px at 45% 15%, white, transparent)
+                  radial-gradient(2px 2px at 20% 30%, ${CREAM}, transparent),
+                  radial-gradient(2px 2px at 60% 70%, ${CREAM}, transparent),
+                  radial-gradient(1px 1px at 50% 50%, ${CREAM}, transparent),
+                  radial-gradient(1px 1px at 80% 10%, ${PEACH}, transparent),
+                  radial-gradient(2px 2px at 90% 60%, ${CREAM}, transparent),
+                  radial-gradient(1px 1px at 33% 80%, ${AMBER}, transparent),
+                  radial-gradient(1px 1px at 70% 40%, ${CREAM}, transparent),
+                  radial-gradient(2px 2px at 10% 90%, ${EARTH}, transparent),
+                  radial-gradient(1px 1px at 45% 15%, ${CREAM}, transparent)
                 `,
                 backgroundSize: '200% 200%',
                 animation: 'float 20s ease-in-out infinite',
               }}
             />
-            {/* Nebula Glow */}
             <div
               className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[800px] h-[800px] rounded-full opacity-20"
               style={{
-                background: 'radial-gradient(ellipse at center, rgba(236, 72, 153, 0.3) 0%, rgba(249, 115, 22, 0.1) 40%, transparent 70%)',
+                background: `radial-gradient(ellipse at center, ${AMBER}33 0%, ${EARTH}11 40%, transparent 70%)`,
                 animation: 'rotate 30s linear infinite',
               }}
             />
           </div>
 
           <div
-            className="relative bg-gradient-to-br from-gray-900/95 via-gray-900/98 to-gray-800/95 rounded-none sm:rounded-2xl border-0 sm:border border-pink-500/20 max-w-2xl w-full h-full sm:h-auto sm:max-h-[90vh] overflow-y-auto shadow-[0_0_60px_rgba(236,72,153,0.15),0_0_120px_rgba(249,115,22,0.1)]"
+            className="relative max-w-2xl w-full h-full sm:h-auto sm:max-h-[90vh] overflow-y-auto"
+            style={{
+              background: 'rgba(10,8,20,0.96)',
+              border: `1px solid ${HAIR_STRONG}`,
+              boxShadow: '0 24px 80px rgba(0,0,0,0.6)',
+            }}
             onClick={(e) => e.stopPropagation()}
           >
-            {/* Modal Header */}
-            <div className="sticky top-0 bg-gradient-to-r from-gray-900/95 to-gray-800/95 backdrop-blur-sm border-b border-pink-500/20 p-3 sm:p-4 flex items-center justify-between z-10">
-              <h2 className="text-base sm:text-xl font-bold text-white truncate pr-2">{selectedProduct.title}</h2>
+            {/* Modal header */}
+            <div
+              className="sticky top-0 px-4 sm:px-5 py-3 flex items-center justify-between z-10"
+              style={{ background: 'rgba(10,8,20,0.94)', borderBottom: `1px solid ${HAIR}` }}
+            >
+              <h2
+                className="truncate pr-2"
+                style={{
+                  color: CREAM,
+                  fontFamily: 'var(--font-fraunces, serif)',
+                  fontSize: '1.1rem',
+                  fontWeight: 400,
+                }}
+              >
+                {selectedProduct.title}
+              </h2>
               <button
                 onClick={closeProductModal}
-                className="p-2 hover:bg-white/10 rounded-lg transition-colors flex-shrink-0"
+                className="p-2 transition-colors flex-shrink-0"
+                style={{ color: CREAM_DIM }}
+                onMouseEnter={(e) => (e.currentTarget.style.color = AMBER)}
+                onMouseLeave={(e) => (e.currentTarget.style.color = CREAM_DIM)}
               >
-                <X className="w-5 h-5 text-gray-400 hover:text-pink-400 transition-colors" />
+                <X className="w-5 h-5" />
               </button>
             </div>
 
-            {/* Modal Content */}
             <div className="p-4 sm:p-6">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6">
-                {/* Left Column - Image + Details */}
+                {/* Left — image + features */}
                 <div className="space-y-3 sm:space-y-4">
-                  {/* Product Image - Updates based on selected variant */}
-                  <div className="aspect-square max-h-[40vh] sm:max-h-none bg-gradient-to-br from-pink-500/10 to-orange-500/10 rounded-xl overflow-hidden relative mx-auto w-full max-w-[280px] sm:max-w-none">
+                  <div
+                    className="aspect-square max-h-[40vh] sm:max-h-none overflow-hidden relative mx-auto w-full max-w-[280px] sm:max-w-none"
+                    style={{
+                      background: 'rgba(232,150,96,0.08)',
+                      border: `1px solid ${HAIR}`,
+                    }}
+                  >
                     {getVariantImage ? (
                       <img
                         src={getVariantImage}
                         alt={selectedProduct.title}
                         className="w-full h-full object-cover transition-opacity duration-300"
-                        key={getVariantImage} // Force re-render on image change
+                        key={getVariantImage}
                       />
                     ) : (
                       <div className="w-full h-full flex items-center justify-center">
-                        <ShoppingBag className="w-20 h-20 text-white/20" />
+                        <BasketIcon className="w-16 h-16" />
                       </div>
                     )}
-                    {/* Image loading indicator */}
                     {selectedVariant && (
-                      <div className="absolute bottom-2 right-2 px-2 py-1 bg-black/50 rounded-lg text-xs text-gray-300">
+                      <div
+                        className="absolute bottom-2 right-2 mono text-[0.55rem] uppercase tracking-[0.22em] px-2 py-1"
+                        style={{ background: 'rgba(10,8,20,0.7)', color: CREAM_DIM }}
+                      >
                         {selectedVariant.title}
                       </div>
                     )}
                   </div>
 
-                  {/* Key Features - Below image */}
-                  <div className="text-gray-300 text-xs sm:text-sm bg-white/5 rounded-lg p-3 sm:p-4">
+                  {/* Key features */}
+                  <div
+                    className="text-xs sm:text-sm p-3 sm:p-4"
+                    style={{
+                      color: CREAM_DIM,
+                      background: 'rgba(244,238,228,0.025)',
+                      border: `1px solid ${HAIR}`,
+                    }}
+                  >
                     {(() => {
                       const desc = selectedProduct.description?.replace(/<[^>]*>/g, '') || '';
-
-                      // Extract key features from description
                       const features: string[] = [];
 
-                      // Look for material info (capture until period or end)
                       const materialMatch = desc.match(/made of\s+([^.]+)/i);
                       if (materialMatch) {
                         let material = materialMatch[0].trim();
-                        // Clean up trailing words like "in 11-ounce"
                         material = material.replace(/\s+in\s+\d+.*$/i, '');
-                        // Capitalize first letter
                         material = material.charAt(0).toUpperCase() + material.slice(1);
                         features.push(material);
                       }
 
-                      // Look for size info - normalize to consistent format
                       const sizeMatch = desc.match(/(\d+)[-\s]?(ounce|oz)/gi);
                       if (sizeMatch) {
-                        // Extract unique numbers and format consistently
-                        const sizes = [...new Set(sizeMatch.map(s => {
-                          const num = s.match(/\d+/)?.[0];
-                          return num ? `${num}oz` : null;
-                        }).filter(Boolean))];
-                        if (sizes.length > 1) {
-                          features.push(`Available in ${sizes.join(' & ')} sizes`);
-                        } else if (sizes.length === 1) {
-                          features.push(`${sizes[0]} size`);
-                        }
+                        const sizes = [
+                          ...new Set(
+                            sizeMatch
+                              .map((s) => {
+                                const num = s.match(/\d+/)?.[0];
+                                return num ? `${num}oz` : null;
+                              })
+                              .filter(Boolean),
+                          ),
+                        ];
+                        if (sizes.length > 1) features.push(`Available in ${sizes.join(' & ')} sizes`);
+                        else if (sizes.length === 1) features.push(`${sizes[0]} size`);
                       }
 
-                      // Look for safety/care info
                       const safetyFeatures: string[] = [];
                       if (/BPA[- ]?free/i.test(desc)) safetyFeatures.push('BPA-free');
                       if (/lead[- ]?free/i.test(desc)) safetyFeatures.push('Lead-free');
-                      if (safetyFeatures.length > 0) {
-                        features.push(safetyFeatures.join(' & '));
-                      }
+                      if (safetyFeatures.length > 0) features.push(safetyFeatures.join(' & '));
 
-                      // Care instructions
                       const careFeatures: string[] = [];
                       if (/microwave/i.test(desc)) careFeatures.push('Microwave-safe');
                       if (/dishwasher/i.test(desc)) careFeatures.push('Dishwasher-safe');
                       if (/machine wash/i.test(desc)) careFeatures.push('Machine washable');
-                      if (careFeatures.length > 0) {
-                        features.push(careFeatures.join(' & '));
-                      }
+                      if (careFeatures.length > 0) features.push(careFeatures.join(' & '));
 
-                      // Fabric/material specifics for apparel
                       if (/100%\s*cotton/i.test(desc)) features.push('100% Cotton');
-                      else if (/cotton/i.test(desc) && /polyester/i.test(desc)) features.push('Cotton-Polyester blend');
+                      else if (/cotton/i.test(desc) && /polyester/i.test(desc))
+                        features.push('Cotton-Polyester blend');
                       else if (/polyester/i.test(desc)) features.push('Polyester');
 
                       if (/organic/i.test(desc)) features.push('Organic material');
@@ -805,15 +975,14 @@ export default function MerchPage() {
                       if (/slim fit/i.test(desc)) features.push('Slim fit');
                       if (/relaxed fit/i.test(desc)) features.push('Relaxed fit');
 
-                      // Limit to 6 features
                       const uniqueFeatures = [...new Set(features)].slice(0, 6);
 
                       if (uniqueFeatures.length > 0) {
                         return (
-                          <ul className="space-y-2">
+                          <ul className="space-y-1.5">
                             {uniqueFeatures.map((feature, i) => (
                               <li key={i} className="flex items-start gap-2">
-                                <span className="text-pink-400">•</span>
+                                <span style={{ color: AMBER }}>·</span>
                                 <span>{feature}</span>
                               </li>
                             ))}
@@ -821,12 +990,15 @@ export default function MerchPage() {
                         );
                       }
 
-                      // Fallback: show product tags if available
                       if (selectedProduct.tags && selectedProduct.tags.length > 0) {
                         return (
                           <div className="flex flex-wrap gap-2">
                             {selectedProduct.tags.slice(0, 4).map((tag, i) => (
-                              <span key={i} className="px-2 py-1 bg-white/10 rounded-lg text-gray-300">
+                              <span
+                                key={i}
+                                className="mono text-[0.55rem] uppercase tracking-[0.22em] px-2 py-1"
+                                style={{ color: CREAM_DIM, border: `1px solid ${HAIR_STRONG}` }}
+                              >
                                 {tag}
                               </span>
                             ))}
@@ -834,236 +1006,375 @@ export default function MerchPage() {
                         );
                       }
 
-                      return <p>Premium quality merch</p>;
+                      return <p>Premium goods from the grove.</p>;
                     })()}
                   </div>
                 </div>
 
-                {/* Right Column - Options, Shipping & Payment */}
+                {/* Right — options + shipping + pay */}
                 <div className="space-y-4">
-                  {/* Variant Selectors */}
+                  {/* Variant selectors */}
                   {selectedProduct.options && selectedProduct.options.length > 0 && (
                     <div className="space-y-3">
                       {selectedProduct.options.map((option) => (
                         <div key={option.name}>
-                          <label className="block text-sm font-medium text-gray-300 mb-2">
+                          <label
+                            className="block mono text-[0.6rem] uppercase tracking-[0.22em] mb-2"
+                            style={{ color: CREAM_DIM }}
+                          >
                             {option.name}
                           </label>
                           <div className="relative">
                             <select
                               value={selectedOptions[option.name] || ''}
-                              onChange={(e) => setSelectedOptions(prev => ({
-                                ...prev,
-                                [option.name]: e.target.value
-                              }))}
-                              className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white appearance-none cursor-pointer hover:border-pink-500/50 transition-colors"
+                              onChange={(e) =>
+                                setSelectedOptions((prev) => ({
+                                  ...prev,
+                                  [option.name]: e.target.value,
+                                }))
+                              }
+                              className="w-full appearance-none cursor-pointer text-sm px-3 py-2.5 pr-9 transition-colors focus:outline-none"
+                              style={{
+                                background: 'rgba(244,238,228,0.025)',
+                                border: `1px solid ${HAIR_STRONG}`,
+                                color: CREAM,
+                              }}
                             >
-                              <option value="" disabled>Select {option.name}</option>
+                              <option value="" disabled>
+                                Select {option.name}
+                              </option>
                               {getOptionValues[option.name]?.map((value) => (
-                                <option key={value} value={value} className="bg-gray-900">
+                                <option
+                                  key={value}
+                                  value={value}
+                                  style={{ background: BG, color: CREAM }}
+                                >
                                   {value}
                                 </option>
                               ))}
                             </select>
-                            <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400 pointer-events-none" />
+                            <ChevronDown
+                              className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 pointer-events-none"
+                              style={{ color: CREAM_FAINT }}
+                            />
                           </div>
                         </div>
                       ))}
                     </div>
                   )}
 
-                  {/* Shipping Address Form */}
+                  {/* Shipping address */}
                   <div className="space-y-2 sm:space-y-3">
-                    <h3 className="text-xs sm:text-sm font-medium text-gray-300">Shipping Address</h3>
-                    <div className="grid grid-cols-2 gap-2 text-sm">
+                    <h3 className="mono text-[0.6rem] uppercase tracking-[0.22em]" style={{ color: CREAM_DIM }}>
+                      Shipping address
+                    </h3>
+                    <div className="grid grid-cols-2 gap-2">
                       <input
                         type="text"
                         placeholder="Full Name *"
                         value={shippingAddress.fullName}
-                        onChange={(e) => setShippingAddress(prev => ({ ...prev, fullName: e.target.value }))}
-                        className="col-span-2 bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-white text-sm placeholder-gray-500 focus:border-pink-500/50 focus:outline-none"
+                        onChange={(e) =>
+                          setShippingAddress((prev) => ({ ...prev, fullName: e.target.value }))
+                        }
+                        className={`col-span-2 ${inputCls}`}
+                        style={{ border: `1px solid ${HAIR_STRONG}`, color: CREAM }}
                       />
                       <input
                         type="email"
                         placeholder="Email *"
                         value={shippingAddress.email}
-                        onChange={(e) => setShippingAddress(prev => ({ ...prev, email: e.target.value }))}
-                        className="col-span-2 bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-white text-sm placeholder-gray-500 focus:border-pink-500/50 focus:outline-none"
+                        onChange={(e) =>
+                          setShippingAddress((prev) => ({ ...prev, email: e.target.value }))
+                        }
+                        className={`col-span-2 ${inputCls}`}
+                        style={{ border: `1px solid ${HAIR_STRONG}`, color: CREAM }}
                       />
                       <input
                         type="text"
                         placeholder="Street Address *"
                         value={shippingAddress.address}
-                        onChange={(e) => setShippingAddress(prev => ({ ...prev, address: e.target.value }))}
-                        className="col-span-2 bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-white text-sm placeholder-gray-500 focus:border-pink-500/50 focus:outline-none"
+                        onChange={(e) =>
+                          setShippingAddress((prev) => ({ ...prev, address: e.target.value }))
+                        }
+                        className={`col-span-2 ${inputCls}`}
+                        style={{ border: `1px solid ${HAIR_STRONG}`, color: CREAM }}
                       />
                       <input
                         type="text"
                         placeholder="City *"
                         value={shippingAddress.city}
-                        onChange={(e) => setShippingAddress(prev => ({ ...prev, city: e.target.value }))}
-                        className="bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-white text-sm placeholder-gray-500 focus:border-pink-500/50 focus:outline-none"
+                        onChange={(e) =>
+                          setShippingAddress((prev) => ({ ...prev, city: e.target.value }))
+                        }
+                        className={inputCls}
+                        style={{ border: `1px solid ${HAIR_STRONG}`, color: CREAM }}
                       />
                       <input
                         type="text"
-                        placeholder="State/Province"
+                        placeholder="State / Province"
                         value={shippingAddress.state}
-                        onChange={(e) => setShippingAddress(prev => ({ ...prev, state: e.target.value }))}
-                        className="bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-white text-sm placeholder-gray-500 focus:border-pink-500/50 focus:outline-none"
+                        onChange={(e) =>
+                          setShippingAddress((prev) => ({ ...prev, state: e.target.value }))
+                        }
+                        className={inputCls}
+                        style={{ border: `1px solid ${HAIR_STRONG}`, color: CREAM }}
                       />
                       <input
                         type="text"
-                        placeholder="ZIP/Postal Code"
+                        placeholder="ZIP / Postal"
                         value={shippingAddress.zipCode}
-                        onChange={(e) => setShippingAddress(prev => ({ ...prev, zipCode: e.target.value }))}
-                        className="bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-white text-sm placeholder-gray-500 focus:border-pink-500/50 focus:outline-none"
+                        onChange={(e) =>
+                          setShippingAddress((prev) => ({ ...prev, zipCode: e.target.value }))
+                        }
+                        className={inputCls}
+                        style={{ border: `1px solid ${HAIR_STRONG}`, color: CREAM }}
                       />
                       <div className="relative">
                         <select
                           value={shippingAddress.country}
-                          onChange={(e) => setShippingAddress(prev => ({ ...prev, country: e.target.value }))}
-                          className="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-white text-sm appearance-none cursor-pointer focus:border-pink-500/50 focus:outline-none"
+                          onChange={(e) =>
+                            setShippingAddress((prev) => ({ ...prev, country: e.target.value }))
+                          }
+                          className="w-full appearance-none cursor-pointer text-sm px-3 py-2 pr-8 focus:outline-none"
+                          style={{
+                            background: 'transparent',
+                            border: `1px solid ${HAIR_STRONG}`,
+                            color: CREAM,
+                          }}
                         >
-                          <option value="" disabled className="bg-gray-900">Country *</option>
-                          <option value="United States" className="bg-gray-900">United States</option>
-                          <option value="Canada" className="bg-gray-900">Canada</option>
+                          <option value="" disabled style={{ background: BG }}>
+                            Country *
+                          </option>
+                          <option value="United States" style={{ background: BG }}>
+                            United States
+                          </option>
+                          <option value="Canada" style={{ background: BG }}>
+                            Canada
+                          </option>
                         </select>
-                        <ChevronDown className="absolute right-2 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
+                        <ChevronDown
+                          className="absolute right-2 top-1/2 -translate-y-1/2 w-4 h-4 pointer-events-none"
+                          style={{ color: CREAM_FAINT }}
+                        />
                       </div>
                     </div>
                   </div>
 
-                  {/* Price Display */}
-                  <div className="bg-white/5 rounded-xl p-3 sm:p-4">
+                  {/* Total */}
+                  <div
+                    className="px-4 py-3"
+                    style={{
+                      background: 'rgba(232,150,96,0.06)',
+                      border: `1px solid rgba(232,150,96,0.2)`,
+                    }}
+                  >
                     <div className="flex items-center justify-between">
-                      <span className="text-gray-400 text-sm">Total</span>
+                      <span
+                        className="mono text-[0.6rem] uppercase tracking-[0.24em]"
+                        style={{ color: CREAM_DIM }}
+                      >
+                        Total
+                      </span>
                       {selectedVariant ? (
                         <div className="text-right">
-                          <div className="text-purple-400 font-bold text-lg sm:text-xl">
+                          <div
+                            className="mono"
+                            style={{ color: AMBER, fontSize: '1.05rem', letterSpacing: '0.04em' }}
+                          >
                             {usdToSolString(selectedVariant.priceUSD)} SOL
                           </div>
-                          <div className="text-gray-500 text-xs sm:text-sm">
+                          <div
+                            className="mono text-[0.6rem] uppercase tracking-[0.18em]"
+                            style={{ color: CREAM_FAINT }}
+                          >
                             ${selectedVariant.priceUSD.toFixed(2)} USD
                           </div>
                         </div>
                       ) : (
-                        <span className="text-gray-500 text-sm">Select options</span>
+                        <span className="mono text-[0.6rem] uppercase tracking-[0.22em]" style={{ color: CREAM_FAINT }}>
+                          Select options
+                        </span>
                       )}
                     </div>
                   </div>
 
-                  {/* Payment Status */}
+                  {/* Success state */}
                   {paymentStatus === 'success' && txSignature && (
-                    <div className="bg-green-500/10 border border-green-500/30 rounded-xl p-4">
-                      <div className="flex items-center gap-2 text-green-400 mb-2">
+                    <div
+                      className="p-4"
+                      style={{
+                        background: 'rgba(63,122,66,0.08)',
+                        border: `1px solid ${FOREST}55`,
+                      }}
+                    >
+                      <div className="flex items-center gap-2 mb-2" style={{ color: FOREST }}>
                         <Check className="w-5 h-5" />
-                        <span className="font-semibold">Order Placed Successfully!</span>
+                        <span
+                          style={{
+                            color: CREAM,
+                            fontFamily: 'var(--font-fraunces, serif)',
+                            fontSize: '0.95rem',
+                          }}
+                        >
+                          Order placed.
+                        </span>
                       </div>
                       {printifyOrderId && (
-                        <p className="text-purple-400 text-sm mb-2">
-                          Order ID: <span className="font-mono">{printifyOrderId}</span>
+                        <p className="mono text-[0.62rem] uppercase tracking-[0.18em] mb-2" style={{ color: AMBER }}>
+                          Order · {printifyOrderId}
                         </p>
                       )}
-                      <p className="text-gray-400 text-sm mb-3">
-                        Your order is being processed. Shipping to:
+                      <p className="text-xs mb-3" style={{ color: CREAM_DIM }}>
+                        Shipping to:
                       </p>
-                      <div className="bg-black/20 rounded-lg p-3 mb-3 text-sm">
-                        <p className="text-white font-medium">{shippingAddress.fullName}</p>
-                        <p className="text-gray-400">{shippingAddress.address}</p>
-                        <p className="text-gray-400">
-                          {shippingAddress.city}{shippingAddress.state ? `, ${shippingAddress.state}` : ''} {shippingAddress.zipCode}
+                      <div
+                        className="p-3 mb-3 text-sm"
+                        style={{
+                          background: 'rgba(10,8,20,0.4)',
+                          border: `1px solid ${HAIR}`,
+                          color: CREAM,
+                        }}
+                      >
+                        <p style={{ fontFamily: 'var(--font-fraunces, serif)' }}>{shippingAddress.fullName}</p>
+                        <p className="text-xs" style={{ color: CREAM_DIM }}>
+                          {shippingAddress.address}
                         </p>
-                        <p className="text-gray-400">{shippingAddress.country}</p>
-                        <p className="text-gray-500 text-xs mt-1">{shippingAddress.email}</p>
+                        <p className="text-xs" style={{ color: CREAM_DIM }}>
+                          {shippingAddress.city}
+                          {shippingAddress.state ? `, ${shippingAddress.state}` : ''} {shippingAddress.zipCode}
+                        </p>
+                        <p className="text-xs" style={{ color: CREAM_DIM }}>
+                          {shippingAddress.country}
+                        </p>
+                        <p className="text-xs mt-1" style={{ color: CREAM_FAINT }}>
+                          {shippingAddress.email}
+                        </p>
                       </div>
-                      <div className="flex flex-wrap gap-3">
-                        <a
-                          href={getSolscanUrl(txSignature)}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="inline-flex items-center gap-2 text-purple-400 hover:text-purple-300 text-sm"
-                        >
-                          View Payment <ExternalLink className="w-4 h-4" />
-                        </a>
-                      </div>
-                      <p className="text-gray-500 text-xs mt-3">
-                        You&apos;ll receive shipping updates at {shippingAddress.email}
+                      <a
+                        href={getSolscanUrl(txSignature)}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="mono text-[0.62rem] uppercase tracking-[0.22em] inline-flex items-center gap-1.5 transition-colors"
+                        style={{ color: AMBER }}
+                        onMouseEnter={(e) => (e.currentTarget.style.color = PEACH)}
+                        onMouseLeave={(e) => (e.currentTarget.style.color = AMBER)}
+                      >
+                        View payment <ExternalLink className="w-3 h-3" />
+                      </a>
+                      <p className="text-xs mt-3" style={{ color: CREAM_FAINT }}>
+                        Updates will land at {shippingAddress.email}.
                       </p>
                     </div>
                   )}
 
+                  {/* Error state */}
                   {paymentStatus === 'error' && paymentError && (
-                    <div className="bg-red-500/10 border border-red-500/30 rounded-xl p-4">
-                      <div className="flex items-center gap-2 text-red-400 mb-2">
+                    <div
+                      className="p-4"
+                      style={{
+                        background: 'rgba(214,115,71,0.08)',
+                        border: `1px solid ${EARTH}55`,
+                      }}
+                    >
+                      <div className="flex items-center gap-2 mb-2" style={{ color: EARTH }}>
                         <AlertCircle className="w-5 h-5" />
-                        <span className="font-semibold">Payment Failed</span>
+                        <span
+                          style={{
+                            color: CREAM,
+                            fontFamily: 'var(--font-fraunces, serif)',
+                            fontSize: '0.95rem',
+                          }}
+                        >
+                          Payment didn't go through.
+                        </span>
                       </div>
-                      <p className="text-gray-400 text-sm">{paymentError}</p>
+                      <p className="text-sm" style={{ color: CREAM_DIM }}>
+                        {paymentError}
+                      </p>
                     </div>
                   )}
 
-                  {/* Pay Button */}
-                  <button
-                    onClick={handlePayment}
-                    disabled={!selectedVariant || !isShippingComplete() || paymentStatus === 'signing' || paymentStatus === 'confirming' || paymentStatus === 'preparing' || paymentStatus === 'creating_order' || paymentStatus === 'success'}
-                    className={`
-                      w-full py-2.5 sm:py-3 px-4 rounded-xl font-semibold text-sm sm:text-base transition-all flex items-center justify-center gap-2
-                      ${!selectedVariant || !isShippingComplete() || paymentStatus === 'success'
-                        ? 'bg-gray-600 text-gray-400 cursor-not-allowed'
-                        : paymentStatus === 'signing' || paymentStatus === 'confirming' || paymentStatus === 'preparing' || paymentStatus === 'creating_order'
-                        ? 'bg-purple-600 text-white cursor-wait'
-                        : 'bg-gradient-to-r from-pink-500 to-orange-500 text-white hover:opacity-90'
-                      }
-                    `}
-                  >
-                    {paymentStatus === 'preparing' && (
-                      <>
-                        <Loader2 className="w-5 h-5 animate-spin" />
-                        Preparing Transaction...
-                      </>
-                    )}
-                    {paymentStatus === 'signing' && (
-                      <>
-                        <Loader2 className="w-5 h-5 animate-spin" />
-                        Confirm in Wallet...
-                      </>
-                    )}
-                    {paymentStatus === 'confirming' && (
-                      <>
-                        <Loader2 className="w-5 h-5 animate-spin" />
-                        Confirming on Solana...
-                      </>
-                    )}
-                    {paymentStatus === 'creating_order' && (
-                      <>
-                        <Loader2 className="w-5 h-5 animate-spin" />
-                        Creating Order...
-                      </>
-                    )}
-                    {paymentStatus === 'success' && (
-                      <>
-                        <Check className="w-5 h-5" />
-                        Order Complete
-                      </>
-                    )}
-                    {(paymentStatus === 'idle' || paymentStatus === 'error') && (
-                      <>
-                        <CreditCard className="w-5 h-5" />
-                        {!authenticated
-                          ? 'Connect Wallet to Pay'
-                          : !selectedVariant
-                          ? 'Select Options'
-                          : !isShippingComplete()
-                          ? 'Enter Shipping Address'
-                          : `Pay ${usdToSolString(selectedVariant.priceUSD)} SOL`
-                        }
-                      </>
-                    )}
-                  </button>
+                  {/* Pay button */}
+                  {(() => {
+                    const inProgress =
+                      paymentStatus === 'preparing' ||
+                      paymentStatus === 'signing' ||
+                      paymentStatus === 'confirming' ||
+                      paymentStatus === 'creating_order';
+                    const disabled =
+                      !selectedVariant || !isShippingComplete() || inProgress || paymentStatus === 'success';
 
-                  {/* Info Note */}
-                  <p className="text-gray-500 text-xs text-center">
-                    Your shipping address will be saved with your order.
+                    let bg = AMBER;
+                    let color = BG;
+                    let cursor: 'pointer' | 'not-allowed' | 'wait' = 'pointer';
+                    if (paymentStatus === 'success') {
+                      bg = FOREST;
+                      color = CREAM;
+                    } else if (inProgress) {
+                      bg = PEACH;
+                      color = BG;
+                      cursor = 'wait';
+                    } else if (!selectedVariant || !isShippingComplete()) {
+                      bg = HAIR_STRONG as any;
+                      color = CREAM_FAINT as any;
+                      cursor = 'not-allowed';
+                    }
+
+                    return (
+                      <button
+                        onClick={handlePayment}
+                        disabled={disabled}
+                        className="w-full py-3 mono text-[0.65rem] uppercase tracking-[0.26em] flex items-center justify-center gap-2 transition-colors"
+                        style={{ background: bg, color, cursor }}
+                      >
+                        {paymentStatus === 'preparing' && (
+                          <>
+                            <Loader2 className="w-4 h-4 animate-spin" />
+                            Preparing transaction
+                          </>
+                        )}
+                        {paymentStatus === 'signing' && (
+                          <>
+                            <Loader2 className="w-4 h-4 animate-spin" />
+                            Confirm in wallet
+                          </>
+                        )}
+                        {paymentStatus === 'confirming' && (
+                          <>
+                            <Loader2 className="w-4 h-4 animate-spin" />
+                            Confirming on Solana
+                          </>
+                        )}
+                        {paymentStatus === 'creating_order' && (
+                          <>
+                            <Loader2 className="w-4 h-4 animate-spin" />
+                            Creating order
+                          </>
+                        )}
+                        {paymentStatus === 'success' && (
+                          <>
+                            <Check className="w-4 h-4" />
+                            Order complete
+                          </>
+                        )}
+                        {(paymentStatus === 'idle' || paymentStatus === 'error') && (
+                          <>
+                            <BloomIcon className="w-4 h-4" />
+                            {!authenticated
+                              ? 'Connect wallet to pay'
+                              : !selectedVariant
+                              ? 'Select options'
+                              : !isShippingComplete()
+                              ? 'Enter shipping address'
+                              : `Pay ${usdToSolString(selectedVariant.priceUSD)} SOL`}
+                          </>
+                        )}
+                      </button>
+                    );
+                  })()}
+
+                  <p className="mono text-[0.55rem] uppercase tracking-[0.22em] text-center" style={{ color: CREAM_FAINT }}>
+                    Your address is stored only with the order.
                   </p>
                 </div>
               </div>

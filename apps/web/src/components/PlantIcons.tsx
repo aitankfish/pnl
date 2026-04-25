@@ -53,7 +53,49 @@ export const BloomIcon = ({ className = '' }: IconProps) => (
   </svg>
 );
 
-// LEAF with vein — for notifications (new growth = new signal).
+// BELLFLOWER — foxglove/campanula bell hanging from a stem. Used for
+// notifications: reads as "bell" (matching universal notification semantics)
+// while staying in the plant vocabulary. Tiny clapper stamen inside, small
+// pedicel and calyx at the top so it scans as a flower, not a chime.
+export const BellflowerIcon = ({ className = '', strokeWidth = 1.2 }: IconProps) => (
+  <svg viewBox="0 0 20 20" fill="none" className={className} aria-hidden>
+    {/* pedicel — short stem the bloom hangs from */}
+    <path
+      d="M10 2 V5"
+      stroke="currentColor"
+      strokeWidth={strokeWidth}
+      strokeLinecap="round"
+    />
+    {/* calyx — three tiny sepal nubs where bell meets stem */}
+    <path
+      d="M8.4 5 L10 5.6 L11.6 5 M10 5 V6"
+      stroke="currentColor"
+      strokeWidth={strokeWidth * 0.7}
+      strokeLinecap="round"
+      opacity="0.75"
+    />
+    {/* bell silhouette — narrow at top, flares to a scalloped opening */}
+    <path
+      d="M10 5.6 C 7 7.4, 5.6 11, 5.6 14 Q 7.6 15.6, 10 15 Q 12.4 15.6, 14.4 14 C 14.4 11, 13 7.4, 10 5.6 Z"
+      fill="currentColor"
+      fillOpacity="0.42"
+      stroke="currentColor"
+      strokeWidth={strokeWidth}
+      strokeLinejoin="round"
+    />
+    {/* clapper / stamen hanging inside */}
+    <path
+      d="M10 9 V13"
+      stroke="currentColor"
+      strokeWidth={strokeWidth * 0.7}
+      strokeLinecap="round"
+      opacity="0.85"
+    />
+    <circle cx="10" cy="13.4" r="0.85" fill="currentColor" />
+  </svg>
+);
+
+// LEAF with vein — generic foliage glyph (kept for non-notification uses).
 export const LeafIcon = ({ className = '', strokeWidth = 1.2 }: IconProps) => (
   <svg viewBox="0 0 20 20" fill="none" className={className} aria-hidden>
     <path

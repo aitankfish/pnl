@@ -1,27 +1,47 @@
 'use client';
 
-import { useState, useEffect } from 'react';
-import { authFetch } from '@/lib/auth/fetch-with-auth';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { useRouter } from 'next/navigation';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Textarea } from '@/components/ui/textarea';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Label } from '@/components/ui/label';
+import Link from 'next/link';
+import { Loader2, X, Check } from 'lucide-react';
+import { authFetch } from '@/lib/auth/fetch-with-auth';
 import { config } from '@/lib/config';
 import { createClientLogger } from '@/lib/logger';
 import { useWallet } from '@/hooks/useWallet';
-import { useWallets, useSignAndSendTransaction, useStandardWallets } from '@privy-io/react-auth/solana';
-import { ipfsUtils, ProjectMetadata } from '@/lib/ipfs';
+import {
+  useWallets,
+  useSignAndSendTransaction,
+  useStandardWallets,
+} from '@privy-io/react-auth/solana';
 import { getSolanaConnection } from '@/lib/solana';
 import bs58 from 'bs58';
 import { useToast } from '@/lib/hooks/useToast';
 import { isDevnet } from '@/lib/environment';
 import { SOLANA_NETWORK } from '@/config/solana';
+import {
+  SeedIcon,
+  RootIcon,
+  BloomIcon,
+  SunIcon,
+  TreeIcon,
+  LeafIcon,
+} from '@/components/PlantIcons';
+import { Dropdown, DropdownOption, DropdownGroup } from '@/components/Dropdown';
 
 const logger = createClientLogger();
 
-// Form data interface
+// ── Cosmic-plant palette ──
+const BG = '#0a0814';
+const CREAM = '#f4eee4';
+const CREAM_DIM = 'rgba(244,238,228,0.65)';
+const CREAM_FAINT = 'rgba(244,238,228,0.4)';
+const HAIR = 'rgba(244,238,228,0.08)';
+const HAIR_STRONG = 'rgba(244,238,228,0.16)';
+const AMBER = '#e89660';
+const PEACH = '#ecb48a';
+const FOREST = '#3f7a42';
+const EARTH = '#d67347';
+
 interface ProjectFormData {
   name: string;
   description: string;
@@ -58,1540 +78,1750 @@ const initialFormData: ProjectFormData = {
   tokenSymbol: '',
   targetPool: '',
   marketDuration: '',
-  socialLinks: {
-    website: '',
-    github: '',
-    linkedin: '',
-    twitter: '',
-    telegram: '',
-    discord: '',
-  },
+  socialLinks: { website: '', github: '', linkedin: '', twitter: '', telegram: '', discord: '' },
   additionalNotes: '',
 };
+
+type StepId = 1 | 2 | 3 | 4 | 5;
+type SubmissionStep = 'idle' | 'uploading' | 'preparing' | 'signing' | 'confirming' | 'completing';
+
+const STEPS: Array<{
+  id: StepId;
+  Icon: React.ComponentType<{ className?: string }>;
+  eyebrow: string;
+  title: string;
+  subtitle: string;
+}> = [
+  {
+    id: 1,
+    Icon: SeedIcon,
+    eyebrow: 'Step 1 of 5',
+    title: 'The Seed',
+    subtitle: 'What are you planting? Give it a name and a shape.',
+  },
+  {
+    id: 2,
+    Icon: RootIcon,
+    eyebrow: 'Step 2 of 5',
+    title: 'The Roots',
+    subtitle: 'Where it stands. Who tends it. What it looks like.',
+  },
+  {
+    id: 3,
+    Icon: BloomIcon,
+    eyebrow: 'Step 3 of 5',
+    title: 'The Bloom',
+    subtitle: 'How big should it grow. When should the grove decide.',
+  },
+  {
+    id: 4,
+    Icon: SunIcon,
+    eyebrow: 'Step 4 of 5',
+    title: 'The Voice',
+    subtitle: 'Optional. Show your work — pitch, docs, links.',
+  },
+  {
+    id: 5,
+    Icon: TreeIcon,
+    eyebrow: 'Step 5 of 5',
+    title: 'Plant it',
+    subtitle: 'One last look. When you\'re ready, set it in the grove.',
+  },
+];
+
+const CATEGORY_GROUPS: DropdownGroup[] = [
+  {
+    label: 'Web3 & Crypto',
+    options: [
+      { value: 'defi', label: 'DeFi' },
+      { value: 'nft', label: 'NFT' },
+      { value: 'gaming', label: 'Gaming' },
+      { value: 'dao', label: 'DAO' },
+      { value: 'ai', label: 'AI/ML' },
+      { value: 'infrastructure', label: 'Infrastructure' },
+      { value: 'social', label: 'Social' },
+      { value: 'meme', label: 'Meme' },
+      { value: 'creator', label: 'Creator' },
+    ],
+  },
+  {
+    label: 'Traditional',
+    options: [
+      { value: 'healthcare', label: 'Healthcare' },
+      { value: 'science', label: 'Science' },
+      { value: 'education', label: 'Education' },
+      { value: 'finance', label: 'Finance' },
+      { value: 'commerce', label: 'Commerce' },
+      { value: 'realestate', label: 'Real Estate' },
+      { value: 'energy', label: 'Energy' },
+      { value: 'media', label: 'Media' },
+      { value: 'manufacturing', label: 'Manufacturing' },
+      { value: 'mobility', label: 'Mobility' },
+    ],
+  },
+  {
+    label: 'Etc',
+    options: [{ value: 'other', label: 'Other' }],
+  },
+];
+
+const PROJECT_TYPES: DropdownOption[] = [
+  { value: 'protocol', label: 'Protocol', hint: 'rails for others' },
+  { value: 'application', label: 'Application', hint: 'used directly' },
+  { value: 'platform', label: 'Platform', hint: 'host for others' },
+  { value: 'service', label: 'Service', hint: 'human-powered' },
+  { value: 'tool', label: 'Tool', hint: 'narrow utility' },
+];
+
+const PROJECT_STAGES: DropdownOption[] = [
+  { value: 'idea', label: 'Idea', hint: 'just a seed' },
+  { value: 'prototype', label: 'Prototype', hint: 'early sketch' },
+  { value: 'mvp', label: 'MVP', hint: 'first working' },
+  { value: 'beta', label: 'Beta', hint: 'in test' },
+  { value: 'launched', label: 'Launched', hint: 'in the wild' },
+];
+
+const TARGET_POOLS: DropdownOption[] = [
+  { value: '5000000000', label: '5 SOL', hint: 'small project' },
+  { value: '10000000000', label: '10 SOL', hint: 'medium project' },
+  { value: '15000000000', label: '15 SOL', hint: 'large project' },
+];
+
+const DURATIONS: DropdownOption[] = [
+  { value: '1', label: '1 day' },
+  { value: '3', label: '3 days' },
+  { value: '7', label: '1 week' },
+  { value: '14', label: '2 weeks' },
+  { value: '30', label: '1 month' },
+  { value: '60', label: '2 months' },
+  { value: '90', label: '3 months' },
+  { value: '180', label: '6 months' },
+];
 
 export default function CreatePage() {
   const router = useRouter();
   const { showToast } = useToast();
   const [formData, setFormData] = useState<ProjectFormData>(initialFormData);
-  const [errors, setErrors] = useState<Partial<ProjectFormData>>({});
+  const [errors, setErrors] = useState<Record<string, string>>({});
+  const [currentStep, setCurrentStep] = useState<StepId>(1);
+  const [furthestStep, setFurthestStep] = useState<StepId>(1);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [submissionStep, setSubmissionStep] = useState<'idle' | 'uploading' | 'preparing' | 'signing' | 'confirming' | 'completing'>('idle');
+  const [submissionStep, setSubmissionStep] = useState<SubmissionStep>('idle');
   const [isMounted, setIsMounted] = useState(false);
-  const [isTokenSectionExpanded, setIsTokenSectionExpanded] = useState(true);
   const [isCustomPoolAmount, setIsCustomPoolAmount] = useState(false);
   const [walletBalance, setWalletBalance] = useState<number | null>(null);
-  const [isCheckingBalance, setIsCheckingBalance] = useState(false);
+  const [planted, setPlanted] = useState<{
+    marketId: string;
+    marketAddress: string;
+    name: string;
+    signature: string;
+  } | null>(null);
 
-  // Get connected wallet and user from Privy
   const { primaryWallet, user, authenticated } = useWallet();
   const { wallets } = useWallets();
-  const { standardWallets } = useStandardWallets();
+  const { wallets: standardWallets } = useStandardWallets();
   const { signAndSendTransaction } = useSignAndSendTransaction();
 
-  // Fix hydration issues
   useEffect(() => {
     setIsMounted(true);
   }, []);
 
-  // Check wallet balance when wallet connects
+  // Wallet balance — uses our cached endpoint so we don't hammer Helius from
+  // every visit to the create page.
   useEffect(() => {
-    const checkBalance = async () => {
-      if (!primaryWallet?.address || !authenticated) {
-        setWalletBalance(null);
-        return;
-      }
-
-      setIsCheckingBalance(true);
-      try {
-        const { Connection, PublicKey, LAMPORTS_PER_SOL } = await import('@solana/web3.js');
-        const network = process.env.NEXT_PUBLIC_SOLANA_NETWORK || 'devnet';
-        const rpcEndpoint = network === 'mainnet-beta'
-          ? process.env.NEXT_PUBLIC_HELIUS_MAINNET_RPC
-          : process.env.NEXT_PUBLIC_HELIUS_DEVNET_RPC;
-
-        const connection = new Connection(rpcEndpoint!, 'confirmed');
-        const publicKey = new PublicKey(primaryWallet.address);
-        const balance = await connection.getBalance(publicKey);
-        const balanceInSOL = balance / LAMPORTS_PER_SOL;
-
-        setWalletBalance(balanceInSOL);
-      } catch (error) {
-        console.error('Error fetching balance:', error);
-        setWalletBalance(null);
-      } finally {
-        setIsCheckingBalance(false);
-      }
+    if (!primaryWallet?.address || !authenticated) {
+      setWalletBalance(null);
+      return;
+    }
+    let cancelled = false;
+    fetch(`/api/wallet/balance?address=${encodeURIComponent(primaryWallet.address)}`)
+      .then((r) => r.json())
+      .then((data) => {
+        if (cancelled) return;
+        if (data.success && typeof data.sol === 'number') setWalletBalance(data.sol);
+      })
+      .catch(() => {
+        if (!cancelled) setWalletBalance(null);
+      });
+    return () => {
+      cancelled = true;
     };
+  }, [primaryWallet?.address, authenticated]);
 
-    checkBalance();
-  }, [primaryWallet, authenticated]);
-
-  // Calculate form completion percentage
-  const requiredFields = ['name', 'description', 'category', 'projectType', 'projectStage', 'teamSize', 'tokenSymbol', 'targetPool', 'marketDuration', 'projectImage'];
-  const completedFields = requiredFields.filter(field => formData[field as keyof ProjectFormData]).length;
-  const completionPercentage = (completedFields / requiredFields.length) * 100;
-
-  const validateForm = (): boolean => {
-    const newErrors: Partial<ProjectFormData> = {};
-
-    if (!formData.name.trim()) newErrors.name = 'Project name is required';
-    if (!formData.description.trim()) newErrors.description = 'Description is required';
-    if (formData.description.length > config.ui.maxDescriptionLength) {
-      newErrors.description = `Description must be less than ${config.ui.maxDescriptionLength} characters`;
-    }
-    if (!formData.category) newErrors.category = 'Category is required';
-    if (!formData.projectType) newErrors.projectType = 'Project type is required';
-    if (!formData.projectStage) newErrors.projectStage = 'Project stage is required';
-    if (!formData.teamSize || parseInt(formData.teamSize) < 1) {
-      newErrors.teamSize = 'Team size must be at least 1';
-    }
-    if (!formData.tokenSymbol.trim()) newErrors.tokenSymbol = 'Token symbol is required';
-    if (formData.tokenSymbol.length < 3 || formData.tokenSymbol.length > 10) {
-      newErrors.tokenSymbol = 'Token symbol must be 3-10 characters';
-    }
-    if (!/^[A-Z0-9]+$/.test(formData.tokenSymbol)) {
-      newErrors.tokenSymbol = 'Token symbol must contain only uppercase letters and numbers';
-    }
-    if (!formData.targetPool) newErrors.targetPool = 'Target pool is required';
-    if (!formData.marketDuration) newErrors.marketDuration = 'Market duration is required';
-    if (!formData.projectImage) (newErrors as any).projectImage = 'Project image is required';
-
-    // Validate pitch video file if provided
-    if (formData.pitchVideo) {
-      const maxSize = 50 * 1024 * 1024; // 50MB
-      if (formData.pitchVideo.size > maxSize) {
-        (newErrors as any).pitchVideo = 'Video file must be 50MB or less';
-      }
-    }
-
-    if (formData.additionalNotes.length > config.ui.maxAdditionalNotesLength) {
-      newErrors.additionalNotes = `Additional notes must be less than ${config.ui.maxAdditionalNotesLength} characters`;
-    }
-
-    setErrors(newErrors);
-    return Object.keys(newErrors).length === 0;
-  };
-
-  const handleInputChange = (field: keyof ProjectFormData, value: string) => {
-    setFormData(prev => ({ ...prev, [field]: value }));
-    // Clear error when user starts typing
-    if (errors[field]) {
-      setErrors(prev => ({ ...prev, [field]: undefined }));
+  const setField = (field: keyof ProjectFormData, value: any) => {
+    setFormData((prev) => ({ ...prev, [field]: value }));
+    if (errors[field as string]) {
+      setErrors((prev) => {
+        const next = { ...prev };
+        delete next[field as string];
+        return next;
+      });
     }
   };
 
-  const handleSocialLinkChange = (platform: keyof ProjectFormData['socialLinks'], value: string) => {
-    setFormData(prev => ({
-      ...prev,
-      socialLinks: { ...prev.socialLinks, [platform]: value }
-    }));
+  const setSocialLink = (platform: keyof ProjectFormData['socialLinks'], value: string) => {
+    setFormData((prev) => ({ ...prev, socialLinks: { ...prev.socialLinks, [platform]: value } }));
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+  // Per-step validation. Returns map of field → error message; empty = valid.
+  const validateStep = (step: StepId): Record<string, string> => {
+    const e: Record<string, string> = {};
+    if (step === 1) {
+      if (!formData.name.trim()) e.name = 'A name is required to plant.';
+      if (!formData.description.trim()) e.description = 'Describe what you\'re growing.';
+      else if (formData.description.length > config.ui.maxDescriptionLength)
+        e.description = `Keep it under ${config.ui.maxDescriptionLength} characters.`;
+      if (!formData.category) e.category = 'Pick a category.';
+    }
+    if (step === 2) {
+      if (!formData.projectType) e.projectType = 'Pick a type.';
+      if (!formData.projectStage) e.projectStage = 'Pick a stage.';
+      if (!formData.teamSize || parseInt(formData.teamSize) < 1)
+        e.teamSize = 'Team size must be at least 1.';
+      if (!formData.projectImage) e.projectImage = 'A project image is required.';
+    }
+    if (step === 3) {
+      if (!formData.tokenSymbol.trim()) e.tokenSymbol = 'A token symbol is required.';
+      else if (formData.tokenSymbol.length < 3 || formData.tokenSymbol.length > 10)
+        e.tokenSymbol = 'Symbol must be 3-10 characters.';
+      else if (!/^[A-Z0-9]+$/.test(formData.tokenSymbol))
+        e.tokenSymbol = 'Uppercase letters and numbers only.';
+      if (!formData.targetPool) e.targetPool = 'Pick a target pool.';
+      if (!formData.marketDuration) e.marketDuration = 'Pick a duration.';
+    }
+    if (step === 4) {
+      if (formData.pitchVideo && formData.pitchVideo.size > 50 * 1024 * 1024)
+        e.pitchVideo = 'Video must be 50MB or less.';
+      if (formData.additionalNotes.length > config.ui.maxAdditionalNotesLength)
+        e.additionalNotes = `Keep notes under ${config.ui.maxAdditionalNotesLength} characters.`;
+    }
+    return e;
+  };
 
-    // Check if wallet is connected
+  const goNext = () => {
+    const e = validateStep(currentStep);
+    if (Object.keys(e).length > 0) {
+      setErrors(e);
+      return;
+    }
+    const next = Math.min(5, currentStep + 1) as StepId;
+    setCurrentStep(next);
+    setFurthestStep((f) => (next > f ? next : f));
+    setErrors({});
+    if (typeof window !== 'undefined') window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
+  const goPrev = () => {
+    const prev = Math.max(1, currentStep - 1) as StepId;
+    setCurrentStep(prev);
+    setErrors({});
+    if (typeof window !== 'undefined') window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
+  const jumpToStep = (target: StepId) => {
+    if (target > furthestStep) return;
+    setCurrentStep(target);
+    setErrors({});
+  };
+
+  // ─── Submission ─── (preserves the exact server-side flow:
+  // /api/projects/create → /api/markets/prepare-transaction → Privy sign+send
+  // → /api/markets/complete)
+  const handlePlant = async () => {
     if (!primaryWallet) {
       showToast({
-        title: 'Wallet Required',
-        message: 'Please connect your wallet to create a project.',
-        type: 'error'
+        type: 'error',
+        title: 'Wallet not connected',
+        message: 'Connect your wallet to plant.',
       });
       return;
     }
-
-    if (!validateForm()) {
+    const requiredSOL = 0.02;
+    if (walletBalance !== null && walletBalance < requiredSOL) {
+      showToast({
+        type: 'error',
+        title: 'Not enough SOL',
+        message: `You need at least ${requiredSOL} SOL to plant.`,
+        details: [`Current balance: ${walletBalance.toFixed(4)} SOL`],
+      });
       return;
     }
 
     setIsSubmitting(true);
+    setSubmissionStep('uploading');
 
     try {
-      // Step 1: Upload project image to IPFS if provided
-      let imageUri: string | undefined;
-      if (formData.projectImage) {
-        logger.info('Uploading project image to IPFS');
-        imageUri = await ipfsUtils.uploadImage(formData.projectImage);
-      }
+      const apiFormData = new FormData();
+      apiFormData.append('name', formData.name);
+      apiFormData.append('description', formData.description);
+      apiFormData.append('category', formData.category);
+      apiFormData.append('projectType', formData.projectType);
+      apiFormData.append('projectStage', formData.projectStage);
+      apiFormData.append('location', formData.location || '');
+      apiFormData.append('teamSize', formData.teamSize);
+      apiFormData.append('tokenSymbol', formData.tokenSymbol);
+      apiFormData.append('marketDuration', formData.marketDuration);
+      apiFormData.append('socialLinks', JSON.stringify(formData.socialLinks));
+      apiFormData.append('additionalNotes', formData.additionalNotes || '');
+      apiFormData.append('creatorWalletAddress', primaryWallet.address);
+      if (formData.projectImage) apiFormData.append('projectImage', formData.projectImage);
+      if (formData.projectDocument) apiFormData.append('projectDocument', formData.projectDocument);
+      if (formData.pitchVideo) apiFormData.append('pitchVideo', formData.pitchVideo);
 
-      // Step 1.5: Upload project document to IPFS if provided
-      let documentUri: string | undefined;
-      if (formData.projectDocument) {
-        logger.info('Uploading project document to IPFS');
-        documentUri = await ipfsUtils.uploadDocument(formData.projectDocument);
-      }
-
-      // Step 1.6: Upload pitch video to IPFS if provided
-      let pitchVideoUri: string | undefined;
-      if (formData.pitchVideo) {
-        logger.info('Uploading pitch video to IPFS');
-        pitchVideoUri = await ipfsUtils.uploadVideo(formData.pitchVideo);
-      }
-
-      // Step 2: Create project metadata
-      const metadata: ProjectMetadata = {
-        name: formData.name,
-        description: formData.description,
-        category: formData.category,
-        projectType: formData.projectType,
-        projectStage: formData.projectStage,
-        location: formData.location || undefined,
-        teamSize: parseInt(formData.teamSize),
-        tokenSymbol: formData.tokenSymbol,
-        marketDuration: parseInt(formData.marketDuration),
-        minimumStake: 0.05, // Fixed minimum stake equals YES vote cost
-        socialLinks: {
-          website: formData.socialLinks.website || undefined,
-          github: formData.socialLinks.github || undefined,
-          linkedin: formData.socialLinks.linkedin || undefined,
-          twitter: formData.socialLinks.twitter || undefined,
-          telegram: formData.socialLinks.telegram || undefined,
-          discord: formData.socialLinks.discord || undefined,
-        },
-        pitchVideoUrl: pitchVideoUri || undefined,
-        additionalNotes: formData.additionalNotes || undefined,
-        image: imageUri,
-        documents: documentUri ? [documentUri] : undefined,
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
-      };
-
-      // Step 3: Upload metadata to IPFS
-      logger.info('Uploading project metadata to IPFS');
-      const metadataUri = await ipfsUtils.uploadProjectMetadata(metadata);
-
-      // Step 4: Create prediction market via server-side API
-      logger.info('Creating prediction market via server-side API');
-      
-      // Prepare form data for server-side processing
-      const submitData = new FormData();
-      Object.entries(formData).forEach(([key, value]) => {
-        if (key === 'socialLinks') {
-          submitData.append('socialLinks', JSON.stringify(value));
-        } else if (key === 'projectImage' && value instanceof File) {
-          submitData.append('projectImage', value);
-        } else if (key === 'projectDocument' && value instanceof File) {
-          // Skip projectDocument here - it's already uploaded to IPFS
-        } else if (key === 'pitchVideo' && value instanceof File) {
-          // Skip pitchVideo here - it's already uploaded to IPFS
-        } else if (value !== undefined && value !== null && value !== '') {
-          submitData.append(key, value.toString());
-        }
-      });
-      
-      // Add the metadata URI, document URI, and creator wallet address
-      submitData.append('metadataUri', metadataUri);
-      if (documentUri) {
-        submitData.append('documentUri', documentUri);
-      }
-      if (pitchVideoUri) {
-        submitData.append('pitchVideoUrl', pitchVideoUri);
-      }
-      submitData.append('creatorWalletAddress', primaryWallet.address);
-      
-      const response = await authFetch('/api/projects/create', {
+      const projectResponse = await authFetch('/api/projects/create', {
         method: 'POST',
-        body: submitData,
+        body: apiFormData,
       });
-      
-      const result = await response.json();
-      
-      if (!result.success) {
-        throw new Error(result.error || 'Failed to create prediction market');
-      }
-      
-      const marketResult = result.data;
+      const projectResult = await projectResponse.json();
+      if (!projectResult.success) throw new Error(projectResult.error || 'Failed to create project');
 
-      logger.info('Project created successfully', {
-        projectName: formData.name,
-        marketAddress: marketResult.marketAddress,
-        transactionSignature: marketResult.signature,
-        metadataUri,
-        imageUri
+      setSubmissionStep('preparing');
+
+      const transactionResponse = await authFetch('/api/markets/prepare-transaction', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          founderWallet: primaryWallet.address,
+          metadataUri: projectResult.data.metadataUri,
+          targetPool: formData.targetPool,
+          marketDuration: parseInt(formData.marketDuration),
+          network: SOLANA_NETWORK,
+        }),
       });
-      
-      // Show success message with project details
-      let successMessage = `Project "${formData.name}" created successfully!\n\n` +
-            `Market Address: ${marketResult.marketAddress}\n` +
-            `Transaction: ${marketResult.signature}\n` +
-            `Metadata: ${metadataUri}\n\n`;
-      
-      if (imageUri) {
-        successMessage += `✅ Project image uploaded to IPFS\n`;
+      const transactionResult = await transactionResponse.json();
+      if (!transactionResult.success)
+        throw new Error(transactionResult.error || 'Failed to prepare transaction');
+
+      if (!authenticated || !primaryWallet) {
+        throw new Error('Wallet disconnected — please reconnect and try again.');
       }
-      
-      successMessage += `\nYour prediction market is now live! Community members can vote on whether your project should launch a token.`;
-      
-      alert(successMessage);
-      
-      // Reset form
-      setFormData(initialFormData);
-      
-    } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : String(error);
-      logger.error('Failed to create project', { error: errorMessage });
-      alert(`Failed to create project: ${errorMessage}\n\nPlease try again or contact support if the issue persists.`);
-    } finally {
+
+      setSubmissionStep('signing');
+
+      const rawTx = transactionResult.data.serializedTransaction;
+      if (!rawTx) throw new Error('No serializedTransaction provided by server');
+      const txBuffer = Buffer.from(rawTx, 'base64');
+
+      const connection = await getSolanaConnection();
+      const { Transaction } = await import('@solana/web3.js');
+      const tx = Transaction.from(txBuffer);
+
+      const sim = await connection.simulateTransaction(tx);
+      if (sim.value.err) {
+        logger.error('[create] simulation failed', { err: sim.value.err, logs: sim.value.logs } as any);
+        throw new Error(`Transaction simulation failed: ${JSON.stringify(sim.value.err)}`);
+      }
+
+      const { blockhash, lastValidBlockHeight } = await connection.getLatestBlockhash('confirmed');
+      tx.recentBlockhash = blockhash;
+      const freshTxBuffer = Buffer.from(
+        tx.serialize({ requireAllSignatures: false, verifySignatures: false }),
+      );
+
+      let solanaWallet: any;
+      if (wallets && wallets.length > 0) {
+        solanaWallet = wallets[0];
+      } else if (standardWallets && standardWallets.length > 0) {
+        const privyWallet = standardWallets.find(
+          (w: any) => w.isPrivyWallet || w.name === 'Privy',
+        );
+        if (!privyWallet) throw new Error('No Privy wallet found');
+        solanaWallet = privyWallet;
+      } else {
+        throw new Error('No Solana wallet found');
+      }
+
+      const result = await signAndSendTransaction({
+        transaction: freshTxBuffer,
+        wallet: solanaWallet,
+        chain: isDevnet() ? 'solana:devnet' : 'solana:mainnet',
+      });
+      const signature = bs58.encode(result.signature);
+
+      setSubmissionStep('confirming');
+      await connection.confirmTransaction(
+        { signature, blockhash, lastValidBlockHeight },
+        'confirmed',
+      );
+
+      setSubmissionStep('completing');
+
+      const completeResponse = await authFetch('/api/markets/complete', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          projectId: projectResult.data.projectId,
+          marketAddress: transactionResult.data.marketPda,
+          signature,
+          ipfsCid: transactionResult.data.ipfsCid,
+          targetPool: formData.targetPool,
+          expiryTime: transactionResult.data.expiryTime,
+        }),
+      });
+      const completeResult = await completeResponse.json();
+      if (!completeResult.success)
+        throw new Error(completeResult.error || 'Failed to complete market creation');
+
+      // Don't toast — the celebration speaks for itself.
+      setPlanted({
+        marketId: completeResult.data.marketId,
+        marketAddress: transactionResult.data.marketPda,
+        name: formData.name,
+        signature,
+      });
       setIsSubmitting(false);
+      setSubmissionStep('idle');
+    } catch (error) {
+      logger.error('[create] plant failed', error as any);
+      const msg = error instanceof Error ? error.message : 'Unknown error';
+      showToast({
+        type: 'error',
+        title: 'Couldn\'t plant the seed',
+        message: msg,
+        details: ['Try again or reach out on Discord.'],
+        duration: 6000,
+      });
+      setIsSubmitting(false);
+      setSubmissionStep('idle');
     }
   };
 
-  // Prevent hydration issues by not rendering until mounted
+  // Loading splash — cosmic-themed (don't render the form until mount to
+  // avoid wallet-state hydration mismatches).
   if (!isMounted) {
     return (
-      <div className="min-h-screen bg-black text-white flex items-center justify-center">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-purple-500 mx-auto mb-4"></div>
-          <p className="text-white/70">Loading form...</p>
-        </div>
+      <div className="min-h-[60vh] flex items-center justify-center" style={{ color: CREAM_DIM }}>
+        <Loader2 className="w-5 h-5 animate-spin" style={{ color: AMBER }} />
+        <span className="ml-3 mono text-[0.62rem] uppercase tracking-[0.24em]">Preparing soil…</span>
       </div>
     );
   }
 
+  // Celebration takes over the page after a successful plant.
+  if (planted) {
+    return <PlantingCelebration {...planted} onWander={() => router.push('/launchpad')} />;
+  }
+
+  const step = STEPS[currentStep - 1];
+
   return (
-    <div className="p-4 md:p-6">
-        <div className="max-w-7xl mx-auto">
-          {/* Header */}
-          <div className="mb-8 text-center relative">
-            {/* Decorative background glow */}
-            <div className="absolute inset-0 -top-20 flex justify-center pointer-events-none">
-              <div className="w-96 h-96 bg-purple-500/20 rounded-full blur-3xl"></div>
-              <div className="w-72 h-72 bg-blue-500/20 rounded-full blur-3xl -ml-32"></div>
-            </div>
-
-            <div className="relative">
-              <h1 className="text-4xl md:text-5xl font-bold mb-3">
-                <span className="bg-gradient-to-r from-purple-400 via-pink-400 to-blue-400 bg-clip-text text-transparent">
-                  Create New Project
-                </span>
-              </h1>
-              <p className="text-lg text-white/70 max-w-xl mx-auto">
-                Launch your prediction market and let the community decide
-              </p>
-
-              {/* Quick stats */}
-              <div className="flex items-center justify-center gap-6 mt-4 text-sm">
-                <div className="flex items-center gap-2 text-white/50">
-                  <svg className="w-4 h-4 text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                  </svg>
-                  <span>0.015 SOL to create</span>
-                </div>
-                <div className="flex items-center gap-2 text-white/50">
-                  <svg className="w-4 h-4 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-                  </svg>
-                  <span>1 day - 6 month markets</span>
-                </div>
-                <div className="flex items-center gap-2 text-white/50">
-                  <svg className="w-4 h-4 text-purple-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
-                  </svg>
-                  <span>Community validated</span>
-                </div>
-              </div>
-            </div>
+    <div className="px-4 sm:px-6 pb-20" style={{ color: CREAM }}>
+      <div className="max-w-2xl mx-auto pt-8 sm:pt-12">
+        {/* ─── Editorial step header ─── */}
+        <header className="text-center mb-8 sm:mb-10">
+          <div
+            className="inline-flex items-center justify-center w-12 h-12 mx-auto mb-4"
+            style={{ border: `1px solid ${AMBER}55`, color: AMBER, background: `${AMBER}11` }}
+          >
+            <step.Icon className="w-6 h-6" />
           </div>
+          <p
+            className="mono uppercase tracking-[0.32em] text-[0.6rem] mb-2"
+            style={{ color: AMBER }}
+          >
+            {step.eyebrow}
+          </p>
+          <h1
+            className="leading-[1.05] mb-3"
+            style={{
+              color: CREAM,
+              fontFamily: 'var(--font-fraunces, serif)',
+              fontWeight: 350,
+              fontSize: 'clamp(2rem, 5vw, 3rem)',
+              fontFeatureSettings: '"ss01"',
+            }}
+          >
+            {step.title}
+          </h1>
+          <p
+            className="mx-auto max-w-md"
+            style={{
+              color: CREAM_DIM,
+              fontFamily: 'var(--font-fraunces, serif)',
+              fontSize: 'clamp(0.95rem, 1.5vw, 1.1rem)',
+            }}
+          >
+            {step.subtitle}
+          </p>
+        </header>
 
-          {/* Form */}
-          <div className="max-w-4xl mx-auto">
-              <form onSubmit={handleSubmit} className="space-y-6">
-            {/* Basic Information */}
-            <Card className="bg-gradient-to-br from-white/10 to-white/5 backdrop-blur-xl border-white/20 text-white overflow-visible hover:border-blue-500/30 transition-colors">
-              <CardHeader>
-                <CardTitle className="flex items-center gap-3">
-                  <div className="p-2 bg-blue-500/20 rounded-lg">
-                    <svg className="w-5 h-5 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                    </svg>
-                  </div>
-                  Basic Information
-                </CardTitle>
-                <CardDescription className="text-white/70 ml-12">
-                  Tell us about your project
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-4 overflow-visible">
-                <div className="space-y-2">
-                  <Label htmlFor="name">Project Name *</Label>
-                  <Input
-                    id="name"
-                    placeholder="Enter your project name"
-                    value={formData.name}
-                    onChange={(e) => handleInputChange('name', e.target.value)}
-                    className={`bg-white/10 border-white/20 text-white placeholder:text-white/50 ${errors.name ? 'border-red-500' : ''}`}
-                  />
-                  <p className="text-xs text-white/60">
-                    Token names are limited to 32 bytes for Pump.fun token launch
-                    {formData.name.length > 0 && (() => {
-                      const byteLength = new TextEncoder().encode(formData.name).length;
-                      const color = byteLength > 32 ? 'text-yellow-400' : 'text-white/60';
-                      return <span className={color}> ({byteLength}/32 bytes{byteLength > 32 ? ' - will be truncated' : ''})</span>;
-                    })()}
-                  </p>
-                  {errors.name && <p className="text-sm text-red-400">{errors.name}</p>}
-                </div>
+        {/* ─── Progress dots ─── */}
+        <ProgressDots
+          currentStep={currentStep}
+          furthestStep={furthestStep}
+          onJump={jumpToStep}
+        />
 
-                <div className="space-y-2">
-                  <Label htmlFor="description">Description *</Label>
-                  <Textarea
-                    id="description"
-                    placeholder="Describe your project"
-                    value={formData.description}
-                    onChange={(e) => handleInputChange('description', e.target.value)}
-                    className={`min-h-24 bg-white/10 border-white/20 text-white placeholder:text-white/50 ${errors.description ? 'border-red-500' : ''}`}
-                  />
-                  <p className="text-xs text-white/60">
-                    {formData.description.length}/{config.ui.maxDescriptionLength} characters
-                  </p>
-                  {errors.description && <p className="text-sm text-red-400">{errors.description}</p>}
-                </div>
+        {/* ─── Step content ─── */}
+        <div className="space-y-6">
+          {currentStep === 1 && (
+            <SeedStep formData={formData} setField={setField} errors={errors} />
+          )}
+          {currentStep === 2 && (
+            <RootsStep formData={formData} setField={setField} errors={errors} />
+          )}
+          {currentStep === 3 && (
+            <BloomStep
+              formData={formData}
+              setField={setField}
+              errors={errors}
+              isCustom={isCustomPoolAmount}
+              setIsCustom={setIsCustomPoolAmount}
+            />
+          )}
+          {currentStep === 4 && (
+            <VoiceStep
+              formData={formData}
+              setField={setField}
+              setSocialLink={setSocialLink}
+              errors={errors}
+            />
+          )}
+          {currentStep === 5 && (
+            <ReviewStep
+              formData={formData}
+              walletBalance={walletBalance}
+              isSubmitting={isSubmitting}
+              submissionStep={submissionStep}
+              authenticated={authenticated}
+            />
+          )}
+        </div>
 
-                {/* Project metadata grid - responsive 2/3 columns */}
-                <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
-                  <div className="space-y-2">
-                    <Label className="text-sm flex items-center gap-1.5">
-                      <svg className="w-3.5 h-3.5 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z" />
-                      </svg>
-                      Category *
-                    </Label>
-                    <select
-                      value={formData.category}
-                      onChange={(e) => handleInputChange('category', e.target.value)}
-                      className={`h-10 w-full bg-slate-800 border border-white/20 text-white text-sm rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500/50 transition-all appearance-none cursor-pointer ${errors.category ? 'border-red-500' : ''}`}
-                      style={{ backgroundImage: `url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%239ca3af' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='M6 8l4 4 4-4'/%3e%3c/svg%3e")`, backgroundPosition: 'right 0.5rem center', backgroundRepeat: 'no-repeat', backgroundSize: '1.5em 1.5em', paddingRight: '2.5rem' }}
-                    >
-                      <option value="" className="bg-slate-800">Select</option>
-                      <optgroup label="Web3 & Crypto" className="bg-slate-800">
-                        <option value="defi" className="bg-slate-800">DeFi</option>
-                        <option value="nft" className="bg-slate-800">NFT</option>
-                        <option value="gaming" className="bg-slate-800">Gaming</option>
-                        <option value="dao" className="bg-slate-800">DAO</option>
-                        <option value="ai" className="bg-slate-800">AI/ML</option>
-                        <option value="infrastructure" className="bg-slate-800">Infrastructure</option>
-                        <option value="social" className="bg-slate-800">Social</option>
-                        <option value="meme" className="bg-slate-800">Meme</option>
-                        <option value="creator" className="bg-slate-800">Creator</option>
-                      </optgroup>
-                      <optgroup label="Traditional" className="bg-slate-800">
-                        <option value="healthcare" className="bg-slate-800">Healthcare</option>
-                        <option value="science" className="bg-slate-800">Science</option>
-                        <option value="education" className="bg-slate-800">Education</option>
-                        <option value="finance" className="bg-slate-800">Finance</option>
-                        <option value="commerce" className="bg-slate-800">Commerce</option>
-                        <option value="realestate" className="bg-slate-800">Real Estate</option>
-                        <option value="energy" className="bg-slate-800">Energy</option>
-                        <option value="media" className="bg-slate-800">Media</option>
-                        <option value="manufacturing" className="bg-slate-800">Manufacturing</option>
-                        <option value="mobility" className="bg-slate-800">Mobility</option>
-                      </optgroup>
-                      <option value="other" className="bg-slate-800">Other</option>
-                    </select>
-                    {errors.category && <p className="text-xs text-red-400 mt-1">{errors.category}</p>}
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label className="text-sm flex items-center gap-1.5">
-                      <svg className="w-3.5 h-3.5 text-purple-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
-                      </svg>
-                      Type *
-                    </Label>
-                    <select
-                      value={formData.projectType}
-                      onChange={(e) => handleInputChange('projectType', e.target.value)}
-                      className={`h-10 w-full bg-slate-800 border border-white/20 text-white text-sm rounded-lg px-3 py-2 focus:ring-2 focus:ring-purple-500/50 focus:border-purple-500/50 transition-all appearance-none cursor-pointer ${errors.projectType ? 'border-red-500' : ''}`}
-                      style={{ backgroundImage: `url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%239ca3af' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='M6 8l4 4 4-4'/%3e%3c/svg%3e")`, backgroundPosition: 'right 0.5rem center', backgroundRepeat: 'no-repeat', backgroundSize: '1.5em 1.5em', paddingRight: '2.5rem' }}
-                    >
-                      <option value="" className="bg-slate-800">Select</option>
-                      <option value="protocol" className="bg-slate-800">Protocol</option>
-                      <option value="application" className="bg-slate-800">Application</option>
-                      <option value="platform" className="bg-slate-800">Platform</option>
-                      <option value="service" className="bg-slate-800">Service</option>
-                      <option value="tool" className="bg-slate-800">Tool</option>
-                    </select>
-                    {errors.projectType && <p className="text-xs text-red-400 mt-1">{errors.projectType}</p>}
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label className="text-sm flex items-center gap-1.5">
-                      <svg className="w-3.5 h-3.5 text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
-                      </svg>
-                      Stage *
-                    </Label>
-                    <select
-                      value={formData.projectStage}
-                      onChange={(e) => handleInputChange('projectStage', e.target.value)}
-                      className={`h-10 w-full bg-slate-800 border border-white/20 text-white text-sm rounded-lg px-3 py-2 focus:ring-2 focus:ring-green-500/50 focus:border-green-500/50 transition-all appearance-none cursor-pointer ${errors.projectStage ? 'border-red-500' : ''}`}
-                      style={{ backgroundImage: `url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%239ca3af' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='M6 8l4 4 4-4'/%3e%3c/svg%3e")`, backgroundPosition: 'right 0.5rem center', backgroundRepeat: 'no-repeat', backgroundSize: '1.5em 1.5em', paddingRight: '2.5rem' }}
-                    >
-                      <option value="" className="bg-slate-800">Select</option>
-                      <option value="idea" className="bg-slate-800">Idea</option>
-                      <option value="prototype" className="bg-slate-800">Prototype</option>
-                      <option value="mvp" className="bg-slate-800">MVP</option>
-                      <option value="beta" className="bg-slate-800">Beta</option>
-                      <option value="launched" className="bg-slate-800">Launched</option>
-                    </select>
-                    {errors.projectStage && <p className="text-xs text-red-400 mt-1">{errors.projectStage}</p>}
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label htmlFor="location" className="text-sm flex items-center gap-1.5">
-                      <svg className="w-3.5 h-3.5 text-cyan-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
-                      </svg>
-                      Location
-                    </Label>
-                    <Input
-                      id="location"
-                      placeholder="e.g., Global"
-                      value={formData.location}
-                      onChange={(e) => handleInputChange('location', e.target.value)}
-                      className="h-10 bg-white/10 border-white/20 text-white text-sm placeholder:text-white/50 focus:ring-2 focus:ring-cyan-500/50 transition-all"
-                    />
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label htmlFor="teamSize" className="text-sm flex items-center gap-1.5">
-                      <svg className="w-3.5 h-3.5 text-amber-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
-                      </svg>
-                      Team *
-                    </Label>
-                    <Input
-                      id="teamSize"
-                      type="number"
-                      min="1"
-                      placeholder="Size"
-                      value={formData.teamSize}
-                      onChange={(e) => handleInputChange('teamSize', e.target.value)}
-                      className={`h-10 bg-white/10 border-white/20 text-white text-sm placeholder:text-white/50 focus:ring-2 focus:ring-amber-500/50 transition-all ${errors.teamSize ? 'border-red-500' : ''}`}
-                    />
-                    {errors.teamSize && <p className="text-xs text-red-400 mt-1">{errors.teamSize}</p>}
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-
-            {/* Pitch Video (Optional) */}
-            <Card className="bg-gradient-to-br from-white/10 to-white/5 backdrop-blur-xl border-white/20 text-white hover:border-red-500/30 transition-colors">
-              <CardHeader>
-                <CardTitle className="flex items-center gap-3">
-                  <div className="p-2 bg-red-500/20 rounded-lg">
-                    <svg className="w-5 h-5 text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z" />
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                    </svg>
-                  </div>
-                  Pitch Video
-                </CardTitle>
-                <CardDescription className="text-white/70 ml-12">
-                  Upload a 1-2 minute pitch video to showcase your project (optional)
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-2">
-                  <Label htmlFor="pitchVideo" className="text-white/80">Video File</Label>
-                  <label
-                    htmlFor="pitchVideo"
-                    className={`
-                      relative flex flex-col items-center justify-center p-6
-                      border-2 border-dashed rounded-xl cursor-pointer
-                      transition-all duration-200 group
-                      ${formData.pitchVideo
-                        ? 'border-green-500/50 bg-green-500/5'
-                        : 'border-white/20 bg-white/5 hover:border-red-500/50 hover:bg-red-500/5'
-                      }
-                    `}
-                  >
-                    <input
-                      id="pitchVideo"
-                      type="file"
-                      accept="video/mp4,video/quicktime"
-                      onChange={(e) => {
-                        const file = e.target.files?.[0];
-                        if (file) {
-                          if (file.size > 50 * 1024 * 1024) {
-                            setErrors(prev => ({ ...prev, pitchVideo: 'Video must be 50MB or less' } as any));
-                            return;
-                          }
-                          setFormData(prev => ({ ...prev, pitchVideo: file }));
-                          setErrors(prev => { const { pitchVideo, ...rest } = prev as any; return rest; });
-                        }
-                      }}
-                      className="hidden"
-                    />
-                    {formData.pitchVideo ? (
-                      <div className="flex flex-col items-center w-full">
-                        <video
-                          src={URL.createObjectURL(formData.pitchVideo)}
-                          className="w-full max-w-md h-48 rounded-lg object-cover mb-3 border border-green-500/30"
-                          controls
-                          muted
-                        />
-                        <div className="flex items-center gap-2">
-                          <svg className="w-4 h-4 text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
-                          </svg>
-                          <p className="text-sm text-green-400 font-medium truncate max-w-xs">{formData.pitchVideo.name}</p>
-                        </div>
-                        <p className="text-xs text-white/50 mt-1">
-                          {(formData.pitchVideo.size / 1024 / 1024).toFixed(1)} MB
-                        </p>
-                        <button
-                          type="button"
-                          onClick={(e) => {
-                            e.preventDefault();
-                            e.stopPropagation();
-                            setFormData(prev => ({ ...prev, pitchVideo: undefined }));
-                          }}
-                          className="mt-2 text-xs text-red-400 hover:text-red-300 underline"
-                        >
-                          Remove video
-                        </button>
-                      </div>
-                    ) : (
-                      <>
-                        <svg className="w-10 h-10 text-white/30 mb-2 group-hover:text-red-400 transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" />
-                        </svg>
-                        <p className="text-sm text-white/60 group-hover:text-white/80">
-                          Click to upload MP4 or MOV
-                        </p>
-                        <p className="text-xs text-white/40 mt-1">Up to 2 minutes, max 50MB</p>
-                      </>
-                    )}
-                  </label>
-                  {(errors as any).pitchVideo && <p className="text-sm text-red-400">{(errors as any).pitchVideo}</p>}
-                </div>
-              </CardContent>
-            </Card>
-
-            {/* Token Information - Collapsible */}
-            <Card className="bg-gradient-to-br from-white/10 to-white/5 backdrop-blur-xl border-white/20 text-white overflow-visible hover:border-purple-500/30 transition-colors">
-              <CardHeader className="cursor-pointer" onClick={() => setIsTokenSectionExpanded(!isTokenSectionExpanded)}>
-                <div className="flex items-center justify-between">
-                  <div>
-                    <CardTitle className="flex items-center gap-3">
-                      <div className="p-2 bg-purple-500/20 rounded-lg">
-                        <svg className="w-5 h-5 text-purple-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                        </svg>
-                      </div>
-                      Token & Market Configuration
-                      {(formData.tokenSymbol && formData.targetPool && formData.marketDuration) && (
-                        <svg className="w-5 h-5 text-green-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                        </svg>
-                      )}
-                    </CardTitle>
-                    <CardDescription className="text-white/70 ml-12">
-                      Token details and market settings
-                    </CardDescription>
-                  </div>
-                  <svg
-                    className={`w-5 h-5 text-white/70 transition-transform ${isTokenSectionExpanded ? 'rotate-180' : ''}`}
-                    fill="none"
-                    viewBox="0 0 24 24"
-                    stroke="currentColor"
-                  >
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                  </svg>
-                </div>
-              </CardHeader>
-              {isTokenSectionExpanded && (
-              <CardContent className="space-y-4 overflow-visible">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="tokenSymbol">Token Symbol *</Label>
-                    <Input
-                      id="tokenSymbol"
-                      placeholder="e.g., PROJ"
-                      value={formData.tokenSymbol}
-                      onChange={(e) => handleInputChange('tokenSymbol', e.target.value.toUpperCase())}
-                      className={`bg-white/10 border-white/20 text-white placeholder:text-white/50 ${errors.tokenSymbol ? 'border-red-500' : ''}`}
-                      maxLength={10}
-                    />
-                    {errors.tokenSymbol && <p className="text-sm text-red-400">{errors.tokenSymbol}</p>}
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label htmlFor="projectImage">Project Image *</Label>
-                    <label
-                      htmlFor="projectImage"
-                      className={`
-                        relative flex flex-col items-center justify-center p-4
-                        border-2 border-dashed rounded-xl cursor-pointer
-                        transition-all duration-200 group
-                        ${formData.projectImage
-                          ? 'border-green-500/50 bg-green-500/5'
-                          : 'border-white/20 bg-white/5 hover:border-blue-500/50 hover:bg-blue-500/5'
-                        }
-                      `}
-                    >
-                      <input
-                        id="projectImage"
-                        type="file"
-                        accept="image/*"
-                        onChange={(e) => {
-                          const file = e.target.files?.[0];
-                          if (file) {
-                            setFormData(prev => ({ ...prev, projectImage: file }));
-                          }
-                        }}
-                        className="hidden"
-                      />
-                      {formData.projectImage ? (
-                        <div className="flex flex-col items-center">
-                          <div className="relative w-24 h-24 mb-2 rounded-lg overflow-hidden border border-green-500/30">
-                            <img
-                              src={URL.createObjectURL(formData.projectImage)}
-                              alt="Preview"
-                              className="w-full h-full object-cover"
-                            />
-                            <div className="absolute top-1 right-1 p-1 bg-green-500 rounded-full">
-                              <svg className="w-3 h-3 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
-                              </svg>
-                            </div>
-                          </div>
-                          <p className="text-xs text-green-400 font-medium truncate max-w-full">{formData.projectImage.name}</p>
-                          <p className="text-xs text-white/50 mt-0.5">Click to change</p>
-                        </div>
-                      ) : (
-                        <>
-                          <div className="p-3 bg-blue-500/20 rounded-full mb-2 group-hover:bg-blue-500/30 transition-colors">
-                            <svg className="w-6 h-6 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                            </svg>
-                          </div>
-                          <p className="text-sm text-white/70 group-hover:text-white transition-colors">Click to upload image</p>
-                          <p className="text-xs text-white/40 mt-1">PNG, JPG, GIF up to 10MB</p>
-                        </>
-                      )}
-                    </label>
-                    {errors.projectImage && <p className="text-sm text-red-400 mt-1 text-center">{String(errors.projectImage)}</p>}
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label htmlFor="projectDocument">Project Documentation</Label>
-                    <label
-                      htmlFor="projectDocument"
-                      className={`
-                        relative flex flex-col items-center justify-center p-4
-                        border-2 border-dashed rounded-xl cursor-pointer
-                        transition-all duration-200 group
-                        ${formData.projectDocument
-                          ? 'border-green-500/50 bg-green-500/5'
-                          : 'border-white/20 bg-white/5 hover:border-teal-500/50 hover:bg-teal-500/5'
-                        }
-                      `}
-                    >
-                      <input
-                        id="projectDocument"
-                        type="file"
-                        accept=".pdf,.doc,.docx,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
-                        onChange={(e) => {
-                          const file = e.target.files?.[0];
-                          if (file) {
-                            if (file.size > 10 * 1024 * 1024) {
-                              alert('Document must be less than 10MB');
-                              e.target.value = '';
-                              return;
-                            }
-                            setFormData(prev => ({ ...prev, projectDocument: file }));
-                          }
-                        }}
-                        className="hidden"
-                      />
-                      {formData.projectDocument ? (
-                        <div className="flex flex-col items-center">
-                          <div className="relative w-20 h-24 mb-2 rounded-lg overflow-hidden border border-green-500/30 bg-slate-800 flex items-center justify-center">
-                            {/* Document type icon */}
-                            {formData.projectDocument.name.toLowerCase().endsWith('.pdf') ? (
-                              <div className="text-center">
-                                <svg className="w-10 h-10 text-red-400 mx-auto" fill="currentColor" viewBox="0 0 24 24">
-                                  <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8l-6-6zm-1 2l5 5h-5V4zM8.5 13h1.1l.5 2.5.5-2.5h1.1l-.9 4h-1l-.5-2.5-.5 2.5h-1l-.9-4zm5 0h1.4c.6 0 1.1.4 1.1 1v2c0 .6-.5 1-1.1 1H13.5v-4z"/>
-                                </svg>
-                                <span className="text-[10px] text-red-400 font-bold mt-1">PDF</span>
-                              </div>
-                            ) : (
-                              <div className="text-center">
-                                <svg className="w-10 h-10 text-blue-400 mx-auto" fill="currentColor" viewBox="0 0 24 24">
-                                  <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8l-6-6zm-1 2l5 5h-5V4zM9 13h6v1H9v-1zm0 2h6v1H9v-1zm0 2h4v1H9v-1z"/>
-                                </svg>
-                                <span className="text-[10px] text-blue-400 font-bold mt-1">DOC</span>
-                              </div>
-                            )}
-                            <div className="absolute top-1 right-1 p-0.5 bg-green-500 rounded-full">
-                              <svg className="w-2.5 h-2.5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
-                              </svg>
-                            </div>
-                          </div>
-                          <p className="text-xs text-green-400 font-medium truncate max-w-full">{formData.projectDocument.name}</p>
-                          <p className="text-[10px] text-white/40">{(formData.projectDocument.size / 1024 / 1024).toFixed(2)} MB</p>
-                          <p className="text-xs text-white/50 mt-0.5">Click to change</p>
-                        </div>
-                      ) : (
-                        <>
-                          <div className="p-3 bg-teal-500/20 rounded-full mb-2 group-hover:bg-teal-500/30 transition-colors">
-                            <svg className="w-6 h-6 text-teal-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                            </svg>
-                          </div>
-                          <p className="text-sm text-white/70 group-hover:text-white transition-colors">Click to upload document</p>
-                          <p className="text-xs text-white/40 mt-1">PDF or Word, max 10MB (optional)</p>
-                        </>
-                      )}
-                    </label>
-                  </div>
-                </div>
-
-                {/* Creation Fee Info */}
-                <div className="bg-blue-500/10 border border-blue-500/20 rounded-lg p-4">
-                  <div className="flex items-start space-x-3">
-                    <div className="flex-shrink-0">
-                      <svg className="h-6 w-6 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                      </svg>
-                    </div>
-                    <div className="flex-1">
-                      <h4 className="text-sm font-medium text-blue-400 mb-1">Market Creation Fee</h4>
-                      <p className="text-sm text-white/70">
-                        Creating a prediction market costs <span className="font-semibold text-white">0.015 SOL</span>.
-                        This one-time fee covers on-chain storage and helps prevent spam.
-                      </p>
-                      <p className="text-xs text-white/50 mt-2">
-                        You&apos;ll also need ~0.002 SOL for transaction rent (refundable when market closes).
-                      </p>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Target Pool Size & Market Duration - Side by Side */}
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="targetPool">
-                      Target Pool Size *
-                      <span className="ml-2 text-xs text-white/60">(SOL to collect)</span>
-                    </Label>
-                    <select
-                      id="targetPool"
-                      value={isCustomPoolAmount ? 'custom' : formData.targetPool}
-                      onChange={(e) => {
-                        const value = e.target.value;
-                        if (value === 'custom') {
-                          setIsCustomPoolAmount(true);
-                          handleInputChange('targetPool', '');
-                        } else {
-                          setIsCustomPoolAmount(false);
-                          handleInputChange('targetPool', value);
-                        }
-                      }}
-                      className={`w-full h-10 bg-slate-800 border border-white/20 text-white rounded-lg px-3 py-2 focus:ring-2 focus:ring-purple-500/50 focus:border-purple-500/50 transition-all appearance-none cursor-pointer ${errors.targetPool ? 'border-red-500' : ''}`}
-                      style={{ backgroundImage: `url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%239ca3af' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='M6 8l4 4 4-4'/%3e%3c/svg%3e")`, backgroundPosition: 'right 0.5rem center', backgroundRepeat: 'no-repeat', backgroundSize: '1.5em 1.5em', paddingRight: '2.5rem' }}
-                    >
-                      <option value="" className="bg-slate-800">Choose target pool size...</option>
-                      <option value="5000000000" className="bg-slate-800">5 SOL (Small Project)</option>
-                      <option value="10000000000" className="bg-slate-800">10 SOL (Medium Project)</option>
-                      <option value="15000000000" className="bg-slate-800">15 SOL (Large Project)</option>
-                      {process.env.NODE_ENV === 'development' && (
-                        <option value="custom" className="bg-slate-800">Custom Amount (Dev Only)</option>
-                      )}
-                    </select>
-
-                    {/* Custom amount input - only in development */}
-                    {process.env.NODE_ENV === 'development' && isCustomPoolAmount && (
-                      <div className="mt-2">
-                        <input
-                          type="number"
-                          step="0.01"
-                          min="0.08"
-                          placeholder="Enter SOL amount (min 0.08)"
-                          onChange={(e) => {
-                            const sol = parseFloat(e.target.value);
-                            if (!isNaN(sol) && sol >= 0.08) {
-                              handleInputChange('targetPool', String(Math.floor(sol * 1e9)));
-                            } else if (e.target.value === '') {
-                              handleInputChange('targetPool', '');
-                            }
-                          }}
-                          className="w-full bg-white/5 border border-yellow-500/50 text-white rounded-md px-3 py-2 placeholder-white/30"
-                        />
-                        {formData.targetPool && formData.targetPool !== '' && !isNaN(parseInt(formData.targetPool)) && (
-                          <p className="text-xs text-green-400 mt-1">
-                            ✓ Set to {(parseInt(formData.targetPool) / 1e9).toFixed(2)} SOL ({formData.targetPool} lamports)
-                          </p>
-                        )}
-                        <p className="text-xs text-yellow-400 mt-1">⚠️ Dev Mode: Custom pool amount</p>
-                      </div>
-                    )}
-
-                    {errors.targetPool && <p className="text-sm text-red-400">{errors.targetPool}</p>}
-                    <p className="text-xs text-white/60">
-                      More liquidity but needs more YES votes
-                    </p>
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label>Market Duration *</Label>
-                    <select
-                      value={formData.marketDuration}
-                      onChange={(e) => handleInputChange('marketDuration', e.target.value)}
-                      className={`w-full h-10 bg-slate-800 border border-white/20 text-white rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500/50 transition-all appearance-none cursor-pointer ${errors.marketDuration ? 'border-red-500' : ''}`}
-                      style={{ backgroundImage: `url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%239ca3af' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='M6 8l4 4 4-4'/%3e%3c/svg%3e")`, backgroundPosition: 'right 0.5rem center', backgroundRepeat: 'no-repeat', backgroundSize: '1.5em 1.5em', paddingRight: '2.5rem' }}
-                    >
-                      <option value="" className="bg-slate-800">Choose market duration...</option>
-                      <option value="1" className="bg-slate-800">1 Day</option>
-                      <option value="3" className="bg-slate-800">3 Days</option>
-                      <option value="7" className="bg-slate-800">1 Week</option>
-                      <option value="14" className="bg-slate-800">2 Weeks</option>
-                      <option value="30" className="bg-slate-800">1 Month</option>
-                      <option value="60" className="bg-slate-800">2 Months</option>
-                      <option value="90" className="bg-slate-800">3 Months</option>
-                      <option value="180" className="bg-slate-800">6 Months</option>
-                    </select>
-                    {errors.marketDuration && <p className="text-sm text-red-400">{errors.marketDuration}</p>}
-                    <p className="text-xs text-white/60">
-                      Voting period. <span className="text-blue-400">YES: 0.01 SOL min, NO: dynamic</span>
-                    </p>
-                  </div>
-                </div>
-              </CardContent>
+        {/* ─── Bottom navigation ─── */}
+        <div className="flex justify-between items-center mt-12 mb-2">
+          <button
+            type="button"
+            onClick={goPrev}
+            disabled={currentStep === 1 || isSubmitting}
+            className="mono text-[0.62rem] uppercase tracking-[0.24em] px-4 py-2.5 transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+            style={{ color: CREAM_DIM, border: `1px solid ${HAIR_STRONG}` }}
+            onMouseEnter={(e) => {
+              if (currentStep > 1 && !isSubmitting) {
+                e.currentTarget.style.color = CREAM;
+                e.currentTarget.style.borderColor = AMBER + '66';
+              }
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.color = CREAM_DIM;
+              e.currentTarget.style.borderColor = HAIR_STRONG;
+            }}
+          >
+            ← Back
+          </button>
+          {currentStep === 5 ? (
+            <button
+              type="button"
+              onClick={handlePlant}
+              disabled={isSubmitting}
+              className="mono text-[0.65rem] uppercase tracking-[0.28em] px-6 py-3 transition-colors inline-flex items-center gap-2 disabled:cursor-wait"
+              style={{ background: AMBER, color: BG, minWidth: '200px', justifyContent: 'center' }}
+              onMouseEnter={(e) => {
+                if (!isSubmitting) e.currentTarget.style.background = PEACH;
+              }}
+              onMouseLeave={(e) => {
+                if (!isSubmitting) e.currentTarget.style.background = AMBER;
+              }}
+            >
+              {isSubmitting ? (
+                <>
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                  {submissionStep === 'uploading' && 'Sending to IPFS'}
+                  {submissionStep === 'preparing' && 'Preparing'}
+                  {submissionStep === 'signing' && 'Sign in wallet'}
+                  {submissionStep === 'confirming' && 'On chain'}
+                  {submissionStep === 'completing' && 'Finishing'}
+                  {submissionStep === 'idle' && 'Working'}
+                </>
+              ) : (
+                <>
+                  <BloomIcon className="w-4 h-4" />
+                  Plant it
+                </>
               )}
-            </Card>
-
-            {/* Social Media Links */}
-            <Card className="bg-gradient-to-br from-white/10 to-white/5 backdrop-blur-xl border-white/20 text-white hover:border-cyan-500/30 transition-colors">
-              <CardHeader>
-                <CardTitle className="flex items-center gap-3">
-                  <div className="p-2 bg-cyan-500/20 rounded-lg">
-                    <svg className="w-5 h-5 text-cyan-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" />
-                    </svg>
-                  </div>
-                  Social Media Links
-                </CardTitle>
-                <CardDescription className="text-white/70 ml-12">
-                  Add your project&apos;s social media presence (optional)
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-                  <div className="space-y-2">
-                    <Label htmlFor="website" className="flex items-center gap-2">
-                      <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 12a9 9 0 01-9 9m9-9a9 9 0 00-9-9m9 9H3m9 9a9 9 0 01-9-9m9 9c1.657 0 3-4.03 3-9s-1.343-9-3-9m0 18c-1.657 0-3-4.03-3-9s1.343-9 3-9m-9 9a9 9 0 019-9" />
-                      </svg>
-                      Website
-                    </Label>
-                    <Input
-                      id="website"
-                      type="url"
-                      placeholder="https://yourwebsite.com"
-                      value={formData.socialLinks.website}
-                      onChange={(e) => handleSocialLinkChange('website', e.target.value)}
-                      className="bg-white/10 border-white/20 text-white placeholder:text-white/50 focus:ring-2 focus:ring-cyan-500/50 transition-all"
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="github" className="flex items-center gap-2">
-                      <svg className="w-4 h-4 text-gray-400" fill="currentColor" viewBox="0 0 24 24">
-                        <path fillRule="evenodd" clipRule="evenodd" d="M12 2C6.477 2 2 6.484 2 12.017c0 4.425 2.865 8.18 6.839 9.504.5.092.682-.217.682-.483 0-.237-.008-.868-.013-1.703-2.782.605-3.369-1.343-3.369-1.343-.454-1.158-1.11-1.466-1.11-1.466-.908-.62.069-.608.069-.608 1.003.07 1.531 1.032 1.531 1.032.892 1.53 2.341 1.088 2.91.832.092-.647.35-1.088.636-1.338-2.22-.253-4.555-1.113-4.555-4.951 0-1.093.39-1.988 1.029-2.688-.103-.253-.446-1.272.098-2.65 0 0 .84-.27 2.75 1.026A9.564 9.564 0 0112 6.844c.85.004 1.705.115 2.504.337 1.909-1.296 2.747-1.027 2.747-1.027.546 1.379.202 2.398.1 2.651.64.7 1.028 1.595 1.028 2.688 0 3.848-2.339 4.695-4.566 4.943.359.309.678.92.678 1.855 0 1.338-.012 2.419-.012 2.747 0 .268.18.58.688.482A10.019 10.019 0 0022 12.017C22 6.484 17.522 2 12 2z" />
-                      </svg>
-                      GitHub
-                    </Label>
-                    <Input
-                      id="github"
-                      type="url"
-                      placeholder="https://github.com/yourproject"
-                      value={formData.socialLinks.github}
-                      onChange={(e) => handleSocialLinkChange('github', e.target.value)}
-                      className="bg-white/10 border-white/20 text-white placeholder:text-white/50 focus:ring-2 focus:ring-cyan-500/50 transition-all"
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="twitter" className="flex items-center gap-2">
-                      <svg className="w-4 h-4 text-gray-400" fill="currentColor" viewBox="0 0 24 24">
-                        <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z" />
-                      </svg>
-                      X (Twitter)
-                    </Label>
-                    <Input
-                      id="twitter"
-                      type="url"
-                      placeholder="https://x.com/yourproject"
-                      value={formData.socialLinks.twitter}
-                      onChange={(e) => handleSocialLinkChange('twitter', e.target.value)}
-                      className="bg-white/10 border-white/20 text-white placeholder:text-white/50 focus:ring-2 focus:ring-cyan-500/50 transition-all"
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="discord" className="flex items-center gap-2">
-                      <svg className="w-4 h-4 text-gray-400" fill="currentColor" viewBox="0 0 24 24">
-                        <path d="M20.317 4.3698a19.7913 19.7913 0 00-4.8851-1.5152.0741.0741 0 00-.0785.0371c-.211.3753-.4447.8648-.6083 1.2495-1.8447-.2762-3.68-.2762-5.4868 0-.1636-.3933-.4058-.8742-.6177-1.2495a.077.077 0 00-.0785-.037 19.7363 19.7363 0 00-4.8852 1.515.0699.0699 0 00-.0321.0277C.5334 9.0458-.319 13.5799.0992 18.0578a.0824.0824 0 00.0312.0561c2.0528 1.5076 4.0413 2.4228 5.9929 3.0294a.0777.0777 0 00.0842-.0276c.4616-.6304.8731-1.2952 1.226-1.9942a.076.076 0 00-.0416-.1057c-.6528-.2476-1.2743-.5495-1.8722-.8923a.077.077 0 01-.0076-.1277c.1258-.0943.2517-.1923.3718-.2914a.0743.0743 0 01.0776-.0105c3.9278 1.7933 8.18 1.7933 12.0614 0a.0739.0739 0 01.0785.0095c.1202.099.246.1981.3728.2924a.077.077 0 01-.0066.1276 12.2986 12.2986 0 01-1.873.8914.0766.0766 0 00-.0407.1067c.3604.698.7719 1.3628 1.225 1.9932a.076.076 0 00.0842.0286c1.961-.6067 3.9495-1.5219 6.0023-3.0294a.077.077 0 00.0313-.0552c.5004-5.177-.8382-9.6739-3.5485-13.6604a.061.061 0 00-.0312-.0286zM8.02 15.3312c-1.1825 0-2.1569-1.0857-2.1569-2.419 0-1.3332.9555-2.4189 2.157-2.4189 1.2108 0 2.1757 1.0952 2.1568 2.419 0 1.3332-.9555 2.4189-2.1569 2.4189zm7.9748 0c-1.1825 0-2.1569-1.0857-2.1569-2.419 0-1.3332.9554-2.4189 2.1569-2.4189 1.2108 0 2.1757 1.0952 2.1568 2.419 0 1.3332-.946 2.4189-2.1568 2.4189z" />
-                      </svg>
-                      Discord
-                    </Label>
-                    <Input
-                      id="discord"
-                      type="url"
-                      placeholder="https://discord.gg/yourproject"
-                      value={formData.socialLinks.discord}
-                      onChange={(e) => handleSocialLinkChange('discord', e.target.value)}
-                      className="bg-white/10 border-white/20 text-white placeholder:text-white/50 focus:ring-2 focus:ring-cyan-500/50 transition-all"
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="telegram" className="flex items-center gap-2">
-                      <svg className="w-4 h-4 text-gray-400" fill="currentColor" viewBox="0 0 24 24">
-                        <path d="M11.944 0A12 12 0 0 0 0 12a12 12 0 0 0 12 12 12 12 0 0 0 12-12A12 12 0 0 0 12 0a12 12 0 0 0-.056 0zm4.962 7.224c.1-.002.321.023.465.14a.506.506 0 0 1 .171.325c.016.093.036.306.02.472-.18 1.898-.96 6.504-1.36 8.629-.168.9-.499 1.201-.82 1.23-.696.065-1.225-.46-1.9-.902-1.056-.693-1.653-1.124-2.678-1.8-1.185-.78-.417-1.21.258-1.91.177-.184 3.247-2.977 3.307-3.23.007-.032.014-.15-.056-.212s-.174-.041-.249-.024c-.106.024-1.793 1.14-5.061 3.345-.48.33-.913.49-1.302.48-.428-.008-1.252-.241-1.865-.44-.752-.245-1.349-.374-1.297-.789.027-.216.325-.437.893-.663 3.498-1.524 5.83-2.529 6.998-3.014 3.332-1.386 4.025-1.627 4.476-1.635z"/>
-                      </svg>
-                      Telegram
-                    </Label>
-                    <Input
-                      id="telegram"
-                      type="url"
-                      placeholder="https://t.me/yourproject"
-                      value={formData.socialLinks.telegram}
-                      onChange={(e) => handleSocialLinkChange('telegram', e.target.value)}
-                      className="bg-white/10 border-white/20 text-white placeholder:text-white/50 focus:ring-2 focus:ring-cyan-500/50 transition-all"
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="linkedin" className="flex items-center gap-2">
-                      <svg className="w-4 h-4 text-gray-400" fill="currentColor" viewBox="0 0 24 24">
-                        <path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433c-1.144 0-2.063-.926-2.063-2.065 0-1.138.92-2.063 2.063-2.063 1.14 0 2.064.925 2.064 2.063 0 1.139-.925 2.065-2.064 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z"/>
-                      </svg>
-                      LinkedIn
-                    </Label>
-                    <Input
-                      id="linkedin"
-                      type="url"
-                      placeholder="https://linkedin.com/company/yourproject"
-                      value={formData.socialLinks.linkedin}
-                      onChange={(e) => handleSocialLinkChange('linkedin', e.target.value)}
-                      className="bg-white/10 border-white/20 text-white placeholder:text-white/50 focus:ring-2 focus:ring-cyan-500/50 transition-all"
-                    />
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-
-            {/* What This Project Has to Offer */}
-            <Card className="bg-gradient-to-br from-white/10 to-white/5 backdrop-blur-xl border-white/20 text-white hover:border-emerald-500/30 transition-colors">
-              <CardHeader>
-                <CardTitle className="flex items-center gap-3">
-                  <div className="p-2 bg-emerald-500/20 rounded-lg">
-                    <svg className="w-5 h-5 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
-                    </svg>
-                  </div>
-                  What This Project Has to Offer
-                </CardTitle>
-                <CardDescription className="text-white/70 ml-12">
-                  Describe the unique value, features, or benefits your project brings to users (optional)
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-2">
-                  <Textarea
-                    placeholder="e.g., Revolutionary DeFi features, unique tokenomics, innovative use cases, competitive advantages..."
-                    value={formData.additionalNotes}
-                    onChange={(e) => handleInputChange('additionalNotes', e.target.value)}
-                    className="min-h-24 bg-white/10 border-white/20 text-white placeholder:text-white/50"
-                  />
-                  <p className="text-xs text-white/60">
-                    {formData.additionalNotes.length}/{config.ui.maxAdditionalNotesLength} characters
-                  </p>
-                  {errors.additionalNotes && <p className="text-sm text-red-400">{errors.additionalNotes}</p>}
-                </div>
-              </CardContent>
-            </Card>
-
-            {/* Submit Area with Summary */}
-            <div className="bg-gradient-to-br from-purple-500/10 via-blue-500/10 to-cyan-500/10 backdrop-blur-xl rounded-xl border border-white/20 p-6">
-              {/* Summary Row */}
-              <div className="flex flex-wrap items-center justify-center gap-4 md:gap-8 mb-6 pb-6 border-b border-white/10">
-                {/* Wallet Balance */}
-                <div className="flex items-center gap-2">
-                  <div className="p-2 bg-green-500/20 rounded-lg">
-                    <svg className="w-4 h-4 text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z" />
-                    </svg>
-                  </div>
-                  <div className="text-sm">
-                    <p className="text-white/50">Balance</p>
-                    <p className="font-semibold text-white">
-                      {isCheckingBalance ? (
-                        <span className="text-white/50">Loading...</span>
-                      ) : walletBalance !== null ? (
-                        <span className={walletBalance < 0.02 ? 'text-red-400' : 'text-green-400'}>
-                          {walletBalance.toFixed(4)} SOL
-                        </span>
-                      ) : (
-                        <span className="text-white/50">Connect wallet</span>
-                      )}
-                    </p>
-                  </div>
-                </div>
-
-                {/* Creation Fee */}
-                <div className="flex items-center gap-2">
-                  <div className="p-2 bg-blue-500/20 rounded-lg">
-                    <svg className="w-4 h-4 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                    </svg>
-                  </div>
-                  <div className="text-sm">
-                    <p className="text-white/50">Creation Fee</p>
-                    <p className="font-semibold text-white">0.015 SOL</p>
-                  </div>
-                </div>
-
-                {/* Target Pool */}
-                <div className="flex items-center gap-2">
-                  <div className="p-2 bg-purple-500/20 rounded-lg">
-                    <svg className="w-4 h-4 text-purple-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
-                    </svg>
-                  </div>
-                  <div className="text-sm">
-                    <p className="text-white/50">Target Pool</p>
-                    <p className="font-semibold text-white">
-                      {formData.targetPool ? `${(parseInt(formData.targetPool) / 1e9).toFixed(2)} SOL` : '-'}
-                    </p>
-                  </div>
-                </div>
-
-                {/* Completion */}
-                <div className="flex items-center gap-2">
-                  <div className="p-2 bg-cyan-500/20 rounded-lg">
-                    <svg className="w-4 h-4 text-cyan-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                    </svg>
-                  </div>
-                  <div className="text-sm">
-                    <p className="text-white/50">Form</p>
-                    <p className="font-semibold text-white">{Math.round(completionPercentage)}% complete</p>
-                  </div>
-                </div>
-              </div>
-
-              {/* Submit Button */}
-              <div className="flex justify-center">
-              {/* Direct Submit Button - Bypass Form */}
-              <Button
-                type="button"
-                disabled={isSubmitting || !isMounted}
-                onClick={async (e) => {
-                  // Add immediate visual feedback with null check
-                  if (e.currentTarget) {
-                    e.currentTarget.style.transform = 'scale(0.95)';
-                    e.currentTarget.style.transition = 'transform 0.1s ease';
-                    
-                    setTimeout(() => {
-                      if (e.currentTarget) {
-                        e.currentTarget.style.transform = 'scale(1)';
-                      }
-                    }, 100);
-                  }
-                  
-                  console.log('🚀 DIRECT BUTTON CLICKED!');
-
-                  // Check if wallet is connected
-                  if (!primaryWallet) {
-                    alert('Please connect your wallet to create a project. You need SOL to pay for transaction fees.');
-                    return;
-                  }
-
-                  // Check if user has enough SOL BEFORE proceeding
-                  const requiredSOL = 0.02; // 0.015 SOL creation fee + buffer for tx fees
-                  if (walletBalance !== null && walletBalance < requiredSOL) {
-                    showToast({
-                      type: 'error',
-                      title: '⚠️ Insufficient SOL Balance',
-                      message: `You need at least ${requiredSOL} SOL to create a market.`,
-                      details: [
-                        `💰 Required: ${requiredSOL} SOL (0.015 SOL creation fee + transaction fees)`,
-                        `💳 Current Balance: ${walletBalance.toFixed(4)} SOL`,
-                        `📥 Click your wallet button to deposit SOL`,
-                      ],
-                      duration: 8000,
-                    });
-                    return;
-                  }
-
-                  console.log('Form data:', formData);
-                  console.log('Primary wallet:', primaryWallet);
-
-                  setIsSubmitting(true);
-                  setSubmissionStep('uploading');
-
-                  try {
-                    // Step 1: Prepare project data for server-side IPFS upload and transaction creation
-                    console.log('Preparing project data for server-side processing');
-                    
-                    // Create FormData to send to the API (which will handle IPFS uploads)
-                    const apiFormData = new FormData();
-                    apiFormData.append('name', formData.name);
-                    apiFormData.append('description', formData.description);
-                    apiFormData.append('category', formData.category);
-                    apiFormData.append('projectType', formData.projectType);
-                    apiFormData.append('projectStage', formData.projectStage);
-                    apiFormData.append('location', formData.location || '');
-                    apiFormData.append('teamSize', formData.teamSize);
-                    apiFormData.append('tokenSymbol', formData.tokenSymbol);
-                    apiFormData.append('marketDuration', formData.marketDuration);
-                    apiFormData.append('socialLinks', JSON.stringify(formData.socialLinks));
-                    apiFormData.append('additionalNotes', formData.additionalNotes || '');
-                    apiFormData.append('creatorWalletAddress', primaryWallet.address);
-
-                    // Add image file if provided
-                    if (formData.projectImage) {
-                      apiFormData.append('projectImage', formData.projectImage);
-                    }
-
-                    // Add document file if provided
-                    if (formData.projectDocument) {
-                      apiFormData.append('projectDocument', formData.projectDocument);
-                    }
-
-                    // Add pitch video file if provided
-                    if (formData.pitchVideo) {
-                      apiFormData.append('pitchVideo', formData.pitchVideo);
-                    }
-
-                    // Step 2: Send data to server for IPFS upload and metadata creation
-                    console.log('Sending project data to server for IPFS upload and metadata creation');
-                    
-                    const projectResponse = await authFetch('/api/projects/create', {
-                      method: 'POST',
-                      body: apiFormData,
-                    });
-                    
-                    const projectResult = await projectResponse.json();
-                    
-                    if (!projectResult.success) {
-                      throw new Error(projectResult.error || 'Failed to create project');
-                    }
-                    
-                    console.log('Project created and metadata uploaded to IPFS:', projectResult.data);
-
-                    setSubmissionStep('preparing');
-
-                    // Step 3: Prepare transaction for client-side signing
-                    console.log('Preparing transaction for client-side wallet signing');
-
-                    const transactionResponse = await authFetch('/api/markets/prepare-transaction', {
-                      method: 'POST',
-                      headers: {
-                        'Content-Type': 'application/json',
-                      },
-                      body: JSON.stringify({
-                        founderWallet: primaryWallet.address,
-                        metadataUri: projectResult.data.metadataUri,
-                        targetPool: formData.targetPool,
-                        marketDuration: parseInt(formData.marketDuration),
-                        network: SOLANA_NETWORK,
-                      }),
-                    });
-                    
-                    const transactionResult = await transactionResponse.json();
-                    
-                    if (!transactionResult.success) {
-                      throw new Error(transactionResult.error || 'Failed to prepare transaction');
-                    }
-                    
-        console.log('Transaction prepared, now signing with user wallet...');
-        
-        // Step 4.5: Check Privy authentication state
-        console.log('🔍 Privy Authentication Debug:');
-        console.log('User object:', user);
-        console.log('Authenticated:', authenticated);
-        console.log('Primary wallet:', primaryWallet);
-        console.log('Wallet address:', primaryWallet?.address);
-        console.log('Wallet authenticated:', primaryWallet?.isAuthenticated);
-
-        // Check if user is authenticated
-        if (!authenticated || !primaryWallet) {
-          console.log('❌ User not authenticated or wallet not connected');
-          alert('Please connect your wallet first.');
-          setIsSubmitting(false);
-          setSubmissionStep('idle');
-          return;
-        }
-
-        console.log('✅ User is authenticated, proceeding with transaction signing...');
-
-        setSubmissionStep('signing');
-
-        // Step 4.6: Sign transaction with Privy wallet
-        console.log('🔐 Signing transaction with Privy wallet...');
-
-                    let signature;
-
-                    try {
-                        // Get serialized transaction from API response
-                        const rawTx = transactionResult.data.serializedTransaction;
-                        console.log('📊 Serialized transaction length:', rawTx?.length);
-
-                        // Validate that we have transaction data
-                        if (!rawTx) {
-                            throw new Error('No serializedTransaction provided by server');
-                        }
-
-                        // Convert to Buffer for signAndSendTransaction
-                        const txBuffer = Buffer.from(rawTx, 'base64');
-
-                        // Simulate transaction first to surface any errors
-                        console.log('🔍 Simulating transaction to check for errors...');
-                        const connection = await getSolanaConnection();
-                        const { Transaction } = await import('@solana/web3.js');
-                        let tx = Transaction.from(txBuffer);
-
-                        try {
-                          const simulation = await connection.simulateTransaction(tx);
-                          if (simulation.value.err) {
-                            console.error('❌ Simulation failed:', JSON.stringify(simulation.value.err, null, 2));
-                            console.error('Simulation logs:', simulation.value.logs);
-                            throw new Error(`Transaction simulation failed: ${JSON.stringify(simulation.value.err)}`);
-                          }
-                          console.log('✅ Simulation passed, logs:', simulation.value.logs?.slice(-5));
-                        } catch (simError: any) {
-                          console.error('❌ Simulation error:', simError.message);
-                          if (simError.logs) {
-                            console.error('Program logs:', simError.logs);
-                          }
-                          throw simError;
-                        }
-
-                        // Refresh blockhash to prevent "Transaction confirmation failed" due to stale blockhash
-                        console.log('🔄 Refreshing blockhash before signing...');
-                        const { blockhash, lastValidBlockHeight } = await connection.getLatestBlockhash('confirmed');
-                        tx.recentBlockhash = blockhash;
-                        console.log('✅ Fresh blockhash:', blockhash.slice(0, 16) + '...');
-
-                        // Re-serialize with fresh blockhash
-                        const freshTxBuffer = Buffer.from(tx.serialize({
-                          requireAllSignatures: false,
-                          verifySignatures: false,
-                        }));
-
-                        console.log('🔄 Transaction ready for signing and sending');
-
-                        // Get Solana wallet - try external wallets first, then embedded wallets
-                        let solanaWallet;
-                        if (wallets && wallets.length > 0) {
-                          console.log('Using connected external Solana wallet');
-                          solanaWallet = wallets[0];
-                        } else if (standardWallets && standardWallets.length > 0) {
-                          console.log('Using embedded Solana wallet');
-                          const privyWallet = standardWallets.find((w: any) => w.isPrivyWallet || w.name === 'Privy');
-                          if (!privyWallet) {
-                            throw new Error('No Privy wallet found');
-                          }
-                          solanaWallet = privyWallet;
-                        } else {
-                          throw new Error('No Solana wallet found');
-                        }
-
-                        // Use signAndSendTransaction - works for both external and embedded wallets
-                        console.log('✍️📤 Signing and sending transaction with Privy...');
-                        const result = await signAndSendTransaction({
-                          transaction: freshTxBuffer,
-                          wallet: solanaWallet as any,
-                          chain: isDevnet() ? 'solana:devnet' : 'solana:mainnet',
-                        });
-
-                        // Extract signature from result and convert to base58
-                        signature = bs58.encode(result.signature);
-                        console.log('✅ Transaction signed and sent:', signature);
-
-                        setSubmissionStep('confirming');
-
-                        // Wait for confirmation with the same connection
-                        console.log('⏳ Waiting for transaction confirmation...');
-                        await connection.confirmTransaction(signature, 'confirmed');
-                        console.log('✅ Transaction confirmed on blockchain!');
-
-                    } catch (signerError: unknown) {
-                        const errorMessage = signerError instanceof Error ? signerError.message : 'Unknown error';
-                        console.log('❌ Transaction failed:', errorMessage);
-                        console.error('Full error object:', signerError);
-
-                        // Try to extract more details from the error
-                        if (signerError && typeof signerError === 'object') {
-                          console.error('Error details:', JSON.stringify(signerError, null, 2));
-                        }
-
-                        // Show error to user
-                        alert(`Failed to sign/send transaction: ${errorMessage}`);
-                        setIsSubmitting(false);
-                        setSubmissionStep('idle');
-                        return;
-                    }
-
-                    console.log('✅ Transaction flow completed!');
-                    console.log('✅ Transaction signature:', signature);
-
-                    setSubmissionStep('completing');
-
-                    // Step 4: Complete market creation in database
-                    console.log('Completing market creation in database...');
-                    
-                    const completeMarketResponse = await authFetch('/api/markets/complete', {
-                      method: 'POST',
-                      headers: {
-                        'Content-Type': 'application/json',
-                      },
-                      body: JSON.stringify({
-                        projectId: projectResult.data.projectId,
-                        marketAddress: transactionResult.data.marketPda,
-                        signature,
-                        ipfsCid: transactionResult.data.ipfsCid,
-                        targetPool: formData.targetPool,
-                        expiryTime: transactionResult.data.expiryTime,
-                      }),
-                    });
-                    
-                    const completeMarketResult = await completeMarketResponse.json();
-                    
-                    if (!completeMarketResult.success) {
-                      throw new Error(completeMarketResult.error || 'Failed to complete market creation');
-                    }
-                    
-                    console.log('✅ Market creation completed:', completeMarketResult.data);
-                    
-                    // Project and market creation is now complete!
-                    
-                    console.log('✅ Project and market creation completed successfully!', {
-                      projectName: formData.name,
-                      marketAddress: transactionResult.data.marketPda,
-                      transactionSignature: signature
-                    });
-
-                    // Show success toast and redirect
-                    showToast({
-                      type: 'success',
-                      title: `🎉 Project "${formData.name}" and prediction market created successfully!`,
-                      message: 'Your prediction market is now live! Community members can vote on whether your project should launch a token.',
-                      details: [
-                        `🎯 Market Address: ${transactionResult.data.marketPda}`,
-                        `🔗 Transaction: ${signature}`,
-                        `💰 Target Pool: ${parseInt(formData.targetPool) / 1e9} SOL`,
-                        `⏰ Expires: ${new Date(transactionResult.data.expiryTime * 1000).toLocaleString()}`,
-                      ],
-                      duration: 5000,
-                    });
-
-                    // Reset form
-                    setFormData(initialFormData);
-
-                    // Redirect to browse page after 2 seconds
-                    setTimeout(() => {
-                      router.push('/browse');
-                    }, 2000);
-                    
-                  } catch (error) {
-                    console.error('Failed to create project', error);
-                    showToast({
-                      type: 'error',
-                      title: 'Failed to create project',
-                      message: error instanceof Error ? error.message : 'Unknown error',
-                      details: ['Please try again or contact support if the issue persists.'],
-                      duration: 5000,
-                    });
-                  } finally {
-                    setIsSubmitting(false);
-                    setSubmissionStep('idle');
-                  }
-                }}
-                className={`
-                  relative overflow-hidden
-                  bg-gradient-to-r from-purple-500 to-pink-500
-                  hover:from-purple-600 hover:to-pink-600
-                  active:from-purple-700 active:to-pink-700
-                  text-white px-8 py-4
-                  font-semibold text-lg
-                  rounded-xl
-                  shadow-lg hover:shadow-xl hover:shadow-purple-500/25
-                  transition-all duration-300 ease-out
-                  transform hover:scale-[1.02] active:scale-[0.98]
-                  ${isSubmitting ? 'cursor-not-allowed' : 'cursor-pointer'}
-                  ${!isMounted ? 'opacity-50' : ''}
-                  ${isSubmitting ? 'min-w-[320px]' : ''}
-                `}
-              >
-                {/* Animated gradient background when submitting */}
-                {isSubmitting && (
-                  <div className="absolute inset-0 bg-gradient-to-r from-purple-600 via-pink-500 to-purple-600 bg-[length:200%_100%] animate-[shimmer_2s_ease-in-out_infinite]"></div>
-                )}
-
-                {/* Pulsing glow effect when submitting */}
-                {isSubmitting && (
-                  <div className="absolute -inset-1 bg-gradient-to-r from-purple-500 to-pink-500 rounded-xl blur opacity-40 animate-pulse"></div>
-                )}
-
-                <span className="relative z-10 flex items-center justify-center gap-3">
-                  {isSubmitting ? (
-                    <>
-                      {/* Animated spinner */}
-                      <div className="relative">
-                        <div className="w-5 h-5 border-2 border-white/30 rounded-full"></div>
-                        <div className="absolute top-0 left-0 w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                      </div>
-
-                      {/* Step-based text with animation */}
-                      <span className="animate-pulse">
-                        {submissionStep === 'uploading' && 'Uploading to IPFS...'}
-                        {submissionStep === 'preparing' && 'Preparing Transaction...'}
-                        {submissionStep === 'signing' && 'Waiting for Signature...'}
-                        {submissionStep === 'confirming' && 'Confirming on Chain...'}
-                        {submissionStep === 'completing' && 'Finalizing Market...'}
-                        {submissionStep === 'idle' && 'Processing...'}
-                      </span>
-
-                      {/* Step indicator dots */}
-                      <div className="flex gap-1.5 ml-2">
-                        {['uploading', 'preparing', 'signing', 'confirming', 'completing'].map((step, index) => {
-                          const steps = ['uploading', 'preparing', 'signing', 'confirming', 'completing'];
-                          const currentIndex = steps.indexOf(submissionStep);
-                          const isCompleted = index < currentIndex;
-                          const isCurrent = step === submissionStep;
-
-                          return (
-                            <div
-                              key={step}
-                              className={`
-                                w-2 h-2 rounded-full transition-all duration-300
-                                ${isCompleted ? 'bg-green-400' : isCurrent ? 'bg-white animate-pulse' : 'bg-white/30'}
-                              `}
-                            />
-                          );
-                        })}
-                      </div>
-                    </>
-                  ) : (
-                    <>
-                      {/* Rocket icon */}
-                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.59 14.37a6 6 0 01-5.84 7.38v-4.8m5.84-2.58a14.98 14.98 0 006.16-12.12A14.98 14.98 0 009.631 8.41m5.96 5.96a14.926 14.926 0 01-5.841 2.58m-.119-8.54a6 6 0 00-7.381 5.84h4.8m2.581-5.84a14.927 14.927 0 00-2.58 5.84m2.699 2.7c-.103.021-.207.041-.311.06a15.09 15.09 0 01-2.448-2.448 14.9 14.9 0 01.06-.312m-2.24 2.39a4.493 4.493 0 00-1.757 4.306 4.493 4.493 0 004.306-1.758M16.5 9a1.5 1.5 0 11-3 0 1.5 1.5 0 013 0z" />
-                      </svg>
-                      <span>{!isMounted ? 'Loading...' : 'Launch Prediction Market'}</span>
-                    </>
-                  )}
-                </span>
-              </Button>
-              </div>
-            </div>
-              </form>
-          </div>
+            </button>
+          ) : (
+            <button
+              type="button"
+              onClick={goNext}
+              className="mono text-[0.65rem] uppercase tracking-[0.28em] px-6 py-3 transition-colors"
+              style={{ background: AMBER, color: BG }}
+              onMouseEnter={(e) => (e.currentTarget.style.background = PEACH)}
+              onMouseLeave={(e) => (e.currentTarget.style.background = AMBER)}
+            >
+              Continue →
+            </button>
+          )}
         </div>
       </div>
+    </div>
+  );
+}
+
+// ─────────────────────── Sub-components ───────────────────────
+
+function ProgressDots({
+  currentStep,
+  furthestStep,
+  onJump,
+}: {
+  currentStep: StepId;
+  furthestStep: StepId;
+  onJump: (s: StepId) => void;
+}) {
+  return (
+    <nav className="flex items-center justify-center mb-10 sm:mb-14">
+      {STEPS.map((s, i) => {
+        const Icon = s.Icon;
+        const isPast = s.id < currentStep;
+        const isCurrent = s.id === currentStep;
+        const reachable = s.id <= furthestStep;
+        const color = isPast ? FOREST : isCurrent ? AMBER : CREAM_FAINT;
+        const bg = isCurrent ? `${AMBER}1c` : 'transparent';
+        return (
+          <React.Fragment key={s.id}>
+            <button
+              type="button"
+              onClick={() => reachable && onJump(s.id)}
+              disabled={!reachable}
+              className="flex flex-col items-center transition-colors"
+              style={{ cursor: reachable ? 'pointer' : 'default', opacity: reachable ? 1 : 0.5 }}
+              title={s.title}
+            >
+              <span
+                className="w-9 h-9 sm:w-10 sm:h-10 flex items-center justify-center transition-colors"
+                style={{
+                  border: `1px solid ${color}66`,
+                  background: bg,
+                  color,
+                }}
+              >
+                <Icon className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+              </span>
+              <span
+                className="hidden md:block mono uppercase tracking-[0.2em] text-[0.5rem] mt-1.5"
+                style={{ color: isCurrent ? CREAM : CREAM_FAINT }}
+              >
+                {s.title}
+              </span>
+            </button>
+            {i < STEPS.length - 1 && (
+              <span
+                className="h-px flex-1 max-w-[40px] sm:max-w-[60px] mx-1 sm:mx-2"
+                style={{ background: s.id < currentStep ? FOREST + '88' : HAIR_STRONG }}
+              />
+            )}
+          </React.Fragment>
+        );
+      })}
+    </nav>
+  );
+}
+
+// ── Field primitives (consistent cosmic-plant treatment) ──
+
+function FieldLabel({ children, required }: { children: React.ReactNode; required?: boolean }) {
+  return (
+    <label
+      className="block mono uppercase tracking-[0.22em] text-[0.6rem] mb-2"
+      style={{ color: CREAM_DIM }}
+    >
+      {children}
+      {required && <span style={{ color: AMBER }}> *</span>}
+    </label>
+  );
+}
+
+function FieldHint({ children }: { children: React.ReactNode }) {
+  return (
+    <p
+      className="mono uppercase tracking-[0.2em] text-[0.55rem] mt-1.5"
+      style={{ color: CREAM_FAINT }}
+    >
+      {children}
+    </p>
+  );
+}
+
+function FieldError({ children }: { children: React.ReactNode }) {
+  if (!children) return null;
+  return (
+    <p
+      className="mt-2 text-sm"
+      style={{ color: EARTH, fontFamily: 'var(--font-fraunces, serif)' }}
+    >
+      {children}
+    </p>
+  );
+}
+
+const inputBase: React.CSSProperties = {
+  background: 'transparent',
+  color: CREAM,
+  width: '100%',
+  padding: '0.75rem 1rem',
+  fontSize: '1rem',
+  border: `1px solid ${HAIR_STRONG}`,
+  outline: 'none',
+  transition: 'border-color 200ms',
+};
+
+function focusOn(e: React.FocusEvent<HTMLElement>) {
+  (e.currentTarget as HTMLElement).style.borderColor = AMBER;
+}
+function focusOff(e: React.FocusEvent<HTMLElement>) {
+  (e.currentTarget as HTMLElement).style.borderColor = HAIR_STRONG;
+}
+
+
+// ── Step 1 — The Seed ──
+function SeedStep({
+  formData,
+  setField,
+  errors,
+}: {
+  formData: ProjectFormData;
+  setField: (f: keyof ProjectFormData, v: any) => void;
+  errors: Record<string, string>;
+}) {
+  const byteLength = useMemo(
+    () => (formData.name ? new TextEncoder().encode(formData.name).length : 0),
+    [formData.name],
+  );
+  return (
+    <>
+      <div>
+        <FieldLabel required>Project name</FieldLabel>
+        <input
+          type="text"
+          placeholder="What are you growing?"
+          value={formData.name}
+          onChange={(e) => setField('name', e.target.value)}
+          onFocus={focusOn}
+          onBlur={focusOff}
+          style={{
+            ...inputBase,
+            borderColor: errors.name ? EARTH + '88' : HAIR_STRONG,
+            fontFamily: 'var(--font-fraunces, serif)',
+          }}
+        />
+        <FieldHint>
+          Names cap at 32 bytes for pump.fun
+          {byteLength > 0 && (
+            <span style={{ color: byteLength > 32 ? EARTH : CREAM_FAINT }}>
+              {' '}· {byteLength}/32 bytes{byteLength > 32 ? ' (will be truncated)' : ''}
+            </span>
+          )}
+        </FieldHint>
+        <FieldError>{errors.name}</FieldError>
+      </div>
+
+      <div>
+        <FieldLabel required>Description</FieldLabel>
+        <textarea
+          placeholder="What is it, in one or two sentences?"
+          value={formData.description}
+          onChange={(e) => setField('description', e.target.value)}
+          onFocus={focusOn}
+          onBlur={focusOff}
+          rows={4}
+          style={{
+            ...inputBase,
+            borderColor: errors.description ? EARTH + '88' : HAIR_STRONG,
+            resize: 'vertical',
+            minHeight: '108px',
+            fontFamily: 'var(--font-fraunces, serif)',
+            lineHeight: 1.5,
+          }}
+        />
+        <FieldHint>
+          {formData.description.length}/{config.ui.maxDescriptionLength} characters
+        </FieldHint>
+        <FieldError>{errors.description}</FieldError>
+      </div>
+
+      <div>
+        <FieldLabel required>Category</FieldLabel>
+        <Dropdown
+          value={formData.category}
+          onChange={(v) => setField('category', v)}
+          groups={CATEGORY_GROUPS}
+          placeholder="Choose a category…"
+          hasError={!!errors.category}
+        />
+        <FieldError>{errors.category}</FieldError>
+      </div>
+    </>
+  );
+}
+
+// ── Step 2 — The Roots ──
+function RootsStep({
+  formData,
+  setField,
+  errors,
+}: {
+  formData: ProjectFormData;
+  setField: (f: keyof ProjectFormData, v: any) => void;
+  errors: Record<string, string>;
+}) {
+  return (
+    <>
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <div>
+          <FieldLabel required>Project type</FieldLabel>
+          <Dropdown
+            value={formData.projectType}
+            onChange={(v) => setField('projectType', v)}
+            options={PROJECT_TYPES}
+            placeholder="Select…"
+            hasError={!!errors.projectType}
+          />
+          <FieldError>{errors.projectType}</FieldError>
+        </div>
+
+        <div>
+          <FieldLabel required>Stage</FieldLabel>
+          <Dropdown
+            value={formData.projectStage}
+            onChange={(v) => setField('projectStage', v)}
+            options={PROJECT_STAGES}
+            placeholder="Select…"
+            hasError={!!errors.projectStage}
+          />
+          <FieldError>{errors.projectStage}</FieldError>
+        </div>
+
+        <div>
+          <FieldLabel required>Team size</FieldLabel>
+          <input
+            type="number"
+            min={1}
+            placeholder="How many of you?"
+            value={formData.teamSize}
+            onChange={(e) => setField('teamSize', e.target.value)}
+            onFocus={focusOn}
+            onBlur={focusOff}
+            style={{
+              ...inputBase,
+              borderColor: errors.teamSize ? EARTH + '88' : HAIR_STRONG,
+            }}
+          />
+          <FieldError>{errors.teamSize}</FieldError>
+        </div>
+
+        <div>
+          <FieldLabel>Location</FieldLabel>
+          <input
+            type="text"
+            placeholder="e.g. Global, Berlin, NYC"
+            value={formData.location}
+            onChange={(e) => setField('location', e.target.value)}
+            onFocus={focusOn}
+            onBlur={focusOff}
+            style={inputBase}
+          />
+        </div>
+      </div>
+
+      <div>
+        <FieldLabel required>Project image</FieldLabel>
+        <FileDrop
+          file={formData.projectImage}
+          onFile={(f) => setField('projectImage', f)}
+          accept="image/*"
+          previewKind="image"
+          empty={{
+            primary: 'Click to upload',
+            secondary: 'PNG, JPG, GIF up to 10MB',
+          }}
+        />
+        <FieldError>{errors.projectImage}</FieldError>
+      </div>
+    </>
+  );
+}
+
+// ── Step 3 — The Bloom ──
+function BloomStep({
+  formData,
+  setField,
+  errors,
+  isCustom,
+  setIsCustom,
+}: {
+  formData: ProjectFormData;
+  setField: (f: keyof ProjectFormData, v: any) => void;
+  errors: Record<string, string>;
+  isCustom: boolean;
+  setIsCustom: (b: boolean) => void;
+}) {
+  return (
+    <>
+      <div>
+        <FieldLabel required>Token symbol</FieldLabel>
+        <input
+          type="text"
+          placeholder="e.g. ALPHA"
+          value={formData.tokenSymbol}
+          onChange={(e) => setField('tokenSymbol', e.target.value.toUpperCase())}
+          onFocus={focusOn}
+          onBlur={focusOff}
+          maxLength={10}
+          style={{
+            ...inputBase,
+            fontFamily: 'var(--font-mono, monospace)',
+            letterSpacing: '0.18em',
+            textTransform: 'uppercase',
+            borderColor: errors.tokenSymbol ? EARTH + '88' : HAIR_STRONG,
+          }}
+        />
+        <FieldHint>3-10 uppercase letters or numbers</FieldHint>
+        <FieldError>{errors.tokenSymbol}</FieldError>
+      </div>
+
+      <div>
+        <FieldLabel required>Target pool</FieldLabel>
+        <Dropdown
+          value={isCustom ? 'custom' : formData.targetPool}
+          onChange={(v) => {
+            if (v === 'custom') {
+              setIsCustom(true);
+              setField('targetPool', '');
+            } else {
+              setIsCustom(false);
+              setField('targetPool', v);
+            }
+          }}
+          options={
+            process.env.NODE_ENV === 'development'
+              ? [...TARGET_POOLS, { value: 'custom', label: 'Custom amount', hint: 'dev only' }]
+              : TARGET_POOLS
+          }
+          placeholder="Choose target pool size…"
+          hasError={!!errors.targetPool}
+        />
+        {process.env.NODE_ENV === 'development' && isCustom && (
+          <div className="mt-3">
+            <input
+              type="number"
+              step="0.01"
+              min="0.08"
+              placeholder="Enter SOL amount (min 0.08)"
+              onChange={(e) => {
+                const sol = parseFloat(e.target.value);
+                if (!isNaN(sol) && sol >= 0.08) {
+                  setField('targetPool', String(Math.floor(sol * 1e9)));
+                } else if (e.target.value === '') {
+                  setField('targetPool', '');
+                }
+              }}
+              onFocus={focusOn}
+              onBlur={focusOff}
+              style={{ ...inputBase, borderColor: '#d4a72c88' }}
+            />
+            {formData.targetPool && !isNaN(parseInt(formData.targetPool)) && (
+              <FieldHint>
+                Set to {(parseInt(formData.targetPool) / 1e9).toFixed(2)} SOL
+              </FieldHint>
+            )}
+          </div>
+        )}
+        <FieldHint>More liquidity but needs more YES votes to launch.</FieldHint>
+        <FieldError>{errors.targetPool}</FieldError>
+      </div>
+
+      <div>
+        <FieldLabel required>Market duration</FieldLabel>
+        <Dropdown
+          value={formData.marketDuration}
+          onChange={(v) => setField('marketDuration', v)}
+          options={DURATIONS}
+          placeholder="Choose duration…"
+          hasError={!!errors.marketDuration}
+        />
+        <FieldHint>The voting period. YES costs 0.01 SOL minimum.</FieldHint>
+        <FieldError>{errors.marketDuration}</FieldError>
+      </div>
+
+      {/* Creation fee callout */}
+      <div
+        className="p-4 mt-2"
+        style={{ background: 'rgba(232,150,96,0.06)', border: `1px solid ${AMBER}33` }}
+      >
+        <p
+          className="mono uppercase tracking-[0.22em] text-[0.55rem] mb-1"
+          style={{ color: AMBER }}
+        >
+          Cost to plant
+        </p>
+        <p
+          style={{ color: CREAM, fontFamily: 'var(--font-fraunces, serif)', fontSize: '0.95rem' }}
+        >
+          0.015 SOL one-time fee. ~0.002 SOL more for transaction rent (refundable when the market closes).
+        </p>
+      </div>
+    </>
+  );
+}
+
+// ── Step 4 — The Voice ──
+function VoiceStep({
+  formData,
+  setField,
+  setSocialLink,
+  errors,
+}: {
+  formData: ProjectFormData;
+  setField: (f: keyof ProjectFormData, v: any) => void;
+  setSocialLink: (p: keyof ProjectFormData['socialLinks'], v: string) => void;
+  errors: Record<string, string>;
+}) {
+  return (
+    <>
+      <div>
+        <FieldLabel>Pitch video</FieldLabel>
+        <FileDrop
+          file={formData.pitchVideo}
+          onFile={(f) => setField('pitchVideo', f)}
+          accept="video/mp4,video/quicktime"
+          previewKind="video"
+          empty={{ primary: 'Click to upload MP4 or MOV', secondary: 'Up to 2 minutes, max 50MB' }}
+        />
+        <FieldError>{errors.pitchVideo}</FieldError>
+      </div>
+
+      <div>
+        <FieldLabel>Project documentation</FieldLabel>
+        <FileDrop
+          file={formData.projectDocument}
+          onFile={(f) => setField('projectDocument', f)}
+          accept=".pdf,.doc,.docx,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+          previewKind="document"
+          maxMB={10}
+          empty={{ primary: 'Click to upload PDF or Word', secondary: 'Max 10MB' }}
+        />
+      </div>
+
+      <div>
+        <FieldLabel>What this project offers</FieldLabel>
+        <textarea
+          placeholder="Unique value, features, why this matters…"
+          value={formData.additionalNotes}
+          onChange={(e) => setField('additionalNotes', e.target.value)}
+          onFocus={focusOn}
+          onBlur={focusOff}
+          rows={4}
+          style={{
+            ...inputBase,
+            resize: 'vertical',
+            minHeight: '108px',
+            fontFamily: 'var(--font-fraunces, serif)',
+            lineHeight: 1.5,
+          }}
+        />
+        <FieldHint>
+          {formData.additionalNotes.length}/{config.ui.maxAdditionalNotesLength} characters
+        </FieldHint>
+        <FieldError>{errors.additionalNotes}</FieldError>
+      </div>
+
+      <div className="pt-4" style={{ borderTop: `1px solid ${HAIR}` }}>
+        <FieldLabel>Social presence</FieldLabel>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <SocialInput
+            placeholder="https://yourwebsite.com"
+            value={formData.socialLinks.website}
+            onChange={(v) => setSocialLink('website', v)}
+            label="Website"
+          />
+          <SocialInput
+            placeholder="https://x.com/yourproject"
+            value={formData.socialLinks.twitter}
+            onChange={(v) => setSocialLink('twitter', v)}
+            label="X (Twitter)"
+          />
+          <SocialInput
+            placeholder="https://github.com/yourproject"
+            value={formData.socialLinks.github}
+            onChange={(v) => setSocialLink('github', v)}
+            label="GitHub"
+          />
+          <SocialInput
+            placeholder="https://discord.gg/yourproject"
+            value={formData.socialLinks.discord}
+            onChange={(v) => setSocialLink('discord', v)}
+            label="Discord"
+          />
+          <SocialInput
+            placeholder="https://t.me/yourproject"
+            value={formData.socialLinks.telegram}
+            onChange={(v) => setSocialLink('telegram', v)}
+            label="Telegram"
+          />
+          <SocialInput
+            placeholder="https://linkedin.com/company/yourproject"
+            value={formData.socialLinks.linkedin}
+            onChange={(v) => setSocialLink('linkedin', v)}
+            label="LinkedIn"
+          />
+        </div>
+      </div>
+    </>
+  );
+}
+
+function SocialInput({
+  placeholder,
+  value,
+  onChange,
+  label,
+}: {
+  placeholder: string;
+  value: string;
+  onChange: (v: string) => void;
+  label: string;
+}) {
+  return (
+    <div>
+      <p
+        className="mono uppercase tracking-[0.2em] text-[0.55rem] mb-1.5"
+        style={{ color: CREAM_FAINT }}
+      >
+        {label}
+      </p>
+      <input
+        type="url"
+        placeholder={placeholder}
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        onFocus={focusOn}
+        onBlur={focusOff}
+        style={{ ...inputBase, padding: '0.55rem 0.85rem', fontSize: '0.85rem' }}
+      />
+    </div>
+  );
+}
+
+// ── File drop zone ──
+function FileDrop({
+  file,
+  onFile,
+  accept,
+  previewKind,
+  maxMB = 50,
+  empty,
+}: {
+  file?: File;
+  onFile: (f: File | undefined) => void;
+  accept: string;
+  previewKind: 'image' | 'video' | 'document';
+  maxMB?: number;
+  empty: { primary: string; secondary: string };
+}) {
+  const id = useMemo(() => `file-${Math.random().toString(36).slice(2)}`, []);
+  const previewUrl = useMemo(() => (file ? URL.createObjectURL(file) : null), [file]);
+
+  useEffect(() => {
+    return () => {
+      if (previewUrl) URL.revokeObjectURL(previewUrl);
+    };
+  }, [previewUrl]);
+
+  const remove = (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    onFile(undefined);
+  };
+
+  const hasFile = !!file;
+  return (
+    <label
+      htmlFor={id}
+      className="block cursor-pointer transition-colors"
+      style={{
+        background: hasFile ? 'rgba(63,122,66,0.06)' : 'rgba(244,238,228,0.025)',
+        border: `1px dashed ${hasFile ? FOREST + '88' : HAIR_STRONG}`,
+        padding: '1.25rem',
+        textAlign: 'center',
+      }}
+    >
+      <input
+        id={id}
+        type="file"
+        accept={accept}
+        onChange={(e) => {
+          const f = e.target.files?.[0];
+          if (f) {
+            if (f.size > maxMB * 1024 * 1024) {
+              alert(`File must be ${maxMB}MB or less`);
+              e.target.value = '';
+              return;
+            }
+            onFile(f);
+          }
+        }}
+        className="hidden"
+      />
+      {file ? (
+        <div className="flex flex-col items-center">
+          {previewKind === 'image' && previewUrl && (
+            <div
+              className="w-24 h-24 mb-3 overflow-hidden"
+              style={{ border: `1px solid ${FOREST}55` }}
+            >
+              <img src={previewUrl} alt={file.name} className="w-full h-full object-cover" />
+            </div>
+          )}
+          {previewKind === 'video' && previewUrl && (
+            <video
+              src={previewUrl}
+              controls
+              muted
+              className="w-full max-w-md max-h-48 mb-3"
+              style={{ border: `1px solid ${FOREST}55` }}
+            />
+          )}
+          {previewKind === 'document' && (
+            <div
+              className="w-16 h-20 mb-3 flex items-center justify-center"
+              style={{ background: 'rgba(244,238,228,0.04)', border: `1px solid ${FOREST}55`, color: FOREST }}
+            >
+              <span
+                className="mono uppercase tracking-[0.18em] text-[0.62rem]"
+                style={{ color: FOREST }}
+              >
+                {file.name.toLowerCase().endsWith('.pdf') ? 'PDF' : 'DOC'}
+              </span>
+            </div>
+          )}
+          <p
+            className="text-sm truncate max-w-full"
+            style={{ color: CREAM, fontFamily: 'var(--font-fraunces, serif)' }}
+          >
+            <Check className="w-3.5 h-3.5 inline mr-1.5 -translate-y-px" style={{ color: FOREST }} />
+            {file.name}
+          </p>
+          <p
+            className="mono uppercase tracking-[0.2em] text-[0.55rem] mt-1"
+            style={{ color: CREAM_FAINT }}
+          >
+            {(file.size / 1024 / 1024).toFixed(2)} MB · click to change
+          </p>
+          <button
+            type="button"
+            onClick={remove}
+            className="mono uppercase tracking-[0.22em] text-[0.55rem] mt-2 inline-flex items-center gap-1 transition-colors"
+            style={{ color: CREAM_FAINT }}
+            onMouseEnter={(e) => (e.currentTarget.style.color = EARTH)}
+            onMouseLeave={(e) => (e.currentTarget.style.color = CREAM_FAINT)}
+          >
+            <X className="w-3 h-3" /> remove
+          </button>
+        </div>
+      ) : (
+        <div className="flex flex-col items-center py-3">
+          <LeafIcon className="w-7 h-7 mb-2" />
+          <p
+            className="text-sm"
+            style={{ color: CREAM, fontFamily: 'var(--font-fraunces, serif)' }}
+          >
+            {empty.primary}
+          </p>
+          <p
+            className="mono uppercase tracking-[0.2em] text-[0.55rem] mt-1"
+            style={{ color: CREAM_FAINT }}
+          >
+            {empty.secondary}
+          </p>
+        </div>
+      )}
+    </label>
+  );
+}
+
+// ── Step 5 — Plant it (review) ──
+function ReviewStep({
+  formData,
+  walletBalance,
+  isSubmitting,
+  submissionStep,
+  authenticated,
+}: {
+  formData: ProjectFormData;
+  walletBalance: number | null;
+  isSubmitting: boolean;
+  submissionStep: SubmissionStep;
+  authenticated: boolean;
+}) {
+  const targetSol = formData.targetPool ? (parseInt(formData.targetPool) / 1e9).toFixed(2) : '—';
+  const duration = DURATIONS.find((d) => d.value === formData.marketDuration)?.label || '—';
+  const stage = PROJECT_STAGES.find((s) => s.value === formData.projectStage)?.label || '—';
+
+  return (
+    <>
+      {/* Hero strip — name + symbol + image */}
+      <div
+        className="p-5 sm:p-6 flex items-center gap-4"
+        style={{ background: 'rgba(232,150,96,0.05)', border: `1px solid ${AMBER}44` }}
+      >
+        {formData.projectImage && (
+          <div
+            className="w-16 h-16 sm:w-20 sm:h-20 flex-shrink-0 overflow-hidden"
+            style={{ border: `1px solid ${AMBER}66` }}
+          >
+            <img
+              src={URL.createObjectURL(formData.projectImage)}
+              alt={formData.name}
+              className="w-full h-full object-cover"
+            />
+          </div>
+        )}
+        <div className="flex-1 min-w-0">
+          <p
+            className="mono uppercase tracking-[0.22em] text-[0.55rem] mb-1"
+            style={{ color: AMBER }}
+          >
+            {formData.tokenSymbol || '—'}
+          </p>
+          <h3
+            className="line-clamp-1"
+            style={{
+              color: CREAM,
+              fontFamily: 'var(--font-fraunces, serif)',
+              fontSize: '1.4rem',
+              fontWeight: 400,
+            }}
+          >
+            {formData.name || 'Untitled'}
+          </h3>
+          <p className="text-sm line-clamp-2 mt-1" style={{ color: CREAM_DIM }}>
+            {formData.description || '—'}
+          </p>
+        </div>
+      </div>
+
+      {/* Vitals grid */}
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-px" style={{ background: HAIR_STRONG }}>
+        <ReviewVital label="Stage" value={stage} />
+        <ReviewVital label="Target" value={`${targetSol} SOL`} />
+        <ReviewVital label="Voting" value={duration} />
+        <ReviewVital label="Team" value={formData.teamSize || '—'} />
+      </div>
+
+      {/* Cost row */}
+      <div
+        className="p-4 flex flex-wrap items-center justify-between gap-3"
+        style={{ background: 'rgba(244,238,228,0.025)', border: `1px solid ${HAIR_STRONG}` }}
+      >
+        <div>
+          <p
+            className="mono uppercase tracking-[0.22em] text-[0.55rem]"
+            style={{ color: CREAM_FAINT }}
+          >
+            Wallet balance
+          </p>
+          <p
+            className="mono"
+            style={{
+              color:
+                walletBalance === null
+                  ? CREAM_DIM
+                  : walletBalance < 0.02
+                  ? EARTH
+                  : FOREST,
+              fontSize: '0.95rem',
+              letterSpacing: '0.04em',
+            }}
+          >
+            {walletBalance === null
+              ? '— SOL'
+              : `${walletBalance.toFixed(4)} SOL`}
+          </p>
+        </div>
+        <div className="text-right">
+          <p
+            className="mono uppercase tracking-[0.22em] text-[0.55rem]"
+            style={{ color: CREAM_FAINT }}
+          >
+            Cost to plant
+          </p>
+          <p
+            className="mono"
+            style={{ color: AMBER, fontSize: '0.95rem', letterSpacing: '0.04em' }}
+          >
+            ~0.017 SOL
+          </p>
+        </div>
+      </div>
+
+      {!authenticated && (
+        <p
+          className="text-center text-sm"
+          style={{
+            color: EARTH,
+            fontFamily: 'var(--font-fraunces, serif)',
+          }}
+        >
+          Connect a wallet from the top nav before planting.
+        </p>
+      )}
+
+      {/* Live submission status */}
+      {isSubmitting && submissionStep !== 'idle' && (
+        <SubmissionRibbon step={submissionStep} />
+      )}
+    </>
+  );
+}
+
+function ReviewVital({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="px-4 py-4 text-center" style={{ background: BG }}>
+      <p
+        className="mono uppercase tracking-[0.22em] text-[0.5rem] mb-1.5"
+        style={{ color: CREAM_FAINT }}
+      >
+        {label}
+      </p>
+      <p
+        style={{
+          color: CREAM,
+          fontFamily: 'var(--font-fraunces, serif)',
+          fontSize: '1.1rem',
+          fontWeight: 400,
+        }}
+      >
+        {value}
+      </p>
+    </div>
+  );
+}
+
+function SubmissionRibbon({ step }: { step: SubmissionStep }) {
+  const stages: SubmissionStep[] = [
+    'uploading',
+    'preparing',
+    'signing',
+    'confirming',
+    'completing',
+  ];
+  const labels: Record<SubmissionStep, string> = {
+    idle: 'Idle',
+    uploading: 'Sending to IPFS',
+    preparing: 'Preparing transaction',
+    signing: 'Sign in your wallet',
+    confirming: 'Confirming on Solana',
+    completing: 'Finishing up',
+  };
+  const idx = stages.indexOf(step);
+
+  return (
+    <div
+      className="p-5"
+      style={{
+        background: 'rgba(232,150,96,0.06)',
+        border: `1px solid ${AMBER}44`,
+      }}
+    >
+      <p
+        className="mono uppercase tracking-[0.22em] text-[0.6rem] mb-3"
+        style={{ color: AMBER }}
+      >
+        Planting…
+      </p>
+      <div className="flex items-center gap-2">
+        {stages.map((s, i) => {
+          const isPast = i < idx;
+          const isCurrent = i === idx;
+          return (
+            <React.Fragment key={s}>
+              <span
+                className="w-2.5 h-2.5"
+                style={{
+                  background: isPast ? FOREST : isCurrent ? AMBER : HAIR_STRONG,
+                  animation: isCurrent ? 'pulseDot 1.2s ease-in-out infinite' : undefined,
+                }}
+              />
+              {i < stages.length - 1 && (
+                <span
+                  className="h-px flex-1"
+                  style={{ background: i < idx ? FOREST + '88' : HAIR_STRONG }}
+                />
+              )}
+            </React.Fragment>
+          );
+        })}
+      </div>
+      <p
+        className="mt-3 text-sm"
+        style={{ color: CREAM, fontFamily: 'var(--font-fraunces, serif)' }}
+      >
+        {labels[step]}
+        {step === 'signing' && (
+          <span className="ml-1.5" style={{ color: CREAM_FAINT }}>
+            — check your wallet popup.
+          </span>
+        )}
+      </p>
+      <style>{`
+        @keyframes pulseDot {
+          0%, 100% { opacity: 0.5; transform: scale(0.85); }
+          50% { opacity: 1; transform: scale(1.1); }
+        }
+      `}</style>
+    </div>
+  );
+}
+
+// ─────────────────────── Celebration ───────────────────────
+function PlantingCelebration({
+  marketId,
+  marketAddress,
+  name,
+  signature,
+  onWander,
+}: {
+  marketId: string;
+  marketAddress: string;
+  name: string;
+  signature: string;
+  onWander: () => void;
+}) {
+  return (
+    <div
+      className="fixed inset-0 z-50 flex flex-col items-center justify-center px-6"
+      style={{ background: BG, color: CREAM }}
+    >
+      {/* Ambient warm glow */}
+      <div
+        className="absolute inset-0 pointer-events-none"
+        style={{
+          background:
+            `radial-gradient(circle at 50% 60%, ${AMBER}22 0%, ${EARTH}08 35%, transparent 70%)`,
+          animation: 'haloRise 2.2s ease-out 1.4s both',
+        }}
+      />
+
+      {/* SVG planting scene */}
+      <svg viewBox="0 0 400 540" className="w-[300px] sm:w-[380px] h-auto relative">
+        <defs>
+          <radialGradient id="bloomHalo" cx="50%" cy="50%" r="50%">
+            <stop offset="0%" stopColor={AMBER} stopOpacity="0.55" />
+            <stop offset="60%" stopColor={EARTH} stopOpacity="0.12" />
+            <stop offset="100%" stopColor={EARTH} stopOpacity="0" />
+          </radialGradient>
+        </defs>
+
+        {/* Soil — appears when seed lands */}
+        <ellipse
+          cx="200"
+          cy="455"
+          rx="80"
+          ry="9"
+          fill="rgba(122,68,40,0.45)"
+          style={{ animation: 'soilAppear 0.6s ease-out 1.6s both', transformBox: 'fill-box', transformOrigin: 'center' }}
+        />
+        <ellipse
+          cx="200"
+          cy="453"
+          rx="60"
+          ry="5"
+          fill="rgba(122,68,40,0.7)"
+          style={{ animation: 'soilAppear 0.6s ease-out 1.7s both', transformBox: 'fill-box', transformOrigin: 'center' }}
+        />
+
+        {/* Stem — grows up from the soil */}
+        <path
+          d="M 200 455 Q 196 400 202 340 Q 208 280 200 220"
+          stroke={CREAM}
+          strokeWidth="2.4"
+          fill="none"
+          strokeLinecap="round"
+          opacity="0.85"
+          style={{
+            strokeDasharray: 270,
+            strokeDashoffset: 270,
+            animation: 'stemGrow 1.4s ease-out 2.1s forwards',
+          }}
+        />
+
+        {/* Leaf — left */}
+        <g transform="translate(196 350)" style={{ animation: 'leafUnfoldL 0.9s cubic-bezier(0.34, 1.56, 0.64, 1) 3.0s both', transformBox: 'fill-box', transformOrigin: 'center' }}>
+          <path
+            d="M 0 0 C -22 -8 -32 -22 -22 -36 C -10 -42 4 -32 0 0 Z"
+            fill={FOREST}
+            opacity="0.9"
+          />
+          <path d="M 0 0 L -18 -28" stroke="#1f3f21" strokeWidth="0.8" fill="none" />
+        </g>
+        {/* Leaf — right */}
+        <g transform="translate(202 290)" style={{ animation: 'leafUnfoldR 0.9s cubic-bezier(0.34, 1.56, 0.64, 1) 3.3s both', transformBox: 'fill-box', transformOrigin: 'center' }}>
+          <path
+            d="M 0 0 C 22 -8 32 -22 22 -36 C 10 -42 -4 -32 0 0 Z"
+            fill={FOREST}
+            opacity="0.9"
+          />
+          <path d="M 0 0 L 18 -28" stroke="#1f3f21" strokeWidth="0.8" fill="none" />
+        </g>
+
+        {/* Bloom halo */}
+        <circle
+          cx="200"
+          cy="220"
+          r="58"
+          fill="url(#bloomHalo)"
+          style={{ animation: 'haloPulse 2.6s ease-in-out 4.0s infinite' }}
+        />
+        {/* Bloom petals */}
+        <g
+          transform="translate(200 220)"
+          style={{ animation: 'bloomAppear 0.9s cubic-bezier(0.34, 1.56, 0.64, 1) 3.7s both', transformBox: 'fill-box', transformOrigin: 'center' }}
+        >
+          <circle cx="0" cy="-9" r="7" fill={AMBER} opacity="0.92" />
+          <circle cx="9" cy="-3" r="6" fill={PEACH} opacity="0.92" />
+          <circle cx="-9" cy="-3" r="6" fill={PEACH} opacity="0.92" />
+          <circle cx="6" cy="6" r="6" fill={EARTH} opacity="0.85" />
+          <circle cx="-6" cy="6" r="6" fill={EARTH} opacity="0.85" />
+          <circle cx="0" cy="0" r="3.5" fill={CREAM} />
+        </g>
+
+        {/* The seed itself — drops from above */}
+        <circle
+          cx="200"
+          cy="-10"
+          r="5"
+          fill={AMBER}
+          style={{ animation: 'seedDrop 1.4s cubic-bezier(0.5, 0, 0.95, 1) 0.4s forwards' }}
+        />
+      </svg>
+
+      {/* Headline + copy + CTA */}
+      <div className="relative text-center mt-6 sm:mt-2">
+        <p
+          className="mono uppercase tracking-[0.36em] text-[0.6rem] mb-3"
+          style={{ color: AMBER, animation: 'fadeUp 0.7s ease-out 4.4s both' }}
+        >
+          The grove receives
+        </p>
+        <h1
+          className="leading-[1.05] mb-3"
+          style={{
+            color: CREAM,
+            fontFamily: 'var(--font-fraunces, serif)',
+            fontWeight: 350,
+            fontSize: 'clamp(2.2rem, 6vw, 4rem)',
+            fontFeatureSettings: '"ss01"',
+            animation: 'fadeUp 0.8s ease-out 4.6s both',
+          }}
+        >
+          Planted.
+        </h1>
+        <p
+          className="mx-auto max-w-md mb-2"
+          style={{
+            color: CREAM_DIM,
+            fontFamily: 'var(--font-fraunces, serif)',
+            fontSize: 'clamp(1rem, 1.6vw, 1.15rem)',
+            animation: 'fadeUp 0.7s ease-out 4.9s both',
+          }}
+        >
+          <span style={{ color: CREAM }}>{name}</span> is now growing in the grove.
+        </p>
+        <p
+          className="mx-auto max-w-md mono uppercase tracking-[0.22em] text-[0.55rem] mb-7"
+          style={{
+            color: CREAM_FAINT,
+            animation: 'fadeUp 0.7s ease-out 5.1s both',
+          }}
+        >
+          The community will vote on whether it should launch.
+        </p>
+
+        <div
+          className="flex flex-wrap items-center justify-center gap-3 mb-4"
+          style={{ animation: 'fadeUp 0.7s ease-out 5.4s both' }}
+        >
+          <Link
+            href={`/market/${marketId}`}
+            className="mono uppercase tracking-[0.28em] text-[0.65rem] inline-block px-6 py-3 transition-colors"
+            style={{ background: AMBER, color: BG }}
+            onMouseEnter={(e) => (e.currentTarget.style.background = PEACH)}
+            onMouseLeave={(e) => (e.currentTarget.style.background = AMBER)}
+          >
+            See your seedling
+          </Link>
+          <button
+            type="button"
+            onClick={onWander}
+            className="mono uppercase tracking-[0.28em] text-[0.65rem] inline-block px-6 py-3 transition-colors"
+            style={{ color: CREAM, border: `1px solid ${HAIR_STRONG}` }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.borderColor = AMBER + '88';
+              e.currentTarget.style.color = AMBER;
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.borderColor = HAIR_STRONG;
+              e.currentTarget.style.color = CREAM;
+            }}
+          >
+            Wander the grove
+          </button>
+        </div>
+
+        <p
+          className="mono uppercase tracking-[0.2em] text-[0.5rem]"
+          style={{
+            color: CREAM_FAINT,
+            animation: 'fadeUp 0.7s ease-out 5.7s both',
+          }}
+        >
+          tx · {signature.slice(0, 8)}…{signature.slice(-6)}
+          <span className="mx-2">·</span>
+          market · {marketAddress.slice(0, 8)}…
+        </p>
+      </div>
+
+      <style>{`
+        @keyframes seedDrop {
+          0% { cy: -10; opacity: 0; }
+          15% { opacity: 1; }
+          85% { cy: 450; opacity: 1; }
+          100% { cy: 450; opacity: 0; }
+        }
+        @keyframes soilAppear {
+          0% { transform: scaleX(0); opacity: 0; }
+          100% { transform: scaleX(1); opacity: 1; }
+        }
+        @keyframes stemGrow {
+          to { stroke-dashoffset: 0; }
+        }
+        @keyframes leafUnfoldL {
+          0% { transform: scale(0) translateX(6px); opacity: 0; }
+          100% { transform: scale(1) translateX(0); opacity: 1; }
+        }
+        @keyframes leafUnfoldR {
+          0% { transform: scale(0) translateX(-6px); opacity: 0; }
+          100% { transform: scale(1) translateX(0); opacity: 1; }
+        }
+        @keyframes bloomAppear {
+          0% { transform: scale(0); opacity: 0; }
+          80% { transform: scale(1.1); opacity: 1; }
+          100% { transform: scale(1); opacity: 1; }
+        }
+        @keyframes haloPulse {
+          0%, 100% { transform: scale(1); opacity: 0.55; }
+          50% { transform: scale(1.35); opacity: 0.85; }
+        }
+        @keyframes haloRise {
+          0% { opacity: 0; }
+          100% { opacity: 1; }
+        }
+        @keyframes fadeUp {
+          0% { transform: translateY(10px); opacity: 0; }
+          100% { transform: translateY(0); opacity: 1; }
+        }
+      `}</style>
+    </div>
   );
 }

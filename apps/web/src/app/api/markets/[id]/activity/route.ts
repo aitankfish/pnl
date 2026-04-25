@@ -11,11 +11,18 @@ import { connectToDatabase as connectRawDb, getDatabase } from '@/lib/database/i
 import { COLLECTIONS } from '@/lib/database/models';
 import { createClientLogger } from '@/lib/logger';
 import { SOLANA_NETWORK } from '@/config/solana';
+import { getRedisClient, prefixKey } from '@/lib/redis/client';
 
 // Force dynamic rendering - this route uses request.url
 export const dynamic = 'force-dynamic';
 
 const logger = createClientLogger();
+
+// Activity is identical for every viewer of the same market — a 5s Redis
+// cache lets the chart and recent-trades data be shared across all clients
+// instead of every poll round-tripping to MongoDB. Socket events still
+// drive realtime updates; this cache only catches the fallback poll storm.
+const ACTIVITY_CACHE_TTL_SECONDS = 5;
 
 // Helper to check if string is valid MongoDB ObjectId
 function isValidObjectId(id: string): boolean {
@@ -64,6 +71,35 @@ export async function GET(
     // Optional: Allow clients to request only specific data
     const includeHistory = searchParams.get('history') !== 'false';
     const includeHolders = searchParams.get('holders') !== 'false';
+
+    // Redis cache — keyed by marketId + flag combination + network
+    const cacheKey = prefixKey(
+      `markets:activity:${marketId}:n${network}:h${includeHistory ? 1 : 0}:o${
+        includeHolders ? 1 : 0
+      }`,
+    );
+    const redis = (() => {
+      try {
+        return getRedisClient();
+      } catch {
+        return null;
+      }
+    })();
+    if (redis) {
+      try {
+        const cached = await redis.get(cacheKey);
+        if (cached) {
+          return NextResponse.json(JSON.parse(cached), {
+            headers: {
+              'X-Cache': 'HIT',
+              'Cache-Control': `public, s-maxage=${ACTIVITY_CACHE_TTL_SECONDS}, stale-while-revalidate=15`,
+            },
+          });
+        }
+      } catch (err) {
+        logger.warn('[markets/activity] redis read failed', { err });
+      }
+    }
 
     logger.info('Fetching market activity', { marketId, network, includeHistory, includeHolders });
 
@@ -247,20 +283,35 @@ export async function GET(
       hasHolders: includeHolders,
     });
 
-    return NextResponse.json(
-      {
-        success: true,
-        data: responseData,
-        source: isMainnet ? 'helius' : 'mongodb',
-        network,
-      },
-      {
-        headers: {
-          // Cache for 5 seconds, serve stale for 15 seconds while revalidating
-          'Cache-Control': 'public, s-maxage=5, stale-while-revalidate=15',
-        },
+    const responseBody = {
+      success: true,
+      data: responseData,
+      source: isMainnet ? 'helius' : 'mongodb',
+      network,
+    };
+
+    // Fire-and-forget: write to Redis so the next request within TTL hits the
+    // cache instead of the aggregation pipeline.
+    if (redis) {
+      try {
+        await redis.set(
+          cacheKey,
+          JSON.stringify(responseBody),
+          'EX',
+          ACTIVITY_CACHE_TTL_SECONDS,
+        );
+      } catch (err) {
+        logger.warn('[markets/activity] redis write failed', { err });
       }
-    );
+    }
+
+    return NextResponse.json(responseBody, {
+      headers: {
+        'X-Cache': 'MISS',
+        // CDN/edge cache shares the response across regions
+        'Cache-Control': `public, s-maxage=${ACTIVITY_CACHE_TTL_SECONDS}, stale-while-revalidate=15`,
+      },
+    });
   } catch (error) {
     logger.error('Failed to fetch market activity:', {
       error: error instanceof Error ? error.message : String(error)

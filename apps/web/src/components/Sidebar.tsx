@@ -11,7 +11,7 @@ import { User, Loader2 } from 'lucide-react';
 import UserInfo from './UserInfo';
 import GlobalSearch from './GlobalSearch';
 import NotificationDropdown from './NotificationDropdown';
-import { SeedIcon, TreeIcon, BloomIcon, LeafIcon, BasketIcon, BowMark } from './PlantIcons';
+import { SeedIcon, TreeIcon, BloomIcon, BellflowerIcon, BasketIcon, BowMark } from './PlantIcons';
 
 interface NavItem {
   id: string;
@@ -187,7 +187,7 @@ function Sidebar({ currentPage }: SidebarProps) {
               }}
               title="Notifications"
             >
-              <LeafIcon className="w-[19px] h-[19px]" />
+              <BellflowerIcon className="w-[19px] h-[19px]" />
               {unreadCount > 0 && (
                 <span
                   className="absolute -top-0.5 -right-0.5 min-w-[14px] h-[14px] px-0.5 flex items-center justify-center"
@@ -213,7 +213,7 @@ function Sidebar({ currentPage }: SidebarProps) {
             style={{ color: currentPage === 'notifications' ? '#e89660' : '#d8cfc0' }}
             title="Notifications"
           >
-            <LeafIcon className="w-[19px] h-[19px]" />
+            <BellflowerIcon className="w-[19px] h-[19px]" />
             {unreadCount > 0 && (
               <span
                 className="absolute top-1 right-1.5 w-2 h-2 rounded-full"

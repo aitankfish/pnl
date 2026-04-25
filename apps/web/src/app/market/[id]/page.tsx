@@ -26,40 +26,74 @@ import { useWallet } from '@/hooks/useWallet';
 import useSWR from 'swr';
 import ErrorDialog from '@/components/ErrorDialog';
 import SuccessDialog from '@/components/SuccessDialog';
-import { useMarketSocket } from '@/lib/hooks/useSocket';
+import { useMarketSocket, useUserSocket } from '@/lib/hooks/useSocket';
 import { TokenLaunchAnimation } from '@/components/TokenLaunchAnimation';
 import { getVoteButtonStates, getMarketDisplayStatus } from '@/lib/api-utils';
+import {
+  SeedIcon,
+  TreeIcon,
+  BloomIcon,
+  LeafIcon,
+  RootIcon,
+  SunIcon,
+} from '@/components/PlantIcons';
+
+// ── Cosmic-plant palette (shared across the app) ──
+const BG = '#0a0814';
+const CREAM = '#f4eee4';
+const CREAM_DIM = 'rgba(244,238,228,0.65)';
+const CREAM_FAINT = 'rgba(244,238,228,0.4)';
+const HAIR = 'rgba(244,238,228,0.08)';
+const HAIR_STRONG = 'rgba(244,238,228,0.16)';
+const AMBER = '#e89660';
+const PEACH = '#ecb48a';
+const FOREST = '#3f7a42';
+const EARTH = '#d67347';
+
+// Cosmic-themed skeleton for dynamic imports — hairline border, soft cream
+// shimmer instead of generic pulse. Centralized so every lazy component
+// shares one loading aesthetic.
+const skel = (height: string) => (
+  <div
+    className="animate-pulse"
+    style={{
+      height,
+      background: 'rgba(244,238,228,0.025)',
+      border: '1px solid rgba(244,238,228,0.08)',
+    }}
+  />
+);
 
 // Lazy load heavy components to reduce initial bundle size
 const LiveActivityFeed = dynamic(() => import('@/components/LiveActivityFeed'), {
-  loading: () => <div className="h-96 bg-white/5 animate-pulse rounded-lg" />,
+  loading: () => skel('24rem'),
   ssr: false,
 });
 
 const MarketHolders = dynamic(() => import('@/components/MarketHolders'), {
-  loading: () => <div className="h-96 bg-white/5 animate-pulse rounded-lg" />,
+  loading: () => skel('24rem'),
   ssr: false,
 });
 
 const GrokRoast = dynamic(() => import('@/components/GrokRoast'), {
-  loading: () => <div className="h-64 bg-white/5 animate-pulse rounded-lg" />,
+  loading: () => skel('16rem'),
   ssr: false,
 });
 
 // CommunityHub is now rendered by FloatingVoicePanel in layout
 
 const VideoEmbed = dynamic(() => import('@/components/VideoEmbed'), {
-  loading: () => <div className="h-64 bg-white/5 animate-pulse rounded-lg" />,
+  loading: () => skel('16rem'),
   ssr: false,
 });
 
 const TokenTrading = dynamic(() => import('@/components/TokenTrading').then(mod => ({ default: mod.TokenTrading })), {
-  loading: () => <div className="h-96 bg-white/5 animate-pulse rounded-lg" />,
+  loading: () => skel('24rem'),
   ssr: false,
 });
 
 const TokenStatsBar = dynamic(() => import('@/components/TokenStatsBar').then(mod => ({ default: mod.TokenStatsBar })), {
-  loading: () => <div className="h-16 bg-white/5 animate-pulse rounded-lg" />,
+  loading: () => skel('4rem'),
   ssr: false,
 });
 
@@ -123,6 +157,21 @@ interface MarketDetails {
   syncStatus?: string;
   // Social/engagement metrics
   favoriteCount?: number;
+}
+
+// Map the API's emoji-prefixed display status to a clean plant-themed label
+// + cosmic palette color, used for the status chip in the header card.
+function statusPalette(status: string): { label: string; color: string } {
+  if (!status) return { label: 'Quiet', color: CREAM_FAINT };
+  const lower = status.toLowerCase();
+  if (lower.includes('yes wins') || lower.includes('🎉')) return { label: 'Bloomed', color: FOREST };
+  if (lower.includes('no wins') || lower.includes('❌')) return { label: 'Withered', color: EARTH };
+  if (lower.includes('refund') || lower.includes('↩')) return { label: 'Returned', color: PEACH };
+  if (lower.includes('awaiting') || lower.includes('⏳')) return { label: 'Awaiting resolve', color: AMBER };
+  if (lower.includes('pool complete') || lower.includes('🎯')) return { label: 'Ready', color: AMBER };
+  if (lower.includes('active') || lower.includes('✅')) return { label: 'Living', color: FOREST };
+  if (lower.includes('expired')) return { label: 'Closed', color: EARTH };
+  return { label: status.replace(/[\u{1F300}-\u{1FAFF}\u{2600}-\u{27BF}]/gu, '').trim() || 'Quiet', color: CREAM_FAINT };
 }
 
 // Format category and stage for proper display
@@ -431,6 +480,14 @@ export default function MarketDetailsPage() {
     market?.marketAddress || null
   );
 
+  // Subscribe to user-specific socket events so position state stays live
+  // (claim status, vote arrival) without depending on polling. The hook
+  // exposes a Map<marketAddress, data>; we just watch it for changes on
+  // *this* market and refetch the SWR position when one lands.
+  const { positions: userPositionUpdates } = useUserSocket(
+    primaryWallet?.address || null,
+  );
+
   // Reduce polling when Socket.IO is connected (real-time updates handle it)
   // When socket is connected, we only do initial fetch (no polling) - socket handles updates
   const activityPollInterval = socketConnected ? 0 : 20000; // No poll when connected, 20s when not
@@ -699,6 +756,15 @@ export default function MarketDetailsPage() {
 
     return () => clearTimeout(timeoutId);
   }, [socketMarketData, refetchHistory, refetchHolders]);
+
+  // When a position:update event lands for *this* market's address, force a
+  // fresh fetch of the SWR position (bypassing the 5s Redis cache). This keeps
+  // claim/vote state live without polling.
+  useEffect(() => {
+    if (!market?.marketAddress) return;
+    if (!userPositionUpdates.has(market.marketAddress)) return;
+    refetchPosition();
+  }, [market?.marketAddress, userPositionUpdates, refetchPosition]);
 
   const fetchMarketDetails = async (id: string) => {
     try {
@@ -1190,21 +1256,62 @@ export default function MarketDetailsPage() {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center min-h-screen">
-        <Loader2 className="w-12 h-12 animate-spin text-white" />
+      <div
+        className="flex flex-col items-center justify-center min-h-[60vh]"
+        style={{ color: CREAM_DIM }}
+      >
+        <Loader2 className="w-6 h-6 animate-spin" style={{ color: AMBER }} />
+        <span className="mt-3 mono text-[0.6rem] uppercase tracking-[0.26em]">
+          Reading the leaf…
+        </span>
       </div>
     );
   }
 
   if (error || !market) {
     return (
-      <div className="p-6 max-w-4xl mx-auto">
-        <div className="text-center py-12">
-          <p className="text-red-400 text-xl mb-4">{error || 'Market not found'}</p>
-          <Button onClick={() => router.back()} className="bg-gradient-to-r from-purple-500 to-pink-500 hidden sm:inline-flex">
-            <ArrowLeft className="w-4 h-4 mr-2" />
-            Go Back
-          </Button>
+      <div className="p-6 max-w-2xl mx-auto" style={{ color: CREAM }}>
+        <div
+          className="text-center py-16 px-8"
+          style={{
+            background: 'rgba(214,115,71,0.06)',
+            border: `1px solid ${EARTH}55`,
+          }}
+        >
+          <SeedIcon className="w-10 h-10 mx-auto mb-4" />
+          <h2
+            className="mb-2"
+            style={{
+              color: CREAM,
+              fontFamily: 'var(--font-fraunces, serif)',
+              fontSize: '1.4rem',
+              fontWeight: 350,
+            }}
+          >
+            {error ? 'The grove can\'t find this seed.' : 'Market not found.'}
+          </h2>
+          <p
+            className="mono uppercase tracking-[0.22em] text-[0.6rem] mb-6"
+            style={{ color: CREAM_FAINT }}
+          >
+            {error || 'It may have been removed or the link is broken.'}
+          </p>
+          <button
+            onClick={() => router.back()}
+            className="mono uppercase tracking-[0.26em] text-[0.62rem] px-5 py-2.5 inline-flex items-center gap-2 transition-colors"
+            style={{ color: CREAM, border: `1px solid ${HAIR_STRONG}` }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.borderColor = AMBER + '88';
+              e.currentTarget.style.color = AMBER;
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.borderColor = HAIR_STRONG;
+              e.currentTarget.style.color = CREAM;
+            }}
+          >
+            <ArrowLeft className="w-3.5 h-3.5" />
+            Go back
+          </button>
         </div>
       </div>
     );
@@ -1285,73 +1392,52 @@ export default function MarketDetailsPage() {
                   />
                 </div>
 
-                {/* Onchain Info */}
-                <div className="bg-gradient-to-br from-purple-500/5 to-cyan-500/5 border border-white/10 rounded-xl p-3">
-                  <div className="flex items-center gap-2 mb-2">
-                    <FileText className="w-4 h-4 text-purple-400" />
-                    <span className="text-white font-semibold text-sm">Onchain Info</span>
-                  </div>
+                {/* Onchain Info — cosmic plant ledger */}
+                <div
+                  className="p-4"
+                  style={{
+                    background: 'rgba(244,238,228,0.025)',
+                    border: `1px solid ${HAIR_STRONG}`,
+                  }}
+                >
+                  <p
+                    className="mono uppercase tracking-[0.32em] text-[0.55rem] mb-3 inline-flex items-center gap-2"
+                    style={{ color: AMBER }}
+                  >
+                    <FileText className="w-3 h-3" />
+                    Onchain
+                  </p>
                   <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-                    {/* Token Address */}
-                    <div className="flex items-center justify-between p-2 bg-black/20 rounded-lg">
-                      <span className="text-gray-400 text-xs">Token</span>
-                      <a
-                        href={`https://orb.helius.dev/address/${mergedOnchainData.data.tokenMint}`}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="flex items-center gap-1 text-green-400 hover:text-green-300 text-xs font-mono"
-                      >
-                        {mergedOnchainData.data.tokenMint.slice(0, 4)}...{mergedOnchainData.data.tokenMint.slice(-4)}
-                        <ExternalLink className="w-3 h-3" />
-                      </a>
-                    </div>
-                    {/* Market Address */}
-                    <div className="flex items-center justify-between p-2 bg-black/20 rounded-lg">
-                      <span className="text-gray-400 text-xs">Market</span>
-                      <a
-                        href={`https://orb.helius.dev/address/${market.marketAddress}`}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="flex items-center gap-1 text-cyan-400 hover:text-cyan-300 text-xs font-mono"
-                      >
-                        {market.marketAddress.slice(0, 4)}...{market.marketAddress.slice(-4)}
-                        <ExternalLink className="w-3 h-3" />
-                      </a>
-                    </div>
-                    {/* Vault Address */}
+                    <DetailTile
+                      label="Token"
+                      address={mergedOnchainData.data.tokenMint}
+                      addressColor={FOREST}
+                    />
+                    <DetailTile
+                      label="Market"
+                      address={market.marketAddress}
+                      addressColor={AMBER}
+                    />
                     {(() => {
                       try {
                         const [vaultPda] = getMarketVaultPDA(new PublicKey(market.marketAddress));
                         return (
-                          <div className="flex items-center justify-between p-2 bg-black/20 rounded-lg">
-                            <span className="text-gray-400 text-xs">Vault</span>
-                            <a
-                              href={`https://orb.helius.dev/address/${vaultPda.toBase58()}`}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="flex items-center gap-1 text-yellow-400 hover:text-yellow-300 text-xs font-mono"
-                            >
-                              {vaultPda.toBase58().slice(0, 4)}...{vaultPda.toBase58().slice(-4)}
-                              <ExternalLink className="w-3 h-3" />
-                            </a>
-                          </div>
+                          <DetailTile
+                            label="Vault"
+                            address={vaultPda.toBase58()}
+                            addressColor={PEACH}
+                          />
                         );
-                      } catch { return null; }
+                      } catch {
+                        return null;
+                      }
                     })()}
-                    {/* Founder Address */}
                     {mergedOnchainData.data.founder && (
-                      <div className="flex items-center justify-between p-2 bg-black/20 rounded-lg">
-                        <span className="text-gray-400 text-xs">Founder</span>
-                        <a
-                          href={`https://orb.helius.dev/address/${mergedOnchainData.data.founder}`}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="flex items-center gap-1 text-purple-400 hover:text-purple-300 text-xs font-mono"
-                        >
-                          {mergedOnchainData.data.founder.slice(0, 4)}...{mergedOnchainData.data.founder.slice(-4)}
-                          <ExternalLink className="w-3 h-3" />
-                        </a>
-                      </div>
+                      <DetailTile
+                        label="Founder"
+                        address={mergedOnchainData.data.founder}
+                        addressColor={EARTH}
+                      />
                     )}
                   </div>
                 </div>
@@ -1359,34 +1445,55 @@ export default function MarketDetailsPage() {
 
               {/* Swap Section - 35% on desktop */}
               <div className="w-full lg:w-[35%] space-y-3">
-                <div className="flex items-center gap-2">
-                  <BarChart3 className="w-5 h-5 text-cyan-400" />
-                  <span className="text-white text-lg font-semibold">Trade ${market.tokenSymbol}</span>
+                <div className="flex items-center gap-2.5">
+                  <BloomIcon className="w-4 h-4" />
+                  <h3
+                    className="leading-none"
+                    style={{
+                      color: CREAM,
+                      fontFamily: 'var(--font-fraunces, serif)',
+                      fontWeight: 350,
+                      fontSize: '1.2rem',
+                    }}
+                  >
+                    Trade <span style={{ color: AMBER }}>${market.tokenSymbol}</span>
+                  </h3>
                 </div>
 
-                {/* Prediction Results - Social Proof */}
-                <div className="bg-gradient-to-r from-green-500/10 to-cyan-500/10 border border-green-500/20 rounded-xl p-3">
-                  <div className="flex items-center gap-1.5 mb-2">
-                    <CheckCircle className="w-3.5 h-3.5 text-green-400" />
-                    <span className="text-green-400 font-medium text-xs">Community Backed</span>
-                  </div>
-                  <div className="grid grid-cols-4 gap-2 text-center">
-                    <div>
-                      <div className="text-white font-bold text-sm">{(Number(mergedOnchainData.data.poolBalance || 0) / 1e9).toFixed(1)}</div>
-                      <div className="text-gray-400 text-[10px]">SOL Raised</div>
-                    </div>
-                    <div>
-                      <div className="text-white font-bold text-sm">{market.totalParticipants || 0}</div>
-                      <div className="text-gray-400 text-[10px]">Voters</div>
-                    </div>
-                    <div>
-                      <div className="text-green-400 font-bold text-sm">{(yesPercentage || 0).toFixed(0)}%</div>
-                      <div className="text-gray-400 text-[10px]">YES</div>
-                    </div>
-                    <div>
-                      <div className="text-red-400 font-bold text-sm">{(100 - (yesPercentage || 0)).toFixed(0)}%</div>
-                      <div className="text-gray-400 text-[10px]">NO</div>
-                    </div>
+                {/* Community-backed proof strip */}
+                <div
+                  className="p-3"
+                  style={{
+                    background: `${FOREST}0d`,
+                    border: `1px solid ${FOREST}33`,
+                  }}
+                >
+                  <p
+                    className="mono uppercase tracking-[0.26em] text-[0.55rem] mb-2 inline-flex items-center gap-1.5"
+                    style={{ color: FOREST }}
+                  >
+                    <CheckCircle className="w-3 h-3" />
+                    Community-backed
+                  </p>
+                  <div className="grid grid-cols-4 gap-2">
+                    <ProofStat
+                      value={(Number(mergedOnchainData.data.poolBalance || 0) / 1e9).toFixed(1)}
+                      label="SOL"
+                    />
+                    <ProofStat
+                      value={String(market.totalParticipants || 0)}
+                      label="Voters"
+                    />
+                    <ProofStat
+                      value={`${(yesPercentage || 0).toFixed(0)}%`}
+                      label="YES"
+                      color={FOREST}
+                    />
+                    <ProofStat
+                      value={`${(100 - (yesPercentage || 0)).toFixed(0)}%`}
+                      label="NO"
+                      color={EARTH}
+                    />
                   </div>
                 </div>
 
@@ -1399,432 +1506,708 @@ export default function MarketDetailsPage() {
             </div>
           )}
 
-          {/* Combined Header & Voting Stats Section */}
-        <Card className="bg-white/5 backdrop-blur-xl border-white/10 overflow-hidden">
-          <CardHeader className="pb-3 sm:pb-4">
-            <div className="flex flex-col gap-3">
-              {/* Top Section: Image, Title, Badges, Actions */}
-              <div className="flex items-start gap-2 sm:gap-4">
-                {/* Project Image */}
-                {market.projectImageUrl ? (
-                  <img
-                    src={market.projectImageUrl}
-                    alt={market.name}
-                    className="w-14 h-14 sm:w-20 sm:h-20 rounded-xl object-cover ring-2 ring-white/10 flex-shrink-0"
-                  />
-                ) : (
-                  <div className="w-14 h-14 sm:w-20 sm:h-20 rounded-xl bg-gradient-to-br from-purple-500/20 to-pink-500/20 flex items-center justify-center ring-2 ring-white/10 flex-shrink-0">
-                    <span className="text-2xl sm:text-3xl font-bold text-white/70">{market.name.charAt(0)}</span>
-                  </div>
-                )}
+          {/* Header — editorial cosmic */}
+          <article
+            className="overflow-hidden p-4 sm:p-6"
+            style={{
+              background: 'rgba(244,238,228,0.025)',
+              border: `1px solid ${HAIR_STRONG}`,
+            }}
+          >
+            <div className="flex flex-col gap-4">
+              {/* Top: image + title + actions */}
+              <div className="flex items-start gap-3 sm:gap-4">
+                {/* Project image */}
+                <div
+                  className="w-14 h-14 sm:w-20 sm:h-20 flex items-center justify-center overflow-hidden flex-shrink-0"
+                  style={{
+                    background: 'rgba(232,150,96,0.08)',
+                    border: `1px solid ${HAIR_STRONG}`,
+                  }}
+                >
+                  {market.projectImageUrl ? (
+                    <img
+                      src={market.projectImageUrl}
+                      alt={market.name}
+                      className="w-full h-full object-cover"
+                    />
+                  ) : (
+                    <span
+                      style={{
+                        color: AMBER,
+                        fontFamily: 'var(--font-fraunces, serif)',
+                        fontSize: '1.4rem',
+                      }}
+                    >
+                      {market.name.charAt(0).toUpperCase()}
+                    </span>
+                  )}
+                </div>
 
-                {/* Project Info */}
+                {/* Title + meta */}
                 <div className="flex-1 min-w-0">
-                  <div className="flex flex-wrap items-start gap-1 sm:gap-2 mb-2">
-                    <CardTitle className="text-lg sm:text-2xl text-white line-clamp-2 capitalize">{market.name}</CardTitle>
+                  <div className="flex flex-wrap items-start gap-2 mb-2">
+                    <h1
+                      className="line-clamp-2 capitalize flex-1 min-w-0"
+                      style={{
+                        color: CREAM,
+                        fontFamily: 'var(--font-fraunces, serif)',
+                        fontWeight: 350,
+                        fontSize: 'clamp(1.4rem, 3vw, 2.2rem)',
+                        lineHeight: 1.1,
+                        letterSpacing: '-0.01em',
+                        fontVariationSettings: '"SOFT" 30, "opsz" 60',
+                      }}
+                    >
+                      {market.name}
+                    </h1>
 
-                    {/* Creator, Age, Share and Favorite */}
-                    <div className="flex items-center gap-1 sm:gap-2 flex-wrap ml-auto sm:ml-0">
-                      {/* Project Owner */}
+                    {/* Action cluster */}
+                    <div className="flex items-center gap-1.5 flex-wrap">
                       {market.founderWallet && (
                         <Link
                           href={`/profile/${market.founderWallet}`}
-                          className="flex items-center gap-1 px-2 py-1 bg-gradient-to-r from-amber-500/20 to-orange-500/20 hover:from-amber-500/30 hover:to-orange-500/30 border border-amber-400/30 rounded-lg transition-all hover:scale-105"
+                          className="mono uppercase tracking-[0.18em] text-[0.55rem] px-2 py-1 inline-flex items-center gap-1.5 transition-colors"
+                          style={{
+                            color: AMBER,
+                            border: `1px solid ${AMBER}55`,
+                            background: `${AMBER}0d`,
+                          }}
+                          onMouseEnter={(e) => (e.currentTarget.style.background = `${AMBER}1f`)}
+                          onMouseLeave={(e) => (e.currentTarget.style.background = `${AMBER}0d`)}
                           title={`View ${market.founderDisplayName || 'owner'}'s profile`}
                         >
-                          <Users className="w-3 h-3 text-amber-400" />
-                          <span className="text-white text-xs font-medium">
+                          <RootIcon className="w-2.5 h-2.5" />
+                          <span style={{ textTransform: 'none', letterSpacing: 'normal' }}>
                             {market.founderDisplayName || 'Unknown'}
                           </span>
                         </Link>
                       )}
-                      {/* Project Age */}
                       {market.projectAge && (
-                        <div className="flex items-center gap-1 px-2 py-1 bg-white/5 rounded-lg border border-white/10">
-                          <span className="text-xs text-gray-400">{market.projectAge}</span>
-                        </div>
+                        <span
+                          className="mono uppercase tracking-[0.2em] text-[0.55rem] px-2 py-1"
+                          style={{ color: CREAM_FAINT, border: `1px solid ${HAIR_STRONG}` }}
+                        >
+                          {market.projectAge}
+                        </span>
                       )}
                       <button
                         onClick={handleShare}
-                        className="p-1.5 sm:p-2 hover:bg-white/10 rounded-lg transition-colors group"
+                        className="p-1.5 transition-colors"
+                        style={{ color: CREAM_FAINT }}
+                        onMouseEnter={(e) => (e.currentTarget.style.color = CREAM)}
+                        onMouseLeave={(e) => (e.currentTarget.style.color = CREAM_FAINT)}
                         title="Share this market"
                       >
-                        <Share2 className="w-4 h-4 sm:w-5 sm:h-5 text-gray-400 group-hover:text-white transition-colors" />
+                        <Share2 className="w-4 h-4" />
                       </button>
                       <button
                         onClick={primaryWallet?.address ? toggleFavorite : undefined}
                         disabled={isTogglingFavorite || !primaryWallet?.address}
-                        className={`flex items-center gap-1 px-2 py-1.5 sm:px-2.5 sm:py-2 rounded-lg transition-colors group ${
-                          primaryWallet?.address
-                            ? 'hover:bg-white/10 cursor-pointer'
-                            : 'cursor-default'
-                        } disabled:opacity-50`}
-                        title={!primaryWallet?.address ? "Connect wallet to add to watchlist" : (isFavorite ? "Remove from watchlist" : "Add to watchlist")}
+                        className="p-1.5 inline-flex items-center gap-1 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+                        style={{ color: isFavorite ? EARTH : CREAM_FAINT }}
+                        onMouseEnter={(e) => {
+                          if (primaryWallet?.address && !isFavorite) e.currentTarget.style.color = EARTH;
+                        }}
+                        onMouseLeave={(e) => {
+                          if (primaryWallet?.address && !isFavorite) e.currentTarget.style.color = CREAM_FAINT;
+                        }}
+                        title={
+                          !primaryWallet?.address
+                            ? 'Connect wallet to add to watchlist'
+                            : isFavorite
+                            ? 'Remove from watchlist'
+                            : 'Add to watchlist'
+                        }
                       >
                         <Heart
-                          className={`w-4 h-4 sm:w-5 sm:h-5 transition-all ${
-                            isFavorite
-                              ? 'text-red-500 fill-red-500'
-                              : 'text-gray-400 group-hover:text-red-400'
+                          className={`w-4 h-4 transition-all ${
+                            isFavorite ? 'fill-current' : ''
                           }`}
                         />
                         {(market.favoriteCount || 0) > 0 && (
-                          <span className={`text-xs font-medium ${isFavorite ? 'text-red-400' : 'text-gray-400'}`}>
+                          <span className="mono text-[0.55rem] uppercase tracking-[0.18em]">
                             {market.favoriteCount}
                           </span>
                         )}
                       </button>
-                      {/* Copyable Contract Address - Only show when token is minted */}
+                      {/* Copyable Contract Address — only when token is minted */}
                       {mergedOnchainData?.success && mergedOnchainData.data.tokenMint && (
                         <button
                           onClick={() => handleCopyContract(mergedOnchainData.data.tokenMint!)}
-                          className="flex items-center gap-1.5 px-2 py-1 sm:px-2.5 sm:py-1.5 bg-white/5 hover:bg-white/10 rounded-lg transition-colors group border border-white/10 hover:border-white/20"
+                          className="mono uppercase tracking-[0.18em] text-[0.55rem] px-2 py-1 inline-flex items-center gap-1.5 transition-colors"
+                          style={{ color: CREAM_DIM, border: `1px solid ${HAIR_STRONG}` }}
+                          onMouseEnter={(e) => {
+                            e.currentTarget.style.color = CREAM;
+                            e.currentTarget.style.borderColor = AMBER + '88';
+                          }}
+                          onMouseLeave={(e) => {
+                            e.currentTarget.style.color = CREAM_DIM;
+                            e.currentTarget.style.borderColor = HAIR_STRONG;
+                          }}
                           title="Copy contract address"
                         >
-                          <span className="text-xs text-gray-400 font-mono hidden sm:inline">
-                            {mergedOnchainData.data.tokenMint.slice(0, 4)}...{mergedOnchainData.data.tokenMint.slice(-4)}
+                          <span className="hidden sm:inline" style={{ textTransform: 'none' }}>
+                            {mergedOnchainData.data.tokenMint.slice(0, 4)}…{mergedOnchainData.data.tokenMint.slice(-4)}
                           </span>
-                          <span className="text-xs text-gray-400 font-mono sm:hidden">CA</span>
+                          <span className="sm:hidden">CA</span>
                           {copiedContract ? (
-                            <Check className="w-3 h-3 sm:w-3.5 sm:h-3.5 text-green-400" />
+                            <Check className="w-3 h-3" style={{ color: FOREST }} />
                           ) : (
-                            <Copy className="w-3 h-3 sm:w-3.5 sm:h-3.5 text-gray-400 group-hover:text-white transition-colors" />
+                            <Copy className="w-3 h-3" />
                           )}
                         </button>
                       )}
                     </div>
                   </div>
 
-                  {/* Badges Row */}
-                  <div className="flex flex-wrap items-center gap-1 sm:gap-2">
-                    <Badge className={`${marketStatus.badgeClass} text-xs`}>{marketStatus.status}</Badge>
-                    {/* Phase Badge */}
+                  {/* Status row */}
+                  <div className="flex flex-wrap items-center gap-1.5 mb-3">
+                    <span
+                      className="mono uppercase tracking-[0.22em] text-[0.55rem] px-1.5 py-0.5 inline-flex items-center gap-1"
+                      style={{
+                        color: statusPalette(marketStatus.status).color,
+                        border: `1px solid ${statusPalette(marketStatus.status).color}55`,
+                        background: `${statusPalette(marketStatus.status).color}0d`,
+                      }}
+                    >
+                      {statusPalette(marketStatus.status).label}
+                    </span>
                     {mergedOnchainData?.success && (
-                      <Badge className={`text-xs ${
-                        mergedOnchainData.data.phase === 'Funding'
-                          ? 'bg-purple-500/20 text-purple-300 border-purple-400/30'
-                          : 'bg-blue-500/20 text-blue-300 border-blue-400/30'
-                      }`}>
-                        {mergedOnchainData.data.phase === 'Funding' ? '💰 Funding' : '📊 Prediction'}
-                      </Badge>
+                      <span
+                        className="mono uppercase tracking-[0.22em] text-[0.55rem] px-1.5 py-0.5"
+                        style={{
+                          color:
+                            mergedOnchainData.data.phase === 'Funding' ? AMBER : PEACH,
+                          border: `1px solid ${
+                            mergedOnchainData.data.phase === 'Funding' ? AMBER : PEACH
+                          }55`,
+                        }}
+                      >
+                        {mergedOnchainData.data.phase === 'Funding' ? 'Funding' : 'Predicting'}
+                      </span>
                     )}
-                    {/* Data Source Indicator */}
                     {market.isStale && mergedOnchainData?.success && (
-                      <Badge className="text-xs bg-cyan-500/20 text-cyan-300 border-cyan-400/30">
-                        ⛓️ Live
-                      </Badge>
+                      <span
+                        className="mono uppercase tracking-[0.22em] text-[0.55rem] px-1.5 py-0.5"
+                        style={{ color: FOREST, border: `1px solid ${FOREST}55` }}
+                      >
+                        ● Live
+                      </span>
                     )}
                     {market.isStale && !mergedOnchainData?.success && (
-                      <Badge className="text-xs bg-yellow-500/20 text-yellow-300 border-yellow-400/30 animate-pulse">
-                        ⚠️ Syncing
-                      </Badge>
+                      <span
+                        className="mono uppercase tracking-[0.22em] text-[0.55rem] px-1.5 py-0.5 animate-pulse"
+                        style={{ color: AMBER, border: `1px solid ${AMBER}55` }}
+                      >
+                        ⚠ Syncing
+                      </span>
                     )}
                   </div>
 
-                  {/* Pool Progress Bar - Animated */}
+                  {/* Pool progress — hairline, amber fill */}
                   {mergedOnchainData?.success && (
-                    <div className="flex items-center gap-2 mt-1">
-                      <div className="flex-1 h-2 bg-gray-800/80 rounded-full overflow-hidden relative">
-                        {/* Glow effect behind the bar */}
+                    <div className="flex items-center gap-3">
+                      <div
+                        className="flex-1 h-1.5 overflow-hidden relative"
+                        style={{ background: HAIR_STRONG }}
+                      >
                         <div
-                          className="absolute inset-0 rounded-full blur-sm opacity-50"
+                          className="absolute inset-y-0 left-0 transition-all duration-500"
                           style={{
                             width: `${Math.min(mergedOnchainData.data?.poolProgressPercentage || 0, 100)}%`,
-                            background: 'linear-gradient(90deg, #06b6d4, #a855f7)',
+                            background:
+                              (mergedOnchainData.data?.poolProgressPercentage || 0) >= 100
+                                ? FOREST
+                                : AMBER,
                           }}
                         />
-                        {/* Main progress bar */}
-                        <div
-                          className="relative h-full rounded-full transition-all duration-500 overflow-hidden"
-                          style={{
-                            width: `${Math.min(mergedOnchainData.data?.poolProgressPercentage || 0, 100)}%`,
-                            background: 'linear-gradient(90deg, #06b6d4, #8b5cf6, #a855f7)',
-                          }}
-                        >
-                          {/* Shimmer effect */}
-                          <div
-                            className="absolute inset-0"
-                            style={{
-                              background: 'linear-gradient(90deg, transparent, rgba(255,255,255,0.3), transparent)',
-                              animation: 'shimmer 2s infinite',
-                            }}
-                          />
-                          {/* Pulse dots */}
-                          <div className="absolute right-1 top-1/2 -translate-y-1/2 w-1 h-1 bg-white rounded-full animate-ping opacity-75" />
-                        </div>
                       </div>
-                      <span className="text-xs text-purple-400 font-semibold whitespace-nowrap tabular-nums">
+                      <span
+                        className="mono text-[0.6rem] tracking-[0.05em] tabular-nums whitespace-nowrap"
+                        style={{
+                          color:
+                            (mergedOnchainData.data?.poolProgressPercentage || 0) >= 100
+                              ? FOREST
+                              : AMBER,
+                          fontFeatureSettings: '"tnum" on',
+                        }}
+                      >
                         {mergedOnchainData.data?.poolProgressPercentage || 0}%
                       </span>
-                      <style jsx>{`
-                        @keyframes shimmer {
-                          0% { transform: translateX(-100%); }
-                          100% { transform: translateX(100%); }
-                        }
-                      `}</style>
                     </div>
                   )}
                 </div>
               </div>
 
-              {/* Description - Full Width */}
-              <CardDescription className="text-gray-300 text-sm sm:text-base leading-relaxed text-justify">
+              {/* Description */}
+              <p
+                className="leading-relaxed"
+                style={{
+                  color: CREAM_DIM,
+                  fontFamily: 'var(--font-fraunces, serif)',
+                  fontSize: 'clamp(0.95rem, 1.4vw, 1.05rem)',
+                  lineHeight: 1.55,
+                }}
+              >
                 {market.description}
-              </CardDescription>
+              </p>
 
-              {/* Token, Category, Stage, Project Info & Social Links - Full Width */}
-              <div className="flex items-center flex-wrap gap-1.5 sm:gap-2">
-                    <div className="flex items-center gap-1 px-2 sm:px-3 py-1 sm:py-1.5 bg-white/5 rounded-lg border border-white/10">
-                      <Target className="w-3 h-3 sm:w-4 sm:h-4 text-gray-400" />
-                      <span className="text-xs sm:text-sm font-semibold text-white">${market.tokenSymbol}</span>
-                    </div>
-                    <Badge className="bg-purple-500/20 text-purple-300 border-purple-400/30 text-xs">
-                      {formatLabel(market.category)}
-                    </Badge>
-                    <Badge className="bg-white/10 text-white border-white/20 text-xs">
-                      {formatLabel(market.stage)}
-                    </Badge>
-                    {/* Project Type */}
-                    {market.metadata?.projectType && (
-                      <Badge className="bg-cyan-500/20 text-cyan-300 border-cyan-400/30 text-xs capitalize">
-                        {market.metadata.projectType}
-                      </Badge>
-                    )}
-                    {/* Team Size */}
-                    {market.metadata?.teamSize && (
-                      <div className="flex items-center gap-1 px-2 py-1 bg-orange-500/10 rounded-lg border border-orange-400/20">
-                        <Users className="w-3 h-3 text-orange-400" />
-                        <span className="text-xs text-orange-300">{market.metadata.teamSize}</span>
-                      </div>
-                    )}
-                    {/* Location */}
-                    {market.metadata?.location && (
-                      <div className="flex items-center gap-1 px-2 py-1 bg-green-500/10 rounded-lg border border-green-400/20">
-                        <MapPin className="w-3 h-3 text-green-400" />
-                        <span className="text-xs text-green-300">{market.metadata.location}</span>
-                      </div>
-                    )}
+              {/* Meta chips */}
+              <div className="flex items-center flex-wrap gap-1.5">
+                <span
+                  className="mono uppercase tracking-[0.18em] text-[0.6rem] px-2 py-1 inline-flex items-center gap-1.5"
+                  style={{ color: AMBER, border: `1px solid ${AMBER}55`, background: `${AMBER}0d` }}
+                >
+                  <span style={{ textTransform: 'none', letterSpacing: 'normal' }}>
+                    ${market.tokenSymbol}
+                  </span>
+                </span>
+                <span
+                  className="mono uppercase tracking-[0.22em] text-[0.55rem] px-2 py-1"
+                  style={{ color: CREAM_DIM, border: `1px solid ${HAIR_STRONG}` }}
+                >
+                  {formatLabel(market.category)}
+                </span>
+                <span
+                  className="mono uppercase tracking-[0.22em] text-[0.55rem] px-2 py-1"
+                  style={{ color: CREAM_DIM, border: `1px solid ${HAIR_STRONG}` }}
+                >
+                  {formatLabel(market.stage)}
+                </span>
+                {market.metadata?.projectType && (
+                  <span
+                    className="mono uppercase tracking-[0.22em] text-[0.55rem] px-2 py-1 capitalize"
+                    style={{ color: PEACH, border: `1px solid ${PEACH}44` }}
+                  >
+                    {market.metadata.projectType}
+                  </span>
+                )}
+                {market.metadata?.teamSize && (
+                  <span
+                    className="mono uppercase tracking-[0.22em] text-[0.55rem] px-2 py-1 inline-flex items-center gap-1"
+                    style={{ color: CREAM_DIM, border: `1px solid ${HAIR_STRONG}` }}
+                  >
+                    <Users className="w-2.5 h-2.5" />
+                    {market.metadata.teamSize}
+                  </span>
+                )}
+                {market.metadata?.location && (
+                  <span
+                    className="mono uppercase tracking-[0.22em] text-[0.55rem] px-2 py-1 inline-flex items-center gap-1"
+                    style={{ color: FOREST, border: `1px solid ${FOREST}55` }}
+                  >
+                    <MapPin className="w-2.5 h-2.5" />
+                    <span style={{ textTransform: 'none', letterSpacing: 'normal' }}>
+                      {market.metadata.location}
+                    </span>
+                  </span>
+                )}
 
-                    {/* Documentation Link */}
-                    {market.documentUrls && market.documentUrls.length > 0 && (
-                      <a
-                        href={market.documentUrls[0]}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="flex items-center gap-1 px-2 py-1 bg-white/5 rounded-lg border border-white/10 hover:bg-white/10 hover:border-white/20 transition-all"
-                        title="View project documentation"
-                      >
-                        <FileText className="w-3 h-3 text-blue-400" />
-                        <span className="text-xs text-blue-300 hidden sm:inline">Docs</span>
-                      </a>
-                    )}
+                {/* Docs */}
+                {market.documentUrls && market.documentUrls.length > 0 && (
+                  <a
+                    href={market.documentUrls[0]}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="mono uppercase tracking-[0.22em] text-[0.55rem] px-2 py-1 inline-flex items-center gap-1 transition-colors"
+                    style={{ color: CREAM_DIM, border: `1px solid ${HAIR_STRONG}` }}
+                    onMouseEnter={(e) => {
+                      e.currentTarget.style.color = AMBER;
+                      e.currentTarget.style.borderColor = AMBER + '88';
+                    }}
+                    onMouseLeave={(e) => {
+                      e.currentTarget.style.color = CREAM_DIM;
+                      e.currentTarget.style.borderColor = HAIR_STRONG;
+                    }}
+                    title="View project documentation"
+                  >
+                    <FileText className="w-2.5 h-2.5" /> Docs
+                  </a>
+                )}
 
-                    {/* Social Links */}
-                    {market.metadata?.socialLinks && Object.values(market.metadata.socialLinks).some(link => link) && (
-                      <>
-                        {market.metadata.socialLinks.website && (
-                          <a
-                            href={market.metadata.socialLinks.website}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="flex items-center gap-1 px-2 py-1 bg-white/5 rounded-lg border border-white/10 hover:bg-white/10 hover:border-white/20 transition-all"
-                            title="Website"
-                          >
-                            <Globe className="w-3 h-3 text-cyan-400" />
-                            <span className="text-xs text-cyan-300 hidden sm:inline">Website</span>
-                          </a>
-                        )}
-                        {market.metadata.socialLinks.github && (
-                          <a
-                            href={market.metadata.socialLinks.github}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="flex items-center gap-1 px-2 py-1 bg-white/5 rounded-lg border border-white/10 hover:bg-white/10 hover:border-white/20 transition-all"
-                            title="GitHub"
-                          >
-                            <Github className="w-3 h-3 text-gray-300" />
-                            <span className="text-xs text-gray-300 hidden sm:inline">GitHub</span>
-                          </a>
-                        )}
-                      </>
-                    )}
+                {/* Social links */}
+                {market.metadata?.socialLinks?.website && (
+                  <a
+                    href={market.metadata.socialLinks.website}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="mono uppercase tracking-[0.22em] text-[0.55rem] px-2 py-1 inline-flex items-center gap-1 transition-colors"
+                    style={{ color: CREAM_DIM, border: `1px solid ${HAIR_STRONG}` }}
+                    onMouseEnter={(e) => {
+                      e.currentTarget.style.color = AMBER;
+                      e.currentTarget.style.borderColor = AMBER + '88';
+                    }}
+                    onMouseLeave={(e) => {
+                      e.currentTarget.style.color = CREAM_DIM;
+                      e.currentTarget.style.borderColor = HAIR_STRONG;
+                    }}
+                    title="Website"
+                  >
+                    <Globe className="w-2.5 h-2.5" /> Site
+                  </a>
+                )}
+                {market.metadata?.socialLinks?.github && (
+                  <a
+                    href={market.metadata.socialLinks.github}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="mono uppercase tracking-[0.22em] text-[0.55rem] px-2 py-1 inline-flex items-center gap-1 transition-colors"
+                    style={{ color: CREAM_DIM, border: `1px solid ${HAIR_STRONG}` }}
+                    onMouseEnter={(e) => {
+                      e.currentTarget.style.color = AMBER;
+                      e.currentTarget.style.borderColor = AMBER + '88';
+                    }}
+                    onMouseLeave={(e) => {
+                      e.currentTarget.style.color = CREAM_DIM;
+                      e.currentTarget.style.borderColor = HAIR_STRONG;
+                    }}
+                    title="GitHub"
+                  >
+                    <Github className="w-2.5 h-2.5" /> Code
+                  </a>
+                )}
               </div>
-
             </div>
-          </CardHeader>
-        </Card>
+          </article>
 
-        {/* Video + What This Project Offers Section - Only show here when token NOT launched */}
+        {/* Voice + Video — only when token NOT launched */}
         {!isTokenLaunched && (market.metadata?.videoUrl || market.metadata?.additionalNotes) && (
           <div className={`grid gap-4 ${market.metadata?.videoUrl && market.metadata?.additionalNotes ? 'md:grid-cols-2' : ''}`}>
-            {/* What This Project Offers */}
             {market.metadata?.additionalNotes && (
-              <div className="relative group">
-                <div className="absolute -inset-4 bg-gradient-to-r from-cyan-500/10 via-purple-500/10 to-cyan-500/10 rounded-3xl blur-2xl opacity-50 group-hover:opacity-70 transition-opacity duration-500" />
-                <div
-                  className="relative p-4 sm:p-5 bg-gradient-to-br from-cyan-500/5 via-blue-500/5 to-purple-500/5 rounded-2xl flex flex-col h-full"
-                  style={{
-                    maskImage: 'radial-gradient(ellipse 95% 90% at center, black 70%, transparent 100%)',
-                    WebkitMaskImage: 'radial-gradient(ellipse 95% 90% at center, black 70%, transparent 100%)',
-                  }}
+              <article
+                className="p-4 sm:p-5 flex flex-col h-full"
+                style={{
+                  background: 'rgba(232,150,96,0.04)',
+                  border: `1px solid ${AMBER}33`,
+                }}
+              >
+                <p
+                  className="mono uppercase tracking-[0.32em] text-[0.55rem] mb-3 inline-flex items-center gap-2"
+                  style={{ color: AMBER }}
                 >
-                  <h3 className="text-cyan-400 text-xs sm:text-sm mb-3 font-semibold flex items-center gap-2 uppercase tracking-wider">
-                    <span>✨</span> What This Project Offers
-                  </h3>
-                  <div className="border-l-2 border-cyan-500/50 pl-4 flex-1">
-                    <p className="text-white/85 text-sm sm:text-base leading-relaxed whitespace-pre-wrap italic">{market.metadata.additionalNotes}</p>
-                  </div>
+                  <BloomIcon className="w-3 h-3" />
+                  What this project offers
+                </p>
+                <div
+                  className="pl-4 flex-1"
+                  style={{ borderLeft: `2px solid ${AMBER}66` }}
+                >
+                  <p
+                    className="whitespace-pre-wrap italic"
+                    style={{
+                      color: CREAM,
+                      fontFamily: 'var(--font-fraunces, serif)',
+                      fontStyle: 'italic',
+                      fontSize: '0.95rem',
+                      lineHeight: 1.55,
+                    }}
+                  >
+                    {market.metadata.additionalNotes}
+                  </p>
                 </div>
-              </div>
+              </article>
             )}
-            {/* Video */}
             {market.metadata?.videoUrl && (
               <VideoEmbed url={market.metadata.videoUrl} className="h-full" />
             )}
           </div>
         )}
 
-        {/* Grok Analysis and Trading - Side by Side */}
+        {/* Grok Analysis and Voting — side by side */}
         <div className="grid gap-4 md:grid-cols-2">
-          {/* Deep Space Analysis - Left Side */}
-          <Card className="bg-gradient-to-br from-purple-900/20 via-indigo-900/20 to-cyan-900/20 backdrop-blur-xl border-purple-500/20">
-            <CardHeader className="pb-2">
-              <CardTitle className="text-white text-lg sm:text-xl flex items-center space-x-2">
-                <Sparkles className="w-5 h-5 text-cyan-400" />
-                <span>Deep Space Analysis</span>
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="pt-0">
-              <GrokRoast
-                marketId={market.id}
-                resolution={mergedOnchainData?.data?.resolution}
-                votingData={{
-                  totalYesVotes: market.yesVotes || 0,
-                  totalNoVotes: market.noVotes || 0,
-                  yesPercentage: yesPercentage || 0,
-                  totalParticipants: market.totalParticipants || 0,
-                }}
-              />
-            </CardContent>
-          </Card>
+          {/* Deep Space Analysis */}
+          <article
+            className="p-4 sm:p-5"
+            style={{
+              background: 'rgba(244,238,228,0.025)',
+              border: `1px solid ${HAIR_STRONG}`,
+            }}
+          >
+            <p
+              className="mono uppercase tracking-[0.32em] text-[0.55rem] mb-1.5 inline-flex items-center gap-2"
+              style={{ color: AMBER }}
+            >
+              <Sparkles className="w-3 h-3" />
+              The reading
+            </p>
+            <h3
+              className="leading-tight mb-3"
+              style={{
+                color: CREAM,
+                fontFamily: 'var(--font-fraunces, serif)',
+                fontWeight: 350,
+                fontSize: '1.15rem',
+              }}
+            >
+              What the data says
+            </h3>
+            <GrokRoast
+              marketId={market.id}
+              resolution={mergedOnchainData?.data?.resolution}
+              votingData={{
+                totalYesVotes: market.yesVotes || 0,
+                totalNoVotes: market.noVotes || 0,
+                yesPercentage: yesPercentage || 0,
+                totalParticipants: market.totalParticipants || 0,
+              }}
+            />
+          </article>
 
           {/* Right Column - Trading (when not launched) + Market Status (always) + Video/Offers (when launched) */}
           <div className="space-y-4">
-          {/* Trading Section - Only show when token is NOT launched */}
+          {/* Trading Section — cosmic-plant ─────────────────────────── */}
           {!isTokenLaunched && (
-          <Card className="bg-white/5 backdrop-blur-xl border-white/10 text-white h-fit">
-            <CardHeader className="pb-2 pt-4 px-4">
-              <CardTitle className="text-base sm:text-lg text-white">
-                Trade on Market
-              </CardTitle>
-              <CardDescription className="text-gray-300 text-xs sm:text-sm">
-                Should we launch ${market.tokenSymbol} token?
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-2.5 px-4 pb-4">
-              <>
-              {/* Pool Progress Bar - Always show for context */}
+          <section
+            className="h-fit p-4 sm:p-5"
+            style={{
+              background: 'rgba(244,238,228,0.025)',
+              border: `1px solid ${HAIR_STRONG}`,
+            }}
+          >
+            <div className="mb-4">
+              <p
+                className="mono uppercase tracking-[0.32em] text-[0.55rem] mb-1.5"
+                style={{ color: AMBER }}
+              >
+                ¶ Vote
+              </p>
+              <h3
+                className="leading-tight mb-1"
+                style={{
+                  color: CREAM,
+                  fontFamily: 'var(--font-fraunces, serif)',
+                  fontWeight: 350,
+                  fontSize: '1.3rem',
+                  letterSpacing: '-0.005em',
+                }}
+              >
+                Should the grove launch{' '}
+                <span style={{ color: AMBER }}>${market.tokenSymbol}</span>?
+              </h3>
+              <p
+                className="italic"
+                style={{
+                  color: CREAM_DIM,
+                  fontFamily: 'var(--font-fraunces, serif)',
+                  fontStyle: 'italic',
+                  fontSize: '0.85rem',
+                }}
+              >
+                Stake SOL on YES or NO. Winners share the pool.
+              </p>
+            </div>
+
+            <div className="space-y-3">
+              {/* Pool progress + post-resolution distribution */}
               {mergedOnchainData?.success && (
-                <div className="space-y-2">
-                  {/* Pool Funding Progress */}
+                <div className="space-y-2.5">
                   <div>
                     <div className="flex justify-between items-center mb-1">
-                      <span className="text-[10px] text-gray-400">Pool Progress</span>
-                      <span className="text-[10px] font-semibold text-cyan-400">
-                        {(Number(mergedOnchainData.data.poolBalance || 0) / 1e9).toFixed(2)} / {market.targetPool} SOL
+                      <span
+                        className="mono uppercase tracking-[0.22em] text-[0.55rem]"
+                        style={{ color: CREAM_FAINT }}
+                      >
+                        Pool
+                      </span>
+                      <span
+                        className="mono text-[0.6rem] tabular-nums"
+                        style={{
+                          color: AMBER,
+                          fontFeatureSettings: '"tnum" on',
+                          letterSpacing: '0.04em',
+                        }}
+                      >
+                        {(Number(mergedOnchainData.data.poolBalance || 0) / 1e9).toFixed(2)}
+                        <span style={{ color: CREAM_FAINT }}>
+                          {' / '}
+                          {market.targetPool} SOL
+                        </span>
                       </span>
                     </div>
-                    <div className="h-1.5 bg-gray-800 rounded-full overflow-hidden">
+                    <div className="h-1.5 overflow-hidden" style={{ background: HAIR }}>
                       <div
-                        className="h-full bg-gradient-to-r from-cyan-500 to-purple-500 rounded-full transition-all duration-500"
-                        style={{ width: `${Math.min(mergedOnchainData.data.poolProgressPercentage || 0, 100)}%` }}
+                        className="h-full transition-all duration-500"
+                        style={{
+                          width: `${Math.min(mergedOnchainData.data.poolProgressPercentage || 0, 100)}%`,
+                          background:
+                            (mergedOnchainData.data.poolProgressPercentage || 0) >= 100
+                              ? FOREST
+                              : AMBER,
+                        }}
                       />
                     </div>
                     <div className="text-right mt-0.5">
-                      <span className="text-[9px] text-purple-400">{mergedOnchainData.data.poolProgressPercentage || 0}% funded</span>
+                      <span
+                        className="mono uppercase tracking-[0.22em] text-[0.5rem]"
+                        style={{
+                          color:
+                            (mergedOnchainData.data.poolProgressPercentage || 0) >= 100
+                              ? FOREST
+                              : CREAM_FAINT,
+                        }}
+                      >
+                        {mergedOnchainData.data.poolProgressPercentage || 0}% funded
+                      </span>
                     </div>
                   </div>
 
-                  {/* YES/NO Distribution - Only show for resolved markets to prevent bandwagon voting */}
-                  {mergedOnchainData.data.resolution !== 'Unresolved' && (market.totalParticipants > 0) && (
+                  {mergedOnchainData.data.resolution !== 'Unresolved' && market.totalParticipants > 0 && (
                     <div>
                       <div className="flex justify-between items-center mb-1">
-                        <span className="text-[10px] text-gray-400">Final Vote Distribution</span>
-                        <span className="text-[10px] text-gray-500">
-                          {market.totalParticipants || 0} total votes
+                        <span
+                          className="mono uppercase tracking-[0.22em] text-[0.55rem]"
+                          style={{ color: CREAM_FAINT }}
+                        >
+                          Final distribution
+                        </span>
+                        <span
+                          className="mono uppercase tracking-[0.18em] text-[0.5rem]"
+                          style={{ color: CREAM_FAINT }}
+                        >
+                          {market.totalParticipants || 0} votes
                         </span>
                       </div>
-                      <div className="h-1.5 bg-gray-800 rounded-full overflow-hidden flex">
+                      <div className="h-1.5 overflow-hidden flex" style={{ background: HAIR }}>
                         <div
-                          className="h-full bg-green-500 transition-all duration-500"
-                          style={{ width: `${yesPercentage || 50}%` }}
+                          className="h-full transition-all duration-500"
+                          style={{ width: `${yesPercentage || 50}%`, background: FOREST }}
                         />
                         <div
-                          className="h-full bg-red-500 transition-all duration-500"
-                          style={{ width: `${100 - (yesPercentage || 50)}%` }}
+                          className="h-full transition-all duration-500"
+                          style={{
+                            width: `${100 - (yesPercentage || 50)}%`,
+                            background: 'rgba(214,115,71,0.7)',
+                          }}
                         />
                       </div>
                       <div className="flex justify-between mt-0.5">
-                        <span className="text-[9px] text-green-400">YES {(yesPercentage || 0).toFixed(0)}%</span>
-                        <span className="text-[9px] text-red-400">NO {(100 - (yesPercentage || 0)).toFixed(0)}%</span>
+                        <span
+                          className="mono uppercase tracking-[0.22em] text-[0.5rem]"
+                          style={{ color: FOREST }}
+                        >
+                          YES {(yesPercentage || 0).toFixed(0)}%
+                        </span>
+                        <span
+                          className="mono uppercase tracking-[0.22em] text-[0.5rem]"
+                          style={{ color: EARTH }}
+                        >
+                          NO {(100 - (yesPercentage || 0)).toFixed(0)}%
+                        </span>
                       </div>
                     </div>
                   )}
 
-                  {/* Participant count for unresolved markets - no percentages */}
-                  {mergedOnchainData.data.resolution === 'Unresolved' && (market.totalParticipants > 0) && (
+                  {mergedOnchainData.data.resolution === 'Unresolved' && market.totalParticipants > 0 && (
                     <div className="text-center">
-                      <span className="text-[10px] text-gray-400">
-                        {market.totalParticipants || 0} participants voted
+                      <span
+                        className="mono uppercase tracking-[0.22em] text-[0.55rem]"
+                        style={{ color: CREAM_FAINT }}
+                      >
+                        {market.totalParticipants || 0} have voted ·{' '}
+                        <span
+                          style={{
+                            color: CREAM_DIM,
+                            fontFamily: 'var(--font-fraunces, serif)',
+                            fontStyle: 'italic',
+                            textTransform: 'none',
+                            letterSpacing: 'normal',
+                          }}
+                        >
+                          totals hidden until close
+                        </span>
                       </span>
                     </div>
                   )}
                 </div>
               )}
 
-              {/* Side Selection Tabs */}
-              <div className="grid grid-cols-2 gap-1.5 p-1 bg-white/5 rounded-lg">
+              {/* YES / NO side selection */}
+              <div className="grid grid-cols-2 gap-1.5">
                 <button
                   onClick={() => setSelectedSide('yes')}
                   disabled={isYesVoteDisabled() || isMarketExpired()}
-                  className={`py-2 px-2.5 rounded-md font-semibold transition-all ${
-                    selectedSide === 'yes'
-                      ? 'bg-gradient-to-r from-green-500 to-cyan-500 text-white shadow-lg'
-                      : 'text-gray-400 hover:text-white hover:bg-white/10'
-                  } disabled:opacity-50 disabled:cursor-not-allowed`}
+                  className="mono uppercase tracking-[0.24em] text-[0.65rem] py-2.5 transition-colors flex items-center justify-center gap-1.5 disabled:opacity-40 disabled:cursor-not-allowed"
+                  style={{
+                    background: selectedSide === 'yes' ? FOREST : 'transparent',
+                    color: selectedSide === 'yes' ? CREAM : CREAM_DIM,
+                    border: `1px solid ${selectedSide === 'yes' ? FOREST : HAIR_STRONG}`,
+                  }}
+                  onMouseEnter={(e) => {
+                    if (selectedSide !== 'yes' && !isYesVoteDisabled() && !isMarketExpired()) {
+                      e.currentTarget.style.color = CREAM;
+                      e.currentTarget.style.borderColor = FOREST + '88';
+                    }
+                  }}
+                  onMouseLeave={(e) => {
+                    if (selectedSide !== 'yes') {
+                      e.currentTarget.style.color = CREAM_DIM;
+                      e.currentTarget.style.borderColor = HAIR_STRONG;
+                    }
+                  }}
                 >
-                  <div className="flex items-center justify-center space-x-1.5">
-                    <CheckCircle className="w-4 h-4" />
-                    <span className="text-sm">YES</span>
-                    {/* Only show percentage for resolved markets to prevent bandwagon voting */}
-                    {mergedOnchainData?.data?.resolution !== 'Unresolved' && (
-                      <span className="text-xs opacity-75">{yesPercentage}%</span>
-                    )}
-                  </div>
+                  Yes
+                  {mergedOnchainData?.data?.resolution !== 'Unresolved' && (
+                    <span
+                      style={{
+                        fontFamily: 'var(--font-fraunces, serif)',
+                        fontStyle: 'italic',
+                        fontSize: '0.85rem',
+                        letterSpacing: 'normal',
+                        opacity: 0.85,
+                      }}
+                    >
+                      {yesPercentage}%
+                    </span>
+                  )}
                 </button>
                 <button
                   onClick={() => setSelectedSide('no')}
                   disabled={isNoVoteDisabled() || isMarketExpired()}
-                  className={`py-2 px-2.5 rounded-md font-semibold transition-all ${
-                    selectedSide === 'no'
-                      ? 'bg-gradient-to-r from-red-500 to-pink-500 text-white shadow-lg'
-                      : 'text-gray-400 hover:text-white hover:bg-white/10'
-                  } disabled:opacity-50 disabled:cursor-not-allowed`}
+                  className="mono uppercase tracking-[0.24em] text-[0.65rem] py-2.5 transition-colors flex items-center justify-center gap-1.5 disabled:opacity-40 disabled:cursor-not-allowed"
+                  style={{
+                    background: selectedSide === 'no' ? 'rgba(214,115,71,0.18)' : 'transparent',
+                    color: selectedSide === 'no' ? EARTH : CREAM_DIM,
+                    border: `1px solid ${selectedSide === 'no' ? EARTH : HAIR_STRONG}`,
+                  }}
+                  onMouseEnter={(e) => {
+                    if (selectedSide !== 'no' && !isNoVoteDisabled() && !isMarketExpired()) {
+                      e.currentTarget.style.color = CREAM;
+                      e.currentTarget.style.borderColor = EARTH + '88';
+                    }
+                  }}
+                  onMouseLeave={(e) => {
+                    if (selectedSide !== 'no') {
+                      e.currentTarget.style.color = CREAM_DIM;
+                      e.currentTarget.style.borderColor = HAIR_STRONG;
+                    }
+                  }}
                 >
-                  <div className="flex items-center justify-center space-x-1.5">
-                    <XCircle className="w-4 h-4" />
-                    <span className="text-sm">NO</span>
-                    {/* Only show percentage for resolved markets to prevent bandwagon voting */}
-                    {mergedOnchainData?.data?.resolution !== 'Unresolved' && (
-                      <span className="text-xs opacity-75">{100 - yesPercentage}%</span>
-                    )}
-                  </div>
+                  No
+                  {mergedOnchainData?.data?.resolution !== 'Unresolved' && (
+                    <span
+                      style={{
+                        fontFamily: 'var(--font-fraunces, serif)',
+                        fontStyle: 'italic',
+                        fontSize: '0.85rem',
+                        letterSpacing: 'normal',
+                        opacity: 0.85,
+                      }}
+                    >
+                      {100 - yesPercentage}%
+                    </span>
+                  )}
                 </button>
               </div>
 
-              {/* Amount Input */}
-              <div className="space-y-1.5">
-                <label className="text-[10px] text-gray-400 font-medium">Amount</label>
+              {/* Amount input + quick chips */}
+              <div className="space-y-2">
+                <label
+                  className="mono uppercase tracking-[0.22em] text-[0.55rem]"
+                  style={{ color: CREAM_FAINT }}
+                >
+                  Amount
+                </label>
                 <div className="relative">
                   <input
                     type="number"
@@ -1833,239 +2216,358 @@ export default function MarketDetailsPage() {
                     min={QUICK_VOTE_AMOUNT}
                     step="0.01"
                     disabled={isSelectedSideDisabled() || isMarketExpired()}
-                    className={`w-full px-3 py-2.5 bg-white/10 border-2 rounded-lg text-white text-sm font-mono focus:outline-none transition-all ${
-                      selectedSide === 'yes'
-                        ? 'border-green-500/30 focus:border-green-500 focus:ring-2 focus:ring-green-500/50'
-                        : 'border-red-500/30 focus:border-red-500 focus:ring-2 focus:ring-red-500/50'
-                    } disabled:opacity-50 disabled:cursor-not-allowed`}
+                    className="w-full px-3 py-2.5 mono text-sm focus:outline-none transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                    style={{
+                      background: 'transparent',
+                      color: CREAM,
+                      border: `1px solid ${
+                        selectedSide === 'yes' ? FOREST + '55' : EARTH + '55'
+                      }`,
+                      letterSpacing: '0.04em',
+                    }}
+                    onFocus={(e) =>
+                      (e.currentTarget.style.borderColor =
+                        selectedSide === 'yes' ? FOREST : EARTH)
+                    }
+                    onBlur={(e) =>
+                      (e.currentTarget.style.borderColor =
+                        selectedSide === 'yes' ? FOREST + '55' : EARTH + '55')
+                    }
                     placeholder="0.00"
                   />
-                  <span className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 font-semibold text-xs">SOL</span>
-                </div>
-
-                {/* Quick Amount Buttons */}
-                <div className="grid grid-cols-4 gap-1">
-                  {[QUICK_VOTE_AMOUNT.toString(), '0.1', '0.5', '1'].map((quickAmount) => (
-                    <button
-                      key={quickAmount}
-                      onClick={() => setAmount(quickAmount)}
-                      disabled={isSelectedSideDisabled() || isMarketExpired()}
-                      className={`py-1 px-2 text-xs font-semibold rounded-md border transition-all ${
-                        amount === quickAmount
-                          ? selectedSide === 'yes'
-                            ? 'border-green-500 bg-green-500/20 text-green-400'
-                            : 'border-red-500 bg-red-500/20 text-red-400'
-                          : 'border-white/20 bg-white/5 text-gray-400 hover:bg-white/10 hover:text-white'
-                      } disabled:opacity-50 disabled:cursor-not-allowed`}
-                    >
-                      {quickAmount}
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              {/* Trade Summary */}
-              <div className="p-2 sm:p-3 bg-white/5 rounded-lg border border-white/10 space-y-1">
-                <div className="flex justify-between text-xs">
-                  <span className="text-gray-400">Position</span>
-                  <span className={`font-semibold ${selectedSide === 'yes' ? 'text-green-400' : 'text-red-400'}`}>
-                    {selectedSide.toUpperCase()}
+                  <span
+                    className="absolute right-3 top-1/2 -translate-y-1/2 mono uppercase tracking-[0.18em] text-[0.55rem]"
+                    style={{ color: CREAM_FAINT }}
+                  >
+                    SOL
                   </span>
                 </div>
-                <div className="flex justify-between text-xs">
-                  <span className="text-gray-400">Amount</span>
-                  <span className="text-white font-mono">{amount || '0.00'} SOL</span>
-                </div>
-                <div className="flex justify-between text-xs">
-                  <span className="text-gray-400">Fee (1.5%)</span>
-                  <span className="text-white font-mono">{(parseFloat(amount || '0') * 0.015).toFixed(4)} SOL</span>
-                </div>
-                <div className="flex justify-between text-xs pt-1 border-t border-white/10">
-                  <span className="text-gray-300 font-semibold">Total</span>
-                  <span className="text-white font-mono font-bold">{(parseFloat(amount || '0') * 1.015).toFixed(4)} SOL</span>
+
+                {/* Quick chips */}
+                <div className="grid grid-cols-4 gap-1">
+                  {[QUICK_VOTE_AMOUNT.toString(), '0.1', '0.5', '1'].map((quickAmount) => {
+                    const active = amount === quickAmount;
+                    const accent = selectedSide === 'yes' ? FOREST : EARTH;
+                    return (
+                      <button
+                        key={quickAmount}
+                        onClick={() => setAmount(quickAmount)}
+                        disabled={isSelectedSideDisabled() || isMarketExpired()}
+                        className="mono text-[0.6rem] py-1.5 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+                        style={{
+                          color: active ? accent : CREAM_DIM,
+                          border: `1px solid ${active ? accent : HAIR_STRONG}`,
+                          background: active ? `${accent}1a` : 'transparent',
+                          letterSpacing: '0.04em',
+                          fontFeatureSettings: '"tnum" on',
+                        }}
+                        onMouseEnter={(e) => {
+                          if (!active && !isSelectedSideDisabled() && !isMarketExpired()) {
+                            e.currentTarget.style.color = CREAM;
+                            e.currentTarget.style.borderColor = accent + '88';
+                          }
+                        }}
+                        onMouseLeave={(e) => {
+                          if (!active) {
+                            e.currentTarget.style.color = CREAM_DIM;
+                            e.currentTarget.style.borderColor = HAIR_STRONG;
+                          }
+                        }}
+                      >
+                        {quickAmount}
+                      </button>
+                    );
+                  })}
                 </div>
               </div>
 
-              {/* Trade Button */}
-              <Button
+              {/* Trade summary */}
+              <div
+                className="p-3 space-y-1"
+                style={{
+                  background: 'rgba(244,238,228,0.025)',
+                  border: `1px solid ${HAIR_STRONG}`,
+                }}
+              >
+                <SummaryRow
+                  label="Position"
+                  value={selectedSide.toUpperCase()}
+                  valueColor={selectedSide === 'yes' ? FOREST : EARTH}
+                />
+                <SummaryRow label="Amount" value={`${amount || '0.00'} SOL`} />
+                <SummaryRow
+                  label="Fee · 1.5%"
+                  value={`${(parseFloat(amount || '0') * 0.015).toFixed(4)} SOL`}
+                />
+                <div
+                  className="flex justify-between pt-1.5 mt-1.5"
+                  style={{ borderTop: `1px solid ${HAIR}` }}
+                >
+                  <span
+                    className="mono uppercase tracking-[0.22em] text-[0.55rem]"
+                    style={{ color: CREAM_DIM }}
+                  >
+                    Total
+                  </span>
+                  <span
+                    className="mono text-[0.7rem] tabular-nums"
+                    style={{
+                      color: CREAM,
+                      fontFeatureSettings: '"tnum" on',
+                      letterSpacing: '0.04em',
+                    }}
+                  >
+                    {(parseFloat(amount || '0') * 1.015).toFixed(4)} SOL
+                  </span>
+                </div>
+              </div>
+
+              {/* Trade button */}
+              <button
                 onClick={() => handleVote(selectedSide)}
-                className={`w-full py-2.5 sm:py-3 text-sm sm:text-base font-bold ${
-                  selectedSide === 'yes'
-                    ? 'bg-gradient-to-r from-green-500 to-cyan-500 hover:from-green-600 hover:to-cyan-600'
-                    : 'bg-gradient-to-r from-red-500 to-pink-500 hover:from-red-600 hover:to-pink-600'
-                } text-white shadow-lg transition-all hover:scale-[1.02] disabled:opacity-50 disabled:cursor-not-allowed`}
-                disabled={isProcessingVote || !amount || parseFloat(amount) < QUICK_VOTE_AMOUNT || isMarketExpired() || isSelectedSideDisabled()}
+                className="w-full py-3 mono uppercase tracking-[0.24em] text-[0.65rem] transition-colors flex items-center justify-center gap-2 disabled:cursor-not-allowed"
+                style={{
+                  background: isSelectedSideDisabled() || isMarketExpired() || isProcessingVote
+                    ? HAIR_STRONG
+                    : selectedSide === 'yes'
+                    ? FOREST
+                    : EARTH,
+                  color: isSelectedSideDisabled() || isMarketExpired() || isProcessingVote
+                    ? CREAM_FAINT
+                    : CREAM,
+                  opacity: isSelectedSideDisabled() || isMarketExpired() ? 0.5 : 1,
+                }}
+                onMouseEnter={(e) => {
+                  if (!isProcessingVote && !isSelectedSideDisabled() && !isMarketExpired()) {
+                    e.currentTarget.style.background =
+                      selectedSide === 'yes' ? '#4a8d4d' : '#dd8456';
+                  }
+                }}
+                onMouseLeave={(e) => {
+                  if (!isProcessingVote && !isSelectedSideDisabled() && !isMarketExpired()) {
+                    e.currentTarget.style.background =
+                      selectedSide === 'yes' ? FOREST : EARTH;
+                  }
+                }}
+                disabled={
+                  isProcessingVote ||
+                  !amount ||
+                  parseFloat(amount) < QUICK_VOTE_AMOUNT ||
+                  isMarketExpired() ||
+                  isSelectedSideDisabled()
+                }
               >
                 {isSelectedSideDisabled() ? (
                   <>
-                    <XCircle className="w-4 h-4 mr-1.5" />
-                    <span className="text-sm">{getVoteDisabledReason(selectedSide)}</span>
+                    <XCircle className="w-3.5 h-3.5" />
+                    {getVoteDisabledReason(selectedSide)}
                   </>
                 ) : isMarketExpired() ? (
                   <>
-                    <XCircle className="w-4 h-4 mr-1.5" />
-                    Market Expired
+                    <XCircle className="w-3.5 h-3.5" />
+                    Market closed
                   </>
                 ) : isProcessingVote ? (
                   <>
-                    <Loader2 className="w-4 h-4 mr-1.5 animate-spin" />
-                    Processing...
+                    <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                    Planting…
                   </>
                 ) : (
                   <>
-                    {selectedSide === 'yes' ? (
-                      <CheckCircle className="w-4 h-4 mr-1.5" />
-                    ) : (
-                      <XCircle className="w-4 h-4 mr-1.5" />
-                    )}
-                    Buy {selectedSide.toUpperCase()} for {amount || '0.00'} SOL
+                    {selectedSide === 'yes' ? <SeedIcon className="w-3.5 h-3.5" /> : <XCircle className="w-3.5 h-3.5" />}
+                    Buy {selectedSide.toUpperCase()} · {amount || '0.00'} SOL
                   </>
                 )}
-              </Button>
+              </button>
 
-              {/* User's Position Section - Show if user has position */}
+              {/* Existing position */}
               {positionData?.success && positionData.data.hasPosition && (
-                <div className="border-t border-white/10 pt-2">
+                <div
+                  className="pt-3 mt-1"
+                  style={{ borderTop: `1px solid ${HAIR}` }}
+                >
                   <div className="flex items-center justify-between">
-                    <div className="flex items-center space-x-2">
-                      <div className={`p-1 rounded-full ${
-                        positionData.data.side === 'yes'
-                          ? 'bg-green-500/20'
-                          : 'bg-red-500/20'
-                      }`}>
+                    <div className="flex items-center gap-2.5">
+                      <div
+                        className="w-7 h-7 flex items-center justify-center"
+                        style={{
+                          background:
+                            positionData.data.side === 'yes'
+                              ? `${FOREST}22`
+                              : `${EARTH}22`,
+                          border: `1px solid ${
+                            positionData.data.side === 'yes' ? FOREST : EARTH
+                          }55`,
+                        }}
+                      >
                         {positionData.data.side === 'yes' ? (
-                          <CheckCircle className="w-3.5 h-3.5 text-green-400" />
+                          <CheckCircle
+                            className="w-3.5 h-3.5"
+                            style={{ color: FOREST }}
+                          />
                         ) : (
-                          <XCircle className="w-3.5 h-3.5 text-red-400" />
+                          <XCircle className="w-3.5 h-3.5" style={{ color: EARTH }} />
                         )}
                       </div>
                       <div>
-                        <h3 className="text-white text-xs font-semibold">Your Position</h3>
-                        <p className="text-gray-300 text-[10px]">
-                          <span className={`font-bold ${
-                            positionData.data.side === 'yes' ? 'text-green-400' : 'text-red-400'
-                          }`}>
+                        <p
+                          className="mono uppercase tracking-[0.22em] text-[0.55rem]"
+                          style={{ color: CREAM_FAINT }}
+                        >
+                          Your position
+                        </p>
+                        <p
+                          className="text-xs"
+                          style={{
+                            color: CREAM,
+                            fontFamily: 'var(--font-fraunces, serif)',
+                          }}
+                        >
+                          <span
+                            style={{
+                              color:
+                                positionData.data.side === 'yes' ? FOREST : EARTH,
+                              fontWeight: 500,
+                            }}
+                          >
                             {positionData.data.side.toUpperCase()}
-                          </span> · {(Number(positionData.data?.totalAmount) || 0).toFixed(3)} SOL
+                          </span>{' '}
+                          ·{' '}
+                          <span style={{ fontStyle: 'italic' }}>
+                            {(Number(positionData.data?.totalAmount) || 0).toFixed(3)} SOL
+                          </span>
                         </p>
                       </div>
                     </div>
                     <div className="text-right">
-                      <div className="text-gray-400 text-[10px]">Trades</div>
-                      <div className="text-white text-sm font-bold">{positionData.data.tradeCount}</div>
+                      <p
+                        className="mono uppercase tracking-[0.22em] text-[0.5rem]"
+                        style={{ color: CREAM_FAINT }}
+                      >
+                        Trades
+                      </p>
+                      <p
+                        className="mono"
+                        style={{
+                          color: CREAM,
+                          fontSize: '0.95rem',
+                          fontFamily: 'var(--font-fraunces, serif)',
+                          fontStyle: 'italic',
+                        }}
+                      >
+                        {positionData.data.tradeCount}
+                      </p>
                     </div>
                   </div>
                 </div>
               )}
 
-              {/* Market Info Section — Collapsible */}
-              <div className="border-t border-white/10 pt-2">
+              {/* Advanced details — collapsible */}
+              <div className="pt-3 mt-1" style={{ borderTop: `1px solid ${HAIR}` }}>
                 <button
                   onClick={() => setShowMarketInfo(!showMarketInfo)}
-                  className="flex items-center justify-between w-full text-[10px] font-semibold text-gray-400 mb-1.5 hover:text-gray-300 transition-colors"
+                  className="flex items-center justify-between w-full mono uppercase tracking-[0.22em] text-[0.55rem] mb-2 transition-colors"
+                  style={{ color: CREAM_FAINT }}
+                  onMouseEnter={(e) => (e.currentTarget.style.color = CREAM)}
+                  onMouseLeave={(e) => (e.currentTarget.style.color = CREAM_FAINT)}
                 >
-                  <span>Advanced Details</span>
-                  <svg className={`w-3 h-3 transition-transform ${showMarketInfo ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg>
+                  <span>Advanced details</span>
+                  <svg
+                    className="w-3 h-3 transition-transform"
+                    style={{ transform: showMarketInfo ? 'rotate(180deg)' : 'rotate(0)' }}
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={1.5}
+                      d="M19 9l-7 7-7-7"
+                    />
+                  </svg>
                 </button>
-                {showMarketInfo && (<>
-                <div className="grid grid-cols-2 gap-1.5">
-                  {/* Target Pool */}
-                  <div className="p-1.5 bg-white/5 rounded">
-                    <div className="text-[10px] text-gray-400">Target</div>
-                    <div className="text-xs font-bold text-white">{market.targetPool} SOL</div>
+                {showMarketInfo && (
+                  <div className="grid grid-cols-2 gap-1.5">
+                    <DetailTile label="Target" value={`${market.targetPool} SOL`} />
+                    <DetailTile
+                      label="Participants"
+                      value={String(market.totalParticipants || 0)}
+                      icon={<Users className="w-2.5 h-2.5" style={{ color: AMBER }} />}
+                    />
+                    <DetailTile
+                      label="Market"
+                      address={market.marketAddress}
+                      addressColor={AMBER}
+                      network={SOLANA_NETWORK}
+                    />
+                    {(() => {
+                      try {
+                        const [marketVaultPda] = getMarketVaultPDA(new PublicKey(market.marketAddress));
+                        return (
+                          <DetailTile
+                            label="Vault"
+                            address={marketVaultPda.toBase58()}
+                            addressColor={PEACH}
+                            network={SOLANA_NETWORK}
+                          />
+                        );
+                      } catch {
+                        return null;
+                      }
+                    })()}
+                    {mergedOnchainData?.success && mergedOnchainData.data.founder && (
+                      <DetailTile
+                        label="Creator"
+                        address={mergedOnchainData.data.founder}
+                        addressColor={FOREST}
+                        network={SOLANA_NETWORK}
+                      />
+                    )}
+                    {mergedOnchainData?.success && mergedOnchainData.data.tokenMint && (
+                      <DetailTile
+                        label="Token"
+                        address={mergedOnchainData.data.tokenMint}
+                        addressColor={EARTH}
+                        network={SOLANA_NETWORK}
+                      />
+                    )}
                   </div>
-
-                  {/* Total Participants */}
-                  <div className="p-1.5 bg-white/5 rounded">
-                    <div className="text-[10px] text-gray-400">Participants</div>
-                    <div className="flex items-center space-x-1">
-                      <Users className="w-2.5 h-2.5 text-cyan-400" />
-                      <span className="text-xs font-bold text-white">{market.totalParticipants || 0}</span>
-                    </div>
-                  </div>
-
-                  {/* Market Address */}
-                  <div className="p-1.5 bg-white/5 rounded">
-                    <div className="text-[10px] text-gray-400">Market</div>
-                    <a
-                      href={`https://orb.helius.dev/address/${market.marketAddress}${SOLANA_NETWORK === 'devnet' ? '?cluster=devnet' : ''}`}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="flex items-center space-x-0.5 text-cyan-400 hover:text-cyan-300 transition-colors text-[10px] group"
-                    >
-                      <span className="font-mono">{market.marketAddress.slice(0, 4)}...{market.marketAddress.slice(-4)}</span>
-                      <ExternalLink className="w-2.5 h-2.5 opacity-60 group-hover:opacity-100" />
-                    </a>
-                  </div>
-
-                  {/* Market Vault */}
-                  {(() => {
-                    try {
-                      const [marketVaultPda] = getMarketVaultPDA(new PublicKey(market.marketAddress));
-                      return (
-                        <div className="p-1.5 bg-white/5 rounded">
-                          <div className="text-[10px] text-gray-400">Vault</div>
-                          <a
-                            href={`https://orb.helius.dev/address/${marketVaultPda.toBase58()}${SOLANA_NETWORK === 'devnet' ? '?cluster=devnet' : ''}`}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="flex items-center space-x-0.5 text-yellow-400 hover:text-yellow-300 transition-colors text-[10px] group"
-                          >
-                            <span className="font-mono">{marketVaultPda.toBase58().slice(0, 4)}...{marketVaultPda.toBase58().slice(-4)}</span>
-                            <ExternalLink className="w-2.5 h-2.5 opacity-60 group-hover:opacity-100" />
-                          </a>
-                        </div>
-                      );
-                    } catch (e) {
-                      return null;
-                    }
-                  })()}
-
-                  {/* Creator */}
-                  {mergedOnchainData?.success && mergedOnchainData.data.founder && (
-                    <div className="p-1.5 bg-white/5 rounded">
-                      <div className="text-[10px] text-gray-400">Creator</div>
-                      <a
-                        href={`https://orb.helius.dev/address/${mergedOnchainData.data.founder}${SOLANA_NETWORK === 'devnet' ? '?cluster=devnet' : ''}`}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="flex items-center space-x-0.5 text-purple-400 hover:text-purple-300 transition-colors text-[10px] group"
-                      >
-                        <span className="font-mono">{mergedOnchainData.data.founder.slice(0, 4)}...{mergedOnchainData.data.founder.slice(-4)}</span>
-                        <ExternalLink className="w-2.5 h-2.5 opacity-60 group-hover:opacity-100" />
-                      </a>
-                    </div>
-                  )}
-
-                  {/* Token Mint (if created) */}
-                  {mergedOnchainData?.success && mergedOnchainData.data.tokenMint && (
-                    <div className="p-1.5 bg-white/5 rounded">
-                      <div className="text-[10px] text-gray-400">Token</div>
-                      <a
-                        href={`https://orb.helius.dev/address/${mergedOnchainData.data.tokenMint}${SOLANA_NETWORK === 'devnet' ? '?cluster=devnet' : ''}`}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="flex items-center space-x-0.5 text-pink-400 hover:text-pink-300 transition-colors text-[10px] group"
-                      >
-                        <span className="font-mono">{mergedOnchainData.data.tokenMint.slice(0, 4)}...{mergedOnchainData.data.tokenMint.slice(-4)}</span>
-                        <ExternalLink className="w-2.5 h-2.5 opacity-60 group-hover:opacity-100" />
-                      </a>
-                    </div>
-                  )}
-                </div>
-                </>)}
+                )}
               </div>
-              </>
-            </CardContent>
-          </Card>
+            </div>
+          </section>
         )}
 
-          {/* Market Status Card - ALWAYS show regardless of resolution */}
-          <Card className="bg-gradient-to-br from-purple-500/10 via-pink-500/10 to-cyan-500/10 backdrop-blur-xl border-purple-400/30 h-fit">
-          <CardHeader className="pb-2 pt-3 px-4">
-            <CardTitle className="text-white text-sm sm:text-base">Market Status</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-3 px-4 pb-4">
+          {/* Market Status — cosmic-plant wrapper */}
+          <section
+            className="h-fit p-4 sm:p-5"
+            style={{
+              background: 'rgba(232,150,96,0.045)',
+              border: `1px solid ${AMBER}33`,
+            }}
+          >
+            <div className="mb-3">
+              <p
+                className="mono uppercase tracking-[0.32em] text-[0.55rem] mb-1.5"
+                style={{ color: AMBER }}
+              >
+                ¶ Status
+              </p>
+              <h3
+                className="leading-tight"
+                style={{
+                  color: CREAM,
+                  fontFamily: 'var(--font-fraunces, serif)',
+                  fontWeight: 350,
+                  fontSize: '1.15rem',
+                  letterSpacing: '-0.005em',
+                }}
+              >
+                Where this market stands
+              </h3>
+            </div>
+            <div className="space-y-3">
             {/* Market Status Section */}
             {mergedOnchainData?.success && (
               <>
@@ -3008,8 +3510,8 @@ export default function MarketDetailsPage() {
                 </div>
               </>
             )}
-          </CardContent>
-        </Card>
+            </div>
+          </section>
 
           {/* Video + What This Project Offers - Only show when token IS launched */}
           {isTokenLaunched && tokenMintAddress && (
@@ -3040,16 +3542,33 @@ export default function MarketDetailsPage() {
         </div>
         {/* End Grok Analysis grid */}
 
-        {/* Full Description - Only show if different from intro description */}
+        {/* Full Description — only when richer than the intro */}
         {market.metadata?.description && market.metadata.description !== market.description && (
-          <Card className="bg-white/5 backdrop-blur-xl border-white/10 text-white">
-            <CardHeader className="pb-2">
-              <CardTitle className="text-lg sm:text-xl text-white">Full Description</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <p className="text-white/90 text-sm sm:text-base leading-relaxed whitespace-pre-wrap">{market.metadata.description}</p>
-            </CardContent>
-          </Card>
+          <article
+            className="p-5 sm:p-6"
+            style={{
+              background: 'rgba(244,238,228,0.025)',
+              border: `1px solid ${HAIR_STRONG}`,
+            }}
+          >
+            <p
+              className="mono uppercase tracking-[0.32em] text-[0.55rem] mb-3"
+              style={{ color: AMBER }}
+            >
+              ¶ The full story
+            </p>
+            <p
+              className="whitespace-pre-wrap leading-relaxed"
+              style={{
+                color: CREAM,
+                fontFamily: 'var(--font-fraunces, serif)',
+                fontSize: 'clamp(1rem, 1.4vw, 1.1rem)',
+                lineHeight: 1.6,
+              }}
+            >
+              {market.metadata.description}
+            </p>
+          </article>
         )}
 
         {/* Market Holders and Activity - Only show for resolved markets */}
@@ -3074,15 +3593,38 @@ export default function MarketDetailsPage() {
             )}
           </div>
         ) : (
-          <Card className="bg-gradient-to-br from-gray-900/50 to-gray-800/30 backdrop-blur-sm border-gray-700/50">
-            <CardContent className="py-8 text-center">
-              <div className="text-4xl mb-3">🔒</div>
-              <h3 className="text-white font-semibold mb-2">Voting in Progress</h3>
-              <p className="text-gray-400 text-sm">
-                Holder positions and activity are hidden until the market resolves to ensure fair, unbiased voting.
-              </p>
-            </CardContent>
-          </Card>
+          <article
+            className="py-12 px-6 text-center"
+            style={{
+              background: 'rgba(244,238,228,0.02)',
+              border: `1px solid ${HAIR}`,
+            }}
+          >
+            <SeedIcon className="w-9 h-9 mx-auto mb-4" />
+            <h3
+              className="mb-2"
+              style={{
+                color: CREAM,
+                fontFamily: 'var(--font-fraunces, serif)',
+                fontSize: '1.25rem',
+                fontWeight: 350,
+              }}
+            >
+              Voting in progress.
+            </h3>
+            <p
+              className="mx-auto max-w-md italic"
+              style={{
+                color: CREAM_DIM,
+                fontFamily: 'var(--font-fraunces, serif)',
+                fontStyle: 'italic',
+                fontSize: '0.9rem',
+              }}
+            >
+              Holder positions and activity stay hidden until close — to keep the
+              vote unbiased.
+            </p>
+          </article>
         )}
 
         </div>
@@ -3135,5 +3677,130 @@ export default function MarketDetailsPage() {
         tokenSymbol={market?.tokenSymbol}
       />
     </>
+  );
+}
+
+// ─── Tiny shared helpers used by the voting panel ───
+function SummaryRow({
+  label,
+  value,
+  valueColor,
+}: {
+  label: string;
+  value: string;
+  valueColor?: string;
+}) {
+  return (
+    <div className="flex justify-between items-center">
+      <span
+        className="mono uppercase tracking-[0.22em] text-[0.55rem]"
+        style={{ color: CREAM_FAINT }}
+      >
+        {label}
+      </span>
+      <span
+        className="mono text-[0.65rem] tabular-nums"
+        style={{
+          color: valueColor || CREAM,
+          fontFeatureSettings: '"tnum" on',
+          letterSpacing: '0.04em',
+        }}
+      >
+        {value}
+      </span>
+    </div>
+  );
+}
+
+function ProofStat({
+  value,
+  label,
+  color,
+}: {
+  value: string;
+  label: string;
+  color?: string;
+}) {
+  return (
+    <div className="text-center">
+      <p
+        className="leading-none mb-0.5"
+        style={{
+          color: color || CREAM,
+          fontFamily: 'var(--font-fraunces, serif)',
+          fontWeight: 350,
+          fontSize: '0.95rem',
+          fontFeatureSettings: '"tnum" on',
+        }}
+      >
+        {value}
+      </p>
+      <p
+        className="mono uppercase tracking-[0.22em] text-[0.5rem]"
+        style={{ color: CREAM_FAINT }}
+      >
+        {label}
+      </p>
+    </div>
+  );
+}
+
+function DetailTile({
+  label,
+  value,
+  address,
+  addressColor,
+  network,
+  icon,
+}: {
+  label: string;
+  value?: string;
+  address?: string;
+  addressColor?: string;
+  network?: string;
+  icon?: React.ReactNode;
+}) {
+  return (
+    <div
+      className="p-2"
+      style={{
+        background: 'rgba(244,238,228,0.025)',
+        border: `1px solid ${HAIR}`,
+      }}
+    >
+      <p
+        className="mono uppercase tracking-[0.22em] text-[0.5rem] mb-0.5"
+        style={{ color: CREAM_FAINT }}
+      >
+        {label}
+      </p>
+      {address ? (
+        <a
+          href={`https://orb.helius.dev/address/${address}${
+            network === 'devnet' ? '?cluster=devnet' : ''
+          }`}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="mono text-[0.6rem] inline-flex items-center gap-1 transition-opacity"
+          style={{
+            color: addressColor || AMBER,
+            letterSpacing: '0.02em',
+          }}
+        >
+          {address.slice(0, 4)}…{address.slice(-4)}
+          <ExternalLink className="w-2.5 h-2.5 opacity-60" />
+        </a>
+      ) : (
+        <div className="flex items-center gap-1.5">
+          {icon}
+          <span
+            className="mono text-[0.7rem]"
+            style={{ color: CREAM, letterSpacing: '0.02em' }}
+          >
+            {value}
+          </span>
+        </div>
+      )}
+    </div>
   );
 }

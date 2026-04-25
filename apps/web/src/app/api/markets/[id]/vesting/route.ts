@@ -11,10 +11,17 @@ import { NextRequest, NextResponse } from 'next/server';
 import { PublicKey, Connection } from '@solana/web3.js';
 import { createClientLogger } from '@/lib/logger';
 import { SOLANA_NETWORK, PROGRAM_ID } from '@/config/solana';
+import { getRedisClient, prefixKey } from '@/lib/redis/client';
 
 export const dynamic = 'force-dynamic';
 
 const logger = createClientLogger();
+
+// Vesting PDA data is read directly from chain — expensive RPC. It also
+// changes infrequently (only on claim or initial init). 60s Redis cache
+// dramatically reduces Helius RPC spend and tail latency for founders
+// repeatedly visiting their market.
+const VESTING_CACHE_TTL_SECONDS = 60;
 
 export async function GET(
   request: NextRequest,
@@ -34,6 +41,32 @@ export async function GET(
     const { searchParams } = new URL(request.url);
     const networkParam = searchParams.get('network');
     const network = (networkParam as 'mainnet-beta' | 'devnet' | null) || SOLANA_NETWORK;
+
+    // Redis cache — bypassable via ?fresh=1 (used after claim).
+    const fresh = searchParams.get('fresh') === '1';
+    const cacheKey = prefixKey(`markets:vesting:${marketAddress}:${network}`);
+    const redis = (() => {
+      try {
+        return getRedisClient();
+      } catch {
+        return null;
+      }
+    })();
+    if (redis && !fresh) {
+      try {
+        const cached = await redis.get(cacheKey);
+        if (cached) {
+          return NextResponse.json(JSON.parse(cached), {
+            headers: {
+              'X-Cache': 'HIT',
+              'Cache-Control': `public, s-maxage=${VESTING_CACHE_TTL_SECONDS}, stale-while-revalidate=120`,
+            },
+          });
+        }
+      } catch (err) {
+        logger.warn('[markets/vesting] redis read failed', { err });
+      }
+    }
 
     logger.info('Fetching vesting data', { marketAddress, network });
 
@@ -231,23 +264,35 @@ export async function GET(
       logger.warn('Failed to fetch founder vesting PDA', { error });
     }
 
-    return NextResponse.json(
-      {
-        success: true,
-        data: {
-          teamVestingInitialized,
-          teamVestingData,
-          founderVestingInitialized,
-          founderVestingData,
-        },
+    const responseBody = {
+      success: true,
+      data: {
+        teamVestingInitialized,
+        teamVestingData,
+        founderVestingInitialized,
+        founderVestingData,
       },
-      {
-        headers: {
-          // Cache for 30 seconds - vesting data changes infrequently
-          'Cache-Control': 'public, s-maxage=30, stale-while-revalidate=60',
-        },
+    };
+
+    if (redis) {
+      try {
+        await redis.set(
+          cacheKey,
+          JSON.stringify(responseBody),
+          'EX',
+          VESTING_CACHE_TTL_SECONDS,
+        );
+      } catch (err) {
+        logger.warn('[markets/vesting] redis write failed', { err });
       }
-    );
+    }
+
+    return NextResponse.json(responseBody, {
+      headers: {
+        'X-Cache': 'MISS',
+        'Cache-Control': `public, s-maxage=${VESTING_CACHE_TTL_SECONDS}, stale-while-revalidate=120`,
+      },
+    });
 
   } catch (error) {
     logger.error('Failed to fetch vesting data:', error as any);
