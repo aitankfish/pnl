@@ -745,7 +745,7 @@ export default function LaunchpadPage() {
               </h1>
 
               <p
-                className="dropcap mb-7 max-w-md mx-auto lg:mx-0 text-center lg:text-left"
+                className="mb-7 max-w-md mx-auto lg:mx-0 text-center lg:text-left"
                 style={{
                   color: CREAM_DIM,
                   fontFamily: 'var(--font-fraunces, serif)',
@@ -789,18 +789,6 @@ export default function LaunchpadPage() {
           </div>
 
           <style jsx>{`
-            .dropcap::first-letter {
-              font-family: var(--font-fraunces, serif);
-              font-size: 3.4em;
-              line-height: 0.82;
-              float: left;
-              margin: 0.06em 0.1em 0 0;
-              color: ${AMBER};
-              font-style: italic;
-              font-weight: 350;
-              font-feature-settings: 'ss01';
-              font-variation-settings: 'SOFT' 100, 'opsz' 144;
-            }
             .cta:hover .cta-arrow {
               transform: translateX(3px);
             }

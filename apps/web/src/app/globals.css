@@ -436,3 +436,17 @@ body .dynamic__button:not(.dynamic__button--secondary):hover {
   font-style: italic;
   color: rgba(244, 238, 228, 0.78);
 }
+
+/* Whitepaper community CTA cards (X / Discord) — server-component-safe hover */
+.wp-community-card {
+  display: block;
+  background: rgba(244, 238, 228, 0.025);
+  border: 1px solid rgba(244, 238, 228, 0.16);
+  padding: 1.25rem;
+  text-decoration: none;
+  transition: border-color 200ms;
+}
+
+.wp-community-card:hover {
+  border-color: rgba(232, 150, 96, 0.53);
+}
