@@ -5,6 +5,19 @@ import { authFetch } from '@/lib/auth/fetch-with-auth';
 import { Mic, MicOff, PhoneOff, Loader2, Users, AlertCircle, Hand, MoreVertical, UserX, VolumeX, Check, X, Edit2, Share2, Link as LinkIcon, Star, Crown, Wifi, WifiOff, Minimize2 } from 'lucide-react';
 import { useVoiceRoomContext, REACTION_EMOJIS, MAX_SPEAKERS } from '@/lib/context/VoiceRoomContext';
 import Link from 'next/link';
+import { RootIcon, LeafIcon, BloomIcon, SeedIcon, BellflowerIcon, SunIcon } from '@/components/PlantIcons';
+
+// ── Cosmic-plant palette ──
+const BG = '#0a0814';
+const CREAM = '#f4eee4';
+const CREAM_DIM = 'rgba(244,238,228,0.65)';
+const CREAM_FAINT = 'rgba(244,238,228,0.4)';
+const HAIR = 'rgba(244,238,228,0.08)';
+const HAIR_STRONG = 'rgba(244,238,228,0.16)';
+const AMBER = '#e89660';
+const PEACH = '#ecb48a';
+const FOREST = '#3f7a42';
+const EARTH = '#d67347';
 
 interface VoiceRoomProps {
   marketId: string; // URL param ID (MongoDB ID or Solana address)
@@ -35,6 +48,32 @@ function FloatingReaction({ emoji, id }: { emoji: string; id: string }) {
 const isValidWalletAddress = (str: string): boolean => {
   return str.length >= 32 && str.length <= 44 && /^[1-9A-HJ-NP-Za-km-z]+$/.test(str);
 };
+
+// Single-row item used inside the host dropdown menu — keeps the cosmic
+// styling DRY between approve / mute / co-host / remove rows.
+function MenuRow({
+  onClick,
+  color,
+  children,
+}: {
+  onClick: () => void;
+  color: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <button
+      onClick={onClick}
+      className="w-full mono uppercase tracking-[0.18em] text-[0.55rem] px-3 py-2 text-left flex items-center gap-2 transition-colors"
+      style={{ color }}
+      onMouseEnter={(e) =>
+        (e.currentTarget.style.background = 'rgba(244,238,228,0.04)')
+      }
+      onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}
+    >
+      {children}
+    </button>
+  );
+}
 
 // Avatar component for speakers
 function SpeakerAvatar({
@@ -80,17 +119,33 @@ function SpeakerAvatar({
   const displayLabel = displayName || shortAddress;
   const canLinkToProfile = isValidWalletAddress(address);
 
+  // Cosmic-plant avatar — square hairline tile, color tinted by role.
+  // Forest ring when speaking; no animate-pulse (the soft glow tells the story).
+  const avatarBg = isSelf
+    ? `${AMBER}1a`
+    : isFounder
+    ? `${AMBER}22`
+    : isCoHost
+    ? `${PEACH}22`
+    : `${HAIR_STRONG}`;
+  const avatarBorder = isFounder
+    ? `${AMBER}66`
+    : isCoHost
+    ? `${PEACH}66`
+    : isSelf
+    ? `${AMBER}55`
+    : `${HAIR_STRONG}`;
   const avatarContent = (
     <div
-      className={`w-10 h-10 sm:w-14 sm:h-14 rounded-full flex items-center justify-center text-white font-bold text-xs sm:text-sm transition-all overflow-hidden ${
-        isSelf
-          ? 'bg-gradient-to-br from-cyan-500 to-purple-500'
-          : isFounder
-          ? 'bg-gradient-to-br from-amber-500 to-orange-500'
-          : isCoHost
-          ? 'bg-gradient-to-br from-purple-500 to-pink-500'
-          : 'bg-gradient-to-br from-gray-600 to-gray-700'
-      } ${isSpeaking ? 'ring-2 ring-green-400 ring-offset-2 ring-offset-gray-900 animate-pulse' : ''} ${!isSelf ? 'cursor-pointer hover:opacity-80' : ''}`}
+      className={`w-10 h-10 sm:w-14 sm:h-14 flex items-center justify-center mono uppercase tracking-[0.06em] text-xs sm:text-sm overflow-hidden transition-all ${
+        !isSelf ? 'cursor-pointer hover:opacity-80' : ''
+      }`}
+      style={{
+        background: avatarBg,
+        border: `1px solid ${avatarBorder}`,
+        color: isFounder ? AMBER : isCoHost ? PEACH : isSelf ? AMBER : CREAM,
+        boxShadow: isSpeaking ? `0 0 0 2px ${FOREST}88, 0 0 18px ${FOREST}55` : 'none',
+      }}
     >
       {profilePhotoUrl ? (
         <img src={profilePhotoUrl} alt={displayLabel} className="w-full h-full object-cover" />
@@ -113,104 +168,174 @@ function SpeakerAvatar({
         ) : (
           avatarContent
         )}
-        {/* Founder crown badge */}
+        {/* Founder badge — root plant glyph (the foundation). */}
         {isFounder && !isSelf && (
-          <div className="absolute -top-1 -left-1 w-5 h-5 rounded-full bg-amber-500 flex items-center justify-center">
-            <Crown className="w-3 h-3 text-white" />
+          <div
+            className="absolute -top-1 -left-1 w-5 h-5 flex items-center justify-center"
+            style={{
+              background: AMBER,
+              color: BG,
+              border: `1px solid ${AMBER}`,
+            }}
+            title="Founder"
+          >
+            <RootIcon className="w-3 h-3" />
           </div>
         )}
-        {/* Co-host star badge */}
+        {/* Co-host badge — leaf glyph (helps the founder grow). */}
         {isCoHost && !isFounder && !isSelf && (
-          <div className="absolute -top-1 -left-1 w-5 h-5 rounded-full bg-purple-500 flex items-center justify-center">
-            <Star className="w-3 h-3 text-white" />
+          <div
+            className="absolute -top-1 -left-1 w-5 h-5 flex items-center justify-center"
+            style={{
+              background: PEACH,
+              color: BG,
+              border: `1px solid ${PEACH}`,
+            }}
+            title="Co-host"
+          >
+            <LeafIcon className="w-3 h-3" />
           </div>
         )}
-        {/* Raised hand indicator */}
+        {/* Raised hand */}
         {hasRaisedHand && (
-          <div className="absolute -top-1 -left-1 w-5 h-5 rounded-full bg-yellow-500 flex items-center justify-center animate-bounce">
-            <Hand className="w-3 h-3 text-white" />
+          <div
+            className="absolute -top-1 -left-1 w-5 h-5 flex items-center justify-center animate-bounce"
+            style={{
+              background: AMBER,
+              color: BG,
+              border: `1px solid ${AMBER}`,
+            }}
+            title="Hand raised"
+          >
+            <Hand className="w-3 h-3" />
           </div>
         )}
-        {/* Mic status indicator */}
+        {/* Mic status */}
         <div
-          className={`absolute -bottom-1 -right-1 w-5 h-5 rounded-full flex items-center justify-center ${
-            isMuted ? 'bg-gray-700' : 'bg-green-500'
-          }`}
+          className="absolute -bottom-1 -right-1 w-5 h-5 flex items-center justify-center"
+          style={{
+            background: isMuted ? HAIR_STRONG : FOREST,
+            color: isMuted ? CREAM_FAINT : CREAM,
+            border: `1px solid ${isMuted ? HAIR_STRONG : FOREST}`,
+          }}
         >
-          {isMuted ? (
-            <MicOff className="w-3 h-3 text-gray-400" />
-          ) : (
-            <Mic className="w-3 h-3 text-white" />
-          )}
+          {isMuted ? <MicOff className="w-3 h-3" /> : <Mic className="w-3 h-3" />}
         </div>
-        {/* Host menu button */}
+        {/* Host menu */}
         {isHost && !isSelf && (
           <button
             onClick={() => setShowMenu(!showMenu)}
-            className="absolute -top-1 -right-1 w-5 h-5 rounded-full bg-gray-800 hover:bg-gray-700 flex items-center justify-center"
+            className="absolute -top-1 -right-1 w-5 h-5 flex items-center justify-center transition-colors"
+            style={{
+              background: 'rgba(10,8,20,0.85)',
+              color: CREAM_DIM,
+              border: `1px solid ${HAIR_STRONG}`,
+            }}
           >
-            <MoreVertical className="w-3 h-3 text-gray-400" />
+            <MoreVertical className="w-3 h-3" />
           </button>
         )}
-        {/* Host dropdown menu */}
+        {/* Host dropdown menu — cosmic glass panel */}
         {showMenu && isHost && !isSelf && (
-          <div className="absolute top-6 right-0 z-10 bg-gray-800 border border-gray-700 rounded-lg shadow-lg py-1 min-w-[120px]">
+          <div
+            className="absolute top-6 right-0 z-10 py-1 min-w-[140px]"
+            style={{
+              background: 'rgba(10,8,20,0.96)',
+              border: `1px solid ${HAIR_STRONG}`,
+              backdropFilter: 'blur(8px)',
+              WebkitBackdropFilter: 'blur(8px)',
+              boxShadow: '0 12px 32px rgba(0,0,0,0.5)',
+            }}
+          >
             {hasRaisedHand && onApproveHand && (
-              <button
+              <MenuRow
                 onClick={() => { onApproveHand(); setShowMenu(false); }}
-                className="w-full px-3 py-1.5 text-xs text-left text-green-400 hover:bg-gray-700 flex items-center gap-2"
+                color={FOREST}
               >
                 <Check className="w-3 h-3" /> Approve
-              </button>
+              </MenuRow>
             )}
             {onMute && (
-              <button
+              <MenuRow
                 onClick={() => { onMute(); setShowMenu(false); }}
-                className="w-full px-3 py-1.5 text-xs text-left text-yellow-400 hover:bg-gray-700 flex items-center gap-2"
+                color={AMBER}
               >
                 <VolumeX className="w-3 h-3" /> Mute
-              </button>
+              </MenuRow>
             )}
-            {/* Co-host controls - founder only */}
             {isViewerFounder && !isCoHost && !isFounder && onAddCoHost && (
-              <button
+              <MenuRow
                 onClick={() => { onAddCoHost(); setShowMenu(false); }}
-                className="w-full px-3 py-1.5 text-xs text-left text-purple-400 hover:bg-gray-700 flex items-center gap-2"
+                color={PEACH}
               >
-                <Star className="w-3 h-3" /> Make Co-host
-              </button>
+                <LeafIcon className="w-3 h-3" /> Make co-host
+              </MenuRow>
             )}
             {isViewerFounder && isCoHost && onRemoveCoHost && (
-              <button
+              <MenuRow
                 onClick={() => { onRemoveCoHost(); setShowMenu(false); }}
-                className="w-full px-3 py-1.5 text-xs text-left text-gray-400 hover:bg-gray-700 flex items-center gap-2"
+                color={CREAM_DIM}
               >
-                <Star className="w-3 h-3" /> Remove Co-host
-              </button>
+                <LeafIcon className="w-3 h-3" /> Remove co-host
+              </MenuRow>
             )}
             {onKick && (
-              <button
+              <MenuRow
                 onClick={() => { onKick(); setShowMenu(false); }}
-                className="w-full px-3 py-1.5 text-xs text-left text-red-400 hover:bg-gray-700 flex items-center gap-2"
+                color={EARTH}
               >
                 <UserX className="w-3 h-3" /> Remove
-              </button>
+              </MenuRow>
             )}
           </div>
         )}
       </div>
       {/* Name */}
       {isSelf ? (
-        <p className="text-xs text-white font-medium truncate max-w-full">You</p>
+        <p
+          className="truncate max-w-full"
+          style={{
+            color: CREAM,
+            fontFamily: 'var(--font-fraunces, serif)',
+            fontStyle: 'italic',
+            fontSize: '0.78rem',
+          }}
+        >
+          You
+        </p>
       ) : canLinkToProfile ? (
-        <Link href={`/profile/${address}`} className="text-xs text-white font-medium truncate max-w-full hover:text-cyan-400 transition-colors">
+        <Link
+          href={`/profile/${address}`}
+          className="truncate max-w-full transition-colors"
+          style={{
+            color: CREAM,
+            fontFamily: 'var(--font-fraunces, serif)',
+            fontSize: '0.78rem',
+          }}
+          onMouseEnter={(e) => (e.currentTarget.style.color = AMBER)}
+          onMouseLeave={(e) => (e.currentTarget.style.color = CREAM)}
+        >
           {displayLabel}
         </Link>
       ) : (
-        <p className="text-xs text-white font-medium truncate max-w-full">{displayLabel}</p>
+        <p
+          className="truncate max-w-full"
+          style={{
+            color: CREAM,
+            fontFamily: 'var(--font-fraunces, serif)',
+            fontSize: '0.78rem',
+          }}
+        >
+          {displayLabel}
+        </p>
       )}
       {/* Role */}
-      <p className="text-[10px] text-gray-400">{role}</p>
+      <p
+        className="mono uppercase tracking-[0.22em] text-[0.5rem]"
+        style={{ color: CREAM_FAINT }}
+      >
+        {role}
+      </p>
     </div>
   );
 }
@@ -400,98 +525,204 @@ export default function VoiceRoom({
   const speakers = participants.filter(p => p.isSpeaker);
   const listeners = participants.filter(p => !p.isSpeaker);
 
-  // Join choice dialog
+  // Join choice dialog — cosmic editorial
   if (showJoinChoice) {
     return (
-      <div className="flex flex-col items-center justify-center h-full p-6 space-y-4">
-        <div className="w-16 h-16 rounded-full bg-gradient-to-br from-cyan-500/20 to-purple-500/20 flex items-center justify-center">
-          <Mic className="w-8 h-8 text-cyan-400" />
+      <div className="flex flex-col items-center justify-center h-full px-6 py-8 space-y-5">
+        <div
+          className="w-14 h-14 flex items-center justify-center"
+          style={{ background: `${AMBER}1a`, border: `1px solid ${AMBER}55`, color: AMBER }}
+        >
+          <BellflowerIcon className="w-7 h-7" />
         </div>
 
         <div className="text-center">
-          <h3 className="text-lg font-medium text-white mb-1">How do you want to join?</h3>
-          <p className="text-sm text-gray-400 max-w-xs">
+          <p
+            className="mono uppercase tracking-[0.32em] text-[0.55rem] mb-2"
+            style={{ color: AMBER }}
+          >
+            The circle gathers
+          </p>
+          <h3
+            className="mb-1"
+            style={{
+              color: CREAM,
+              fontFamily: 'var(--font-fraunces, serif)',
+              fontSize: '1.3rem',
+              fontWeight: 350,
+            }}
+          >
+            How will you join?
+          </h3>
+          <p
+            className="italic max-w-xs mx-auto"
+            style={{
+              color: CREAM_DIM,
+              fontFamily: 'var(--font-fraunces, serif)',
+              fontStyle: 'italic',
+              fontSize: '0.85rem',
+            }}
+          >
             {canJoinAsSpeaker
-              ? `${MAX_SPEAKERS - speakerCount} speaker slots available`
-              : 'All speaker slots are full'}
+              ? `${MAX_SPEAKERS - speakerCount} speaker slots open`
+              : 'All speaker slots are full — you can listen and raise a hand.'}
           </p>
         </div>
 
-        <div className="w-full space-y-3">
+        <div className="w-full max-w-xs space-y-2">
           {canJoinAsSpeaker && (
             <button
               onClick={joinAsSpeaker}
-              className="w-full flex items-center justify-center gap-2 px-6 py-3.5 bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 rounded-full font-semibold text-white text-base transition-all"
+              className="w-full mono uppercase tracking-[0.26em] text-[0.65rem] py-3 px-4 inline-flex items-center justify-center gap-2 transition-colors"
+              style={{ background: FOREST, color: CREAM }}
+              onMouseEnter={(e) => (e.currentTarget.style.background = '#4a8d4d')}
+              onMouseLeave={(e) => (e.currentTarget.style.background = FOREST)}
             >
-              <Mic className="w-5 h-5" />
-              Join as Speaker
+              <Mic className="w-3.5 h-3.5" />
+              Join as speaker
             </button>
           )}
 
           <button
             onClick={joinAsListener}
-            className="w-full flex items-center justify-center gap-2 px-6 py-3.5 bg-white/10 hover:bg-white/20 rounded-full font-medium text-white text-base transition-all"
+            className="w-full mono uppercase tracking-[0.26em] text-[0.65rem] py-3 px-4 inline-flex items-center justify-center gap-2 transition-colors"
+            style={{ color: CREAM, border: `1px solid ${HAIR_STRONG}` }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.borderColor = AMBER + '88';
+              e.currentTarget.style.color = AMBER;
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.borderColor = HAIR_STRONG;
+              e.currentTarget.style.color = CREAM;
+            }}
           >
-            <Users className="w-5 h-5" />
-            Join as Listener
+            <Users className="w-3.5 h-3.5" />
+            Join as listener
           </button>
 
           <button
             onClick={cancelJoinChoice}
-            className="w-full text-center text-sm text-gray-500 hover:text-gray-400 py-2"
+            className="w-full mono uppercase tracking-[0.22em] text-[0.55rem] py-2 transition-colors"
+            style={{ color: CREAM_FAINT }}
+            onMouseEnter={(e) => (e.currentTarget.style.color = CREAM_DIM)}
+            onMouseLeave={(e) => (e.currentTarget.style.color = CREAM_FAINT)}
           >
             Cancel
           </button>
         </div>
 
-        <p className="text-xs text-gray-500 text-center">
-          Listeners can raise hand to request speaking
+        <p
+          className="italic text-center max-w-xs"
+          style={{
+            color: CREAM_FAINT,
+            fontFamily: 'var(--font-fraunces, serif)',
+            fontStyle: 'italic',
+            fontSize: '0.75rem',
+          }}
+        >
+          Listeners can raise a hand to request the floor.
         </p>
       </div>
     );
   }
 
-  // Not connected state
+  // Not connected state — cosmic invitation
   if (!isConnected) {
     return (
-      <div className="flex flex-col items-center justify-center h-full p-6 space-y-4">
-        <div className="w-16 h-16 rounded-full bg-gradient-to-br from-cyan-500/20 to-purple-500/20 flex items-center justify-center">
-          <Mic className="w-8 h-8 text-cyan-400" />
+      <div className="flex flex-col items-center justify-center h-full px-6 py-8 space-y-5">
+        <div
+          className="w-14 h-14 flex items-center justify-center"
+          style={{ background: `${AMBER}1a`, border: `1px solid ${AMBER}55`, color: AMBER }}
+        >
+          <BellflowerIcon className="w-7 h-7" />
         </div>
 
         <div className="text-center">
-          <h3 className="text-lg font-medium text-white mb-1">Voice Room</h3>
-          <p className="text-sm text-gray-400 max-w-xs">
-            Join the live voice chat to discuss this project with the community.
+          <p
+            className="mono uppercase tracking-[0.32em] text-[0.55rem] mb-2"
+            style={{ color: AMBER }}
+          >
+            Voice circle
+          </p>
+          <h3
+            className="mb-2"
+            style={{
+              color: CREAM,
+              fontFamily: 'var(--font-fraunces, serif)',
+              fontSize: '1.3rem',
+              fontWeight: 350,
+            }}
+          >
+            Tune in.
+          </h3>
+          <p
+            className="italic max-w-xs mx-auto"
+            style={{
+              color: CREAM_DIM,
+              fontFamily: 'var(--font-fraunces, serif)',
+              fontStyle: 'italic',
+              fontSize: '0.9rem',
+              lineHeight: 1.45,
+            }}
+          >
+            Live voice with the community discussing this project.
           </p>
         </div>
 
         {error && (
-          <div className="flex items-center gap-2 px-3 py-2 bg-red-500/10 border border-red-500/20 rounded-lg">
-            <AlertCircle className="w-4 h-4 text-red-400" />
-            <span className="text-xs text-red-400">{error}</span>
+          <div
+            className="flex items-center gap-2 px-3 py-2 max-w-xs"
+            style={{ background: 'rgba(214,115,71,0.08)', border: `1px solid ${EARTH}55` }}
+          >
+            <AlertCircle className="w-3.5 h-3.5 flex-shrink-0" style={{ color: EARTH }} />
+            <span
+              className="text-xs"
+              style={{ color: CREAM_DIM, fontFamily: 'var(--font-fraunces, serif)' }}
+            >
+              {error}
+            </span>
           </div>
         )}
 
-        <p className="text-xs text-gray-500">Your mic will be off to start</p>
+        <p
+          className="mono uppercase tracking-[0.22em] text-[0.55rem]"
+          style={{ color: CREAM_FAINT }}
+        >
+          Your mic stays off until you choose
+        </p>
 
         {!walletAddress ? (
-          <div className="w-full px-4 py-3 bg-white/5 rounded-full border border-white/10 text-center">
-            <span className="text-sm text-gray-400">Sign in to join voice chat</span>
+          <div
+            className="w-full max-w-xs px-4 py-3 text-center"
+            style={{ background: 'rgba(244,238,228,0.025)', border: `1px solid ${HAIR_STRONG}` }}
+          >
+            <span
+              className="mono uppercase tracking-[0.22em] text-[0.6rem]"
+              style={{ color: CREAM_DIM }}
+            >
+              Connect a wallet to join
+            </span>
           </div>
         ) : (
           <button
             onClick={handleJoin}
             disabled={isConnecting}
-            className="w-full flex items-center justify-center gap-2 px-6 py-3.5 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 rounded-full font-semibold text-white text-base transition-all disabled:opacity-50"
+            className="w-full max-w-xs mono uppercase tracking-[0.26em] text-[0.65rem] py-3 px-4 inline-flex items-center justify-center gap-2 transition-colors disabled:opacity-50 disabled:cursor-wait"
+            style={{ background: AMBER, color: BG }}
+            onMouseEnter={(e) => {
+              if (!isConnecting) e.currentTarget.style.background = PEACH;
+            }}
+            onMouseLeave={(e) => {
+              if (!isConnecting) e.currentTarget.style.background = AMBER;
+            }}
           >
             {isConnecting ? (
               <>
-                <Loader2 className="w-5 h-5 animate-spin" />
-                Connecting...
+                <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                Connecting…
               </>
             ) : (
-              'Join Voice Room'
+              <>Join voice circle</>
             )}
           </button>
         )}
@@ -509,110 +740,172 @@ export default function VoiceRoom({
 
       {/* Reconnecting banner */}
       {isReconnecting && (
-        <div className="absolute top-0 left-0 right-0 z-30 bg-yellow-500/90 px-4 py-2">
-          <div className="flex items-center justify-center gap-2 text-sm text-black font-medium">
-            <Loader2 className="w-4 h-4 animate-spin" />
-            Reconnecting... (attempt {reconnectAttempts}/5)
+        <div
+          className="absolute top-0 left-0 right-0 z-30 px-4 py-2"
+          style={{ background: AMBER, color: BG }}
+        >
+          <div className="flex items-center justify-center gap-2 mono uppercase tracking-[0.22em] text-[0.55rem]">
+            <Loader2 className="w-3.5 h-3.5 animate-spin" />
+            Reconnecting · attempt {reconnectAttempts}/5
           </div>
         </div>
       )}
 
-      {/* Join toast notification */}
+      {/* Join toast */}
       {joinToast && (
         <div className="absolute top-4 left-1/2 -translate-x-1/2 z-20 animate-fade-in">
-          <div className="px-4 py-2 bg-gray-800/90 backdrop-blur-sm border border-white/10 rounded-full shadow-lg">
-            <div className="flex items-center gap-2 text-sm text-white">
-              <div className="w-2 h-2 rounded-full bg-green-400" />
-              {joinToast}
-            </div>
+          <div
+            className="px-3 py-1.5 inline-flex items-center gap-2 mono uppercase tracking-[0.22em] text-[0.55rem]"
+            style={{
+              background: 'rgba(10,8,20,0.94)',
+              border: `1px solid ${HAIR_STRONG}`,
+              backdropFilter: 'blur(8px)',
+              color: CREAM,
+            }}
+          >
+            <span
+              className="w-1.5 h-1.5"
+              style={{ background: FOREST, boxShadow: `0 0 6px ${FOREST}` }}
+            />
+            {joinToast}
           </div>
         </div>
       )}
 
-      {/* Header with room title */}
-      <div className="flex flex-col px-4 py-3 border-b border-white/5">
+      {/* Header */}
+      <div
+        className="flex flex-col px-4 py-3"
+        style={{ borderBottom: `1px solid ${HAIR}` }}
+      >
         <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <div className="w-2 h-2 rounded-full bg-green-400 animate-pulse" />
-            <span className="text-sm font-medium text-white">Live</span>
+          <div className="mono uppercase tracking-[0.26em] text-[0.6rem] inline-flex items-center gap-2">
+            <span
+              className="w-1.5 h-1.5"
+              style={{
+                background: FOREST,
+                boxShadow: `0 0 6px ${FOREST}`,
+                animation: 'beatLive 1.4s ease-in-out infinite',
+              }}
+              aria-hidden
+            />
+            <span style={{ color: FOREST }}>Live</span>
           </div>
           <div className="flex items-center gap-3">
-            <div className="flex items-center gap-1.5 text-xs text-gray-400">
-              <Users className="w-3.5 h-3.5" />
-              <span>{participants.length + 1} listening</span>
+            <div
+              className="mono uppercase tracking-[0.22em] text-[0.55rem] inline-flex items-center gap-1.5"
+              style={{ color: CREAM_FAINT }}
+            >
+              <Users className="w-3 h-3" />
+              {participants.length + 1} listening
             </div>
             <button
               onClick={handleShareLink}
-              className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-white/5 hover:bg-white/10 text-xs text-gray-300 transition-all"
+              className="mono uppercase tracking-[0.22em] text-[0.55rem] inline-flex items-center gap-1.5 px-2 py-1 transition-colors"
+              style={{ color: CREAM_DIM, border: `1px solid ${HAIR_STRONG}` }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.color = CREAM;
+                e.currentTarget.style.borderColor = AMBER + '66';
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.color = CREAM_DIM;
+                e.currentTarget.style.borderColor = HAIR_STRONG;
+              }}
               title="Share room link"
             >
               {showCopied ? (
                 <>
-                  <Check className="w-3.5 h-3.5 text-green-400" />
-                  <span className="text-green-400">Copied!</span>
+                  <Check className="w-3 h-3" style={{ color: FOREST }} />
+                  <span style={{ color: FOREST }}>Copied</span>
                 </>
               ) : (
                 <>
-                  <LinkIcon className="w-3.5 h-3.5" />
-                  <span>Share</span>
+                  <LinkIcon className="w-3 h-3" />
+                  Share
                 </>
               )}
             </button>
-            {/* Minimize button - mobile only */}
             {onMinimize && (
               <button
                 onClick={onMinimize}
-                className="lg:hidden flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-white/5 hover:bg-white/10 text-xs text-gray-300 transition-all"
+                className="lg:hidden inline-flex items-center justify-center p-1.5 transition-colors"
+                style={{ color: CREAM_DIM, border: `1px solid ${HAIR_STRONG}` }}
+                onMouseEnter={(e) => (e.currentTarget.style.color = CREAM)}
+                onMouseLeave={(e) => (e.currentTarget.style.color = CREAM_DIM)}
                 title="Minimize voice room"
               >
-                <Minimize2 className="w-3.5 h-3.5" />
+                <Minimize2 className="w-3 h-3" />
               </button>
             )}
           </div>
         </div>
-        {/* Room title */}
+        {/* Room title — Fraunces serif */}
         {isEditingTitle ? (
-          <div className="flex items-center gap-2 mt-2">
+          <div className="flex items-center gap-2 mt-3">
             <input
               type="text"
               value={titleInput}
               onChange={(e) => setTitleInput(e.target.value)}
-              placeholder="Enter room topic..."
-              className="flex-1 px-3 py-1.5 text-sm bg-white/5 border border-white/10 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:border-cyan-500/50"
+              placeholder="What's the topic?"
+              className="flex-1 px-3 py-1.5 text-sm focus:outline-none transition-colors"
+              style={{
+                background: 'transparent',
+                color: CREAM,
+                border: `1px solid ${HAIR_STRONG}`,
+                fontFamily: 'var(--font-fraunces, serif)',
+              }}
+              onFocus={(e) => (e.currentTarget.style.borderColor = AMBER)}
+              onBlur={(e) => (e.currentTarget.style.borderColor = HAIR_STRONG)}
               maxLength={50}
               autoFocus
             />
             <button
               onClick={handleSaveTitle}
-              className="p-1.5 rounded-lg bg-green-500/20 text-green-400 hover:bg-green-500/30"
+              className="p-1.5 transition-colors"
+              style={{ color: FOREST, border: `1px solid ${FOREST}55` }}
             >
               <Check className="w-4 h-4" />
             </button>
             <button
               onClick={() => setIsEditingTitle(false)}
-              className="p-1.5 rounded-lg bg-red-500/20 text-red-400 hover:bg-red-500/30"
+              className="p-1.5 transition-colors"
+              style={{ color: EARTH, border: `1px solid ${EARTH}55` }}
             >
               <X className="w-4 h-4" />
             </button>
           </div>
         ) : roomTitle ? (
           <div className="flex items-center gap-2 mt-2">
-            <p className="text-sm text-gray-300 truncate">{roomTitle}</p>
+            <p
+              className="truncate flex-1"
+              style={{
+                color: CREAM,
+                fontFamily: 'var(--font-fraunces, serif)',
+                fontSize: '0.95rem',
+              }}
+            >
+              {roomTitle}
+            </p>
             {isHost && (
               <button
                 onClick={() => { setTitleInput(roomTitle); setIsEditingTitle(true); }}
-                className="p-1 rounded hover:bg-white/10"
+                className="p-1 transition-colors"
+                style={{ color: CREAM_FAINT }}
+                onMouseEnter={(e) => (e.currentTarget.style.color = AMBER)}
+                onMouseLeave={(e) => (e.currentTarget.style.color = CREAM_FAINT)}
               >
-                <Edit2 className="w-3 h-3 text-gray-500" />
+                <Edit2 className="w-3 h-3" />
               </button>
             )}
           </div>
         ) : isHost ? (
           <button
             onClick={() => setIsEditingTitle(true)}
-            className="mt-2 text-xs text-gray-500 hover:text-gray-400 text-left"
+            className="mt-2 mono uppercase tracking-[0.22em] text-[0.55rem] text-left transition-colors"
+            style={{ color: CREAM_FAINT }}
+            onMouseEnter={(e) => (e.currentTarget.style.color = AMBER)}
+            onMouseLeave={(e) => (e.currentTarget.style.color = CREAM_FAINT)}
           >
-            + Add room topic
+            + Set the topic
           </button>
         ) : null}
       </div>
@@ -621,10 +914,17 @@ export default function VoiceRoom({
       <div className="flex-1 overflow-y-auto p-4">
         {/* Speakers Section */}
         <div className="mb-4">
-          <p className="text-xs text-gray-500 mb-2 flex items-center gap-1">
-            <Mic className="w-3 h-3" /> Speakers ({isSpeaker ? speakers.length + 1 : speakers.length}/{MAX_SPEAKERS})
+          <p
+            className="mono uppercase tracking-[0.26em] text-[0.55rem] mb-3 flex items-center gap-2"
+            style={{ color: AMBER }}
+          >
+            <Mic className="w-3 h-3" />
+            Speakers
+            <span style={{ color: CREAM_FAINT }}>
+              · {isSpeaker ? speakers.length + 1 : speakers.length}/{MAX_SPEAKERS}
+            </span>
           </p>
-          <div className="flex flex-wrap justify-center gap-2 sm:gap-4">
+          <div className="flex flex-wrap justify-center gap-3 sm:gap-4">
             {/* Self - only show in speakers if isSpeaker */}
             {isSpeaker && walletAddress && (
               <SpeakerAvatar
@@ -673,13 +973,20 @@ export default function VoiceRoom({
           </div>
         </div>
 
-        {/* Raised hands queue for host */}
+        {/* Raised hands queue — host only */}
         {isHost && listeners.some(p => p.hasRaisedHand) && (
-          <div className="mb-4 p-3 bg-yellow-500/10 rounded-lg border border-yellow-500/20">
-            <p className="text-xs text-yellow-400 mb-2 flex items-center gap-1">
-              <Hand className="w-3 h-3" /> Requesting to speak
+          <div
+            className="mb-4 p-3"
+            style={{ background: `${AMBER}0d`, border: `1px solid ${AMBER}55` }}
+          >
+            <p
+              className="mono uppercase tracking-[0.26em] text-[0.55rem] mb-2 flex items-center gap-2"
+              style={{ color: AMBER }}
+            >
+              <Hand className="w-3 h-3" />
+              Requesting the floor
             </p>
-            <div className="flex flex-wrap gap-2">
+            <div className="flex flex-wrap gap-1.5">
               {listeners.filter(p => p.hasRaisedHand).map(p => {
                 const pProfile = profiles[p.peerId];
                 const pName = pProfile?.username || `${p.peerId.slice(0, 4)}...`;
@@ -687,10 +994,15 @@ export default function VoiceRoom({
                   <button
                     key={p.peerId}
                     onClick={() => approveHand(p.peerId)}
-                    className="px-3 py-1.5 text-xs bg-yellow-500/20 text-yellow-300 rounded-lg hover:bg-yellow-500/30 flex items-center gap-1.5"
+                    className="mono uppercase tracking-[0.22em] text-[0.55rem] px-2.5 py-1.5 inline-flex items-center gap-1.5 transition-colors"
+                    style={{ color: AMBER, border: `1px solid ${AMBER}55`, background: `${AMBER}11` }}
+                    onMouseEnter={(e) => (e.currentTarget.style.background = `${AMBER}22`)}
+                    onMouseLeave={(e) => (e.currentTarget.style.background = `${AMBER}11`)}
                   >
                     <Check className="w-3 h-3" />
-                    Approve {pName}
+                    <span style={{ textTransform: 'none', letterSpacing: 'normal' }}>
+                      Approve {pName}
+                    </span>
                   </button>
                 );
               })}
@@ -698,45 +1010,95 @@ export default function VoiceRoom({
           </div>
         )}
 
-        {/* Listeners Section */}
+        {/* Listeners */}
         {(listeners.length > 0 || !isSpeaker) && (
-          <div className="pt-4 border-t border-white/5">
-            <p className="text-xs text-gray-500 mb-2 flex items-center gap-1">
-              <Users className="w-3 h-3" /> Listeners ({!isSpeaker ? listeners.length + 1 : listeners.length})
+          <div className="pt-4" style={{ borderTop: `1px solid ${HAIR}` }}>
+            <p
+              className="mono uppercase tracking-[0.26em] text-[0.55rem] mb-2 flex items-center gap-2"
+              style={{ color: CREAM_DIM }}
+            >
+              <Users className="w-3 h-3" />
+              Listeners
+              <span style={{ color: CREAM_FAINT }}>
+                · {!isSpeaker ? listeners.length + 1 : listeners.length}
+              </span>
             </p>
-            <div className="flex flex-wrap gap-2">
+            <div className="flex flex-wrap gap-1.5">
               {/* Self as listener */}
               {!isSpeaker && walletAddress && (
-                <div className="flex items-center gap-1.5 px-2 py-1 bg-white/5 rounded-full">
-                  <div className="w-6 h-6 rounded-full bg-gradient-to-br from-cyan-500 to-purple-500 flex items-center justify-center text-[10px] text-white font-bold overflow-hidden">
+                <div
+                  className="flex items-center gap-1.5 px-2 py-1"
+                  style={{
+                    background: `${AMBER}11`,
+                    border: `1px solid ${AMBER}44`,
+                  }}
+                >
+                  <div
+                    className="w-5 h-5 flex items-center justify-center mono text-[0.5rem] overflow-hidden"
+                    style={{ background: `${AMBER}33`, color: AMBER }}
+                  >
                     {profiles[walletAddress]?.profilePhotoUrl ? (
-                      <img src={profiles[walletAddress].profilePhotoUrl} alt="You" className="w-full h-full object-cover" />
+                      <img
+                        src={profiles[walletAddress].profilePhotoUrl}
+                        alt="You"
+                        className="w-full h-full object-cover"
+                      />
                     ) : (
-                      'You'
+                      'YO'
                     )}
                   </div>
-                  {hasRaisedHand && <Hand className="w-3 h-3 text-yellow-400" />}
+                  <span
+                    className="italic"
+                    style={{
+                      color: CREAM,
+                      fontFamily: 'var(--font-fraunces, serif)',
+                      fontStyle: 'italic',
+                      fontSize: '0.7rem',
+                    }}
+                  >
+                    you
+                  </span>
+                  {hasRaisedHand && <Hand className="w-3 h-3" style={{ color: AMBER }} />}
                 </div>
               )}
 
               {/* Other listeners */}
               {listeners.map((p) => {
                 const lProfile = profiles[p.peerId];
-                const lInitials = lProfile?.username?.slice(0, 2).toUpperCase() || p.peerId.slice(0, 2).toUpperCase();
+                const lInitials =
+                  lProfile?.username?.slice(0, 2).toUpperCase() ||
+                  p.peerId.slice(0, 2).toUpperCase();
                 const lName = lProfile?.username || `${p.peerId.slice(0, 4)}...`;
                 const canLink = isValidWalletAddress(p.peerId);
 
                 const listenerContent = (
                   <>
-                    <div className="w-6 h-6 rounded-full bg-gradient-to-br from-gray-600 to-gray-700 flex items-center justify-center text-[10px] text-white font-bold overflow-hidden">
+                    <div
+                      className="w-5 h-5 flex items-center justify-center mono text-[0.5rem] overflow-hidden"
+                      style={{ background: HAIR_STRONG, color: CREAM_DIM }}
+                    >
                       {lProfile?.profilePhotoUrl ? (
-                        <img src={lProfile.profilePhotoUrl} alt={lName} className="w-full h-full object-cover" />
+                        <img
+                          src={lProfile.profilePhotoUrl}
+                          alt={lName}
+                          className="w-full h-full object-cover"
+                        />
                       ) : (
                         lInitials
                       )}
                     </div>
-                    <span className="text-xs text-gray-400">{lName}</span>
-                    {p.hasRaisedHand && <Hand className="w-3 h-3 text-yellow-400" />}
+                    <span
+                      style={{
+                        color: CREAM_DIM,
+                        fontFamily: 'var(--font-fraunces, serif)',
+                        fontSize: '0.7rem',
+                      }}
+                    >
+                      {lName}
+                    </span>
+                    {p.hasRaisedHand && (
+                      <Hand className="w-3 h-3" style={{ color: AMBER }} />
+                    )}
                   </>
                 );
 
@@ -744,7 +1106,17 @@ export default function VoiceRoom({
                   <Link
                     key={p.peerId}
                     href={`/profile/${p.peerId}`}
-                    className="flex items-center gap-1.5 px-2 py-1 bg-white/5 rounded-full hover:bg-white/10 transition-colors"
+                    className="flex items-center gap-1.5 px-2 py-1 transition-colors"
+                    style={{
+                      background: 'rgba(244,238,228,0.025)',
+                      border: `1px solid ${HAIR}`,
+                    }}
+                    onMouseEnter={(e) =>
+                      (e.currentTarget.style.borderColor = AMBER + '55')
+                    }
+                    onMouseLeave={(e) =>
+                      (e.currentTarget.style.borderColor = HAIR)
+                    }
                     title={`View ${lName}'s profile`}
                   >
                     {listenerContent}
@@ -752,7 +1124,11 @@ export default function VoiceRoom({
                 ) : (
                   <div
                     key={p.peerId}
-                    className="flex items-center gap-1.5 px-2 py-1 bg-white/5 rounded-full"
+                    className="flex items-center gap-1.5 px-2 py-1"
+                    style={{
+                      background: 'rgba(244,238,228,0.025)',
+                      border: `1px solid ${HAIR}`,
+                    }}
                   >
                     {listenerContent}
                   </div>
@@ -763,65 +1139,130 @@ export default function VoiceRoom({
         )}
       </div>
 
-      {/* Reaction buttons */}
-      <div className="flex items-center justify-center gap-2 px-4 py-2 border-t border-white/5">
+      {/* Reaction strip */}
+      <div
+        className="flex items-center justify-center gap-1 px-4 py-2"
+        style={{ borderTop: `1px solid ${HAIR}` }}
+      >
         {REACTION_EMOJIS.map((emoji) => (
           <button
             key={emoji}
             onClick={() => sendReaction(emoji)}
-            className="p-2 rounded-full hover:bg-white/10 active:scale-90 transition-all"
+            className="p-2 active:scale-90 transition-all"
+            style={{ color: CREAM_DIM }}
+            onMouseEnter={(e) => (e.currentTarget.style.background = 'rgba(244,238,228,0.04)')}
+            onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}
             title={`React with ${emoji}`}
           >
-            <span className="text-xl">{emoji}</span>
+            <span className="text-lg">{emoji}</span>
           </button>
         ))}
       </div>
 
       {/* Controls */}
-      <div className="flex items-center justify-center gap-2 p-2 sm:gap-3 sm:p-4 border-t border-white/5">
+      <div
+        className="flex items-center justify-center gap-2 sm:gap-3 p-3 sm:p-4"
+        style={{ borderTop: `1px solid ${HAIR}` }}
+      >
+        {/* Mute toggle — forest when live, hairline cosmic when muted (with explicit "Muted" hint) */}
         <button
           onClick={toggleMute}
-          className={`p-4 rounded-full transition-all ${
-            isMuted
-              ? 'bg-white/10 hover:bg-white/20 text-white'
-              : 'bg-green-500 hover:bg-green-600 text-white'
-          }`}
+          className="p-3.5 transition-colors inline-flex items-center justify-center gap-2"
+          style={{
+            background: isMuted ? 'transparent' : FOREST,
+            color: isMuted ? CREAM_DIM : CREAM,
+            border: `1px solid ${isMuted ? HAIR_STRONG : FOREST}`,
+          }}
+          onMouseEnter={(e) => {
+            if (isMuted) {
+              e.currentTarget.style.color = CREAM;
+              e.currentTarget.style.borderColor = AMBER + '88';
+            } else {
+              e.currentTarget.style.background = '#4a8d4d';
+            }
+          }}
+          onMouseLeave={(e) => {
+            if (isMuted) {
+              e.currentTarget.style.color = CREAM_DIM;
+              e.currentTarget.style.borderColor = HAIR_STRONG;
+            } else {
+              e.currentTarget.style.background = FOREST;
+            }
+          }}
           title={isMuted ? 'Unmute' : 'Mute'}
         >
-          {isMuted ? <MicOff className="w-5 h-5 sm:w-6 sm:h-6" /> : <Mic className="w-5 h-5 sm:w-6 sm:h-6" />}
+          {isMuted ? <MicOff className="w-5 h-5" /> : <Mic className="w-5 h-5" />}
         </button>
 
+        {/* Hand-raise toggle */}
         <button
           onClick={toggleHand}
-          className={`p-4 rounded-full transition-all ${
-            hasRaisedHand
-              ? 'bg-yellow-500 hover:bg-yellow-600 text-white'
-              : 'bg-white/10 hover:bg-white/20 text-white'
-          }`}
+          className="p-3.5 transition-colors"
+          style={{
+            background: hasRaisedHand ? AMBER : 'transparent',
+            color: hasRaisedHand ? BG : CREAM_DIM,
+            border: `1px solid ${hasRaisedHand ? AMBER : HAIR_STRONG}`,
+          }}
+          onMouseEnter={(e) => {
+            if (hasRaisedHand) {
+              e.currentTarget.style.background = PEACH;
+            } else {
+              e.currentTarget.style.color = CREAM;
+              e.currentTarget.style.borderColor = AMBER + '88';
+            }
+          }}
+          onMouseLeave={(e) => {
+            if (hasRaisedHand) {
+              e.currentTarget.style.background = AMBER;
+            } else {
+              e.currentTarget.style.color = CREAM_DIM;
+              e.currentTarget.style.borderColor = HAIR_STRONG;
+            }
+          }}
           title={hasRaisedHand ? 'Lower hand' : 'Raise hand'}
         >
-          <Hand className="w-6 h-6" />
+          <Hand className="w-5 h-5" />
         </button>
 
-        {/* Mute All button - only for hosts */}
+        {/* Mute-all — host only */}
         {isHost && (
           <button
             onClick={muteAll}
-            className="p-4 rounded-full bg-orange-500/20 hover:bg-orange-500/30 text-orange-400 transition-all"
+            className="p-3.5 transition-colors"
+            style={{ color: PEACH, border: `1px solid ${PEACH}55` }}
+            onMouseEnter={(e) => (e.currentTarget.style.background = `${PEACH}11`)}
+            onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}
             title="Mute all speakers"
           >
-            <VolumeX className="w-6 h-6" />
+            <VolumeX className="w-5 h-5" />
           </button>
         )}
 
+        {/* Leave */}
         <button
           onClick={leave}
-          className="px-4 py-2 sm:px-6 sm:py-3 rounded-full bg-red-500/20 hover:bg-red-500/30 text-red-400 font-medium text-sm sm:text-base transition-all flex items-center gap-1.5 sm:gap-2"
+          className="mono uppercase tracking-[0.24em] text-[0.6rem] px-4 py-2.5 inline-flex items-center gap-2 transition-colors"
+          style={{ color: EARTH, border: `1px solid ${EARTH}66` }}
+          onMouseEnter={(e) => {
+            e.currentTarget.style.background = `${EARTH}11`;
+            e.currentTarget.style.color = CREAM;
+          }}
+          onMouseLeave={(e) => {
+            e.currentTarget.style.background = 'transparent';
+            e.currentTarget.style.color = EARTH;
+          }}
         >
-          <PhoneOff className="w-5 h-5" />
+          <PhoneOff className="w-4 h-4" />
           Leave
         </button>
       </div>
+
+      <style jsx>{`
+        @keyframes beatLive {
+          0%, 100% { transform: scale(0.85); opacity: 0.7; }
+          50% { transform: scale(1.2); opacity: 1; }
+        }
+      `}</style>
     </div>
   );
 }

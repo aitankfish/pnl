@@ -6,6 +6,15 @@ import ChatRoom from './ChatRoom';
 import VoiceRoom from '../voice/VoiceRoom';
 import { useVoiceRoomContextSafe } from '@/lib/context/VoiceRoomContext';
 
+// ── Cosmic-plant palette (shared across the app) ──
+const CREAM = '#f4eee4';
+const CREAM_DIM = 'rgba(244,238,228,0.65)';
+const CREAM_FAINT = 'rgba(244,238,228,0.4)';
+const HAIR = 'rgba(244,238,228,0.08)';
+const HAIR_STRONG = 'rgba(244,238,228,0.16)';
+const AMBER = '#e89660';
+const FOREST = '#3f7a42';
+
 // Custom Discord icon component
 const DiscordIcon = ({ className }: { className?: string }) => (
   <svg className={className} viewBox="0 0 24 24" fill="currentColor">
@@ -26,6 +35,40 @@ const LinkedInIcon = ({ className }: { className?: string }) => (
     <path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433c-1.144 0-2.063-.926-2.063-2.065 0-1.138.92-2.063 2.063-2.063 1.14 0 2.064.925 2.064 2.063 0 1.139-.925 2.065-2.064 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z"/>
   </svg>
 );
+
+// Hairline cosmic social link — replaces the gradient-tinted icon buttons.
+// Color tints to amber on hover; otherwise stays cream-dim so it doesn't
+// fight the chat/voice content for attention.
+function SocialLink({
+  href,
+  title,
+  children,
+}: {
+  href: string;
+  title: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <a
+      href={href}
+      target="_blank"
+      rel="noopener noreferrer"
+      title={title}
+      className="p-1.5 inline-flex items-center justify-center transition-colors"
+      style={{ color: CREAM_DIM, border: `1px solid ${HAIR_STRONG}` }}
+      onMouseEnter={(e) => {
+        e.currentTarget.style.color = AMBER;
+        e.currentTarget.style.borderColor = AMBER + '88';
+      }}
+      onMouseLeave={(e) => {
+        e.currentTarget.style.color = CREAM_DIM;
+        e.currentTarget.style.borderColor = HAIR_STRONG;
+      }}
+    >
+      {children}
+    </a>
+  );
+}
 
 interface SocialLinks {
   twitter?: string;
@@ -123,62 +166,53 @@ export default function CommunityHub({
   const hasSocialLinks = socialLinks && (socialLinks.twitter || socialLinks.discord || socialLinks.telegram || socialLinks.linkedin);
 
   return (
-    <div className={`flex flex-col bg-gradient-to-br from-cyan-500/5 via-blue-500/5 to-purple-500/5 backdrop-blur-sm rounded-xl border border-cyan-500/20 shadow-[0_0_20px_rgba(6,182,212,0.08)] overflow-hidden ${className || 'h-[500px] sm:h-[600px]'}`}>
-      {/* Social Links Bar */}
+    <div
+      className={`flex flex-col overflow-hidden ${className || 'h-[500px] sm:h-[600px]'}`}
+      style={{
+        background: 'rgba(244,238,228,0.025)',
+        border: `1px solid ${HAIR_STRONG}`,
+      }}
+    >
+      {/* Social links bar */}
       {hasSocialLinks && (
-        <div className="flex items-center justify-center gap-2 px-3 py-1.5 border-b border-cyan-500/10 bg-transparent">
-          <span className="text-[10px] text-gray-500 mr-1">Join:</span>
+        <div
+          className="flex items-center justify-center gap-1.5 px-3 py-2"
+          style={{ borderBottom: `1px solid ${HAIR}` }}
+        >
+          <span
+            className="mono uppercase tracking-[0.24em] text-[0.5rem] mr-1"
+            style={{ color: CREAM_FAINT }}
+          >
+            Find them on
+          </span>
           {socialLinks.twitter && (
-            <a
-              href={socialLinks.twitter}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="p-1.5 rounded-md bg-gray-700/30 hover:bg-gray-600/40 border border-gray-600/30 hover:border-gray-500/50 transition-all hover:scale-110"
-              title="Twitter / X"
-            >
-              <TwitterIcon className="w-3.5 h-3.5 text-gray-300" />
-            </a>
+            <SocialLink href={socialLinks.twitter} title="Twitter / X">
+              <TwitterIcon className="w-3 h-3" />
+            </SocialLink>
           )}
           {socialLinks.discord && (
-            <a
-              href={socialLinks.discord}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="p-1.5 rounded-md bg-indigo-500/20 hover:bg-indigo-500/30 border border-indigo-400/30 hover:border-indigo-400/50 transition-all hover:scale-110"
-              title="Discord"
-            >
-              <DiscordIcon className="w-3.5 h-3.5 text-indigo-400" />
-            </a>
+            <SocialLink href={socialLinks.discord} title="Discord">
+              <DiscordIcon className="w-3 h-3" />
+            </SocialLink>
           )}
           {socialLinks.telegram && (
-            <a
-              href={socialLinks.telegram}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="p-1.5 rounded-md bg-blue-500/20 hover:bg-blue-500/30 border border-blue-400/30 hover:border-blue-400/50 transition-all hover:scale-110"
-              title="Telegram"
-            >
-              <Send className="w-3.5 h-3.5 text-blue-400" />
-            </a>
+            <SocialLink href={socialLinks.telegram} title="Telegram">
+              <Send className="w-3 h-3" />
+            </SocialLink>
           )}
           {socialLinks.linkedin && (
-            <a
-              href={socialLinks.linkedin}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="p-1.5 rounded-md bg-blue-600/20 hover:bg-blue-600/30 border border-blue-500/30 hover:border-blue-500/50 transition-all hover:scale-110"
-              title="LinkedIn"
-            >
-              <LinkedInIcon className="w-3.5 h-3.5 text-blue-500" />
-            </a>
+            <SocialLink href={socialLinks.linkedin} title="LinkedIn">
+              <LinkedInIcon className="w-3 h-3" />
+            </SocialLink>
           )}
         </div>
       )}
 
-      {/* Tab Header */}
-      <div className="flex border-b border-cyan-500/10 bg-transparent">
+      {/* Tab header */}
+      <div className="flex" style={{ borderBottom: `1px solid ${HAIR}` }}>
         {tabs.map((tab) => {
           const Icon = tab.icon;
+          const isActive = activeTab === tab.id;
           const isVoiceTab = tab.id === 'voice';
           const showLiveIndicator = isVoiceTab && voiceRoomActive;
 
@@ -186,52 +220,55 @@ export default function CommunityHub({
             <button
               key={tab.id}
               onClick={() => setActiveTab(tab.id)}
-              className={`flex-1 flex items-center justify-center gap-1.5 px-3 py-2.5 text-sm font-medium transition-all relative ${
-                activeTab === tab.id
-                  ? 'text-cyan-400 bg-cyan-500/10'
-                  : 'text-gray-400 hover:text-gray-300 hover:bg-gray-800/30'
-              }`}
+              className="flex-1 mono uppercase tracking-[0.26em] text-[0.6rem] py-3 px-3 transition-colors relative inline-flex items-center justify-center gap-2"
+              style={{
+                color: isActive ? CREAM : showLiveIndicator ? FOREST : CREAM_DIM,
+                background: isActive ? 'rgba(232,150,96,0.06)' : 'transparent',
+              }}
+              onMouseEnter={(e) => {
+                if (!isActive) e.currentTarget.style.color = CREAM;
+              }}
+              onMouseLeave={(e) => {
+                if (!isActive)
+                  e.currentTarget.style.color = showLiveIndicator ? FOREST : CREAM_DIM;
+              }}
             >
-              {/* Live indicator glow effect */}
               {showLiveIndicator && (
-                <div className="absolute inset-0 overflow-hidden rounded-t-lg">
-                  <div className="absolute inset-0 bg-gradient-to-r from-green-500/20 via-emerald-500/20 to-green-500/20 animate-pulse" />
-                  <div className="absolute -inset-1 bg-gradient-to-r from-green-500/0 via-green-400/30 to-green-500/0 blur-sm animate-glow-sweep" />
-                </div>
+                <span
+                  className="w-1.5 h-1.5"
+                  style={{
+                    background: FOREST,
+                    boxShadow: `0 0 6px ${FOREST}`,
+                    animation: 'beatDot 1.4s ease-in-out infinite',
+                  }}
+                  aria-hidden
+                />
               )}
-
-              <div className="relative flex items-center gap-1.5">
-                {showLiveIndicator && (
-                  <span className="relative flex h-2 w-2">
-                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
-                    <span className="relative inline-flex rounded-full h-2 w-2 bg-green-500"></span>
-                  </span>
-                )}
-                <Icon className={`w-4 h-4 ${showLiveIndicator ? 'text-green-400' : ''}`} />
-                <span className="hidden sm:inline">{tab.label}</span>
-                {showLiveIndicator && voiceParticipantCount > 0 && (
-                  <span className="text-[10px] text-green-400 font-bold">
-                    ({voiceParticipantCount})
-                  </span>
-                )}
-              </div>
-
-              {activeTab === tab.id && (
-                <div className={`absolute bottom-0 left-0 right-0 h-0.5 ${showLiveIndicator ? 'bg-green-400' : 'bg-cyan-400'}`} />
+              <Icon className="w-3.5 h-3.5" />
+              <span className="hidden sm:inline">{tab.label}</span>
+              {showLiveIndicator && voiceParticipantCount > 0 && (
+                <span
+                  className="mono text-[0.55rem] tracking-[0.1em]"
+                  style={{ color: FOREST }}
+                >
+                  · {voiceParticipantCount}
+                </span>
+              )}
+              {isActive && (
+                <span
+                  className="absolute bottom-0 left-2 right-2 h-px"
+                  style={{ background: showLiveIndicator ? FOREST : AMBER }}
+                />
               )}
             </button>
           );
         })}
       </div>
 
-      {/* CSS for glow animation */}
       <style jsx>{`
-        @keyframes glow-sweep {
-          0%, 100% { transform: translateX(-100%); }
-          50% { transform: translateX(100%); }
-        }
-        .animate-glow-sweep {
-          animation: glow-sweep 2s ease-in-out infinite;
+        @keyframes beatDot {
+          0%, 100% { transform: scale(0.85); opacity: 0.7; }
+          50% { transform: scale(1.2); opacity: 1; }
         }
       `}</style>
 

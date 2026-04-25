@@ -7,6 +7,18 @@ import { Mic, MicOff, PhoneOff, Users, Maximize2 } from 'lucide-react';
 import { useVoiceRoomContextSafe, REACTION_EMOJIS } from '@/lib/context/VoiceRoomContext';
 import Link from 'next/link';
 
+// ── Cosmic-plant palette ──
+const BG = '#0a0814';
+const CREAM = '#f4eee4';
+const CREAM_DIM = 'rgba(244,238,228,0.65)';
+const CREAM_FAINT = 'rgba(244,238,228,0.4)';
+const HAIR = 'rgba(244,238,228,0.08)';
+const HAIR_STRONG = 'rgba(244,238,228,0.16)';
+const AMBER = '#e89660';
+const PEACH = '#ecb48a';
+const FOREST = '#3f7a42';
+const EARTH = '#d67347';
+
 interface ProfileData {
   username?: string;
   profilePhotoUrl?: string;
@@ -105,99 +117,165 @@ export default function MiniVoicePlayer() {
   const selfProfile = walletAddress ? profiles[walletAddress] : null;
 
   return (
-    <div className={`fixed bottom-4 left-4 right-4 md:left-auto md:right-4 md:w-80 z-50 animate-slide-up ${hideOnDesktopWhenOnPage ? 'lg:hidden' : ''}`}>
-      <div className="bg-gray-900/95 backdrop-blur-lg border border-white/10 rounded-2xl shadow-2xl overflow-hidden">
+    <div
+      className={`fixed bottom-4 left-4 right-4 md:left-auto md:right-4 md:w-80 z-50 animate-slide-up ${
+        hideOnDesktopWhenOnPage ? 'lg:hidden' : ''
+      }`}
+    >
+      <div
+        className="overflow-hidden"
+        style={{
+          background: 'rgba(10,8,20,0.94)',
+          border: `1px solid ${HAIR_STRONG}`,
+          backdropFilter: 'blur(12px)',
+          WebkitBackdropFilter: 'blur(12px)',
+          boxShadow: '0 16px 40px rgba(0,0,0,0.5)',
+        }}
+      >
         {/* Reconnecting banner */}
         {isReconnecting && (
-          <div className="bg-yellow-500/90 px-3 py-1.5 text-center">
-            <span className="text-xs text-black font-medium">
-              Reconnecting... ({reconnectAttempts}/5)
+          <div className="px-3 py-1.5 text-center" style={{ background: AMBER, color: BG }}>
+            <span className="mono uppercase tracking-[0.22em] text-[0.55rem]">
+              Reconnecting · {reconnectAttempts}/5
             </span>
           </div>
         )}
 
-        {/* Main content */}
         <div className="p-3">
-          {/* Header with room info */}
+          {/* Header */}
           <div className="flex items-center justify-between mb-3">
             <div className="flex items-center gap-2 min-w-0 flex-1">
-              <div className="w-2 h-2 rounded-full bg-green-400 animate-pulse flex-shrink-0" />
+              <span
+                className="w-1.5 h-1.5 flex-shrink-0"
+                style={{
+                  background: FOREST,
+                  boxShadow: `0 0 6px ${FOREST}`,
+                  animation: 'beatMini 1.4s ease-in-out infinite',
+                }}
+                aria-hidden
+              />
               <div className="min-w-0 flex-1">
-                <p className="text-sm font-medium text-white truncate">
-                  {roomTitle || marketName || 'Voice Room'}
+                <p
+                  className="truncate"
+                  style={{
+                    color: CREAM,
+                    fontFamily: 'var(--font-fraunces, serif)',
+                    fontSize: '0.92rem',
+                  }}
+                >
+                  {roomTitle || marketName || 'Voice circle'}
                 </p>
-                <div className="flex items-center gap-1 text-xs text-gray-400">
-                  <Users className="w-3 h-3" />
-                  <span>{participants.length + 1} listening</span>
-                </div>
+                <p
+                  className="mono uppercase tracking-[0.22em] text-[0.5rem] inline-flex items-center gap-1"
+                  style={{ color: CREAM_FAINT }}
+                >
+                  <Users className="w-2.5 h-2.5" />
+                  {participants.length + 1} listening
+                </p>
               </div>
             </div>
 
-            {/* Expand button */}
             <Link
               href={`/market/${marketId}`}
-              className="p-2 rounded-lg bg-white/5 hover:bg-white/10 text-gray-400 hover:text-white transition-all"
+              className="p-1.5 transition-colors"
+              style={{ color: CREAM_FAINT, border: `1px solid ${HAIR_STRONG}` }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.color = CREAM;
+                e.currentTarget.style.borderColor = AMBER + '88';
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.color = CREAM_FAINT;
+                e.currentTarget.style.borderColor = HAIR_STRONG;
+              }}
               title="Open full room"
             >
-              <Maximize2 className="w-4 h-4" />
+              <Maximize2 className="w-3.5 h-3.5" />
             </Link>
           </div>
 
-          {/* Participant avatars */}
+          {/* Participant tiles */}
           <div className="flex items-center gap-1 mb-3 overflow-hidden">
             {/* Self */}
             <div
-              className={`w-8 h-8 rounded-full flex items-center justify-center text-white text-xs font-bold flex-shrink-0 overflow-hidden ${
-                isSpeaking ? 'ring-2 ring-green-400 ring-offset-1 ring-offset-gray-900' : ''
-              } bg-gradient-to-br from-cyan-500 to-purple-500`}
+              className="w-7 h-7 flex items-center justify-center mono text-[0.55rem] flex-shrink-0 overflow-hidden"
+              style={{
+                background: `${AMBER}22`,
+                color: AMBER,
+                border: `1px solid ${AMBER}55`,
+                boxShadow: isSpeaking ? `0 0 0 2px ${FOREST}88, 0 0 12px ${FOREST}55` : 'none',
+              }}
             >
               {selfProfile?.profilePhotoUrl ? (
-                <img src={selfProfile.profilePhotoUrl} alt="You" className="w-full h-full object-cover" />
+                <img
+                  src={selfProfile.profilePhotoUrl}
+                  alt="You"
+                  className="w-full h-full object-cover"
+                />
               ) : (
-                'You'
+                'YO'
               )}
             </div>
 
-            {/* Other participants (show up to 4) */}
             {participants.slice(0, 4).map((p) => {
               const pProfile = profiles[p.peerId];
-              const pInitials = pProfile?.username?.slice(0, 2).toUpperCase() || p.peerId.slice(0, 2).toUpperCase();
-              const pName = pProfile?.username || `${p.peerId.slice(0, 4)}...${p.peerId.slice(-4)}`;
+              const pInitials =
+                pProfile?.username?.slice(0, 2).toUpperCase() ||
+                p.peerId.slice(0, 2).toUpperCase();
+              const pName =
+                pProfile?.username || `${p.peerId.slice(0, 4)}...${p.peerId.slice(-4)}`;
               const canLink = isValidWalletAddress(p.peerId);
 
               const avatarContent = (
                 <>
                   {pProfile?.profilePhotoUrl ? (
-                    <img src={pProfile.profilePhotoUrl} alt={pProfile.username || 'Participant'} className="w-full h-full object-cover" />
+                    <img
+                      src={pProfile.profilePhotoUrl}
+                      alt={pProfile.username || 'Participant'}
+                      className="w-full h-full object-cover"
+                    />
                   ) : (
                     pInitials
                   )}
                 </>
               );
 
-              const avatarClasses = `w-8 h-8 rounded-full flex items-center justify-center text-white text-xs font-bold flex-shrink-0 overflow-hidden ${
-                p.isSpeaking ? 'ring-2 ring-green-400 ring-offset-1 ring-offset-gray-900' : ''
-              } bg-gradient-to-br from-gray-600 to-gray-700`;
+              const tileStyle: React.CSSProperties = {
+                background: HAIR_STRONG,
+                color: CREAM_DIM,
+                border: `1px solid ${HAIR_STRONG}`,
+                boxShadow: p.isSpeaking
+                  ? `0 0 0 2px ${FOREST}88, 0 0 12px ${FOREST}55`
+                  : 'none',
+              };
+              const tileClass =
+                'w-7 h-7 flex items-center justify-center mono text-[0.55rem] flex-shrink-0 overflow-hidden transition-opacity';
 
               return canLink ? (
                 <Link
                   key={p.peerId}
                   href={`/profile/${p.peerId}`}
-                  className={`${avatarClasses} hover:opacity-80 transition-opacity`}
+                  className={`${tileClass} hover:opacity-80`}
+                  style={tileStyle}
                   title={`View ${pName}'s profile`}
                 >
                   {avatarContent}
                 </Link>
               ) : (
-                <div key={p.peerId} className={avatarClasses}>
+                <div key={p.peerId} className={tileClass} style={tileStyle}>
                   {avatarContent}
                 </div>
               );
             })}
 
-            {/* More indicator */}
             {participants.length > 4 && (
-              <div className="w-8 h-8 rounded-full flex items-center justify-center text-xs text-gray-400 bg-gray-800 flex-shrink-0">
+              <div
+                className="w-7 h-7 flex items-center justify-center mono text-[0.55rem] flex-shrink-0"
+                style={{
+                  background: HAIR,
+                  color: CREAM_FAINT,
+                  border: `1px solid ${HAIR_STRONG}`,
+                }}
+              >
                 +{participants.length - 4}
               </div>
             )}
@@ -209,7 +287,12 @@ export default function MiniVoicePlayer() {
               <button
                 key={emoji}
                 onClick={() => voiceRoom.sendReaction(emoji)}
-                className="p-1.5 rounded-lg hover:bg-white/10 active:scale-90 transition-all"
+                className="p-1.5 active:scale-90 transition-all"
+                style={{ color: CREAM_DIM }}
+                onMouseEnter={(e) =>
+                  (e.currentTarget.style.background = 'rgba(244,238,228,0.04)')
+                }
+                onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}
               >
                 <span className="text-sm">{emoji}</span>
               </button>
@@ -220,26 +303,53 @@ export default function MiniVoicePlayer() {
           <div className="flex items-center gap-2">
             <button
               onClick={() => voiceRoom.toggleMute()}
-              className={`flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl font-medium text-sm transition-all ${
-                isMuted
-                  ? 'bg-white/10 hover:bg-white/20 text-white'
-                  : 'bg-green-500 hover:bg-green-600 text-white'
-              }`}
+              className="flex-1 mono uppercase tracking-[0.24em] text-[0.6rem] py-2.5 inline-flex items-center justify-center gap-1.5 transition-colors"
+              style={{
+                background: isMuted ? 'transparent' : FOREST,
+                color: isMuted ? CREAM_DIM : CREAM,
+                border: `1px solid ${isMuted ? HAIR_STRONG : FOREST}`,
+              }}
+              onMouseEnter={(e) => {
+                if (isMuted) {
+                  e.currentTarget.style.color = CREAM;
+                  e.currentTarget.style.borderColor = AMBER + '88';
+                } else {
+                  e.currentTarget.style.background = '#4a8d4d';
+                }
+              }}
+              onMouseLeave={(e) => {
+                if (isMuted) {
+                  e.currentTarget.style.color = CREAM_DIM;
+                  e.currentTarget.style.borderColor = HAIR_STRONG;
+                } else {
+                  e.currentTarget.style.background = FOREST;
+                }
+              }}
             >
-              {isMuted ? <MicOff className="w-4 h-4" /> : <Mic className="w-4 h-4" />}
-              {isMuted ? 'Unmute' : 'Mute'}
+              {isMuted ? <MicOff className="w-3.5 h-3.5" /> : <Mic className="w-3.5 h-3.5" />}
+              {isMuted ? 'Muted' : 'Live'}
             </button>
 
             <button
               onClick={() => voiceRoom.leave()}
-              className="flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-red-500/20 hover:bg-red-500/30 text-red-400 font-medium text-sm transition-all"
+              className="mono uppercase tracking-[0.24em] text-[0.6rem] px-4 py-2.5 inline-flex items-center gap-1.5 transition-colors"
+              style={{ color: EARTH, border: `1px solid ${EARTH}55` }}
+              onMouseEnter={(e) => (e.currentTarget.style.background = `${EARTH}11`)}
+              onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}
             >
-              <PhoneOff className="w-4 h-4" />
+              <PhoneOff className="w-3.5 h-3.5" />
               Leave
             </button>
           </div>
         </div>
       </div>
+
+      <style jsx>{`
+        @keyframes beatMini {
+          0%, 100% { transform: scale(0.85); opacity: 0.7; }
+          50% { transform: scale(1.2); opacity: 1; }
+        }
+      `}</style>
     </div>
   );
 }

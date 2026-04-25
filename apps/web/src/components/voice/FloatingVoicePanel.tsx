@@ -8,10 +8,28 @@ import { useWallet } from '@/hooks/useWallet';
 import Link from 'next/link';
 import dynamic from 'next/dynamic';
 import useSWR from 'swr';
+import { BellflowerIcon } from '@/components/PlantIcons';
+
+// ── Cosmic-plant palette ──
+const BG = '#0a0814';
+const CREAM = '#f4eee4';
+const CREAM_DIM = 'rgba(244,238,228,0.65)';
+const CREAM_FAINT = 'rgba(244,238,228,0.4)';
+const HAIR = 'rgba(244,238,228,0.08)';
+const HAIR_STRONG = 'rgba(244,238,228,0.16)';
+const AMBER = '#e89660';
+const PEACH = '#ecb48a';
+const FOREST = '#3f7a42';
+const EARTH = '#d67347';
 
 // Dynamically import CommunityHub to avoid circular dependencies
 const CommunityHub = dynamic(() => import('@/components/chat/CommunityHub'), {
-  loading: () => <div className="h-full bg-gray-900 animate-pulse" />,
+  loading: () => (
+    <div
+      className="h-full animate-pulse"
+      style={{ background: 'rgba(244,238,228,0.025)' }}
+    />
+  ),
   ssr: false,
 });
 
@@ -214,22 +232,31 @@ export default function FloatingVoicePanel() {
           />
         </div>
 
-        {/* Mobile: Chat button + Sidebar */}
+        {/* Mobile: floating bellflower entry + sidebar */}
         <button
           onClick={() => setIsMobileSidebarOpen(true)}
-          className="lg:hidden fixed bottom-6 right-6 z-40 p-4 bg-gradient-to-r from-cyan-500 to-blue-500 rounded-full shadow-lg shadow-cyan-500/25 hover:shadow-cyan-500/40 transition-all hover:scale-105"
+          className="lg:hidden fixed bottom-6 right-6 z-40 p-3.5 transition-all hover:scale-105"
+          style={{
+            background: AMBER,
+            color: BG,
+            boxShadow: '0 12px 32px rgba(232,150,96,0.35)',
+          }}
+          aria-label="Open community"
+          title="Community"
         >
-          <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
-          </svg>
+          <BellflowerIcon className="w-5 h-5" />
         </button>
 
-        {/* Mobile Sidebar */}
+        {/* Mobile sidebar */}
         {isMobileSidebarOpen && (
           <div className="lg:hidden fixed inset-0 z-50">
             <div
-              className="absolute inset-0 bg-black/60 backdrop-blur-sm"
-              style={{ opacity: isClosing ? 0 : Math.max(0, 1 - dragOffset / 300) }}
+              className="absolute inset-0"
+              style={{
+                background: 'rgba(10,8,20,0.7)',
+                backdropFilter: 'blur(6px)',
+                opacity: isClosing ? 0 : Math.max(0, 1 - dragOffset / 300),
+              }}
               onClick={() => setIsMobileSidebarOpen(false)}
             />
             <div
@@ -237,41 +264,70 @@ export default function FloatingVoicePanel() {
               onTouchStart={handleTouchStart}
               onTouchMove={handleTouchMove}
               onTouchEnd={handleTouchEnd}
-              className="absolute right-0 top-16 bottom-0 w-full max-w-md bg-gray-900 border-l border-gray-700/50 shadow-2xl animate-in slide-in-from-right duration-300 flex flex-col rounded-t-2xl"
+              className="absolute right-0 top-16 bottom-0 w-full max-w-md animate-in slide-in-from-right duration-300 flex flex-col"
               style={{
+                background: BG,
+                borderLeft: `1px solid ${HAIR_STRONG}`,
+                boxShadow: '0 -10px 50px rgba(0,0,0,0.6)',
                 transform: `translateY(${isClosing ? '100%' : `${dragOffset}px`})`,
                 transition: isDragging ? 'none' : 'transform 0.2s ease-out',
               }}
             >
-              {/* Drag zone - entire top section is touchable for swipe-to-dismiss */}
               <div className="touch-none select-none">
-                {/* Swipe indicator - more prominent handle */}
                 <div className="flex justify-center pt-3 pb-2">
                   <div
-                    className="w-12 h-1.5 rounded-full transition-all duration-200"
+                    className="w-12 h-1 transition-all duration-200"
                     style={{
-                      backgroundColor: dragOffset > DISMISS_THRESHOLD ? '#22c55e' : isDragging ? '#9ca3af' : '#4b5563',
+                      background:
+                        dragOffset > DISMISS_THRESHOLD
+                          ? FOREST
+                          : isDragging
+                          ? CREAM_DIM
+                          : HAIR_STRONG,
                       transform: isDragging ? 'scaleX(1.2)' : 'scaleX(1)',
                     }}
                   />
                 </div>
-                {/* Subtle hint text when dragging */}
                 {isDragging && (
                   <div className="text-center pb-1">
-                    <span className={`text-xs transition-colors ${dragOffset > DISMISS_THRESHOLD ? 'text-green-400' : 'text-gray-500'}`}>
-                      {dragOffset > DISMISS_THRESHOLD ? 'Release to close' : 'Swipe down to close'}
+                    <span
+                      className="mono uppercase tracking-[0.22em] text-[0.55rem] transition-colors"
+                      style={{
+                        color:
+                          dragOffset > DISMISS_THRESHOLD ? FOREST : CREAM_FAINT,
+                      }}
+                    >
+                      {dragOffset > DISMISS_THRESHOLD
+                        ? 'Release to close'
+                        : 'Swipe down to close'}
                     </span>
                   </div>
                 )}
-                <div className="flex items-center justify-between px-4 py-2 border-b border-gray-700/50">
-                  <h2 className="text-base font-medium text-white truncate flex-1 mr-2">{marketData?.name || 'Community'}</h2>
+                <div
+                  className="flex items-center justify-between px-4 py-3"
+                  style={{ borderBottom: `1px solid ${HAIR}` }}
+                >
+                  <h2
+                    className="truncate flex-1 mr-2"
+                    style={{
+                      color: CREAM,
+                      fontFamily: 'var(--font-fraunces, serif)',
+                      fontSize: '1rem',
+                      fontWeight: 350,
+                    }}
+                  >
+                    {marketData?.name || 'Community'}
+                  </h2>
                   <div className="flex items-center gap-2">
-                    <Wifi className="w-4 h-4 text-green-400" />
+                    <Wifi className="w-3.5 h-3.5" style={{ color: FOREST }} />
                     <button
                       onClick={() => setIsMobileSidebarOpen(false)}
-                      className="p-1.5 rounded-lg hover:bg-gray-800 transition-colors"
+                      className="p-1.5 transition-colors"
+                      style={{ color: CREAM_FAINT, border: `1px solid ${HAIR_STRONG}` }}
+                      onMouseEnter={(e) => (e.currentTarget.style.color = CREAM)}
+                      onMouseLeave={(e) => (e.currentTarget.style.color = CREAM_FAINT)}
                     >
-                      <Minimize2 className="w-4 h-4 text-gray-400" />
+                      <Minimize2 className="w-3.5 h-3.5" />
                     </button>
                   </div>
                 </div>
@@ -303,57 +359,100 @@ export default function FloatingVoicePanel() {
     return null;
   }
 
-  // Minimized bar view - clean like X Spaces
+  // Minimized bar — cosmic pill
   if (!isExpanded) {
     return (
       <div className="fixed bottom-4 left-4 right-4 md:left-auto md:right-4 md:max-w-sm z-50 animate-slide-up">
-        <div className="bg-gray-900/95 backdrop-blur-lg border border-white/10 rounded-full shadow-2xl overflow-hidden">
-          <div className="flex items-center gap-3 px-3 py-2">
-            {/* Live indicator */}
-            <div className="w-2 h-2 rounded-full bg-green-400 animate-pulse flex-shrink-0" />
-
-            {/* Room name - tap to expand */}
+        <div
+          className="overflow-hidden"
+          style={{
+            background: 'rgba(10,8,20,0.94)',
+            border: `1px solid ${HAIR_STRONG}`,
+            backdropFilter: 'blur(12px)',
+            WebkitBackdropFilter: 'blur(12px)',
+            boxShadow: '0 16px 40px rgba(0,0,0,0.5)',
+          }}
+        >
+          <div className="flex items-center gap-3 px-3 py-2.5">
+            <span
+              className="w-1.5 h-1.5 flex-shrink-0"
+              style={{
+                background: FOREST,
+                boxShadow: `0 0 6px ${FOREST}`,
+                animation: 'beatPill 1.4s ease-in-out infinite',
+              }}
+              aria-hidden
+            />
             <button
               onClick={() => setIsExpanded(true)}
               className="min-w-0 flex-1 text-left"
             >
-              <p className="text-sm font-medium text-white truncate">
-                {roomTitle || voiceMarketName || 'Voice Room'}
+              <p
+                className="truncate"
+                style={{
+                  color: CREAM,
+                  fontFamily: 'var(--font-fraunces, serif)',
+                  fontSize: '0.92rem',
+                }}
+              >
+                {roomTitle || voiceMarketName || 'Voice circle'}
               </p>
             </button>
-
-            {/* Participant count */}
-            <div className="flex items-center gap-1 text-xs text-gray-400 flex-shrink-0">
-              <Users className="w-3.5 h-3.5" />
-              <span>{totalParticipants}</span>
+            <div
+              className="flex items-center gap-1 mono uppercase tracking-[0.22em] text-[0.55rem] flex-shrink-0"
+              style={{ color: CREAM_FAINT }}
+            >
+              <Users className="w-3 h-3" />
+              {totalParticipants}
             </div>
-
-            {/* Controls */}
             <div className="flex items-center gap-1 flex-shrink-0">
-              {/* Mute toggle */}
               <button
                 onClick={() => voiceRoom.toggleMute()}
-                className={`p-2 rounded-full transition-all ${
-                  isMuted
-                    ? 'bg-white/10 hover:bg-white/20 text-white'
-                    : 'bg-green-500 hover:bg-green-600 text-white'
-                }`}
+                className="p-1.5 transition-colors"
+                style={{
+                  background: isMuted ? 'transparent' : FOREST,
+                  color: isMuted ? CREAM_DIM : CREAM,
+                  border: `1px solid ${isMuted ? HAIR_STRONG : FOREST}`,
+                }}
+                onMouseEnter={(e) => {
+                  if (isMuted) {
+                    e.currentTarget.style.color = CREAM;
+                    e.currentTarget.style.borderColor = AMBER + '88';
+                  } else {
+                    e.currentTarget.style.background = '#4a8d4d';
+                  }
+                }}
+                onMouseLeave={(e) => {
+                  if (isMuted) {
+                    e.currentTarget.style.color = CREAM_DIM;
+                    e.currentTarget.style.borderColor = HAIR_STRONG;
+                  } else {
+                    e.currentTarget.style.background = FOREST;
+                  }
+                }}
                 title={isMuted ? 'Unmute' : 'Mute'}
               >
-                {isMuted ? <MicOff className="w-4 h-4" /> : <Mic className="w-4 h-4" />}
+                {isMuted ? <MicOff className="w-3.5 h-3.5" /> : <Mic className="w-3.5 h-3.5" />}
               </button>
-
-              {/* Leave button */}
               <button
                 onClick={() => voiceRoom.leave()}
-                className="p-2 rounded-full bg-red-500/20 hover:bg-red-500/30 text-red-400 transition-all"
+                className="p-1.5 transition-colors"
+                style={{ color: EARTH, border: `1px solid ${EARTH}55` }}
+                onMouseEnter={(e) => (e.currentTarget.style.background = `${EARTH}11`)}
+                onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}
                 title="Leave"
               >
-                <PhoneOff className="w-4 h-4" />
+                <PhoneOff className="w-3.5 h-3.5" />
               </button>
             </div>
           </div>
         </div>
+        <style jsx>{`
+          @keyframes beatPill {
+            0%, 100% { transform: scale(0.85); opacity: 0.7; }
+            50% { transform: scale(1.2); opacity: 1; }
+          }
+        `}</style>
       </div>
     );
   }
@@ -361,64 +460,104 @@ export default function FloatingVoicePanel() {
   // Expanded view - floating panel for voice room from another market
   return (
     <>
-      {/* Mobile: Full screen slide-in panel */}
+      {/* Mobile: full-screen slide-in panel */}
       <div className="lg:hidden fixed inset-0 z-50">
         <div
-          className="absolute inset-0 bg-black/60 backdrop-blur-sm"
-          style={{ opacity: isClosing ? 0 : Math.max(0, 1 - dragOffset / 300) }}
+          className="absolute inset-0"
+          style={{
+            background: 'rgba(10,8,20,0.7)',
+            backdropFilter: 'blur(6px)',
+            opacity: isClosing ? 0 : Math.max(0, 1 - dragOffset / 300),
+          }}
           onClick={() => setIsExpanded(false)}
         />
         <div
           onTouchStart={handleExpandedTouchStart}
           onTouchMove={handleExpandedTouchMove}
           onTouchEnd={handleExpandedTouchEnd}
-          className="absolute right-0 top-16 bottom-0 w-full max-w-md bg-gray-900/85 backdrop-blur-xl border-l border-white/10 shadow-2xl shadow-black/50 animate-in slide-in-from-right duration-300 flex flex-col rounded-t-2xl"
+          className="absolute right-0 top-16 bottom-0 w-full max-w-md animate-in slide-in-from-right duration-300 flex flex-col"
           style={{
+            background: BG,
+            borderLeft: `1px solid ${HAIR_STRONG}`,
+            boxShadow: '0 -10px 50px rgba(0,0,0,0.6)',
             transform: `translateY(${isClosing ? '100%' : `${dragOffset}px`})`,
             transition: isDragging ? 'none' : 'transform 0.2s ease-out',
           }}
         >
-          {/* Drag zone - entire top section is touchable for swipe-to-dismiss */}
           <div className="touch-none select-none">
-            {/* Swipe indicator - more prominent handle */}
             <div className="flex justify-center pt-3 pb-2">
               <div
-                className="w-12 h-1.5 rounded-full transition-all duration-200"
+                className="w-12 h-1 transition-all duration-200"
                 style={{
-                  backgroundColor: dragOffset > DISMISS_THRESHOLD ? '#22c55e' : isDragging ? '#9ca3af' : '#4b5563',
+                  background:
+                    dragOffset > DISMISS_THRESHOLD
+                      ? FOREST
+                      : isDragging
+                      ? CREAM_DIM
+                      : HAIR_STRONG,
                   transform: isDragging ? 'scaleX(1.2)' : 'scaleX(1)',
                 }}
               />
             </div>
-            {/* Subtle hint text when dragging */}
             {isDragging && (
               <div className="text-center pb-1">
-                <span className={`text-xs transition-colors ${dragOffset > DISMISS_THRESHOLD ? 'text-green-400' : 'text-gray-500'}`}>
-                  {dragOffset > DISMISS_THRESHOLD ? 'Release to close' : 'Swipe down to close'}
+                <span
+                  className="mono uppercase tracking-[0.22em] text-[0.55rem] transition-colors"
+                  style={{
+                    color: dragOffset > DISMISS_THRESHOLD ? FOREST : CREAM_FAINT,
+                  }}
+                >
+                  {dragOffset > DISMISS_THRESHOLD
+                    ? 'Release to close'
+                    : 'Swipe down to close'}
                 </span>
               </div>
             )}
-            <div className="flex items-center justify-between px-4 py-2 border-b border-gray-700/50">
+            <div
+              className="flex items-center justify-between px-4 py-3"
+              style={{ borderBottom: `1px solid ${HAIR}` }}
+            >
               <div className="flex items-center gap-2 flex-1 min-w-0">
-                <div className="w-2 h-2 rounded-full bg-green-400 animate-pulse flex-shrink-0" />
+                <span
+                  className="w-1.5 h-1.5 flex-shrink-0"
+                  style={{
+                    background: FOREST,
+                    boxShadow: `0 0 6px ${FOREST}`,
+                    animation: 'beatHead 1.4s ease-in-out infinite',
+                  }}
+                  aria-hidden
+                />
                 <Link
                   href={`/market/${voiceMarketId}`}
-                  className="text-base font-medium text-white hover:text-cyan-400 transition-colors truncate"
+                  className="truncate transition-colors"
+                  style={{
+                    color: CREAM,
+                    fontFamily: 'var(--font-fraunces, serif)',
+                    fontSize: '0.95rem',
+                  }}
+                  onMouseEnter={(e) => (e.currentTarget.style.color = AMBER)}
+                  onMouseLeave={(e) => (e.currentTarget.style.color = CREAM)}
                 >
-                  {roomTitle || voiceMarketName || 'Voice Room'}
+                  {roomTitle || voiceMarketName || 'Voice circle'}
                 </Link>
               </div>
               <div className="flex items-center gap-2 flex-shrink-0">
-                <div className="flex items-center gap-1 text-xs text-gray-400">
-                  <Users className="w-3.5 h-3.5" />
-                  <span>{totalParticipants}</span>
+                <div
+                  className="flex items-center gap-1 mono uppercase tracking-[0.22em] text-[0.55rem]"
+                  style={{ color: CREAM_FAINT }}
+                >
+                  <Users className="w-3 h-3" />
+                  {totalParticipants}
                 </div>
                 <button
                   onClick={() => setIsExpanded(false)}
-                  className="p-1.5 rounded-lg hover:bg-gray-800 transition-colors"
+                  className="p-1.5 transition-colors"
+                  style={{ color: CREAM_FAINT, border: `1px solid ${HAIR_STRONG}` }}
+                  onMouseEnter={(e) => (e.currentTarget.style.color = CREAM)}
+                  onMouseLeave={(e) => (e.currentTarget.style.color = CREAM_FAINT)}
                   title="Minimize"
                 >
-                  <Minimize2 className="w-4 h-4 text-gray-400" />
+                  <Minimize2 className="w-3.5 h-3.5" />
                 </button>
               </div>
             </div>
@@ -431,31 +570,66 @@ export default function FloatingVoicePanel() {
               walletAddress={walletAddress}
               founderWallet={null}
               hasPosition={true}
-              className="h-full rounded-none border-0 bg-transparent"
+              className="h-full"
               onMinimize={() => setIsExpanded(false)}
             />
           </div>
         </div>
       </div>
 
-      {/* Desktop: Fixed right sidebar */}
-      <div className="hidden lg:block fixed top-[6.5rem] right-4 w-[28%] min-w-[320px] max-w-[400px] z-30 bg-gray-900/80 backdrop-blur-xl rounded-xl border border-white/10 shadow-2xl shadow-black/40 overflow-hidden">
-        <div className="flex items-center justify-between px-4 py-2 border-b border-white/10">
+      {/* Desktop: fixed right sidebar */}
+      <div
+        className="hidden lg:block fixed top-[6.5rem] right-4 w-[28%] min-w-[320px] max-w-[400px] z-30 overflow-hidden"
+        style={{
+          background: 'rgba(10,8,20,0.92)',
+          border: `1px solid ${HAIR_STRONG}`,
+          backdropFilter: 'blur(12px)',
+          boxShadow: '0 16px 40px rgba(0,0,0,0.5)',
+        }}
+      >
+        <div
+          className="flex items-center justify-between px-4 py-2.5"
+          style={{ borderBottom: `1px solid ${HAIR}` }}
+        >
           <div className="flex items-center gap-2">
-            <div className="w-2 h-2 rounded-full bg-green-400 animate-pulse" />
+            <span
+              className="w-1.5 h-1.5"
+              style={{
+                background: FOREST,
+                boxShadow: `0 0 6px ${FOREST}`,
+                animation: 'beatHead 1.4s ease-in-out infinite',
+              }}
+              aria-hidden
+            />
             <Link
               href={`/market/${voiceMarketId}`}
-              className="text-sm font-medium text-white hover:text-cyan-400 transition-colors"
+              className="transition-colors"
+              style={{
+                color: CREAM,
+                fontFamily: 'var(--font-fraunces, serif)',
+                fontSize: '0.92rem',
+              }}
+              onMouseEnter={(e) => (e.currentTarget.style.color = AMBER)}
+              onMouseLeave={(e) => (e.currentTarget.style.color = CREAM)}
             >
-              {roomTitle || voiceMarketName || 'Voice Room'}
+              {roomTitle || voiceMarketName || 'Voice circle'}
             </Link>
           </div>
           <button
             onClick={() => setIsExpanded(false)}
-            className="p-1.5 rounded-lg hover:bg-white/10 text-gray-400 hover:text-white transition-all"
+            className="p-1.5 transition-colors"
+            style={{ color: CREAM_FAINT, border: `1px solid ${HAIR_STRONG}` }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.color = CREAM;
+              e.currentTarget.style.borderColor = AMBER + '88';
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.color = CREAM_FAINT;
+              e.currentTarget.style.borderColor = HAIR_STRONG;
+            }}
             title="Minimize"
           >
-            <Minimize2 className="w-4 h-4" />
+            <Minimize2 className="w-3.5 h-3.5" />
           </button>
         </div>
         <CommunityHub
@@ -465,10 +639,17 @@ export default function FloatingVoicePanel() {
           walletAddress={walletAddress}
           founderWallet={null}
           hasPosition={true}
-          className="h-[calc(100vh-9rem)] rounded-none border-0 bg-transparent"
+          className="h-[calc(100vh-9rem)]"
           onMinimize={() => setIsExpanded(false)}
         />
       </div>
+
+      <style jsx>{`
+        @keyframes beatHead {
+          0%, 100% { transform: scale(0.85); opacity: 0.7; }
+          50% { transform: scale(1.2); opacity: 1; }
+        }
+      `}</style>
     </>
   );
 }

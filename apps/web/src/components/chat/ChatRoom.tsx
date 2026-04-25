@@ -7,6 +7,13 @@ import MessageList from './MessageList';
 import MessageInput from './MessageInput';
 import PinnedMessages from './PinnedMessages';
 import TypingIndicator from './TypingIndicator';
+import { SeedIcon } from '@/components/PlantIcons';
+
+// Cosmic-plant palette
+const CREAM = '#f4eee4';
+const CREAM_DIM = 'rgba(244,238,228,0.65)';
+const CREAM_FAINT = 'rgba(244,238,228,0.4)';
+const EARTH = '#d67347';
 
 interface ChatRoomProps {
   marketAddress: string;
@@ -52,11 +59,44 @@ export default function ChatRoom({ marketAddress, walletAddress, founderWallet, 
   if (error && !messages.length) {
     return (
       <div className={`flex flex-col h-full bg-transparent ${className}`}>
-        <div className="flex-1 flex items-center justify-center">
-          <div className="text-center space-y-2 p-4">
-            <div className="text-3xl">😕</div>
-            <p className="text-sm text-gray-400">Failed to load chat</p>
-            <p className="text-xs text-gray-500">{error}</p>
+        <div className="flex-1 flex items-center justify-center px-6">
+          <div
+            className="text-center max-w-xs px-6 py-8"
+            style={{
+              background: 'rgba(214,115,71,0.06)',
+              border: `1px solid ${EARTH}55`,
+            }}
+          >
+            <SeedIcon className="w-7 h-7 mx-auto mb-3" />
+            <p
+              className="mb-2"
+              style={{
+                color: CREAM,
+                fontFamily: 'var(--font-fraunces, serif)',
+                fontSize: '0.95rem',
+                fontWeight: 350,
+              }}
+            >
+              The grove is quiet.
+            </p>
+            <p
+              className="mono uppercase tracking-[0.22em] text-[0.55rem]"
+              style={{ color: CREAM_FAINT }}
+            >
+              Couldn't reach the chat
+            </p>
+            {error && (
+              <p
+                className="mt-2 italic text-[0.7rem]"
+                style={{
+                  color: CREAM_DIM,
+                  fontFamily: 'var(--font-fraunces, serif)',
+                  fontStyle: 'italic',
+                }}
+              >
+                {error}
+              </p>
+            )}
           </div>
         </div>
       </div>
