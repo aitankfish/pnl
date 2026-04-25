@@ -1,43 +1,8 @@
 import { Metadata } from 'next';
+import { getMarket } from './_data';
 
 // Base URL for the app
 const BASE_URL = process.env.NEXT_PUBLIC_APP_URL || 'https://pnl.market';
-
-interface MarketData {
-  name: string;
-  description: string;
-  tokenSymbol: string;
-  projectImageUrl?: string;
-  category?: string;
-  status?: string;
-  yesPercentage?: number;
-  totalParticipants?: number;
-}
-
-async function getMarketData(id: string): Promise<MarketData | null> {
-  try {
-    const apiUrl = process.env.NEXT_PUBLIC_API_URL || BASE_URL;
-    const fetchUrl = `${apiUrl}/api/markets/${id}`;
-
-    const response = await fetch(fetchUrl, {
-      next: { revalidate: 60 }, // Cache for 60 seconds
-      headers: {
-        'Accept': 'application/json',
-      },
-    });
-
-    if (!response.ok) {
-      console.error(`[Metadata] Failed to fetch market ${id}: ${response.status} ${response.statusText}`);
-      return null;
-    }
-
-    const result = await response.json();
-    return result.success ? result.data : null;
-  } catch (error) {
-    console.error(`[Metadata] Error fetching market ${id}:`, error);
-    return null;
-  }
-}
 
 export async function generateMetadata({
   params,
@@ -45,7 +10,9 @@ export async function generateMetadata({
   params: Promise<{ id: string }>;
 }): Promise<Metadata> {
   const { id } = await params;
-  const market = await getMarketData(id);
+  // `cache()` in _data.ts ensures this fetch is shared with the page render
+  // for the same request — single round-trip per visit.
+  const market = await getMarket(id);
 
   if (!market) {
     return {

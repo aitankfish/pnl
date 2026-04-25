@@ -35,8 +35,10 @@ const nextConfig = {
   // Standalone output for better deployment
   output: 'standalone',
 
-  // Use SWC minifier (faster and lower memory than Terser)
-  swcMinify: true,
+  // Use JS Terser instead of SWC minifier — SWC's emoji handling chokes on
+  // variation-selector combos (↩️, ⚠️, 🗑️, 🗳️) that appear in source.
+  // Tradeoff: slightly slower build, higher memory; correct minification.
+  swcMinify: false,
 
   // Enable compression
   compress: true,
