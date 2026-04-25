@@ -1,130 +1,129 @@
 'use client';
 
-import Link from 'next/link';
-import { ArrowLeft } from 'lucide-react';
+import EditorialDoc from '@/components/EditorialDoc';
 
 export default function TermsOfService() {
   return (
-    <div className="min-h-screen bg-black text-white py-8 px-4 sm:px-6 lg:px-8">
-      <div className="max-w-3xl mx-auto">
-        {/* Back button */}
-        <Link
-          href="/"
-          className="inline-flex items-center gap-2 text-gray-400 hover:text-white mb-8 transition-colors"
-        >
-          <ArrowLeft className="w-4 h-4" />
-          Back to Home
-        </Link>
+    <EditorialDoc
+      eyebrow="Promise"
+      title="Terms of service"
+      subtitle="The rules of the grove. By using PNL you agree to these."
+      lastUpdated="December 2024"
+    >
+      <section>
+        <h2>§ 01 — Acceptance of terms</h2>
+        <p>
+          By accessing or using PNL (Predict &amp; Launch), a service provided by
+          WOLP LLC, you agree to be bound by these Terms of Service. If you do
+          not agree to these terms, please do not use our platform.
+        </p>
+      </section>
 
-        <h1 className="text-3xl sm:text-4xl font-bold mb-2">Terms of Service</h1>
-        <p className="text-gray-400 mb-8">Last updated: December 2024</p>
+      <section>
+        <h2>§ 02 — Description of service</h2>
+        <p>
+          PNL is a prediction market platform built on Solana that enables
+          community-driven project validation and fundraising. Users can
+          participate in prediction markets by staking SOL to vote on project
+          viability.
+        </p>
+      </section>
 
-        <div className="space-y-8 text-gray-300">
-          <section>
-            <h2 className="text-xl font-semibold text-white mb-3">1. Acceptance of Terms</h2>
-            <p>
-              By accessing or using PNL (Predict & Launch), a service provided by WOLP LLC, you agree to be bound by these Terms of Service.
-              If you do not agree to these terms, please do not use our platform.
-            </p>
-          </section>
+      <section>
+        <h2>§ 03 — Eligibility</h2>
+        <p>
+          You must be at least 18 years old to use PNL. By using our platform,
+          you represent and warrant that you meet this age requirement and have
+          the legal capacity to enter into these terms.
+        </p>
+      </section>
 
-          <section>
-            <h2 className="text-xl font-semibold text-white mb-3">2. Description of Service</h2>
-            <p>
-              PNL is a prediction market platform built on Solana that enables community-driven project
-              validation and fundraising. Users can participate in prediction markets by staking SOL to
-              vote on project viability.
-            </p>
-          </section>
+      <section>
+        <h2>§ 04 — User responsibilities</h2>
+        <ul>
+          <li>
+            You are responsible for maintaining the security of your wallet and
+            credentials.
+          </li>
+          <li>
+            You agree not to use the platform for any illegal or unauthorized
+            purpose.
+          </li>
+          <li>
+            You will not attempt to manipulate markets or engage in fraudulent
+            activity.
+          </li>
+          <li>You understand that cryptocurrency transactions are irreversible.</li>
+        </ul>
+      </section>
 
-          <section>
-            <h2 className="text-xl font-semibold text-white mb-3">3. Eligibility</h2>
-            <p>
-              You must be at least 18 years old to use PNL. By using our platform, you represent and
-              warrant that you meet this age requirement and have the legal capacity to enter into
-              these terms.
-            </p>
-          </section>
+      <section>
+        <h2>§ 05 — Risks</h2>
+        <p>By using PNL, you acknowledge and accept the following risks:</p>
+        <ul>
+          <li>
+            Cryptocurrency values are volatile and you may lose your entire
+            investment.
+          </li>
+          <li>Prediction markets involve speculation and outcomes are uncertain.</li>
+          <li>Smart contracts may contain bugs or vulnerabilities.</li>
+          <li>Blockchain transactions are final and cannot be reversed.</li>
+        </ul>
+      </section>
 
-          <section>
-            <h2 className="text-xl font-semibold text-white mb-3">4. User Responsibilities</h2>
-            <ul className="list-disc list-inside space-y-2">
-              <li>You are responsible for maintaining the security of your wallet and credentials</li>
-              <li>You agree not to use the platform for any illegal or unauthorized purpose</li>
-              <li>You will not attempt to manipulate markets or engage in fraudulent activity</li>
-              <li>You understand that cryptocurrency transactions are irreversible</li>
-            </ul>
-          </section>
+      <section>
+        <h2>§ 06 — Fees</h2>
+        <p>
+          PNL charges the following fees: a market creation fee of{' '}
+          <strong>0.015 SOL</strong>, a <strong>1.5%</strong> fee on trades, and
+          a <strong>5%</strong> completion fee when markets resolve. These fees
+          are subject to change with notice.
+        </p>
+      </section>
 
-          <section>
-            <h2 className="text-xl font-semibold text-white mb-3">5. Risks</h2>
-            <p className="mb-3">
-              By using PNL, you acknowledge and accept the following risks:
-            </p>
-            <ul className="list-disc list-inside space-y-2">
-              <li>Cryptocurrency values are volatile and you may lose your entire investment</li>
-              <li>Prediction markets involve speculation and outcomes are uncertain</li>
-              <li>Smart contracts may contain bugs or vulnerabilities</li>
-              <li>Blockchain transactions are final and cannot be reversed</li>
-            </ul>
-          </section>
+      <section>
+        <h2>§ 07 — Intellectual property</h2>
+        <p>
+          All content, features, and functionality of PNL are owned by us and
+          are protected by international copyright, trademark, and other
+          intellectual property laws.
+        </p>
+      </section>
 
-          <section>
-            <h2 className="text-xl font-semibold text-white mb-3">6. Fees</h2>
-            <p>
-              PNL charges the following fees: a market creation fee of 0.015 SOL, a 1.5% fee on trades,
-              and a 5% completion fee when markets resolve. These fees are subject to change with notice.
-            </p>
-          </section>
+      <section>
+        <h2>§ 08 — Disclaimer of warranties</h2>
+        <p>
+          PNL is provided <em>"as is"</em> without warranties of any kind. We do
+          not guarantee that the platform will be error-free, secure, or
+          continuously available.
+        </p>
+      </section>
 
-          <section>
-            <h2 className="text-xl font-semibold text-white mb-3">7. Intellectual Property</h2>
-            <p>
-              All content, features, and functionality of PNL are owned by us and are protected by
-              international copyright, trademark, and other intellectual property laws.
-            </p>
-          </section>
+      <section>
+        <h2>§ 09 — Limitation of liability</h2>
+        <p>
+          To the maximum extent permitted by law, WOLP LLC and its team shall
+          not be liable for any indirect, incidental, special, consequential, or
+          punitive damages, including loss of profits, data, or other intangible
+          losses.
+        </p>
+      </section>
 
-          <section>
-            <h2 className="text-xl font-semibold text-white mb-3">8. Disclaimer of Warranties</h2>
-            <p>
-              PNL is provided "as is" without warranties of any kind. We do not guarantee that the
-              platform will be error-free, secure, or continuously available.
-            </p>
-          </section>
+      <section>
+        <h2>§ 10 — Changes to terms</h2>
+        <p>
+          We reserve the right to modify these terms at any time. Continued use
+          of the platform after changes constitutes acceptance of the new terms.
+        </p>
+      </section>
 
-          <section>
-            <h2 className="text-xl font-semibold text-white mb-3">9. Limitation of Liability</h2>
-            <p>
-              To the maximum extent permitted by law, WOLP LLC and its team shall not be liable for any
-              indirect, incidental, special, consequential, or punitive damages, including loss of
-              profits, data, or other intangible losses.
-            </p>
-          </section>
-
-          <section>
-            <h2 className="text-xl font-semibold text-white mb-3">10. Changes to Terms</h2>
-            <p>
-              We reserve the right to modify these terms at any time. Continued use of the platform
-              after changes constitutes acceptance of the new terms.
-            </p>
-          </section>
-
-          <section>
-            <h2 className="text-xl font-semibold text-white mb-3">11. Contact</h2>
-            <p>
-              For questions about these Terms of Service, please contact us through our official
-              social media channels or community Discord.
-            </p>
-          </section>
-        </div>
-
-        {/* Footer */}
-        <div className="mt-12 pt-8 border-t border-white/10 text-center text-gray-500 text-sm">
-          <p>PNL - Predict & Launch</p>
-          <p className="mt-1">A service provided by WOLP LLC</p>
-        </div>
-      </div>
-    </div>
+      <section>
+        <h2>§ 11 — Contact</h2>
+        <p>
+          For questions about these Terms of Service, please reach out via our
+          community Discord or X.
+        </p>
+      </section>
+    </EditorialDoc>
   );
 }

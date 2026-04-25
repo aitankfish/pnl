@@ -303,3 +303,136 @@ body .dynamic__button:not(.dynamic__button--secondary):hover {
 .animate-fade-in {
   animation: fade-in 0.4s ease-out;
 }
+
+/* ─────────────────────────────────────────────────────────────────────
+   Editorial document styles
+   Used by static legal/info pages (/privacy, /terms, /how-to-buy).
+   Applies cosmic-plant typography + spacing to plain semantic HTML
+   (h2 / h3 / p / ul / li / strong / a) so each page just writes content.
+   ───────────────────────────────────────────────────────────────────── */
+
+.editorial-doc {
+  color: rgba(244, 238, 228, 0.78);
+  font-family: var(--font-fraunces), 'Times New Roman', serif;
+}
+
+.editorial-doc section {
+  padding-top: 2.25rem;
+  margin-top: 2.25rem;
+  border-top: 1px solid rgba(244, 238, 228, 0.08);
+}
+
+.editorial-doc section:first-child {
+  padding-top: 0;
+  margin-top: 0;
+  border-top: none;
+}
+
+.editorial-doc h2 {
+  font-family: var(--font-mono), ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-feature-settings: 'ss02' on, 'cv11' on;
+  text-transform: uppercase;
+  letter-spacing: 0.28em;
+  font-size: 0.65rem;
+  color: #e89660;
+  margin: 0 0 1rem 0;
+}
+
+.editorial-doc h3 {
+  font-family: var(--font-fraunces), 'Times New Roman', serif;
+  color: #f4eee4;
+  font-weight: 400;
+  font-size: 1.05rem;
+  margin: 1.5rem 0 0.5rem 0;
+}
+
+.editorial-doc p {
+  font-size: 1rem;
+  line-height: 1.7;
+  margin: 0 0 1rem 0;
+  color: rgba(244, 238, 228, 0.78);
+}
+
+.editorial-doc p:last-child {
+  margin-bottom: 0;
+}
+
+.editorial-doc ul,
+.editorial-doc ol {
+  margin: 0.5rem 0 1.25rem 0;
+  padding: 0;
+  list-style: none;
+  counter-reset: editorial-list;
+}
+
+.editorial-doc li {
+  font-size: 1rem;
+  line-height: 1.6;
+  margin-bottom: 0.6rem;
+  color: rgba(244, 238, 228, 0.78);
+  padding-left: 1.4em;
+  position: relative;
+}
+
+.editorial-doc ul > li::before {
+  content: '·';
+  position: absolute;
+  left: 0.45em;
+  top: -0.05em;
+  color: #e89660;
+  font-weight: 700;
+}
+
+.editorial-doc ol > li {
+  counter-increment: editorial-list;
+}
+
+.editorial-doc ol > li::before {
+  content: counter(editorial-list, decimal) '.';
+  position: absolute;
+  left: 0;
+  color: #e89660;
+  font-family: var(--font-mono), ui-monospace, monospace;
+  font-size: 0.78em;
+  letter-spacing: 0.04em;
+  top: 0.18em;
+}
+
+.editorial-doc strong {
+  color: #f4eee4;
+  font-weight: 500;
+}
+
+.editorial-doc em {
+  font-style: italic;
+  color: rgba(244, 238, 228, 0.92);
+}
+
+.editorial-doc a {
+  color: #e89660;
+  text-decoration: underline;
+  text-decoration-thickness: 1px;
+  text-underline-offset: 3px;
+  text-decoration-color: rgba(232, 150, 96, 0.4);
+  transition: text-decoration-color 200ms;
+}
+
+.editorial-doc a:hover {
+  text-decoration-color: #e89660;
+}
+
+.editorial-doc code {
+  font-family: var(--font-mono), ui-monospace, monospace;
+  font-size: 0.88em;
+  background: rgba(244, 238, 228, 0.06);
+  padding: 0.1em 0.4em;
+  color: #ecb48a;
+}
+
+.editorial-doc blockquote {
+  margin: 1.25rem 0;
+  padding: 0.75rem 1.25rem;
+  border-left: 2px solid #e89660;
+  font-style: italic;
+  color: rgba(244, 238, 228, 0.78);
+}
