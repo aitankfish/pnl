@@ -2591,62 +2591,62 @@ export default function MarketDetailClient({
                     <>
                       {/* Pool Filled - Waiting for Resolution (but NOT in Funding Phase) */}
                       {mergedOnchainData.data.poolProgressPercentage >= 100 && mergedOnchainData.data.phase !== 'Funding' ? (
-                        <div className="pt-2 border-t border-white/5">
-                          <div className="bg-gradient-to-br from-cyan-500/10 via-purple-500/10 to-pink-500/10 border border-cyan-400/30 rounded-lg p-4">
-                            <div className="flex items-start justify-between mb-3">
-                              <div className="flex-1">
-                                <h4 className="text-cyan-400 text-base font-bold mb-2 flex items-center space-x-2">
-                                  <span>🎯</span>
-                                  <span>Pool Complete - Voting Closed</span>
-                                </h4>
-                                <p className="text-gray-300 text-sm mb-2">
-                                  The funding target has been reached! No more votes can be placed.
-                                </p>
-                                <p className="text-gray-400 text-xs">
-                                  {Number(mergedOnchainData.data.totalYesShares) > Number(mergedOnchainData.data.totalNoShares)
-                                    ? '✅ YES is currently winning - Token launch likely!'
-                                    : '❌ NO is currently winning - No token launch'}
-                                </p>
-                              </div>
+                        <div className="pt-2" style={{ borderTop: `1px solid ${HAIR}` }}>
+                          <div className="p-4" style={{ background: `${PEACH}0d`, border: `1px solid ${PEACH}33` }}>
+                            <div className="mb-3">
+                              <p className="mono uppercase tracking-[0.28em] text-[0.55rem] mb-2" style={{ color: PEACH }}>
+                                Pool complete · voting closed
+                              </p>
+                              <p style={{ color: CREAM_DIM, fontFamily: 'var(--font-fraunces, serif)', fontSize: '0.92rem', lineHeight: 1.5, marginBottom: '0.5rem' }}>
+                                The funding target has been reached. No more votes can be placed.
+                              </p>
+                              <p className="mono text-[0.62rem] uppercase tracking-[0.2em]" style={{
+                                color: Number(mergedOnchainData.data.totalYesShares) > Number(mergedOnchainData.data.totalNoShares) ? FOREST : EARTH,
+                              }}>
+                                {Number(mergedOnchainData.data.totalYesShares) > Number(mergedOnchainData.data.totalNoShares)
+                                  ? '● YES winning — token launch likely'
+                                  : '● NO winning — no token launch'}
+                              </p>
                             </div>
-                            <div className="flex items-center justify-between pt-3 border-t border-white/10">
+                            <div className="flex items-center justify-between pt-3" style={{ borderTop: `1px solid ${HAIR}` }}>
                               <div>
-                                <p className="text-xs text-gray-400 mb-1">Resolution available in</p>
+                                <p className="mono uppercase tracking-[0.22em] text-[0.5rem] mb-1" style={{ color: CREAM_FAINT }}>Resolution available in</p>
                                 <CountdownTimer expiryTime={market.expiryTime} size="lg" />
                               </div>
-                              <Badge className="bg-orange-500/20 text-orange-300 border-orange-400/30">
-                                Awaiting Expiry
-                              </Badge>
+                              <span className="mono uppercase tracking-[0.24em] text-[0.55rem] px-2 py-1" style={{ color: AMBER, border: `1px solid ${AMBER}55`, background: `${AMBER}0d` }}>
+                                Awaiting expiry
+                              </span>
                             </div>
                           </div>
 
                           {/* Founder Actions - Only for founder when target reached and YES winning */}
                           {primaryWallet?.address === mergedOnchainData.data.founder &&
                            Number(mergedOnchainData.data.totalYesShares) > Number(mergedOnchainData.data.totalNoShares) && (
-                            <div className="mt-4 bg-gradient-to-br from-purple-500/10 via-pink-500/10 to-cyan-500/10 border border-purple-400/30 rounded-lg p-4 space-y-3">
-                              <div className="flex items-start justify-between">
-                                <div className="flex-1">
-                                  <h4 className="text-purple-400 text-sm font-semibold mb-1">🎯 Target Reached!</h4>
-                                  {mergedOnchainData.data.phase === 'Funding' ? (
-                                    <>
-                                      <p className="text-gray-300 text-xs mb-2">
-                                        Market is in Funding Phase. You can now launch your token!
-                                      </p>
-                                      <p className="text-cyan-300 text-xs italic">
-                                        ✨ Token will have a branded PNL address ending with "pnl"
-                                      </p>
-                                    </>
-                                  ) : (
-                                    <>
-                                      <p className="text-gray-300 text-xs mb-2">
-                                        Your market has reached the target pool and YES is winning. <span className="text-yellow-400 font-semibold">Extend to Funding Phase first</span> to enable token launch.
-                                      </p>
-                                      <p className="text-cyan-300 text-xs italic">
-                                        ✨ After extending, you can launch your token or continue raising funds
-                                      </p>
-                                    </>
-                                  )}
-                                </div>
+                            <div className="mt-4 p-4 space-y-3" style={{ background: `${AMBER}0d`, border: `1px solid ${AMBER}33` }}>
+                              <div>
+                                <p className="mono uppercase tracking-[0.28em] text-[0.55rem] mb-2" style={{ color: AMBER }}>
+                                  Target reached · founder action
+                                </p>
+                                {mergedOnchainData.data.phase === 'Funding' ? (
+                                  <>
+                                    <p style={{ color: CREAM_DIM, fontFamily: 'var(--font-fraunces, serif)', fontSize: '0.88rem', lineHeight: 1.5, marginBottom: '0.4rem' }}>
+                                      Market is in funding phase. You can now launch your token.
+                                    </p>
+                                    <p className="italic" style={{ color: PEACH, fontFamily: 'var(--font-fraunces, serif)', fontStyle: 'italic', fontSize: '0.78rem' }}>
+                                      Token will have a branded PNL address ending with &quot;pnl&quot;.
+                                    </p>
+                                  </>
+                                ) : (
+                                  <>
+                                    <p style={{ color: CREAM_DIM, fontFamily: 'var(--font-fraunces, serif)', fontSize: '0.88rem', lineHeight: 1.5, marginBottom: '0.4rem' }}>
+                                      Your market has reached the target pool and YES is winning.{' '}
+                                      <span style={{ color: AMBER, fontWeight: 500 }}>Extend to funding phase first</span> to enable token launch.
+                                    </p>
+                                    <p className="italic" style={{ color: PEACH, fontFamily: 'var(--font-fraunces, serif)', fontStyle: 'italic', fontSize: '0.78rem' }}>
+                                      After extending, you can launch your token or continue raising funds.
+                                    </p>
+                                  </>
+                                )}
                               </div>
 
                               {/* Show appropriate button based on phase */}
@@ -2690,22 +2690,21 @@ export default function MarketDetailClient({
                                     }
                                   }}
                                   disabled={isResolving}
-                                  className="w-full bg-gradient-to-r from-green-500 to-cyan-500 hover:from-green-600 hover:to-cyan-600 text-white font-semibold"
+                                  className="w-full mono uppercase tracking-[0.18em] text-[0.72rem] font-medium"
+                                  style={{ background: AMBER, color: BG, border: 'none' }}
                                 >
                                   {isResolving ? (
                                     <div className="flex flex-col items-center justify-center space-y-1">
                                       <div className="flex items-center">
                                         <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                                        <span>Launching Token...</span>
+                                        <span>Launching token…</span>
                                       </div>
-                                      <span className="text-xs text-gray-300 font-normal">
-                                        This may take 30-60 seconds
+                                      <span className="text-[0.6rem]" style={{ color: BG, opacity: 0.7, letterSpacing: '0.16em' }}>
+                                        ~30-60 sec
                                       </span>
                                     </div>
                                   ) : (
-                                    <>
-                                      🚀 Launch ${market.tokenSymbol}
-                                    </>
+                                    <>Launch ${market.tokenSymbol}</>
                                   )}
                                 </Button>
                               ) : (
@@ -2713,32 +2712,31 @@ export default function MarketDetailClient({
                                 <Button
                                   onClick={handleExtend}
                                   disabled={isExtending}
-                                  className="w-full bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 text-white font-semibold"
+                                  className="w-full mono uppercase tracking-[0.18em] text-[0.72rem] font-medium"
+                                  style={{ background: AMBER, color: BG, border: 'none' }}
                                 >
                                   {isExtending ? (
                                     <>
                                       <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                                      Extending to Funding Phase...
+                                      Extending to funding phase…
                                     </>
                                   ) : (
-                                    <>
-                                      💰 Extend to Funding Phase
-                                    </>
+                                    <>Extend to funding phase</>
                                   )}
                                 </Button>
                               )}
 
-                              <div className="flex items-start space-x-2 pt-2 border-t border-white/10">
-                                <div className="text-xs text-gray-400">
+                              <div className="pt-2" style={{ borderTop: `1px solid ${HAIR}` }}>
+                                <div style={{ color: CREAM_FAINT, fontFamily: 'var(--font-fraunces, serif)', fontSize: '0.78rem', lineHeight: 1.5 }}>
                                   {mergedOnchainData.data.phase === 'Funding' ? (
                                     <>
-                                      <span className="font-semibold text-green-400">Ready to Launch:</span> Create {market.tokenSymbol} token and distribute to YES voters
+                                      <span style={{ color: FOREST, fontWeight: 500 }}>Ready to launch.</span> Create {market.tokenSymbol} token and distribute to YES voters.
                                     </>
                                   ) : (
                                     <>
-                                      <span className="font-semibold text-purple-400">Step 1:</span> Extend to Funding Phase (required before token launch)
+                                      <span style={{ color: AMBER, fontWeight: 500 }}>Step 1.</span> Extend to funding phase (required before token launch).
                                       <br />
-                                      <span className="font-semibold text-green-400">Step 2:</span> Launch token (available after extending)
+                                      <span style={{ color: FOREST, fontWeight: 500 }}>Step 2.</span> Launch token (available after extending).
                                     </>
                                   )}
                                 </div>
@@ -2748,37 +2746,38 @@ export default function MarketDetailClient({
 
                           {/* Resolve Button - Anyone can resolve when NO wins and pool is full (but not yet expired) */}
                           {Number(mergedOnchainData.data.totalNoShares) > Number(mergedOnchainData.data.totalYesShares) && !isMarketExpiredFromDB && (
-                            <div className="mt-4 bg-gradient-to-br from-red-500/10 via-orange-500/10 to-yellow-500/10 border border-red-400/30 rounded-lg p-4">
+                            <div className="mt-4 p-4" style={{ background: `${EARTH}0d`, border: `1px solid ${EARTH}33` }}>
                               <div className="mb-3">
-                                <h4 className="text-red-400 text-sm font-semibold mb-1">❌ NO Wins - Market Failed</h4>
-                                <p className="text-gray-300 text-xs mb-2">
+                                <p className="mono uppercase tracking-[0.28em] text-[0.55rem] mb-2" style={{ color: EARTH }}>
+                                  NO wins · market failed
+                                </p>
+                                <p style={{ color: CREAM_DIM, fontFamily: 'var(--font-fraunces, serif)', fontSize: '0.88rem', lineHeight: 1.5, marginBottom: '0.4rem' }}>
                                   The target pool was reached but NO won the vote. This market will not launch a token.
                                 </p>
-                                <p className="text-gray-400 text-xs mb-2">
-                                  <span className="font-semibold text-green-400">NO voters will win SOL rewards</span> (95% pool, proportional to shares).
+                                <p style={{ color: CREAM_FAINT, fontFamily: 'var(--font-fraunces, serif)', fontSize: '0.82rem', marginBottom: '0.4rem' }}>
+                                  <span style={{ color: FOREST, fontWeight: 500 }}>NO voters will win SOL rewards</span> — 95% pool, proportional to shares.
                                 </p>
-                                <p className="text-gray-400 text-xs">
+                                <p style={{ color: CREAM_FAINT, fontFamily: 'var(--font-fraunces, serif)', fontSize: '0.82rem' }}>
                                   Anyone can resolve this market now or wait until expiry to unlock NO voter rewards.
                                 </p>
                               </div>
                               <Button
                                 onClick={handleResolve}
                                 disabled={isResolving || !primaryWallet}
-                                className="w-full bg-gradient-to-r from-red-500 to-orange-500 hover:from-red-600 hover:to-orange-600 text-white font-semibold"
+                                className="w-full mono uppercase tracking-[0.18em] text-[0.72rem] font-medium"
+                                style={{ background: EARTH, color: CREAM, border: 'none' }}
                               >
                                 {isResolving ? (
                                   <>
                                     <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                                    Resolving...
+                                    Resolving…
                                   </>
                                 ) : (
-                                  <>
-                                    🔧 Resolve Market (NO Wins)
-                                  </>
+                                  <>Resolve market (NO wins)</>
                                 )}
                               </Button>
                               {!primaryWallet && (
-                                <p className="text-yellow-400 text-xs mt-2 text-center">Connect wallet to resolve</p>
+                                <p className="mono uppercase tracking-[0.22em] text-[0.55rem] mt-2 text-center" style={{ color: AMBER }}>Connect wallet to resolve</p>
                               )}
                             </div>
                           )}
@@ -2788,50 +2787,49 @@ export default function MarketDetailClient({
                         <div className="space-y-4">
                           {/* Funding Phase - Special UI for all users */}
                           {mergedOnchainData.data.phase === 'Funding' ? (
-                            <div className="pt-2 border-t border-white/5 space-y-3">
-                              <div className="bg-gradient-to-br from-purple-500/10 via-pink-500/10 to-cyan-500/10 border border-purple-400/30 rounded-lg p-4">
-                                <div className="flex items-start justify-between mb-3">
-                                  <div className="flex-1">
-                                    <h4 className="text-purple-400 text-base font-bold mb-2 flex items-center space-x-2">
-                                      <span>💰</span>
-                                      <span>Funding Phase - Token Launch Guaranteed!</span>
-                                    </h4>
-                                    <div className="space-y-2">
-                                      <p className="text-gray-300 text-sm">
-                                        <span className="font-semibold text-green-400">✅ YES Won the Vote</span> - Voting is now locked and ${market.tokenSymbol} token WILL be launched!
-                                      </p>
-                                      <p className="text-gray-400 text-xs">
-                                        The founder extended to Funding Phase to raise additional capital. You can still contribute to increase the pool size.
-                                      </p>
-                                      <div className="flex items-center space-x-2 text-xs">
-                                        <div className="flex items-center space-x-1 px-2 py-1 bg-green-500/20 rounded-lg border border-green-400/30">
-                                          <CheckCircle className="w-3 h-3 text-green-400" />
-                                          <span className="text-green-400 font-semibold">Locked: YES Wins</span>
-                                        </div>
-                                        <div className="flex items-center space-x-1 px-2 py-1 bg-cyan-500/20 rounded-lg border border-cyan-400/30">
-                                          <span className="text-cyan-400 font-semibold">Raising More Funds</span>
-                                        </div>
-                                      </div>
+                            <div className="pt-2 space-y-3" style={{ borderTop: `1px solid ${HAIR}` }}>
+                              <div className="p-4" style={{ background: `${AMBER}0d`, border: `1px solid ${AMBER}33` }}>
+                                <div className="mb-3">
+                                  <p className="mono uppercase tracking-[0.28em] text-[0.55rem] mb-2" style={{ color: AMBER }}>
+                                    Funding phase · token launch guaranteed
+                                  </p>
+                                  <div className="space-y-2">
+                                    <p style={{ color: CREAM_DIM, fontFamily: 'var(--font-fraunces, serif)', fontSize: '0.92rem', lineHeight: 1.5 }}>
+                                      <span style={{ color: FOREST, fontWeight: 500 }}>YES won the vote.</span> Voting is locked and ${market.tokenSymbol} token will be launched.
+                                    </p>
+                                    <p style={{ color: CREAM_FAINT, fontFamily: 'var(--font-fraunces, serif)', fontSize: '0.82rem' }}>
+                                      The founder extended to funding phase to raise additional capital. You can still contribute to increase the pool size.
+                                    </p>
+                                    <div className="flex items-center gap-2 flex-wrap">
+                                      <span className="mono uppercase tracking-[0.22em] text-[0.55rem] px-2 py-1 inline-flex items-center gap-1.5" style={{ color: FOREST, border: `1px solid ${FOREST}55`, background: `${FOREST}0d` }}>
+                                        <CheckCircle className="w-3 h-3" />
+                                        Locked · YES wins
+                                      </span>
+                                      <span className="mono uppercase tracking-[0.22em] text-[0.55rem] px-2 py-1" style={{ color: PEACH, border: `1px solid ${PEACH}55`, background: `${PEACH}0d` }}>
+                                        Raising more funds
+                                      </span>
                                     </div>
                                   </div>
                                 </div>
-                                <div className="flex items-center justify-between pt-3 border-t border-white/10">
+                                <div className="flex items-center justify-between pt-3" style={{ borderTop: `1px solid ${HAIR}` }}>
                                   <div>
-                                    <p className="text-xs text-gray-400 mb-1">Funding deadline</p>
+                                    <p className="mono uppercase tracking-[0.22em] text-[0.5rem] mb-1" style={{ color: CREAM_FAINT }}>Funding deadline</p>
                                     <CountdownTimer expiryTime={market.expiryTime} size="lg" />
                                   </div>
-                                  <Badge className="bg-purple-500/20 text-purple-300 border-purple-400/30">
-                                    Accepting Contributions
-                                  </Badge>
+                                  <span className="mono uppercase tracking-[0.24em] text-[0.55rem] px-2 py-1" style={{ color: AMBER, border: `1px solid ${AMBER}55`, background: `${AMBER}0d` }}>
+                                    Accepting contributions
+                                  </span>
                                 </div>
                               </div>
 
                               {/* Founder-only resolve button */}
                               {primaryWallet?.address === mergedOnchainData.data.founder && (
-                                <div className="bg-gradient-to-br from-green-500/10 via-cyan-500/10 to-blue-500/10 border border-green-400/30 rounded-lg p-4">
+                                <div className="p-4" style={{ background: `${FOREST}0d`, border: `1px solid ${FOREST}33` }}>
                                   <div className="mb-3">
-                                    <h4 className="text-green-400 text-sm font-semibold mb-1">Founder Actions</h4>
-                                    <p className="text-gray-300 text-xs">
+                                    <p className="mono uppercase tracking-[0.28em] text-[0.55rem] mb-2" style={{ color: FOREST }}>
+                                      Founder action
+                                    </p>
+                                    <p style={{ color: CREAM_DIM, fontFamily: 'var(--font-fraunces, serif)', fontSize: '0.85rem', lineHeight: 1.5 }}>
                                       You can continue accepting contributions or resolve the market now to launch ${market.tokenSymbol}.
                                     </p>
                                   </div>
@@ -2872,17 +2870,16 @@ export default function MarketDetailClient({
                                       }
                                     }}
                                     disabled={isResolving}
-                                    className="w-full bg-gradient-to-r from-green-500 to-cyan-500 hover:from-green-600 hover:to-cyan-600 text-white font-semibold"
+                                    className="w-full mono uppercase tracking-[0.18em] text-[0.72rem] font-medium"
+                                    style={{ background: FOREST, color: CREAM, border: 'none' }}
                                   >
                                     {isResolving ? (
                                       <>
                                         <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                                        Launching...
+                                        Launching…
                                       </>
                                     ) : (
-                                      <>
-                                        🚀 Launch ${market.tokenSymbol} Now
-                                      </>
+                                      <>Launch ${market.tokenSymbol} now</>
                                     )}
                                   </Button>
                                 </div>
@@ -2890,13 +2887,13 @@ export default function MarketDetailClient({
                             </div>
                           ) : (
                             /* Prediction Phase - Normal Active Market */
-                            <div className="flex items-center justify-between pt-2 border-t border-white/5">
+                            <div className="flex items-center justify-between pt-2" style={{ borderTop: `1px solid ${HAIR}` }}>
                               <div>
-                                <h4 className="text-green-400 text-sm font-semibold">✅ Active Market</h4>
-                                <p className="text-gray-300 text-xs">Voting is open</p>
+                                <p className="mono uppercase tracking-[0.28em] text-[0.55rem] mb-1" style={{ color: FOREST }}>● Active market</p>
+                                <p style={{ color: CREAM_DIM, fontFamily: 'var(--font-fraunces, serif)', fontSize: '0.82rem' }}>Voting is open</p>
                               </div>
                               <div className="text-right">
-                                <div className="text-gray-400 text-xs">Expires in</div>
+                                <div className="mono uppercase tracking-[0.22em] text-[0.5rem] mb-1" style={{ color: CREAM_FAINT }}>Expires in</div>
                                 <CountdownTimer expiryTime={market.expiryTime} size="lg" />
                               </div>
                             </div>
@@ -2907,13 +2904,13 @@ export default function MarketDetailClient({
                   )}
 
                   {mergedOnchainData.data.resolution === 'Unresolved' && isMarketExpiredFromDB && (
-                    <div className="text-center py-4 border-t border-white/5 space-y-3">
-                      <h4 className="text-orange-400 text-base font-semibold mb-1">⏳ Awaiting Resolution...</h4>
-                      <p className="text-gray-300 text-xs mb-3">
+                    <div className="text-center py-4 space-y-3" style={{ borderTop: `1px solid ${HAIR}` }}>
+                      <p className="mono uppercase tracking-[0.28em] text-[0.6rem] mb-1" style={{ color: AMBER }}>● Awaiting resolution</p>
+                      <p style={{ color: CREAM_DIM, fontFamily: 'var(--font-fraunces, serif)', fontSize: '0.85rem', marginBottom: '0.75rem' }}>
                         {mergedOnchainData.data.poolProgressPercentage < 100
                           ? 'Market expired without reaching target pool. All participants will be refunded.'
                           : Number(mergedOnchainData.data.totalYesShares) > Number(mergedOnchainData.data.totalNoShares)
-                            ? `Market expired with YES winning! ${market.tokenSymbol} token is ready to launch.`
+                            ? `Market expired with YES winning. ${market.tokenSymbol} token is ready to launch.`
                             : 'Market expired with NO winning. NO voters can claim SOL rewards.'}
                       </p>
 
@@ -2921,17 +2918,17 @@ export default function MarketDetailClient({
                       {mergedOnchainData.data.poolProgressPercentage >= 100 &&
                        Number(mergedOnchainData.data.totalYesShares) > Number(mergedOnchainData.data.totalNoShares) ? (
                         <div className="space-y-3">
-                          <div className="bg-gradient-to-br from-green-500/10 via-cyan-500/10 to-blue-500/10 border border-green-400/30 rounded-lg p-4">
-                            <h4 className="text-green-400 text-sm font-semibold mb-2">🎉 YES Wins - Token Launch Required!</h4>
+                          <div className="p-4 text-left" style={{ background: `${FOREST}0d`, border: `1px solid ${FOREST}33` }}>
+                            <p className="mono uppercase tracking-[0.28em] text-[0.55rem] mb-2" style={{ color: FOREST }}>YES wins · token launch required</p>
 
                             {/* Founder sees launch button */}
                             {primaryWallet?.address === mergedOnchainData.data.founder ? (
                               <>
-                                <p className="text-gray-300 text-xs mb-2">
+                                <p style={{ color: CREAM_DIM, fontFamily: 'var(--font-fraunces, serif)', fontSize: '0.88rem', lineHeight: 1.5, marginBottom: '0.4rem' }}>
                                   The market has expired with YES winning. Click below to create the {market.tokenSymbol} token and complete resolution.
                                 </p>
-                                <p className="text-cyan-300 text-xs italic mb-3">
-                                  ✨ Token will have a branded PNL address ending with "pnl"
+                                <p className="italic" style={{ color: PEACH, fontFamily: 'var(--font-fraunces, serif)', fontStyle: 'italic', fontSize: '0.78rem', marginBottom: '0.75rem' }}>
+                                  Token will have a branded PNL address ending with &quot;pnl&quot;.
                                 </p>
                                 <Button
                                   onClick={async () => {
@@ -2969,45 +2966,44 @@ export default function MarketDetailClient({
                                     }
                                   }}
                                   disabled={isResolving || !primaryWallet}
-                                  className="w-full bg-gradient-to-r from-green-500 to-cyan-500 hover:from-green-600 hover:to-cyan-600 text-white font-bold py-2.5 px-6"
+                                  className="w-full mono uppercase tracking-[0.18em] text-[0.72rem] font-medium py-2.5"
+                                  style={{ background: FOREST, color: CREAM, border: 'none' }}
                                 >
                                   {isResolving ? (
                                     <div className="flex flex-col items-center justify-center space-y-1">
                                       <div className="flex items-center">
                                         <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                                        <span>Launching Token...</span>
+                                        <span>Launching token…</span>
                                       </div>
-                                      <span className="text-xs text-gray-300 font-normal">
-                                        This may take 30-60 seconds
+                                      <span className="text-[0.6rem]" style={{ opacity: 0.7, letterSpacing: '0.16em' }}>
+                                        ~30-60 sec
                                       </span>
                                     </div>
                                   ) : (
-                                    <>
-                                      🚀 Launch ${market.tokenSymbol} Token
-                                    </>
+                                    <>Launch ${market.tokenSymbol} token</>
                                   )}
                                 </Button>
                               </>
                             ) : (
                               /* Other users see waiting message */
                               <>
-                                <p className="text-gray-300 text-xs mb-2">
-                                  The market has expired with YES winning! The {market.tokenSymbol} token will be launched soon.
+                                <p style={{ color: CREAM_DIM, fontFamily: 'var(--font-fraunces, serif)', fontSize: '0.88rem', lineHeight: 1.5, marginBottom: '0.5rem' }}>
+                                  The market has expired with YES winning. The {market.tokenSymbol} token will be launched soon.
                                 </p>
-                                <div className="flex items-center justify-center space-x-2 py-3 bg-purple-500/10 rounded-lg border border-purple-400/30">
-                                  <Loader2 className="w-4 h-4 text-purple-400 animate-spin" />
-                                  <span className="text-purple-300 text-sm font-medium">
-                                    Waiting for project founder to launch token...
+                                <div className="flex items-center justify-center space-x-2 py-3" style={{ background: `${AMBER}0d`, border: `1px solid ${AMBER}33` }}>
+                                  <Loader2 className="w-4 h-4 animate-spin" style={{ color: AMBER }} />
+                                  <span className="mono uppercase tracking-[0.22em] text-[0.6rem]" style={{ color: AMBER }}>
+                                    Waiting for founder to launch token…
                                   </span>
                                 </div>
-                                <p className="text-gray-400 text-xs mt-2 text-center">
+                                <p style={{ color: CREAM_FAINT, fontFamily: 'var(--font-fraunces, serif)', fontSize: '0.78rem', marginTop: '0.5rem', textAlign: 'center', fontStyle: 'italic' }}>
                                   Once launched, YES voters will be able to claim their token airdrop.
                                 </p>
                               </>
                             )}
                           </div>
                           {!primaryWallet && primaryWallet?.address !== mergedOnchainData.data.founder && (
-                            <p className="text-yellow-400 text-xs">Connect wallet to see your position</p>
+                            <p className="mono uppercase tracking-[0.22em] text-[0.55rem]" style={{ color: AMBER }}>Connect wallet to see your position</p>
                           )}
                         </div>
                       ) : (
@@ -3016,21 +3012,20 @@ export default function MarketDetailClient({
                           <Button
                             onClick={handleResolve}
                             disabled={isResolving || !primaryWallet}
-                            className="bg-gradient-to-r from-orange-500 to-yellow-500 hover:from-orange-600 hover:to-yellow-600 text-white font-bold py-2.5 px-6"
+                            className="mono uppercase tracking-[0.18em] text-[0.72rem] font-medium py-2.5 px-6"
+                            style={{ background: AMBER, color: BG, border: 'none' }}
                           >
                             {isResolving ? (
                               <>
                                 <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                                Resolving Market...
+                                Resolving market…
                               </>
                             ) : (
-                              <>
-                                🔧 Resolve Market
-                              </>
+                              <>Resolve market</>
                             )}
                           </Button>
                           {!primaryWallet && (
-                            <p className="text-yellow-400 text-xs mt-2">Connect wallet to resolve this market</p>
+                            <p className="mono uppercase tracking-[0.22em] text-[0.55rem] mt-2" style={{ color: AMBER }}>Connect wallet to resolve this market</p>
                           )}
                         </>
                       )}
@@ -3038,36 +3033,35 @@ export default function MarketDetailClient({
                   )}
 
                   {mergedOnchainData.data.resolution === 'YesWins' && (
-                    <div className="py-2 border-t border-white/5 space-y-4">
+                    <div className="py-2 space-y-4" style={{ borderTop: `1px solid ${HAIR}` }}>
                       <div className="text-center">
-                        <h4 className="text-green-400 text-lg font-bold mb-1">🎉 YES WINS - Token Launched!</h4>
-                        <p className="text-gray-300 text-xs mb-3">
-                          ${market.tokenSymbol} is now live! Trade in the panel above.
+                        <p className="mono uppercase tracking-[0.32em] text-[0.65rem] mb-2" style={{ color: FOREST }}>YES wins · token launched</p>
+                        <p style={{ color: CREAM_DIM, fontFamily: 'var(--font-fraunces, serif)', fontSize: '0.85rem', marginBottom: '0.75rem' }}>
+                          ${market.tokenSymbol} is live. Trade in the panel above.
                         </p>
                       </div>
 
                       {/* YES Voter Claim - Exclude founder (they have Team Token section) */}
                       {positionData?.success && positionData.data.hasPosition && !positionData.data.claimed && primaryWallet?.address !== mergedOnchainData.data.founder && (
-                        <div className="mt-3">
+                        <div className="mt-3 text-center">
                           {positionData.data.side === 'yes' ? (
                             <Button
                               onClick={handleClaim}
                               disabled={isClaiming}
-                              className="bg-gradient-to-r from-green-500 to-cyan-500 hover:from-green-600 hover:to-cyan-600 text-white font-bold py-2.5 px-6"
+                              className="mono uppercase tracking-[0.18em] text-[0.72rem] font-medium py-2.5 px-6"
+                              style={{ background: FOREST, color: CREAM, border: 'none' }}
                             >
                               {isClaiming ? (
                                 <>
                                   <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                                  Claiming...
+                                  Claiming…
                                 </>
                               ) : (
-                                <>
-                                  🎁 Claim Token Airdrop
-                                </>
+                                <>Claim token airdrop</>
                               )}
                             </Button>
                           ) : (
-                            <p className="text-red-400 text-xs">You voted NO and lost this prediction</p>
+                            <p className="mono uppercase tracking-[0.22em] text-[0.55rem]" style={{ color: EARTH }}>You voted NO and lost this prediction</p>
                           )}
                         </div>
                       )}
@@ -3075,13 +3069,13 @@ export default function MarketDetailClient({
                       {/* Already Claimed - YES Voters (exclude founder) */}
                       {positionData?.success && positionData.data.hasPosition && positionData.data.claimed && positionData.data.side === 'yes' && primaryWallet?.address !== mergedOnchainData.data.founder && (
                         <div className="mt-3">
-                          <div className="bg-green-500/10 border border-green-500/30 rounded-lg p-4">
-                            <p className="text-green-400 font-semibold flex items-center justify-center gap-2">
-                              <CheckCircle className="w-5 h-5" />
-                              Already Claimed
+                          <div className="p-4" style={{ background: `${FOREST}0d`, border: `1px solid ${FOREST}33` }}>
+                            <p className="flex items-center justify-center gap-2 mono uppercase tracking-[0.22em] text-[0.6rem]" style={{ color: FOREST }}>
+                              <CheckCircle className="w-4 h-4" />
+                              Already claimed
                             </p>
-                            <p className="text-gray-400 text-sm mt-1">
-                              Your token airdrop has been successfully claimed and transferred to your wallet.
+                            <p className="mt-1" style={{ color: CREAM_DIM, fontFamily: 'var(--font-fraunces, serif)', fontSize: '0.82rem' }}>
+                              Your token airdrop has been transferred to your wallet.
                             </p>
                           </div>
                         </div>
@@ -3089,61 +3083,61 @@ export default function MarketDetailClient({
 
                       {/* Team Token Transparency Section - Visible to ALL users when vesting initialized */}
                       {mergedOnchainData.data.tokenMint && mergedOnchainData.data.teamVestingInitialized && mergedOnchainData.data.teamVestingData && (
-                        <div className="bg-gradient-to-br from-amber-500/10 via-orange-500/10 to-yellow-500/10 border border-amber-400/30 rounded-lg p-4 text-left space-y-3">
+                        <div className="p-4 text-left space-y-3" style={{ background: `${AMBER}0d`, border: `1px solid ${AMBER}33` }}>
                           <div className="flex items-center justify-between">
                             <div className="flex items-center space-x-2">
-                              <div className="p-2 bg-amber-500/20 rounded-full">
-                                <Users className="w-4 h-4 text-amber-400" />
-                              </div>
-                              <h4 className="text-amber-400 text-sm font-semibold">Team Token Allocation (33%)</h4>
+                              <Users className="w-4 h-4" style={{ color: AMBER }} />
+                              <p className="mono uppercase tracking-[0.28em] text-[0.55rem]" style={{ color: AMBER }}>
+                                Team token allocation · 33%
+                              </p>
                             </div>
-                            <span className="text-xs text-gray-500">Transparency</span>
+                            <span className="mono uppercase tracking-[0.22em] text-[0.5rem]" style={{ color: CREAM_FAINT }}>Transparency</span>
                           </div>
 
                           {/* Vesting Progress Bar */}
                           <div className="space-y-1">
-                            <div className="flex justify-between text-xs">
-                              <span className="text-gray-400">Vesting Progress</span>
-                              <span className="text-amber-300 font-semibold">{(Number(mergedOnchainData.data.teamVestingData?.vestingProgressPercent) || 0).toFixed(1)}%</span>
+                            <div className="flex justify-between mono text-[0.6rem] uppercase tracking-[0.2em]">
+                              <span style={{ color: CREAM_FAINT }}>Vesting progress</span>
+                              <span style={{ color: AMBER, fontFeatureSettings: '"tnum" on' }}>{(Number(mergedOnchainData.data.teamVestingData?.vestingProgressPercent) || 0).toFixed(1)}%</span>
                             </div>
-                            <div className="w-full bg-gray-700/50 rounded-full h-2 overflow-hidden">
+                            <div className="w-full h-1 overflow-hidden" style={{ background: HAIR_STRONG }}>
                               <div
-                                className="bg-gradient-to-r from-amber-500 to-orange-500 h-full rounded-full transition-all duration-500"
-                                style={{ width: `${Math.min(100, mergedOnchainData.data.teamVestingData.vestingProgressPercent)}%` }}
+                                className="h-full transition-all duration-500"
+                                style={{ width: `${Math.min(100, mergedOnchainData.data.teamVestingData.vestingProgressPercent)}%`, background: AMBER }}
                               />
                             </div>
                           </div>
 
                           {/* Token Breakdown */}
-                          <div className="space-y-2 pt-2 border-t border-white/10">
+                          <div className="space-y-2 pt-2" style={{ borderTop: `1px solid ${HAIR}` }}>
                             <div className="flex justify-between text-xs">
-                              <span className="text-gray-400">Total Team Tokens</span>
-                              <span className="text-white font-semibold">
+                              <span style={{ color: CREAM_FAINT, fontFamily: 'var(--font-fraunces, serif)' }}>Total team tokens</span>
+                              <span className="mono" style={{ color: CREAM, fontFeatureSettings: '"tnum" on' }}>
                                 {(Number(mergedOnchainData.data.teamVestingData.totalTokens) / 1_000_000).toLocaleString()} {market.tokenSymbol}
                               </span>
                             </div>
                             <div className="flex justify-between text-xs">
-                              <span className="text-gray-400">Immediate (8%)</span>
-                              <span className={`font-semibold ${mergedOnchainData.data.teamVestingData.immediateClaimed ? 'text-green-400' : 'text-amber-300'}`}>
+                              <span style={{ color: CREAM_FAINT, fontFamily: 'var(--font-fraunces, serif)' }}>Immediate · 8%</span>
+                              <span className="mono" style={{ color: mergedOnchainData.data.teamVestingData.immediateClaimed ? FOREST : AMBER, fontFeatureSettings: '"tnum" on' }}>
                                 {(Number(mergedOnchainData.data.teamVestingData.immediateTokens) / 1_000_000).toLocaleString()} {market.tokenSymbol}
-                                {mergedOnchainData.data.teamVestingData.immediateClaimed && ' ✓ Claimed'}
+                                {mergedOnchainData.data.teamVestingData.immediateClaimed && ' · claimed'}
                               </span>
                             </div>
                             <div className="flex justify-between text-xs">
-                              <span className="text-gray-400">Vested (25%)</span>
-                              <span className="text-orange-300 font-semibold">
+                              <span style={{ color: CREAM_FAINT, fontFamily: 'var(--font-fraunces, serif)' }}>Vested · 25%</span>
+                              <span className="mono" style={{ color: PEACH, fontFeatureSettings: '"tnum" on' }}>
                                 {(Number(mergedOnchainData.data.teamVestingData.vestingTokens) / 1_000_000).toLocaleString()} {market.tokenSymbol}
                               </span>
                             </div>
                             <div className="flex justify-between text-xs">
-                              <span className="text-gray-400">Vested Unlocked</span>
-                              <span className="text-cyan-300 font-semibold">
+                              <span style={{ color: CREAM_FAINT, fontFamily: 'var(--font-fraunces, serif)' }}>Vested unlocked</span>
+                              <span className="mono" style={{ color: PEACH, fontFeatureSettings: '"tnum" on' }}>
                                 {(Number(mergedOnchainData.data.teamVestingData.vestedUnlocked) / 1_000_000).toLocaleString()} {market.tokenSymbol}
                               </span>
                             </div>
                             <div className="flex justify-between text-xs">
-                              <span className="text-gray-400">Already Claimed</span>
-                              <span className="text-green-400 font-semibold">
+                              <span style={{ color: CREAM_FAINT, fontFamily: 'var(--font-fraunces, serif)' }}>Already claimed</span>
+                              <span className="mono" style={{ color: FOREST, fontFeatureSettings: '"tnum" on' }}>
                                 {(Number(mergedOnchainData.data.teamVestingData.claimedTokens) / 1_000_000).toLocaleString()} {market.tokenSymbol}
                               </span>
                             </div>
@@ -3151,43 +3145,40 @@ export default function MarketDetailClient({
 
                           {/* Next Unlock Info */}
                           {mergedOnchainData.data.teamVestingData.vestingProgressPercent < 100 && mergedOnchainData.data.teamVestingData.nextUnlockTime && (
-                            <div className="flex justify-between text-xs pt-2 border-t border-white/10">
-                              <span className="text-gray-400">Next Unlock</span>
-                              <span className="text-purple-300 font-semibold">
-                                {(Number(mergedOnchainData.data.teamVestingData.nextUnlockAmount) / 1_000_000).toLocaleString()} {market.tokenSymbol} in {Math.max(0, Math.ceil((mergedOnchainData.data.teamVestingData.nextUnlockTime - Date.now() / 1000) / 86400))} days
+                            <div className="flex justify-between text-xs pt-2" style={{ borderTop: `1px solid ${HAIR}` }}>
+                              <span style={{ color: CREAM_FAINT, fontFamily: 'var(--font-fraunces, serif)' }}>Next unlock</span>
+                              <span className="mono" style={{ color: PEACH, fontFeatureSettings: '"tnum" on' }}>
+                                {(Number(mergedOnchainData.data.teamVestingData.nextUnlockAmount) / 1_000_000).toLocaleString()} {market.tokenSymbol} · {Math.max(0, Math.ceil((mergedOnchainData.data.teamVestingData.nextUnlockTime - Date.now() / 1000) / 86400))} days
                               </span>
                             </div>
                           )}
 
                           {/* Founder Actions */}
                           {primaryWallet?.address === mergedOnchainData.data.founder && (
-                            <div className="pt-3 border-t border-white/10">
+                            <div className="pt-3" style={{ borderTop: `1px solid ${HAIR}` }}>
                               <Button
                                 onClick={handleClaimTeamTokens}
                                 disabled={isClaimingTeamTokens || Number(mergedOnchainData.data.teamVestingData.claimableNow) === 0}
-                                className={`w-full font-semibold ${
+                                className="w-full mono uppercase tracking-[0.18em] text-[0.72rem] font-medium"
+                                style={
                                   Number(mergedOnchainData.data.teamVestingData.claimableNow) > 0
-                                    ? 'bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-white'
-                                    : 'bg-gray-600 text-gray-400 cursor-not-allowed'
-                                }`}
+                                    ? { background: AMBER, color: BG, border: 'none' }
+                                    : { background: 'rgba(244,238,228,0.06)', color: CREAM_FAINT, border: `1px solid ${HAIR_STRONG}`, cursor: 'not-allowed' }
+                                }
                               >
                                 {isClaimingTeamTokens ? (
                                   <>
                                     <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                                    Claiming...
+                                    Claiming…
                                   </>
                                 ) : Number(mergedOnchainData.data.teamVestingData.claimableNow) > 0 ? (
-                                  <>
-                                    👥 Claim {(Number(mergedOnchainData.data.teamVestingData.claimableNow) / 1_000_000).toLocaleString()} {market.tokenSymbol}
-                                  </>
+                                  <>Claim {(Number(mergedOnchainData.data.teamVestingData.claimableNow) / 1_000_000).toLocaleString()} {market.tokenSymbol}</>
                                 ) : (
-                                  <>
-                                    ⏳ No Tokens to Claim Yet
-                                  </>
+                                  <>No tokens to claim yet</>
                                 )}
                               </Button>
                               {Number(mergedOnchainData.data.teamVestingData.claimableNow) === 0 && mergedOnchainData.data.teamVestingData.vestingProgressPercent < 100 && (
-                                <p className="text-xs text-gray-400 italic mt-2 text-center">
+                                <p className="italic mt-2 text-center" style={{ color: CREAM_FAINT, fontFamily: 'var(--font-fraunces, serif)', fontStyle: 'italic', fontSize: '0.78rem' }}>
                                   Next tokens unlock in ~{Math.max(0, Math.ceil((mergedOnchainData.data.teamVestingData.nextUnlockTime! - Date.now() / 1000) / 86400))} days
                                 </p>
                               )}
@@ -3198,56 +3189,55 @@ export default function MarketDetailClient({
 
                       {/* Team Vesting Initialize Section - Only for founder when not initialized */}
                       {primaryWallet?.address === mergedOnchainData.data.founder && mergedOnchainData.data.tokenMint && !mergedOnchainData.data.teamVestingInitialized && (
-                        <div className="bg-gradient-to-br from-amber-500/10 via-orange-500/10 to-yellow-500/10 border border-amber-400/30 rounded-lg p-4 text-left space-y-3">
+                        <div className="p-4 text-left space-y-3" style={{ background: `${AMBER}0d`, border: `1px solid ${AMBER}33` }}>
                           <div className="flex items-center space-x-2">
-                            <div className="p-2 bg-amber-500/20 rounded-full">
-                              <Users className="w-4 h-4 text-amber-400" />
-                            </div>
-                            <h4 className="text-amber-400 text-sm font-semibold">Team Token Allocation (33%)</h4>
+                            <Users className="w-4 h-4" style={{ color: AMBER }} />
+                            <p className="mono uppercase tracking-[0.28em] text-[0.55rem]" style={{ color: AMBER }}>
+                              Team token allocation · 33%
+                            </p>
                           </div>
 
                           <div className="space-y-2">
                             <div className="flex justify-between text-xs">
-                              <span className="text-gray-400">Immediate (8%)</span>
-                              <span className="text-amber-300 font-semibold">Claimable after init</span>
+                              <span style={{ color: CREAM_FAINT, fontFamily: 'var(--font-fraunces, serif)' }}>Immediate · 8%</span>
+                              <span className="mono uppercase tracking-[0.2em] text-[0.6rem]" style={{ color: AMBER }}>Claimable after init</span>
                             </div>
                             <div className="flex justify-between text-xs">
-                              <span className="text-gray-400">Vested (25%)</span>
-                              <span className="text-orange-300 font-semibold">12 Month Linear</span>
+                              <span style={{ color: CREAM_FAINT, fontFamily: 'var(--font-fraunces, serif)' }}>Vested · 25%</span>
+                              <span className="mono uppercase tracking-[0.2em] text-[0.6rem]" style={{ color: PEACH }}>12 month linear</span>
                             </div>
                           </div>
 
                           <Button
                             onClick={handleInitTeamVesting}
                             disabled={isInitializing}
-                            className="w-full bg-gradient-to-r from-cyan-500 to-blue-500 hover:from-cyan-600 hover:to-blue-600 text-white font-semibold"
+                            className="w-full mono uppercase tracking-[0.18em] text-[0.72rem] font-medium"
+                            style={{ background: AMBER, color: BG, border: 'none' }}
                           >
                             {isInitializing ? (
                               <>
                                 <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                                Initializing...
+                                Initializing…
                               </>
                             ) : (
-                              <>
-                                🔧 Initialize Team Vesting
-                              </>
+                              <>Initialize team vesting</>
                             )}
                           </Button>
 
-                          <p className="text-xs text-gray-400 italic">
-                            Initialize vesting to start claiming your team tokens (8% immediate + 25% over 12 months).
+                          <p className="italic" style={{ color: CREAM_FAINT, fontFamily: 'var(--font-fraunces, serif)', fontStyle: 'italic', fontSize: '0.78rem' }}>
+                            Initialize vesting to start claiming your team tokens — 8% immediate + 25% over 12 months.
                           </p>
                         </div>
                       )}
 
                       {/* Founder SOL Vesting Section - Only for founder when pool > 50 SOL */}
                       {primaryWallet?.address === mergedOnchainData.data.founder && mergedOnchainData.data.hasExcessSol && (
-                        <div className="bg-gradient-to-br from-emerald-500/10 via-teal-500/10 to-cyan-500/10 border border-emerald-400/30 rounded-lg p-4 text-left space-y-3">
+                        <div className="p-4 text-left space-y-3" style={{ background: `${FOREST}0d`, border: `1px solid ${FOREST}33` }}>
                           <div className="flex items-center space-x-2">
-                            <div className="p-2 bg-emerald-500/20 rounded-full">
-                              <Target className="w-4 h-4 text-emerald-400" />
-                            </div>
-                            <h4 className="text-emerald-400 text-sm font-semibold">Excess SOL Allocation</h4>
+                            <Target className="w-4 h-4" style={{ color: FOREST }} />
+                            <p className="mono uppercase tracking-[0.28em] text-[0.55rem]" style={{ color: FOREST }}>
+                              Excess SOL allocation
+                            </p>
                           </div>
 
                           {/* Show actual vesting data if initialized, otherwise show estimates */}
@@ -3255,48 +3245,48 @@ export default function MarketDetailClient({
                             <>
                               {/* Vesting Progress Bar */}
                               <div className="space-y-1">
-                                <div className="flex justify-between text-xs">
-                                  <span className="text-gray-400">Vesting Progress</span>
-                                  <span className="text-emerald-300 font-semibold">{(Number(mergedOnchainData.data.founderVestingData?.vestingProgressPercent) || 0).toFixed(1)}%</span>
+                                <div className="flex justify-between mono text-[0.6rem] uppercase tracking-[0.2em]">
+                                  <span style={{ color: CREAM_FAINT }}>Vesting progress</span>
+                                  <span style={{ color: FOREST, fontFeatureSettings: '"tnum" on' }}>{(Number(mergedOnchainData.data.founderVestingData?.vestingProgressPercent) || 0).toFixed(1)}%</span>
                                 </div>
-                                <div className="w-full bg-gray-700/50 rounded-full h-2 overflow-hidden">
+                                <div className="w-full h-1 overflow-hidden" style={{ background: HAIR_STRONG }}>
                                   <div
-                                    className="bg-gradient-to-r from-emerald-500 to-teal-500 h-full rounded-full transition-all duration-500"
-                                    style={{ width: `${Math.min(100, mergedOnchainData.data.founderVestingData.vestingProgressPercent)}%` }}
+                                    className="h-full transition-all duration-500"
+                                    style={{ width: `${Math.min(100, mergedOnchainData.data.founderVestingData.vestingProgressPercent)}%`, background: FOREST }}
                                   />
                                 </div>
                               </div>
 
                               {/* SOL Breakdown */}
-                              <div className="space-y-2 pt-2 border-t border-white/10">
+                              <div className="space-y-2 pt-2" style={{ borderTop: `1px solid ${HAIR}` }}>
                                 <div className="flex justify-between text-xs">
-                                  <span className="text-gray-400">Total Excess SOL</span>
-                                  <span className="text-white font-semibold">
+                                  <span style={{ color: CREAM_FAINT, fontFamily: 'var(--font-fraunces, serif)' }}>Total excess SOL</span>
+                                  <span className="mono" style={{ color: CREAM, fontFeatureSettings: '"tnum" on' }}>
                                     {(Number(mergedOnchainData.data.founderVestingData.totalSol) / 1_000_000_000).toFixed(4)} SOL
                                   </span>
                                 </div>
                                 <div className="flex justify-between text-xs">
-                                  <span className="text-gray-400">Immediate (8%)</span>
-                                  <span className={`font-semibold ${mergedOnchainData.data.founderVestingData.immediateClaimed ? 'text-green-400' : 'text-teal-300'}`}>
+                                  <span style={{ color: CREAM_FAINT, fontFamily: 'var(--font-fraunces, serif)' }}>Immediate · 8%</span>
+                                  <span className="mono" style={{ color: mergedOnchainData.data.founderVestingData.immediateClaimed ? FOREST : PEACH, fontFeatureSettings: '"tnum" on' }}>
                                     {(Number(mergedOnchainData.data.founderVestingData.immediateSol) / 1_000_000_000).toFixed(4)} SOL
-                                    {mergedOnchainData.data.founderVestingData.immediateClaimed && ' ✓ Claimed'}
+                                    {mergedOnchainData.data.founderVestingData.immediateClaimed && ' · claimed'}
                                   </span>
                                 </div>
                                 <div className="flex justify-between text-xs">
-                                  <span className="text-gray-400">Vested (92%)</span>
-                                  <span className="text-cyan-300 font-semibold">
+                                  <span style={{ color: CREAM_FAINT, fontFamily: 'var(--font-fraunces, serif)' }}>Vested · 92%</span>
+                                  <span className="mono" style={{ color: PEACH, fontFeatureSettings: '"tnum" on' }}>
                                     {(Number(mergedOnchainData.data.founderVestingData.vestingSol) / 1_000_000_000).toFixed(4)} SOL
                                   </span>
                                 </div>
                                 <div className="flex justify-between text-xs">
-                                  <span className="text-gray-400">Vested Unlocked</span>
-                                  <span className="text-teal-300 font-semibold">
+                                  <span style={{ color: CREAM_FAINT, fontFamily: 'var(--font-fraunces, serif)' }}>Vested unlocked</span>
+                                  <span className="mono" style={{ color: PEACH, fontFeatureSettings: '"tnum" on' }}>
                                     {(Number(mergedOnchainData.data.founderVestingData.vestedUnlocked) / 1_000_000_000).toFixed(4)} SOL
                                   </span>
                                 </div>
                                 <div className="flex justify-between text-xs">
-                                  <span className="text-gray-400">Already Claimed</span>
-                                  <span className="text-green-400 font-semibold">
+                                  <span style={{ color: CREAM_FAINT, fontFamily: 'var(--font-fraunces, serif)' }}>Already claimed</span>
+                                  <span className="mono" style={{ color: FOREST, fontFeatureSettings: '"tnum" on' }}>
                                     {(Number(mergedOnchainData.data.founderVestingData.claimedSol) / 1_000_000_000).toFixed(4)} SOL
                                   </span>
                                 </div>
@@ -3304,42 +3294,39 @@ export default function MarketDetailClient({
 
                               {/* Next Unlock Info */}
                               {mergedOnchainData.data.founderVestingData.vestingProgressPercent < 100 && mergedOnchainData.data.founderVestingData.nextUnlockTime && (
-                                <div className="flex justify-between text-xs pt-2 border-t border-white/10">
-                                  <span className="text-gray-400">Next Unlock</span>
-                                  <span className="text-purple-300 font-semibold">
-                                    {(Number(mergedOnchainData.data.founderVestingData.nextUnlockAmount) / 1_000_000_000).toFixed(4)} SOL in {Math.max(0, Math.ceil((mergedOnchainData.data.founderVestingData.nextUnlockTime - Date.now() / 1000) / 86400))} days
+                                <div className="flex justify-between text-xs pt-2" style={{ borderTop: `1px solid ${HAIR}` }}>
+                                  <span style={{ color: CREAM_FAINT, fontFamily: 'var(--font-fraunces, serif)' }}>Next unlock</span>
+                                  <span className="mono" style={{ color: PEACH, fontFeatureSettings: '"tnum" on' }}>
+                                    {(Number(mergedOnchainData.data.founderVestingData.nextUnlockAmount) / 1_000_000_000).toFixed(4)} SOL · {Math.max(0, Math.ceil((mergedOnchainData.data.founderVestingData.nextUnlockTime - Date.now() / 1000) / 86400))} days
                                   </span>
                                 </div>
                               )}
 
                               {/* Claim Button */}
-                              <div className="pt-3 border-t border-white/10">
+                              <div className="pt-3" style={{ borderTop: `1px solid ${HAIR}` }}>
                                 <Button
                                   onClick={handleClaimFounderSol}
                                   disabled={isClaimingFounderSol || Number(mergedOnchainData.data.founderVestingData.claimableNow) === 0}
-                                  className={`w-full font-semibold ${
+                                  className="w-full mono uppercase tracking-[0.18em] text-[0.72rem] font-medium"
+                                  style={
                                     Number(mergedOnchainData.data.founderVestingData.claimableNow) > 0
-                                      ? 'bg-gradient-to-r from-teal-500 to-cyan-500 hover:from-teal-600 hover:to-cyan-600 text-white'
-                                      : 'bg-gray-600 text-gray-400 cursor-not-allowed'
-                                  }`}
+                                      ? { background: FOREST, color: CREAM, border: 'none' }
+                                      : { background: 'rgba(244,238,228,0.06)', color: CREAM_FAINT, border: `1px solid ${HAIR_STRONG}`, cursor: 'not-allowed' }
+                                  }
                                 >
                                   {isClaimingFounderSol ? (
                                     <>
                                       <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                                      Claiming...
+                                      Claiming…
                                     </>
                                   ) : Number(mergedOnchainData.data.founderVestingData.claimableNow) > 0 ? (
-                                    <>
-                                      💰 Claim {(Number(mergedOnchainData.data.founderVestingData.claimableNow) / 1_000_000_000).toFixed(4)} SOL
-                                    </>
+                                    <>Claim {(Number(mergedOnchainData.data.founderVestingData.claimableNow) / 1_000_000_000).toFixed(4)} SOL</>
                                   ) : (
-                                    <>
-                                      ⏳ No SOL to Claim Yet
-                                    </>
+                                    <>No SOL to claim yet</>
                                   )}
                                 </Button>
                                 {Number(mergedOnchainData.data.founderVestingData.claimableNow) === 0 && mergedOnchainData.data.founderVestingData.vestingProgressPercent < 100 && (
-                                  <p className="text-xs text-gray-400 italic mt-2 text-center">
+                                  <p className="italic mt-2 text-center" style={{ color: CREAM_FAINT, fontFamily: 'var(--font-fraunces, serif)', fontStyle: 'italic', fontSize: '0.78rem' }}>
                                     Next SOL unlock in ~{Math.max(0, Math.ceil((mergedOnchainData.data.founderVestingData.nextUnlockTime! - Date.now() / 1000) / 86400))} days
                                   </p>
                                 )}
@@ -3350,16 +3337,16 @@ export default function MarketDetailClient({
                               {/* Show estimates before vesting is initialized */}
                               <div className="space-y-2">
                                 <div className="flex justify-between text-xs">
-                                  <span className="text-gray-400">Total Excess SOL</span>
-                                  <span className="text-emerald-300 font-semibold">{(Number(mergedOnchainData.data.excessSolInSol) || 0).toFixed(4)} SOL</span>
+                                  <span style={{ color: CREAM_FAINT, fontFamily: 'var(--font-fraunces, serif)' }}>Total excess SOL</span>
+                                  <span className="mono" style={{ color: FOREST, fontFeatureSettings: '"tnum" on' }}>{(Number(mergedOnchainData.data.excessSolInSol) || 0).toFixed(4)} SOL</span>
                                 </div>
                                 <div className="flex justify-between text-xs">
-                                  <span className="text-gray-400">Immediate (8%)</span>
-                                  <span className="text-teal-300 font-semibold">{((Number(mergedOnchainData.data.excessSolInSol) || 0) * 0.08).toFixed(4)} SOL</span>
+                                  <span style={{ color: CREAM_FAINT, fontFamily: 'var(--font-fraunces, serif)' }}>Immediate · 8%</span>
+                                  <span className="mono" style={{ color: PEACH, fontFeatureSettings: '"tnum" on' }}>{((Number(mergedOnchainData.data.excessSolInSol) || 0) * 0.08).toFixed(4)} SOL</span>
                                 </div>
                                 <div className="flex justify-between text-xs">
-                                  <span className="text-gray-400">Vested (92%)</span>
-                                  <span className="text-cyan-300 font-semibold">{((Number(mergedOnchainData.data.excessSolInSol) || 0) * 0.92).toFixed(4)} SOL over 12 months</span>
+                                  <span style={{ color: CREAM_FAINT, fontFamily: 'var(--font-fraunces, serif)' }}>Vested · 92%</span>
+                                  <span className="mono" style={{ color: PEACH, fontFeatureSettings: '"tnum" on' }}>{((Number(mergedOnchainData.data.excessSolInSol) || 0) * 0.92).toFixed(4)} SOL · 12 mo</span>
                                 </div>
                               </div>
 
@@ -3367,22 +3354,21 @@ export default function MarketDetailClient({
                               <Button
                                 onClick={handleInitFounderSolVesting}
                                 disabled={isInitializingFounderSol}
-                                className="w-full bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-600 hover:to-teal-600 text-white font-semibold"
+                                className="w-full mono uppercase tracking-[0.18em] text-[0.72rem] font-medium"
+                                style={{ background: FOREST, color: CREAM, border: 'none' }}
                               >
                                 {isInitializingFounderSol ? (
                                   <>
                                     <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                                    Initializing...
+                                    Initializing…
                                   </>
                                 ) : (
-                                  <>
-                                    🔧 Initialize SOL Vesting
-                                  </>
+                                  <>Initialize SOL vesting</>
                                 )}
                               </Button>
 
-                              <p className="text-xs text-gray-400 italic">
-                                Pool exceeded 50 SOL. 50 SOL was used for token launch, the rest is yours with vesting.
+                              <p className="italic" style={{ color: CREAM_FAINT, fontFamily: 'var(--font-fraunces, serif)', fontStyle: 'italic', fontSize: '0.78rem' }}>
+                                Pool exceeded 50 SOL. 50 SOL was used for token launch — the rest is yours with vesting.
                               </p>
                             </>
                           )}
@@ -3392,10 +3378,10 @@ export default function MarketDetailClient({
                   )}
 
                   {mergedOnchainData.data.resolution === 'NoWins' && (
-                    <div className="text-center py-2 border-t border-white/5 space-y-4">
+                    <div className="text-center py-2 space-y-4" style={{ borderTop: `1px solid ${HAIR}` }}>
                       <div>
-                        <h4 className="text-red-400 text-lg font-bold mb-1">❌ NO WINS - Project Won&apos;t Launch</h4>
-                        <p className="text-gray-300 text-xs mb-3">
+                        <p className="mono uppercase tracking-[0.32em] text-[0.65rem] mb-2" style={{ color: EARTH }}>NO wins · project won&apos;t launch</p>
+                        <p style={{ color: CREAM_DIM, fontFamily: 'var(--font-fraunces, serif)', fontSize: '0.85rem', marginBottom: '0.75rem' }}>
                           NO voters receive proportional SOL rewards.
                         </p>
                       </div>
@@ -3406,21 +3392,20 @@ export default function MarketDetailClient({
                             <Button
                               onClick={handleClaim}
                               disabled={isClaiming}
-                              className="bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 text-white font-bold py-2.5 px-6"
+                              className="mono uppercase tracking-[0.18em] text-[0.72rem] font-medium py-2.5 px-6"
+                              style={{ background: FOREST, color: CREAM, border: 'none' }}
                             >
                               {isClaiming ? (
                                 <>
                                   <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                                  Claiming...
+                                  Claiming…
                                 </>
                               ) : (
-                                <>
-                                  💰 Claim SOL Rewards
-                                </>
+                                <>Claim SOL rewards</>
                               )}
                             </Button>
                           ) : (
-                            <p className="text-red-400 text-xs">You voted YES and lost this prediction</p>
+                            <p className="mono uppercase tracking-[0.22em] text-[0.55rem]" style={{ color: EARTH }}>You voted YES and lost this prediction</p>
                           )}
                         </div>
                       )}
@@ -3428,13 +3413,13 @@ export default function MarketDetailClient({
                       {/* Already Claimed - NO Voters */}
                       {positionData?.success && positionData.data.hasPosition && positionData.data.claimed && positionData.data.side === 'no' && (
                         <div className="mt-3">
-                          <div className="bg-green-500/10 border border-green-500/30 rounded-lg p-4">
-                            <p className="text-green-400 font-semibold flex items-center justify-center gap-2">
-                              <CheckCircle className="w-5 h-5" />
-                              Already Claimed
+                          <div className="p-4" style={{ background: `${FOREST}0d`, border: `1px solid ${FOREST}33` }}>
+                            <p className="flex items-center justify-center gap-2 mono uppercase tracking-[0.22em] text-[0.6rem]" style={{ color: FOREST }}>
+                              <CheckCircle className="w-4 h-4" />
+                              Already claimed
                             </p>
-                            <p className="text-gray-400 text-sm mt-1">
-                              Your SOL rewards have been successfully claimed and transferred to your wallet.
+                            <p className="mt-1" style={{ color: CREAM_DIM, fontFamily: 'var(--font-fraunces, serif)', fontSize: '0.82rem' }}>
+                              Your SOL rewards have been transferred to your wallet.
                             </p>
                           </div>
                         </div>
@@ -3443,9 +3428,9 @@ export default function MarketDetailClient({
                   )}
 
                   {mergedOnchainData.data.resolution === 'Refund' && (
-                    <div className="text-center py-2 border-t border-white/5">
-                      <h4 className="text-yellow-400 text-lg font-bold mb-1">↩️ REFUND - Market Cancelled</h4>
-                      <p className="text-gray-300 text-xs mb-3">
+                    <div className="text-center py-2" style={{ borderTop: `1px solid ${HAIR}` }}>
+                      <p className="mono uppercase tracking-[0.32em] text-[0.65rem] mb-2" style={{ color: PEACH }}>Refund · market cancelled</p>
+                      <p style={{ color: CREAM_DIM, fontFamily: 'var(--font-fraunces, serif)', fontSize: '0.85rem', marginBottom: '0.75rem' }}>
                         All participants receive full refunds.
                       </p>
 
@@ -3454,28 +3439,28 @@ export default function MarketDetailClient({
                           <Button
                             onClick={handleClaim}
                             disabled={isClaiming}
-                            className="bg-gradient-to-r from-yellow-500 to-orange-500 hover:from-yellow-600 hover:to-orange-600 text-white font-bold py-2.5 px-6"
+                            className="mono uppercase tracking-[0.18em] text-[0.72rem] font-medium py-2.5 px-6"
+                            style={{ background: PEACH, color: BG, border: 'none' }}
                           >
                             {isClaiming ? (
                               <>
                                 <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                                Claiming...
+                                Claiming…
                               </>
                             ) : (
-                              <>
-                                ↩️ Claim Refund ({(Number(positionData.data?.totalAmount) || 0).toFixed(3)} SOL)
-                              </>
+                              <>Claim refund · {(Number(positionData.data?.totalAmount) || 0).toFixed(3)} SOL</>
                             )}
                           </Button>
                         </div>
                       ) : positionData?.data?.claimed ? (
                         <div className="mt-3">
-                          <div className="bg-green-500/10 border border-green-500/30 rounded-lg p-4">
-                            <p className="text-green-400 font-semibold flex items-center gap-2">
-                              ✅ Already Claimed
+                          <div className="p-4" style={{ background: `${FOREST}0d`, border: `1px solid ${FOREST}33` }}>
+                            <p className="flex items-center justify-center gap-2 mono uppercase tracking-[0.22em] text-[0.6rem]" style={{ color: FOREST }}>
+                              <CheckCircle className="w-4 h-4" />
+                              Already claimed
                             </p>
-                            <p className="text-gray-400 text-sm mt-1">
-                              Your refund has been successfully claimed and transferred to your wallet.
+                            <p className="mt-1" style={{ color: CREAM_DIM, fontFamily: 'var(--font-fraunces, serif)', fontSize: '0.82rem' }}>
+                              Your refund has been transferred to your wallet.
                             </p>
                           </div>
                         </div>
@@ -3485,38 +3470,37 @@ export default function MarketDetailClient({
 
                   {/* Close Market Button - Only for founder after 30-day claim period */}
                   {mergedOnchainData.data.resolution !== 'Unresolved' && primaryWallet?.address === mergedOnchainData.data.founder && (
-                    <div className="border-t border-white/5 pt-4 mt-4">
-                      <div className="bg-gradient-to-br from-gray-500/10 via-gray-600/10 to-gray-700/10 border border-gray-400/30 rounded-lg p-4">
+                    <div className="pt-4 mt-4" style={{ borderTop: `1px solid ${HAIR}` }}>
+                      <div className="p-4" style={{ background: 'rgba(244,238,228,0.025)', border: `1px solid ${HAIR_STRONG}` }}>
                         <div className="flex items-center space-x-2 mb-3">
-                          <div className="p-2 bg-gray-500/20 rounded-full">
-                            <Target className="w-4 h-4 text-gray-400" />
-                          </div>
-                          <h4 className="text-gray-300 text-sm font-semibold">Market Cleanup (Founder Only)</h4>
+                          <Target className="w-4 h-4" style={{ color: CREAM_FAINT }} />
+                          <p className="mono uppercase tracking-[0.28em] text-[0.55rem]" style={{ color: CREAM_DIM }}>
+                            Market cleanup · founder only
+                          </p>
                         </div>
 
-                        <p className="text-gray-400 text-xs mb-3">
-                          After 30 days from market expiry and when all rewards have been claimed (pool balance is empty), you can close the market to recover rent (~0.01 SOL).
+                        <p className="mb-3" style={{ color: CREAM_FAINT, fontFamily: 'var(--font-fraunces, serif)', fontSize: '0.82rem', lineHeight: 1.5 }}>
+                          After 30 days from market expiry and when all rewards have been claimed (pool balance empty), you can close the market to recover rent — ~0.01 SOL.
                         </p>
 
                         <Button
                           onClick={handleCloseMarket}
                           disabled={isClosingMarket}
-                          className="w-full bg-gradient-to-r from-gray-500 to-gray-700 hover:from-gray-600 hover:to-gray-800 text-white font-semibold"
+                          className="w-full mono uppercase tracking-[0.18em] text-[0.72rem] font-medium"
+                          style={{ background: 'rgba(244,238,228,0.06)', color: CREAM, border: `1px solid ${HAIR_STRONG}` }}
                         >
                           {isClosingMarket ? (
                             <>
                               <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                              Closing...
+                              Closing…
                             </>
                           ) : (
-                            <>
-                              🗑️ Close Market & Recover Rent
-                            </>
+                            <>Close market &amp; recover rent</>
                           )}
                         </Button>
 
-                        <p className="text-xs text-gray-500 italic mt-2">
-                          Note: This will fail if the 30-day claim period hasn't passed or if the pool still has funds. The market account will be permanently deleted.
+                        <p className="italic mt-2" style={{ color: CREAM_FAINT, fontFamily: 'var(--font-fraunces, serif)', fontStyle: 'italic', fontSize: '0.74rem' }}>
+                          Will fail if the 30-day claim period hasn&apos;t passed or if the pool still has funds. The market account will be permanently deleted.
                         </p>
                       </div>
                     </div>
@@ -3537,14 +3521,13 @@ export default function MarketDetailClient({
 
               {/* What This Project Offers */}
               {market.metadata?.additionalNotes && (
-                <div className="relative group">
-                  <div className="absolute -inset-4 bg-gradient-to-r from-cyan-500/10 via-purple-500/10 to-cyan-500/10 rounded-3xl blur-2xl opacity-50 group-hover:opacity-70 transition-opacity duration-500" />
-                  <div className="relative p-4 bg-gradient-to-br from-cyan-500/5 via-blue-500/5 to-purple-500/5 rounded-2xl">
-                    <h3 className="text-cyan-400 text-xs mb-2 font-semibold flex items-center gap-2 uppercase tracking-wider">
-                      <span>✨</span> What This Project Offers
-                    </h3>
-                    <div className="border-l-2 border-cyan-500/50 pl-3">
-                      <p className="text-white/85 text-sm leading-relaxed whitespace-pre-wrap italic">{market.metadata.additionalNotes}</p>
+                <div className="relative">
+                  <div className="relative p-4" style={{ background: 'rgba(244,238,228,0.025)', border: `1px solid ${HAIR_STRONG}` }}>
+                    <p className="mono uppercase tracking-[0.28em] text-[0.55rem] mb-3" style={{ color: AMBER }}>
+                      What this project offers
+                    </p>
+                    <div className="pl-3" style={{ borderLeft: `2px solid ${AMBER}88` }}>
+                      <p className="whitespace-pre-wrap italic" style={{ color: CREAM, fontFamily: 'var(--font-fraunces, serif)', fontStyle: 'italic', fontSize: '0.92rem', lineHeight: 1.65 }}>{market.metadata.additionalNotes}</p>
                     </div>
                   </div>
                 </div>
