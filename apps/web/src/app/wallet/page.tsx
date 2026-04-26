@@ -6,7 +6,6 @@ import { useWallet } from '@/hooks/useWallet';
 import { useAuthModal } from '@/contexts/AuthModalContext';
 import { useFundWallet, useSignAndSendTransaction, useWallets, useStandardWallets, useExportWallet } from '@privy-io/react-auth/solana';
 import { useSolPrice } from '@/hooks/useSolPrice';
-import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -86,14 +85,12 @@ function FavoriteMarketCard({
 
   if (!market) {
     return (
-      <Card className="bg-white/5 border-white/10">
-        <CardContent className="p-4">
-          <div className="animate-pulse">
-            <div className="h-4 bg-white/10 rounded w-3/4 mb-2"></div>
-            <div className="h-3 bg-white/10 rounded w-1/2"></div>
-          </div>
-        </CardContent>
-      </Card>
+      <div className="p-4" style={{ background: 'rgba(244,238,228,0.025)', border: '1px solid rgba(244,238,228,0.16)' }}>
+        <div className="animate-pulse">
+          <div className="h-3 w-3/4 mb-2" style={{ background: 'rgba(244,238,228,0.08)' }}></div>
+          <div className="h-3 w-1/2" style={{ background: 'rgba(244,238,228,0.08)' }}></div>
+        </div>
+      </div>
     );
   }
 
@@ -105,9 +102,9 @@ function FavoriteMarketCard({
       case 'NoWins':
         return 'mono text-[0.56rem] uppercase tracking-[0.24em] text-[#d67347] border border-[#d67347]/40 bg-[#d67347]/10';
       case 'Refund':
-        return 'bg-yellow-500/20 text-yellow-400 border-yellow-400/30';
+        return 'mono text-[0.56rem] uppercase tracking-[0.24em] text-[#ecb48a] border border-[#ecb48a]/40 bg-[#ecb48a]/10';
       default:
-        return 'bg-blue-500/20 text-blue-400 border-blue-400/30';
+        return 'mono text-[0.56rem] uppercase tracking-[0.24em] text-[#e89660] border border-[#e89660]/40 bg-[#e89660]/10';
     }
   };
 
@@ -118,60 +115,58 @@ function FavoriteMarketCard({
   };
 
   return (
-    <Card className="bg-gradient-to-br from-gray-900/50 to-gray-800/30 backdrop-blur-sm border-[#e89660]/20 hover:border-[#e89660]/40 transition-all hover:scale-[1.02] group overflow-hidden">
-      <CardContent className="p-4">
+    <div className="transition-colors group" style={{ background: 'rgba(244,238,228,0.025)', border: '1px solid rgba(232,150,96,0.2)' }} onMouseEnter={(e) => (e.currentTarget.style.borderColor = 'rgba(232,150,96,0.5)')} onMouseLeave={(e) => (e.currentTarget.style.borderColor = 'rgba(232,150,96,0.2)')}>
+      <div className="p-4">
         <a href={`/market/${marketId}`} className="block">
           <div className="flex items-start justify-between mb-3">
             <div className="flex items-center space-x-3 flex-1 min-w-0">
               {market.image ? (
-                <div className="flex-shrink-0 relative">
-                  <div className="absolute inset-0 bg-[#e89660]/30 rounded-lg blur-md opacity-50 animate-pulse"></div>
-                  <img
-                    src={market.image}
-                    alt={market.name}
-                    className="relative w-12 h-12 rounded-lg object-cover ring-2 ring-[#e89660]/50 group-hover:ring-[#e89660] transition-all transform group-hover:scale-110"
-                  />
-                </div>
+                <img
+                  src={market.image}
+                  alt={market.name}
+                  className="w-12 h-12 object-cover flex-shrink-0 transition-transform group-hover:scale-105"
+                  style={{ border: '1px solid rgba(232,150,96,0.4)' }}
+                />
               ) : (
-                <div className="w-12 h-12 rounded-lg bg-[#d67347]/15 border border-[#d67347]/40 flex items-center justify-center ring-2 ring-[#d67347]/50 group-hover:ring-[#d67347] transition-all transform group-hover:scale-110 flex-shrink-0">
-                  <span className="text-xl font-bold text-white/90">{market.name.charAt(0)}</span>
+                <div className="w-12 h-12 flex items-center justify-center flex-shrink-0" style={{ background: 'rgba(214,115,71,0.12)', border: '1px solid rgba(214,115,71,0.4)' }}>
+                  <span className="mono text-[0.95rem]" style={{ color: '#d67347', letterSpacing: '0.04em' }}>{market.name.charAt(0)}</span>
                 </div>
               )}
               <div className="flex-1 min-w-0">
-                <h4 className="text-white font-semibold group-hover:text-[#e89660] transition-colors truncate">
+                <h4 className="truncate transition-colors" style={{ color: '#f4eee4', fontFamily: 'var(--font-fraunces, serif)', fontWeight: 400, fontSize: '1rem', letterSpacing: '-0.005em' }}>
                   {market.name}
                 </h4>
-                <p className="text-xs text-gray-400 group-hover:text-gray-300 transition-colors">{market.tokenSymbol}</p>
+                <p className="mono uppercase tracking-[0.22em] text-[0.5rem] mt-0.5" style={{ color: 'rgba(244,238,228,0.4)' }}>{market.tokenSymbol}</p>
               </div>
             </div>
-            <span className={`px-2 py-1 rounded text-xs border ${getStatusBadge()} whitespace-nowrap flex-shrink-0`}>
+            <span className={`px-2 py-0.5 ${getStatusBadge()} whitespace-nowrap flex-shrink-0`}>
               {getStatusText()}
             </span>
           </div>
 
-          <div className="grid grid-cols-2 gap-3 text-sm">
-            <div className="bg-gradient-to-br from-white/10 to-white/5 rounded-lg p-2.5 border border-white/20 group-hover:border-[#e89660]/35 transition-all">
-              <div className="text-gray-400 text-xs mb-1">Pool Progress</div>
-              <div className="font-bold text-white text-base">
+          <div className="grid grid-cols-2 gap-3">
+            <div className="p-2.5" style={{ background: 'rgba(244,238,228,0.04)', border: '1px solid rgba(244,238,228,0.16)' }}>
+              <div className="mono uppercase tracking-[0.22em] text-[0.5rem] mb-1" style={{ color: 'rgba(244,238,228,0.4)' }}>Pool progress</div>
+              <div className="mono text-[1rem]" style={{ color: '#f4eee4', fontFeatureSettings: '"tnum" on' }}>
                 {(market.poolProgressPercentage || 0).toFixed(0)}%
               </div>
-              <div className="text-xs text-gray-500 mt-0.5">
+              <div className="mono text-[0.55rem] mt-0.5" style={{ color: 'rgba(244,238,228,0.4)', fontFeatureSettings: '"tnum" on' }}>
                 {((market.poolBalance || 0) / 1e9).toFixed(2)} / {((market.targetPool || 0) / 1e9).toFixed(0)} SOL
               </div>
             </div>
-            <div className="bg-[#3f7a42]/10 p-2.5 border border-[#3f7a42]/25 group-hover:border-[#3f7a42]/50 transition-all">
-              <div className="text-gray-400 text-xs mb-1">YES Rate</div>
-              <div className="font-bold text-[#3f7a42] text-base">
+            <div className="p-2.5" style={{ background: 'rgba(63,122,66,0.08)', border: '1px solid rgba(63,122,66,0.25)' }}>
+              <div className="mono uppercase tracking-[0.22em] text-[0.5rem] mb-1" style={{ color: 'rgba(244,238,228,0.4)' }}>YES rate</div>
+              <div className="mono text-[1rem]" style={{ color: '#3f7a42', fontFeatureSettings: '"tnum" on' }}>
                 {(market.sharesYesPercentage || 0).toFixed(1)}%
               </div>
-              <div className="text-xs text-gray-500 mt-0.5">
+              <div className="mono text-[0.55rem] mt-0.5" style={{ color: 'rgba(244,238,228,0.4)', fontFeatureSettings: '"tnum" on' }}>
                 {(market.yesVoteCount || 0) + (market.noVoteCount || 0)} votes
               </div>
             </div>
           </div>
         </a>
-      </CardContent>
-    </Card>
+      </div>
+    </div>
   );
 }
 
@@ -221,32 +216,39 @@ function VoteHistory({ marketId, walletAddress }: { marketId: string; walletAddr
           e.stopPropagation();
           setIsOpen(!isOpen);
         }}
-        className="p-1.5 rounded-lg bg-white/5 hover:bg-[#e89660]/15 border border-white/10 hover:border-[#e89660]/35 transition-all group"
+        className="p-1.5 transition-colors group"
+        style={{ background: 'rgba(244,238,228,0.04)', border: '1px solid rgba(244,238,228,0.16)' }}
+        onMouseEnter={(e) => { e.currentTarget.style.background = 'rgba(232,150,96,0.12)'; e.currentTarget.style.borderColor = 'rgba(232,150,96,0.4)'; }}
+        onMouseLeave={(e) => { e.currentTarget.style.background = 'rgba(244,238,228,0.04)'; e.currentTarget.style.borderColor = 'rgba(244,238,228,0.16)'; }}
         title="View vote history"
       >
-        <History className="w-4 h-4 text-gray-400 group-hover:text-[#e89660] transition-colors" />
+        <History className="w-4 h-4 transition-colors group-hover:text-[#e89660]" style={{ color: 'rgba(244,238,228,0.4)' }} />
       </button>
 
       {/* Vote History Modal/Dropdown */}
       {isOpen && (
         <div
-          className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4"
+          className="fixed inset-0 z-50 flex items-center justify-center p-4"
+          style={{ background: 'rgba(10,8,20,0.72)', backdropFilter: 'blur(8px)' }}
           onClick={() => setIsOpen(false)}
         >
           <div
-            className="bg-gradient-to-br from-gray-900 to-gray-800 border border-[#e89660]/30 rounded-lg max-w-lg w-full max-h-[80vh] overflow-hidden"
+            className="max-w-lg w-full max-h-[80vh] overflow-hidden"
+            style={{ background: '#0a0814', border: '1px solid rgba(232,150,96,0.33)', boxShadow: '0 16px 40px rgba(0,0,0,0.5)' }}
             onClick={(e) => e.stopPropagation()}
           >
-            <div className="p-4 border-b border-white/10 flex items-center justify-between">
+            <div className="p-4 flex items-center justify-between" style={{ borderBottom: '1px solid rgba(244,238,228,0.08)' }}>
               <div className="flex items-center gap-2">
-                <History className="w-5 h-5 text-[#e89660]" />
-                <h3 className="text-lg font-semibold text-white">Vote History</h3>
+                <History className="w-4 h-4" style={{ color: '#e89660' }} />
+                <p className="mono uppercase tracking-[0.28em] text-[0.6rem]" style={{ color: '#e89660' }}>Vote history</p>
               </div>
               <button
                 onClick={() => setIsOpen(false)}
-                className="p-1 hover:bg-white/10 rounded transition-colors"
+                className="p-1 transition-colors"
+                onMouseEnter={(e) => (e.currentTarget.style.background = 'rgba(244,238,228,0.06)')}
+                onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}
               >
-                <X className="w-5 h-5 text-gray-400" />
+                <X className="w-5 h-5" style={{ color: 'rgba(244,238,228,0.4)' }} />
               </button>
             </div>
 
@@ -354,70 +356,72 @@ function MyProjectCard({ project }: { project: any }) {
       case 'Not Launched':
         return 'mono text-[0.56rem] uppercase tracking-[0.24em] text-[#d67347] border border-[#d67347]/40 bg-[#d67347]/10';
       case 'Pending Resolution':
-        return 'bg-yellow-500/20 text-yellow-400 border-yellow-400/30';
+        return 'mono text-[0.56rem] uppercase tracking-[0.24em] text-[#ecb48a] border border-[#ecb48a]/40 bg-[#ecb48a]/10';
       default:
-        return 'bg-blue-500/20 text-blue-400 border-blue-400/30';
+        return 'mono text-[0.56rem] uppercase tracking-[0.24em] text-[#e89660] border border-[#e89660]/40 bg-[#e89660]/10';
     }
   };
 
   return (
-    <Card className="bg-white/5 border-white/10 hover:bg-white/10 transition-colors">
-      <CardContent className="p-4">
-        <a href={`/market/${project.id}`} className="block group">
+    <div className="transition-colors group" style={{ background: 'rgba(244,238,228,0.025)', border: '1px solid rgba(244,238,228,0.16)' }} onMouseEnter={(e) => (e.currentTarget.style.borderColor = 'rgba(232,150,96,0.5)')} onMouseLeave={(e) => (e.currentTarget.style.borderColor = 'rgba(244,238,228,0.16)')}>
+      <div className="p-4">
+        <a href={`/market/${project.id}`} className="block">
           <div className="flex items-start justify-between mb-3">
             <div className="flex items-center space-x-3 flex-1 min-w-0">
               {project.projectImageUrl ? (
                 <img
                   src={project.projectImageUrl}
                   alt={project.name}
-                  className="w-10 h-10 rounded-lg object-cover flex-shrink-0"
+                  className="w-10 h-10 object-cover flex-shrink-0"
+                  style={{ border: '1px solid rgba(244,238,228,0.16)' }}
                 />
               ) : (
-                <div className="w-10 h-10 bg-[#e89660]/15 border border-[#e89660]/40 rounded-lg flex items-center justify-center flex-shrink-0">
-                  <Rocket className="w-5 h-5 text-white" />
+                <div className="w-10 h-10 flex items-center justify-center flex-shrink-0" style={{ background: 'rgba(232,150,96,0.12)', border: '1px solid rgba(232,150,96,0.4)' }}>
+                  <Rocket className="w-4 h-4" style={{ color: '#e89660' }} />
                 </div>
               )}
               <div className="flex-1 min-w-0">
-                <h4 className="text-white font-semibold group-hover:text-[#e89660] transition-colors truncate">
+                <h4 className="truncate transition-colors group-hover:text-[#e89660]" style={{ color: '#f4eee4', fontFamily: 'var(--font-fraunces, serif)', fontWeight: 400, fontSize: '1rem', letterSpacing: '-0.005em' }}>
                   {project.name}
                 </h4>
-                <p className="text-xs text-gray-400">{project.tokenSymbol}</p>
+                <p className="mono uppercase tracking-[0.22em] text-[0.5rem] mt-0.5" style={{ color: 'rgba(244,238,228,0.4)' }}>{project.tokenSymbol}</p>
               </div>
             </div>
-            <span className={`px-2 py-1 rounded text-xs border ${getStatusBadge()} whitespace-nowrap`}>
+            <span className={`px-2 py-0.5 ${getStatusBadge()} whitespace-nowrap`}>
               {project.status}
             </span>
           </div>
 
-          <div className="grid grid-cols-2 gap-3 text-sm">
-            <div className="bg-white/5 rounded p-2 border border-white/10">
-              <div className="text-gray-400 text-xs">Pool Progress</div>
-              <div className="font-semibold text-white">
+          <div className="grid grid-cols-2 gap-3">
+            <div className="p-2.5" style={{ background: 'rgba(244,238,228,0.04)', border: '1px solid rgba(244,238,228,0.16)' }}>
+              <div className="mono uppercase tracking-[0.22em] text-[0.5rem] mb-1" style={{ color: 'rgba(244,238,228,0.4)' }}>Pool progress</div>
+              <div className="mono text-[1rem]" style={{ color: '#f4eee4', fontFeatureSettings: '"tnum" on' }}>
                 {(project.poolProgressPercentage || 0).toFixed(0)}%
               </div>
-              <div className="text-xs text-gray-500">
+              <div className="mono text-[0.55rem] mt-0.5" style={{ color: 'rgba(244,238,228,0.4)', fontFeatureSettings: '"tnum" on' }}>
                 {(project.poolBalance || 0).toFixed(2)} / {(project.targetPool || 0).toFixed(0)} SOL
               </div>
             </div>
-            <div className="bg-white/5 rounded p-2 border border-white/10">
-              <div className="text-gray-400 text-xs">YES Rate</div>
-              <div className="font-semibold text-[#3f7a42]">
+            <div className="p-2.5" style={{ background: 'rgba(63,122,66,0.08)', border: '1px solid rgba(63,122,66,0.25)' }}>
+              <div className="mono uppercase tracking-[0.22em] text-[0.5rem] mb-1" style={{ color: 'rgba(244,238,228,0.4)' }}>YES rate</div>
+              <div className="mono text-[1rem]" style={{ color: '#3f7a42', fontFeatureSettings: '"tnum" on' }}>
                 {(project.sharesYesPercentage || 0).toFixed(1)}%
               </div>
-              <div className="text-xs text-gray-500">
+              <div className="mono text-[0.55rem] mt-0.5" style={{ color: 'rgba(244,238,228,0.4)', fontFeatureSettings: '"tnum" on' }}>
                 {(project.yesVoteCount || 0) + (project.noVoteCount || 0)} votes
               </div>
             </div>
           </div>
 
           {project.status === 'Active' && !project.isExpired && (
-            <div className="mt-3 text-xs text-gray-400">
-              <span className="text-white font-medium">{project.timeLeft}</span> remaining
+            <div className="mt-3 mono uppercase tracking-[0.22em] text-[0.55rem] flex items-center gap-1.5" style={{ color: 'rgba(244,238,228,0.4)' }}>
+              <span style={{ color: '#f4eee4' }}>{project.timeLeft}</span>
+              remaining
             </div>
           )}
         </a>
-      </CardContent>
-    </Card>
+      </div>
+    </div>
   );
 }
 
@@ -549,22 +553,30 @@ function SendModal({ isOpen, onClose, onSend, solBalance, tokens }: SendModalPro
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-      <Card className="w-full max-w-md bg-gray-900 border-white/20 text-white">
-        <CardContent className="p-6 space-y-4">
-          <div className="flex items-center justify-between mb-4">
-            <h3 className="text-xl font-semibold">Send Tokens</h3>
-            <button onClick={onClose} className="text-gray-400 hover:text-white">
+    <div className="fixed inset-0 flex items-center justify-center z-50 p-4" style={{ background: 'rgba(10,8,20,0.72)', backdropFilter: 'blur(8px)' }}>
+      <div className="w-full max-w-md" style={{ background: '#0a0814', border: '1px solid rgba(244,238,228,0.16)', boxShadow: '0 16px 40px rgba(0,0,0,0.5)' }}>
+        <div className="p-6 space-y-5">
+          <div className="flex items-center justify-between mb-1">
+            <div>
+              <p className="mono uppercase tracking-[0.32em] text-[0.55rem] mb-1" style={{ color: '#e89660' }}>Outflow</p>
+              <h3 style={{ color: '#f4eee4', fontFamily: 'var(--font-fraunces, serif)', fontWeight: 400, fontSize: '1.5rem', letterSpacing: '-0.01em' }}>
+                Send tokens
+              </h3>
+            </div>
+            <button onClick={onClose} className="transition-colors" style={{ color: 'rgba(244,238,228,0.4)' }} onMouseEnter={(e) => (e.currentTarget.style.color = '#f4eee4')} onMouseLeave={(e) => (e.currentTarget.style.color = 'rgba(244,238,228,0.4)')}>
               <X className="w-5 h-5" />
             </button>
           </div>
 
           {/* Token Selector */}
           <div className="space-y-2">
-            <Label className="text-white">Select Token</Label>
+            <p className="mono uppercase tracking-[0.26em] text-[0.55rem]" style={{ color: 'rgba(244,238,228,0.65)' }}>Select token</p>
             <button
               onClick={() => setShowTokenSelector(!showTokenSelector)}
-              className="w-full flex items-center justify-between p-3 bg-white/5 border border-white/10 rounded-lg hover:bg-white/10 transition-colors"
+              className="w-full flex items-center justify-between p-3 transition-colors"
+              style={{ background: 'rgba(244,238,228,0.025)', border: '1px solid rgba(244,238,228,0.16)' }}
+              onMouseEnter={(e) => (e.currentTarget.style.borderColor = 'rgba(232,150,96,0.55)')}
+              onMouseLeave={(e) => (e.currentTarget.style.borderColor = 'rgba(244,238,228,0.16)')}
             >
               <div className="flex items-center gap-3">
                 {selectedToken.logoURI ? (
@@ -577,35 +589,35 @@ function SendModal({ isOpen, onClose, onSend, solBalance, tokens }: SendModalPro
                     }}
                   />
                 ) : (
-                  <div className="w-8 h-8 rounded-full bg-[#e89660]/15 border border-[#e89660]/40 flex items-center justify-center text-xs font-bold">
+                  <div className="w-8 h-8 flex items-center justify-center mono text-[0.6rem]" style={{ background: 'rgba(232,150,96,0.12)', border: '1px solid rgba(232,150,96,0.4)', color: '#e89660' }}>
                     {selectedToken.symbol.slice(0, 2)}
                   </div>
                 )}
                 <div className="text-left">
-                  <p className="font-medium">{selectedToken.symbol}</p>
-                  <p className="text-xs text-gray-400">{selectedToken.name}</p>
+                  <p className="mono text-[0.78rem]" style={{ color: '#f4eee4', letterSpacing: '0.04em' }}>{selectedToken.symbol}</p>
+                  <p style={{ color: 'rgba(244,238,228,0.4)', fontFamily: 'var(--font-fraunces, serif)', fontSize: '0.74rem' }}>{selectedToken.name}</p>
                 </div>
               </div>
               <div className="text-right">
-                <p className="text-sm text-gray-400">Balance</p>
-                <p className="font-medium">{selectedToken.balance.toFixed(4)}</p>
+                <p className="mono uppercase tracking-[0.22em] text-[0.5rem]" style={{ color: 'rgba(244,238,228,0.4)' }}>Balance</p>
+                <p className="mono text-[0.82rem]" style={{ color: '#f4eee4', fontFeatureSettings: '"tnum" on' }}>{selectedToken.balance.toFixed(4)}</p>
               </div>
             </button>
 
             {/* Token Selector Dropdown */}
             {showTokenSelector && (
-              <div className="absolute z-10 mt-1 w-[calc(100%-3rem)] bg-gray-800 border border-white/10 rounded-lg shadow-xl max-h-64 overflow-hidden">
-                <div className="p-2 border-b border-white/10">
+              <div className="absolute z-10 mt-1 w-[calc(100%-3rem)] max-h-64 overflow-hidden" style={{ background: '#0a0814', border: '1px solid rgba(244,238,228,0.16)', boxShadow: '0 12px 32px rgba(0,0,0,0.5)' }}>
+                <div className="p-2" style={{ borderBottom: '1px solid rgba(244,238,228,0.08)' }}>
                   <Input
-                    placeholder="Search tokens..."
+                    placeholder="Search tokens…"
                     value={tokenSearch}
                     onChange={(e) => setTokenSearch(e.target.value)}
-                    className="bg-white/5 border-white/10 text-white placeholder:text-gray-500"
+                    style={{ background: 'rgba(244,238,228,0.025)', border: '1px solid rgba(244,238,228,0.16)', color: '#f4eee4', borderRadius: 0 }}
                   />
                 </div>
                 <div className="max-h-48 overflow-y-auto">
                   {filteredTokens.length === 0 ? (
-                    <div className="p-4 text-center text-gray-400">No tokens found</div>
+                    <div className="p-4 text-center mono uppercase tracking-[0.22em] text-[0.55rem]" style={{ color: 'rgba(244,238,228,0.4)' }}>No tokens found</div>
                   ) : (
                     filteredTokens.map((token) => (
                       <button
@@ -616,9 +628,16 @@ function SendModal({ isOpen, onClose, onSend, solBalance, tokens }: SendModalPro
                           setTokenSearch('');
                           setAmount(''); // Reset amount when token changes
                         }}
-                        className={`w-full flex items-center justify-between p-3 hover:bg-white/5 transition-colors ${
-                          token.mint === selectedToken.mint ? 'bg-white/10' : ''
-                        }`}
+                        className="w-full flex items-center justify-between p-3 transition-colors"
+                        style={{
+                          background: token.mint === selectedToken.mint ? 'rgba(232,150,96,0.08)' : 'transparent',
+                        }}
+                        onMouseEnter={(e) => {
+                          if (token.mint !== selectedToken.mint) e.currentTarget.style.background = 'rgba(244,238,228,0.04)';
+                        }}
+                        onMouseLeave={(e) => {
+                          if (token.mint !== selectedToken.mint) e.currentTarget.style.background = 'transparent';
+                        }}
                       >
                         <div className="flex items-center gap-3">
                           {token.logoURI ? (
@@ -631,16 +650,16 @@ function SendModal({ isOpen, onClose, onSend, solBalance, tokens }: SendModalPro
                               }}
                             />
                           ) : (
-                            <div className="w-6 h-6 rounded-full bg-[#e89660]/15 border border-[#e89660]/40 flex items-center justify-center text-[10px] font-bold">
+                            <div className="w-6 h-6 flex items-center justify-center mono text-[0.5rem]" style={{ background: 'rgba(232,150,96,0.12)', border: '1px solid rgba(232,150,96,0.4)', color: '#e89660' }}>
                               {token.symbol.slice(0, 2)}
                             </div>
                           )}
                           <div className="text-left">
-                            <p className="font-medium text-sm">{token.symbol}</p>
-                            <p className="text-xs text-gray-400 truncate max-w-[120px]">{token.name}</p>
+                            <p className="mono text-[0.72rem]" style={{ color: '#f4eee4', letterSpacing: '0.04em' }}>{token.symbol}</p>
+                            <p className="truncate max-w-[120px]" style={{ color: 'rgba(244,238,228,0.4)', fontFamily: 'var(--font-fraunces, serif)', fontSize: '0.7rem' }}>{token.name}</p>
                           </div>
                         </div>
-                        <p className="text-sm">{token.balance.toFixed(4)}</p>
+                        <p className="mono text-[0.74rem]" style={{ color: 'rgba(244,238,228,0.65)', fontFeatureSettings: '"tnum" on' }}>{token.balance.toFixed(4)}</p>
                       </button>
                     ))
                   )}
@@ -650,18 +669,20 @@ function SendModal({ isOpen, onClose, onSend, solBalance, tokens }: SendModalPro
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="recipient" className="text-white">Recipient Address</Label>
+            <label htmlFor="recipient" className="mono uppercase tracking-[0.26em] text-[0.55rem] block" style={{ color: 'rgba(244,238,228,0.65)' }}>Recipient address</label>
             <Input
               id="recipient"
               placeholder="Enter Solana address"
               value={recipient}
               onChange={(e) => setRecipient(e.target.value)}
-              className="bg-white/5 border-white/10 text-white placeholder:text-gray-500"
+              style={{ background: 'rgba(244,238,228,0.025)', border: '1px solid rgba(244,238,228,0.16)', color: '#f4eee4', borderRadius: 0, fontFamily: 'var(--font-mono), ui-monospace, monospace' }}
             />
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="amount" className="text-white">Amount ({selectedToken.symbol})</Label>
+            <label htmlFor="amount" className="mono uppercase tracking-[0.26em] text-[0.55rem] block" style={{ color: 'rgba(244,238,228,0.65)' }}>
+              Amount · {selectedToken.symbol}
+            </label>
             <div className="relative">
               <Input
                 id="amount"
@@ -670,44 +691,48 @@ function SendModal({ isOpen, onClose, onSend, solBalance, tokens }: SendModalPro
                 placeholder="0.00"
                 value={amount}
                 onChange={(e) => setAmount(e.target.value)}
-                className="bg-white/5 border-white/10 text-white placeholder:text-gray-500"
+                style={{ background: 'rgba(244,238,228,0.025)', border: '1px solid rgba(244,238,228,0.16)', color: '#f4eee4', borderRadius: 0 }}
               />
               <button
                 onClick={handleMaxClick}
-                className="absolute right-2 top-1/2 -translate-y-1/2 text-xs text-[#e89660] hover:text-[#ecb48a]"
+                className="absolute right-2 top-1/2 -translate-y-1/2 mono uppercase tracking-[0.22em] text-[0.55rem] px-2 py-1 transition-colors"
+                style={{ color: '#e89660' }}
+                onMouseEnter={(e) => (e.currentTarget.style.color = '#ecb48a')}
+                onMouseLeave={(e) => (e.currentTarget.style.color = '#e89660')}
               >
-                MAX
+                Max
               </button>
             </div>
-            <p className="text-xs text-gray-400">
-              Available: {selectedToken.balance.toFixed(4)} {selectedToken.symbol}
+            <p className="mono uppercase tracking-[0.2em] text-[0.55rem]" style={{ color: 'rgba(244,238,228,0.4)' }}>
+              Available · {selectedToken.balance.toFixed(4)} {selectedToken.symbol}
             </p>
           </div>
 
           {error && (
-            <div className="p-3 bg-[#d67347]/10 border border-[#d67347]/30 rounded-lg text-[#d67347] text-sm">
+            <div className="p-3" style={{ background: 'rgba(214,115,71,0.08)', border: '1px solid rgba(214,115,71,0.33)', color: '#d67347', fontFamily: 'var(--font-fraunces, serif)', fontSize: '0.85rem' }}>
               {error}
             </div>
           )}
 
-          <div className="flex space-x-3 pt-2">
+          <div className="flex gap-3 pt-2">
             <Button
               onClick={onClose}
-              variant="outline"
-              className="flex-1 border-white/10 text-white hover:bg-white/5"
+              className="flex-1 mono uppercase tracking-[0.18em] text-[0.7rem] font-medium"
+              style={{ background: 'transparent', color: '#f4eee4', border: '1px solid rgba(244,238,228,0.16)', borderRadius: 0 }}
             >
               Cancel
             </Button>
             <Button
               onClick={handleSendClick}
               disabled={isSending}
-              className="flex-1 bg-[#e89660] hover:bg-[#ecb48a] text-[#0a0814]"
+              className="flex-1 mono uppercase tracking-[0.18em] text-[0.7rem] font-medium"
+              style={{ background: '#e89660', color: '#0a0814', border: 'none', borderRadius: 0 }}
             >
-              {isSending ? 'Sending...' : `Send ${selectedToken.symbol}`}
+              {isSending ? 'Sending…' : `Send ${selectedToken.symbol}`}
             </Button>
           </div>
-        </CardContent>
-      </Card>
+        </div>
+      </div>
     </div>
   );
 }
@@ -724,17 +749,22 @@ function DepositModal({ isOpen, onClose, address }: { isOpen: boolean; onClose: 
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-      <Card className="w-full max-w-md bg-gray-900 border-white/20 text-white">
-        <CardContent className="p-6 space-y-4">
-          <div className="flex items-center justify-between mb-4">
-            <h3 className="text-xl font-semibold">Deposit SOL / USDC</h3>
-            <button onClick={onClose} className="text-gray-400 hover:text-white">
+    <div className="fixed inset-0 flex items-center justify-center z-50 p-4" style={{ background: 'rgba(10,8,20,0.72)', backdropFilter: 'blur(8px)' }}>
+      <div className="w-full max-w-md" style={{ background: '#0a0814', border: '1px solid rgba(244,238,228,0.16)', boxShadow: '0 16px 40px rgba(0,0,0,0.5)' }}>
+        <div className="p-6 space-y-5">
+          <div className="flex items-center justify-between mb-1">
+            <div>
+              <p className="mono uppercase tracking-[0.32em] text-[0.55rem] mb-1" style={{ color: '#e89660' }}>Inflow</p>
+              <h3 style={{ color: '#f4eee4', fontFamily: 'var(--font-fraunces, serif)', fontWeight: 400, fontSize: '1.5rem', letterSpacing: '-0.01em' }}>
+                Deposit SOL or USDC
+              </h3>
+            </div>
+            <button onClick={onClose} className="transition-colors" style={{ color: 'rgba(244,238,228,0.4)' }} onMouseEnter={(e) => (e.currentTarget.style.color = '#f4eee4')} onMouseLeave={(e) => (e.currentTarget.style.color = 'rgba(244,238,228,0.4)')}>
               <X className="w-5 h-5" />
             </button>
           </div>
 
-          <div className="bg-white p-4 rounded-lg">
+          <div className="p-4" style={{ background: '#f4eee4' }}>
             <img
               src={`https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${address}`}
               alt="Wallet QR Code"
@@ -743,49 +773,51 @@ function DepositModal({ isOpen, onClose, address }: { isOpen: boolean; onClose: 
           </div>
 
           <div className="space-y-2">
-            <Label className="text-white">Your Wallet Address</Label>
-            <div className="flex items-center space-x-2">
+            <p className="mono uppercase tracking-[0.26em] text-[0.55rem]" style={{ color: 'rgba(244,238,228,0.65)' }}>Your wallet address</p>
+            <div className="flex items-center gap-2">
               <Input
                 readOnly
                 value={address}
-                className="bg-white/5 border-white/10 text-white font-mono text-sm"
+                style={{ background: 'rgba(244,238,228,0.025)', border: '1px solid rgba(244,238,228,0.16)', color: '#f4eee4', borderRadius: 0, fontFamily: 'var(--font-mono), ui-monospace, monospace', fontSize: '0.74rem' }}
               />
               <Button
                 onClick={copyAddress}
                 size="sm"
-                variant="outline"
-                className="border-white/10 hover:bg-white/5"
+                style={{ background: 'transparent', color: '#f4eee4', border: '1px solid rgba(244,238,228,0.16)', borderRadius: 0 }}
               >
                 {copied ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
               </Button>
             </div>
           </div>
 
-          <div className="p-3 bg-[#e89660]/10 border border-[#e89660]/25 rounded-lg text-[#e89660] text-sm">
-            <p className="font-semibold mb-1 flex items-center gap-2">
-              <Wallet className="w-4 h-4" />
-              Supported Tokens:
+          <div className="p-3" style={{ background: 'rgba(232,150,96,0.08)', border: '1px solid rgba(232,150,96,0.33)' }}>
+            <p className="mono uppercase tracking-[0.26em] text-[0.55rem] mb-2 flex items-center gap-2" style={{ color: '#e89660' }}>
+              <Wallet className="w-3.5 h-3.5" />
+              Supported tokens
             </p>
-            <ul className="list-disc list-inside space-y-1 text-xs">
-              <li>Send SOL to this address</li>
-              <li>Send USDC on Solana to this same address</li>
-              <li>Both tokens use the same Solana address</li>
+            <ul className="space-y-1" style={{ color: 'rgba(244,238,228,0.65)', fontFamily: 'var(--font-fraunces, serif)', fontSize: '0.78rem', lineHeight: 1.55 }}>
+              <li>· Send SOL to this address.</li>
+              <li>· Send USDC (Solana) to the same address.</li>
+              <li>· Both tokens use one Solana address.</li>
             </ul>
           </div>
 
-          <div className="p-3 bg-yellow-500/10 border border-yellow-500/20 rounded-lg text-yellow-400 text-sm">
-            <p className="font-semibold mb-1">Network:</p>
-            <p className="text-xs">{SOLANA_NETWORK === 'devnet' ? 'Devnet' : 'Mainnet-Beta'}</p>
+          <div className="flex items-center justify-between p-3" style={{ background: 'rgba(244,238,228,0.025)', border: '1px solid rgba(244,238,228,0.16)' }}>
+            <p className="mono uppercase tracking-[0.26em] text-[0.55rem]" style={{ color: 'rgba(244,238,228,0.4)' }}>Network</p>
+            <p className="mono uppercase tracking-[0.22em] text-[0.6rem]" style={{ color: '#ecb48a' }}>
+              {SOLANA_NETWORK === 'devnet' ? 'Devnet' : 'Mainnet-beta'}
+            </p>
           </div>
 
           <Button
             onClick={onClose}
-            className="w-full bg-[#3f7a42] hover:bg-[#4a8a4d] text-[#0a0814]"
+            className="w-full mono uppercase tracking-[0.18em] text-[0.7rem] font-medium"
+            style={{ background: '#3f7a42', color: '#f4eee4', border: 'none', borderRadius: 0 }}
           >
             Done
           </Button>
-        </CardContent>
-      </Card>
+        </div>
+      </div>
     </div>
   );
 }
@@ -970,12 +1002,17 @@ function SettingsModal({ isOpen, onClose, wallet, onLogout, primaryWallet, expor
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-      <Card className="w-full max-w-md bg-gray-900 border-white/20 text-white max-h-[90vh] overflow-y-auto">
-        <CardContent className="p-6 space-y-6">
+    <div className="fixed inset-0 flex items-center justify-center z-50 p-4" style={{ background: 'rgba(10,8,20,0.72)', backdropFilter: 'blur(8px)' }}>
+      <div className="w-full max-w-md max-h-[90vh] overflow-y-auto" style={{ background: '#0a0814', border: '1px solid rgba(244,238,228,0.16)', boxShadow: '0 16px 40px rgba(0,0,0,0.5)' }}>
+        <div className="p-6 space-y-6">
           <div className="flex items-center justify-between">
-            <h3 className="text-xl font-semibold">Security Settings</h3>
-            <button onClick={onClose} className="text-gray-400 hover:text-white">
+            <div>
+              <p className="mono uppercase tracking-[0.32em] text-[0.55rem] mb-1" style={{ color: '#e89660' }}>Keys &amp; secrets</p>
+              <h3 style={{ color: '#f4eee4', fontFamily: 'var(--font-fraunces, serif)', fontWeight: 400, fontSize: '1.5rem', letterSpacing: '-0.01em' }}>
+                Security settings
+              </h3>
+            </div>
+            <button onClick={onClose} className="transition-colors" style={{ color: 'rgba(244,238,228,0.4)' }} onMouseEnter={(e) => (e.currentTarget.style.color = '#f4eee4')} onMouseLeave={(e) => (e.currentTarget.style.color = 'rgba(244,238,228,0.4)')}>
               <X className="w-5 h-5" />
             </button>
           </div>
@@ -985,87 +1022,90 @@ function SettingsModal({ isOpen, onClose, wallet, onLogout, primaryWallet, expor
 
             {!exportWarningShown ? (
               <div className="space-y-3">
-                <div className="p-4 bg-[#d67347]/10 border border-[#d67347]/30 rounded-lg text-[#d67347] text-sm">
-                  <p className="font-semibold mb-2 flex items-center space-x-2">
-                    <Shield className="w-4 h-4" />
-                    <span>Security Warning</span>
+                <div className="p-4" style={{ background: 'rgba(214,115,71,0.08)', border: '1px solid rgba(214,115,71,0.33)' }}>
+                  <p className="mono uppercase tracking-[0.26em] text-[0.55rem] mb-2 flex items-center gap-2" style={{ color: '#d67347' }}>
+                    <Shield className="w-3.5 h-3.5" />
+                    Security warning
                   </p>
-                  <ul className="list-disc list-inside space-y-1 text-xs">
-                    <li>Never share your private key or seed phrase with anyone</li>
-                    <li>Anyone with access can control your wallet and funds</li>
-                    <li>Store backups securely offline</li>
-                    <li>Privy wallets use social recovery by default</li>
+                  <ul className="space-y-1" style={{ color: 'rgba(244,238,228,0.65)', fontFamily: 'var(--font-fraunces, serif)', fontSize: '0.78rem', lineHeight: 1.55 }}>
+                    <li>· Never share your private key or seed phrase with anyone.</li>
+                    <li>· Anyone with access can control your wallet and funds.</li>
+                    <li>· Store backups securely offline.</li>
+                    <li>· Privy wallets use social recovery by default.</li>
                   </ul>
                 </div>
                 <Button
                   onClick={() => setExportWarningShown(true)}
-                  variant="outline"
-                  className="w-full border-white/10 text-white hover:bg-white/5"
+                  className="w-full mono uppercase tracking-[0.18em] text-[0.7rem] font-medium"
+                  style={{ background: 'transparent', color: '#f4eee4', border: '1px solid rgba(244,238,228,0.16)', borderRadius: 0 }}
                 >
-                  I Understand - View Export Options
+                  I understand · view export options
                 </Button>
               </div>
             ) : (
               <div className="space-y-3">
-                <div className="p-4 bg-white/5 border border-white/10 rounded-lg">
-                  <Label className="text-white mb-2 block">Wallet Type</Label>
-                  <p className="text-sm text-gray-400">
-                    {isPrivyWallet ? 'Privy Embedded Wallet' : 'External Wallet (Phantom, Solflare, etc.)'}
+                <div className="p-4" style={{ background: 'rgba(244,238,228,0.025)', border: '1px solid rgba(244,238,228,0.16)' }}>
+                  <p className="mono uppercase tracking-[0.26em] text-[0.55rem] mb-2" style={{ color: 'rgba(244,238,228,0.65)' }}>Wallet type</p>
+                  <p style={{ color: '#f4eee4', fontFamily: 'var(--font-fraunces, serif)', fontSize: '0.92rem' }}>
+                    {isPrivyWallet ? 'Privy embedded wallet' : 'External wallet — Phantom, Solflare, etc.'}
                   </p>
                   {!isPrivyWallet && (
-                    <p className="text-xs text-gray-500 mt-2">
-                      Manage your credentials through your wallet extension
+                    <p className="italic mt-2" style={{ color: 'rgba(244,238,228,0.4)', fontFamily: 'var(--font-fraunces, serif)', fontStyle: 'italic', fontSize: '0.76rem' }}>
+                      Manage your credentials through your wallet extension.
                     </p>
                   )}
                 </div>
 
                 {exportError && (
-                  <div className="p-3 bg-[#d67347]/10 border border-[#d67347]/30 rounded-lg text-[#d67347] text-sm">
+                  <div className="p-3" style={{ background: 'rgba(214,115,71,0.08)', border: '1px solid rgba(214,115,71,0.33)', color: '#d67347', fontFamily: 'var(--font-fraunces, serif)', fontSize: '0.84rem', lineHeight: 1.5 }}>
                     {exportError}
                   </div>
                 )}
 
                 {/* Private Key Export */}
                 {isPrivyWallet ? (
-                  <div className="p-4 bg-white/5 border border-white/10 rounded-lg space-y-3">
+                  <div className="p-4 space-y-3" style={{ background: 'rgba(244,238,228,0.025)', border: '1px solid rgba(244,238,228,0.16)' }}>
                     <div className="flex items-center justify-between">
                       <div>
-                        <Label className="text-white">Private Key</Label>
-                        <p className="text-xs text-gray-400 mt-1">Export your wallet's private key</p>
+                        <p className="mono uppercase tracking-[0.26em] text-[0.55rem]" style={{ color: 'rgba(244,238,228,0.65)' }}>Private key</p>
+                        <p className="italic mt-1" style={{ color: 'rgba(244,238,228,0.4)', fontFamily: 'var(--font-fraunces, serif)', fontStyle: 'italic', fontSize: '0.74rem' }}>
+                          Export your wallet&apos;s private key
+                        </p>
                       </div>
                       <Button
                         onClick={handleExportPrivateKey}
                         disabled={isExporting}
                         size="sm"
-                        className="bg-[#e89660] hover:bg-[#ecb48a] text-[#0a0814]"
+                        className="mono uppercase tracking-[0.18em] text-[0.65rem] font-medium"
+                        style={{ background: '#e89660', color: '#0a0814', border: 'none', borderRadius: 0 }}
                       >
-                        {isExporting ? 'Opening...' : 'Export'}
+                        {isExporting ? 'Opening…' : 'Export'}
                       </Button>
                     </div>
-                    <p className="text-xs text-gray-500">
-                      Clicking Export will open a secure modal where you can view and copy your private key. The key never passes through our servers.
+                    <p style={{ color: 'rgba(244,238,228,0.4)', fontFamily: 'var(--font-fraunces, serif)', fontSize: '0.74rem', lineHeight: 1.5 }}>
+                      Clicking Export opens a secure modal where you can view and copy your private key. The key never passes through our servers.
                     </p>
                   </div>
                 ) : (
-                  <div className="p-4 bg-white/5 border border-white/10 rounded-lg">
-                    <Label className="text-white mb-2 block">Private Key</Label>
-                    <p className="text-sm text-gray-400">
-                      External wallet - private key managed by your wallet provider
+                  <div className="p-4" style={{ background: 'rgba(244,238,228,0.025)', border: '1px solid rgba(244,238,228,0.16)' }}>
+                    <p className="mono uppercase tracking-[0.26em] text-[0.55rem] mb-2" style={{ color: 'rgba(244,238,228,0.65)' }}>Private key</p>
+                    <p style={{ color: '#f4eee4', fontFamily: 'var(--font-fraunces, serif)', fontSize: '0.86rem' }}>
+                      External wallet — private key is managed by your wallet provider.
                     </p>
                   </div>
                 )}
 
                 {/* Seed Phrase Information */}
-                <div className="p-4 bg-amber-500/10 border border-amber-500/20 rounded-lg space-y-2">
-                  <div className="flex items-start space-x-2">
-                    <Shield className="w-4 h-4 text-amber-400 mt-0.5 flex-shrink-0" />
+                <div className="p-4 space-y-2" style={{ background: 'rgba(232,150,96,0.08)', border: '1px solid rgba(232,150,96,0.33)' }}>
+                  <div className="flex items-start gap-2">
+                    <Shield className="w-3.5 h-3.5 mt-0.5 flex-shrink-0" style={{ color: '#e89660' }} />
                     <div>
-                      <Label className="text-amber-300 text-sm">Seed Phrase Not Available</Label>
-                      <p className="text-xs text-amber-200/70 mt-1">
-                        Seed phrase export is not supported for Solana wallets because different wallet clients use different HD derivation paths, making seed phrases incompatible across wallets.
+                      <p className="mono uppercase tracking-[0.26em] text-[0.55rem]" style={{ color: '#e89660' }}>Seed phrase not available</p>
+                      <p className="mt-1" style={{ color: 'rgba(244,238,228,0.65)', fontFamily: 'var(--font-fraunces, serif)', fontSize: '0.78rem', lineHeight: 1.55 }}>
+                        Seed phrase export is not supported for Solana wallets — different wallet clients use different HD derivation paths, making seed phrases incompatible.
                       </p>
-                      <p className="text-xs text-amber-200/70 mt-2">
-                        <strong>Use private key export instead</strong> - it works with all Solana wallets (Phantom, Solflare, etc.)
+                      <p className="mt-2" style={{ color: 'rgba(244,238,228,0.65)', fontFamily: 'var(--font-fraunces, serif)', fontSize: '0.78rem', lineHeight: 1.55 }}>
+                        <strong style={{ color: '#ecb48a' }}>Use private key export instead</strong> — it works with all Solana wallets (Phantom, Solflare, etc.).
                       </p>
                     </div>
                   </div>
@@ -1074,23 +1114,24 @@ function SettingsModal({ isOpen, onClose, wallet, onLogout, primaryWallet, expor
             )}
           </div>
 
-          <div className="flex space-x-3 pt-2">
+          <div className="flex gap-3 pt-2">
             <Button
               onClick={onLogout}
-              variant="outline"
-              className="flex-1 border-[#d67347]/50 text-[#d67347] hover:bg-[#d67347]/10"
+              className="flex-1 mono uppercase tracking-[0.18em] text-[0.7rem] font-medium"
+              style={{ background: 'transparent', color: '#d67347', border: '1px solid rgba(214,115,71,0.5)', borderRadius: 0 }}
             >
               Logout
             </Button>
             <Button
               onClick={onClose}
-              className="flex-1 bg-[#e89660]/15 border border-[#e89660]/40 hover:border-[#e89660]/70"
+              className="flex-1 mono uppercase tracking-[0.18em] text-[0.7rem] font-medium"
+              style={{ background: '#e89660', color: '#0a0814', border: 'none', borderRadius: 0 }}
             >
               Close
             </Button>
           </div>
-        </CardContent>
-      </Card>
+        </div>
+      </div>
     </div>
   );
 }
@@ -1607,23 +1648,29 @@ export default function WalletPage() {
   if (!primaryWallet) {
     return (
       <div className="min-h-screen flex items-center justify-center p-4 sm:p-6">
-        <Card className="bg-white/5 border-white/10 text-white w-full max-w-md">
-          <CardContent className="p-6 sm:p-8 text-center space-y-4">
-            <Wallet className="w-12 h-12 sm:w-16 sm:h-16 mx-auto text-[#e89660]" />
-            <div>
-              <h2 className="text-xl sm:text-2xl font-semibold mb-2">Sign in to Continue</h2>
-              <p className="text-sm sm:text-base text-gray-400 mb-2">
-                Create an account or sign in to access your wallet and start trading.
-              </p>
-            </div>
-            <button
-              onClick={showAuthModal}
-              className="w-full px-4 sm:px-6 py-2.5 sm:py-3 bg-[#e89660] hover:bg-[#ecb48a] text-[#0a0814] rounded-lg font-semibold transition-all text-sm sm:text-base"
-            >
-              Sign in
-            </button>
-          </CardContent>
-        </Card>
+        <div className="w-full max-w-md p-8 text-center space-y-5" style={{ background: 'rgba(244,238,228,0.025)', border: '1px solid rgba(244,238,228,0.16)' }}>
+          <div className="w-14 h-14 mx-auto flex items-center justify-center" style={{ background: 'rgba(232,150,96,0.12)', border: '1px solid rgba(232,150,96,0.4)' }}>
+            <Wallet className="w-6 h-6" style={{ color: '#e89660' }} />
+          </div>
+          <div>
+            <p className="mono uppercase tracking-[0.32em] text-[0.55rem] mb-2" style={{ color: '#e89660' }}>Threshold</p>
+            <h2 className="mb-3" style={{ color: '#f4eee4', fontFamily: 'var(--font-fraunces, serif)', fontWeight: 350, fontSize: 'clamp(1.6rem, 3vw, 2rem)', letterSpacing: '-0.012em' }}>
+              Sign in to continue
+            </h2>
+            <p className="italic mx-auto max-w-xs" style={{ color: 'rgba(244,238,228,0.65)', fontFamily: 'var(--font-fraunces, serif)', fontStyle: 'italic', fontSize: '0.92rem', lineHeight: 1.55 }}>
+              Create an account or sign in to access your wallet and start trading.
+            </p>
+          </div>
+          <button
+            onClick={showAuthModal}
+            className="w-full mono uppercase tracking-[0.18em] text-[0.7rem] py-3 transition-colors"
+            style={{ background: '#e89660', color: '#0a0814', border: 'none' }}
+            onMouseEnter={(e) => (e.currentTarget.style.background = '#ecb48a')}
+            onMouseLeave={(e) => (e.currentTarget.style.background = '#e89660')}
+          >
+            Sign in
+          </button>
+        </div>
       </div>
     );
   }
@@ -2445,14 +2492,10 @@ export default function WalletPage() {
         <div className="space-y-4">
 
           {positionsLoading ? (
-            <Card className="bg-white/5 border-white/10">
-              <CardContent className="p-6">
-                <div className="text-center text-gray-400 py-8">
-                  <RefreshCw className="w-8 h-8 mx-auto mb-2 animate-spin" />
-                  <p className="text-sm">Loading your predictions...</p>
-                </div>
-              </CardContent>
-            </Card>
+            <div className="p-6 text-center py-12" style={{ background: 'rgba(244,238,228,0.02)', border: '1px solid rgba(244,238,228,0.08)' }}>
+              <RefreshCw className="w-6 h-6 mx-auto mb-3 animate-spin" style={{ color: '#e89660' }} />
+              <p className="mono uppercase tracking-[0.24em] text-[0.6rem]" style={{ color: 'rgba(244,238,228,0.4)' }}>Loading your predictions…</p>
+            </div>
           ) : positionsData?.success && positionsData.data?.all?.length > 0 ? (
             <>
               {/* Active Positions */}
@@ -2471,8 +2514,8 @@ export default function WalletPage() {
                   </div>
                   <div className="grid gap-4 sm:grid-cols-2">
                     {positionsData.data.active.slice(0, showAllPositions ? undefined : 3).map((position: any) => (
-                      <Card key={position.marketId} className="bg-white/5 border-white/10 hover:bg-white/10 transition-colors">
-                        <CardContent className="p-3 sm:p-4">
+                      <div key={position.marketId} className="transition-colors" style={{ background: 'rgba(244,238,228,0.025)', border: '1px solid rgba(244,238,228,0.16)' }} onMouseEnter={(e) => (e.currentTarget.style.borderColor = 'rgba(232,150,96,0.5)')} onMouseLeave={(e) => (e.currentTarget.style.borderColor = 'rgba(244,238,228,0.16)')}>
+                        <div className="p-3 sm:p-4">
                           <a href={`/market/${position.marketId}`} className="block group">
                             <div className="mb-3">
                               <div className="flex items-start gap-2 sm:gap-3 mb-2">
@@ -2511,7 +2554,7 @@ export default function WalletPage() {
                             </div>
 
                             <div className="grid grid-cols-2 gap-3 text-sm">
-                              <div className="bg-white/5 rounded p-2 border border-white/10">
+                              <div className="p-2.5" style={{ background: 'rgba(244,238,228,0.04)', border: '1px solid rgba(244,238,228,0.16)' }}>
                                 <div className="text-gray-400 text-xs">Your Stake</div>
                                 <div className="font-semibold text-white">
                                   {(Number(position.totalAmount) || 0).toFixed(2)} SOL
@@ -2520,7 +2563,7 @@ export default function WalletPage() {
                                   {position.tradeCount} {position.tradeCount === 1 ? 'trade' : 'trades'}
                                 </div>
                               </div>
-                              <div className="bg-white/5 rounded p-2 border border-white/10">
+                              <div className="p-2.5" style={{ background: 'rgba(244,238,228,0.04)', border: '1px solid rgba(244,238,228,0.16)' }}>
                                 <div className="text-gray-400 text-xs">Current Price</div>
                                 <div className={`font-semibold ${
                                   position.voteType === 'yes' ? 'text-[#3f7a42]' : 'text-[#d67347]'
@@ -2533,8 +2576,8 @@ export default function WalletPage() {
                               </div>
                             </div>
                           </a>
-                        </CardContent>
-                      </Card>
+                        </div>
+                      </div>
                     ))}
                   </div>
                 </div>
@@ -2546,8 +2589,8 @@ export default function WalletPage() {
                   <h4 className="text-sm font-medium text-gray-400">Claimable Rewards</h4>
                   <div className="grid gap-4 sm:grid-cols-2">
                     {positionsData.data.claimable.map((position: any) => (
-                      <Card key={position.marketId} className="bg-[#3f7a42]/8 border-[#3f7a42]/25 hover:border-[#3f7a42]/50 transition-colors">
-                        <CardContent className="p-3 sm:p-4">
+                      <div key={position.marketId} className="transition-colors" style={{ background: 'rgba(63,122,66,0.08)', border: '1px solid rgba(63,122,66,0.25)' }} onMouseEnter={(e) => (e.currentTarget.style.borderColor = 'rgba(63,122,66,0.5)')} onMouseLeave={(e) => (e.currentTarget.style.borderColor = 'rgba(63,122,66,0.25)')}>
+                        <div className="p-3 sm:p-4">
                           <a href={`/market/${position.marketId}`} className="block group">
                             <div className="mb-3">
                               <div className="flex items-start gap-2 sm:gap-3 mb-2">
@@ -2578,7 +2621,7 @@ export default function WalletPage() {
                             </div>
 
                             <div className="grid grid-cols-2 gap-3 text-sm mb-3">
-                              <div className="bg-white/5 rounded p-2 border border-white/10">
+                              <div className="p-2.5" style={{ background: 'rgba(244,238,228,0.04)', border: '1px solid rgba(244,238,228,0.16)' }}>
                                 <div className="text-gray-400 text-xs">Your Stake</div>
                                 <div className="font-semibold text-white">
                                   {(Number(position.totalAmount) || 0).toFixed(2)} SOL
@@ -2587,7 +2630,7 @@ export default function WalletPage() {
                                   {position.voteType.toUpperCase()} vote
                                 </div>
                               </div>
-                              <div className="bg-white/5 rounded p-2 border border-white/10">
+                              <div className="p-2.5" style={{ background: 'rgba(244,238,228,0.04)', border: '1px solid rgba(244,238,228,0.16)' }}>
                                 <div className="text-gray-400 text-xs">Resolution</div>
                                 <div className="font-semibold text-[#3f7a42]">
                                   {position.resolution || 'YesWins'}
@@ -2602,8 +2645,8 @@ export default function WalletPage() {
                               Claim Rewards
                             </div>
                           </a>
-                        </CardContent>
-                      </Card>
+                        </div>
+                      </div>
                     ))}
                   </div>
                 </div>
@@ -2615,8 +2658,8 @@ export default function WalletPage() {
                   <h4 className="text-sm font-medium text-gray-400">Claimed Rewards</h4>
                   <div className="grid gap-4 sm:grid-cols-2">
                     {positionsData.data.resolved.filter((p: any) => p.isWinner && p.claimed).map((position: any) => (
-                      <Card key={position.marketId} className="bg-[#3f7a42]/5 border-[#3f7a42]/25 opacity-80 hover:opacity-100 transition-opacity">
-                        <CardContent className="p-3 sm:p-4">
+                      <div key={position.marketId} className="opacity-80 hover:opacity-100 transition-opacity" style={{ background: 'rgba(63,122,66,0.05)', border: '1px solid rgba(63,122,66,0.25)' }}>
+                        <div className="p-3 sm:p-4">
                           <a href={`/market/${position.marketId}`} className="block group">
                             <div className="mb-3">
                               <div className="flex items-start gap-2 sm:gap-3 mb-2">
@@ -2646,7 +2689,7 @@ export default function WalletPage() {
                             </div>
 
                             <div className="grid grid-cols-2 gap-3 text-sm">
-                              <div className="bg-white/5 rounded p-2 border border-white/10">
+                              <div className="p-2.5" style={{ background: 'rgba(244,238,228,0.04)', border: '1px solid rgba(244,238,228,0.16)' }}>
                                 <div className="text-gray-400 text-xs">Your Stake</div>
                                 <div className="font-semibold text-white">
                                   {(Number(position.totalAmount) || 0).toFixed(2)} SOL
@@ -2655,7 +2698,7 @@ export default function WalletPage() {
                                   {position.voteType.toUpperCase()} vote
                                 </div>
                               </div>
-                              <div className="bg-white/5 rounded p-2 border border-white/10">
+                              <div className="p-2.5" style={{ background: 'rgba(244,238,228,0.04)', border: '1px solid rgba(244,238,228,0.16)' }}>
                                 <div className="text-gray-400 text-xs">Resolution</div>
                                 <div className="font-semibold text-[#3f7a42]">
                                   {position.resolution || 'YesWins'}
@@ -2666,8 +2709,8 @@ export default function WalletPage() {
                               </div>
                             </div>
                           </a>
-                        </CardContent>
-                      </Card>
+                        </div>
+                      </div>
                     ))}
                   </div>
                 </div>
@@ -2679,8 +2722,8 @@ export default function WalletPage() {
                   <h4 className="text-sm font-medium text-gray-400">Resolved Positions</h4>
                   <div className="grid gap-4 sm:grid-cols-2">
                     {positionsData.data.resolved.filter((p: any) => !p.isWinner).map((position: any) => (
-                      <Card key={position.marketId} className="bg-white/5 border-white/10 opacity-70 hover:opacity-100 transition-opacity">
-                        <CardContent className="p-3 sm:p-4">
+                      <div key={position.marketId} className="opacity-70 hover:opacity-100 transition-opacity" style={{ background: 'rgba(244,238,228,0.025)', border: '1px solid rgba(244,238,228,0.16)' }}>
+                        <div className="p-3 sm:p-4">
                           <a href={`/market/${position.marketId}`} className="block group">
                             <div className="mb-3">
                               <div className="flex items-start gap-2 sm:gap-3 mb-2">
@@ -2691,8 +2734,8 @@ export default function WalletPage() {
                                     className="w-9 h-9 sm:w-10 sm:h-10 rounded-lg object-cover flex-shrink-0 grayscale"
                                   />
                                 ) : (
-                                  <div className="w-9 h-9 sm:w-10 sm:h-10 bg-gradient-to-r from-gray-500 to-gray-600 rounded-lg flex items-center justify-center flex-shrink-0">
-                                    <XCircle className="w-4 h-4 sm:w-5 sm:h-5 text-white" />
+                                  <div className="w-9 h-9 sm:w-10 sm:h-10 flex items-center justify-center flex-shrink-0" style={{ background: 'rgba(244,238,228,0.04)', border: '1px solid rgba(244,238,228,0.16)', color: 'rgba(244,238,228,0.4)' }}>
+                                    <XCircle className="w-4 h-4 sm:w-5 sm:h-5" />
                                   </div>
                                 )}
                                 <div className="flex-1 min-w-0">
@@ -2710,7 +2753,7 @@ export default function WalletPage() {
                             </div>
 
                             <div className="grid grid-cols-2 gap-3 text-sm">
-                              <div className="bg-white/5 rounded p-2 border border-white/10">
+                              <div className="p-2.5" style={{ background: 'rgba(244,238,228,0.04)', border: '1px solid rgba(244,238,228,0.16)' }}>
                                 <div className="text-gray-400 text-xs">Your Stake</div>
                                 <div className="font-semibold text-white">
                                   {(Number(position.totalAmount) || 0).toFixed(2)} SOL
@@ -2719,7 +2762,7 @@ export default function WalletPage() {
                                   {position.voteType.toUpperCase()} vote
                                 </div>
                               </div>
-                              <div className="bg-white/5 rounded p-2 border border-white/10">
+                              <div className="p-2.5" style={{ background: 'rgba(244,238,228,0.04)', border: '1px solid rgba(244,238,228,0.16)' }}>
                                 <div className="text-gray-400 text-xs">Resolution</div>
                                 <div className="font-semibold text-[#d67347]">
                                   {position.resolution || 'NoWins'}
@@ -2730,22 +2773,21 @@ export default function WalletPage() {
                               </div>
                             </div>
                           </a>
-                        </CardContent>
-                      </Card>
+                        </div>
+                      </div>
                     ))}
                   </div>
                 </div>
               )}
             </>
           ) : (
-            <Card className="bg-white/5 border-white/10">
-              <CardContent className="p-6">
-                <div className="text-center text-gray-400 py-8">
-                  <p className="text-sm">No active predictions yet</p>
-                  <p className="text-xs mt-2">Start voting on markets to see them here</p>
-                </div>
-              </CardContent>
-            </Card>
+            <div className="p-6 text-center py-12" style={{ background: 'rgba(244,238,228,0.02)', border: '1px solid rgba(244,238,228,0.08)' }}>
+              <SeedIcon className="w-8 h-8 mx-auto mb-3" />
+              <p className="mono uppercase tracking-[0.24em] text-[0.6rem] mb-2" style={{ color: 'rgba(244,238,228,0.65)' }}>No active predictions yet</p>
+              <p className="italic" style={{ color: 'rgba(244,238,228,0.4)', fontFamily: 'var(--font-fraunces, serif)', fontStyle: 'italic', fontSize: '0.82rem' }}>
+                Start voting on markets to see them here.
+              </p>
+            </div>
           )}
         </div>
         )}
@@ -2765,14 +2807,10 @@ export default function WalletPage() {
           </div>
 
           {projectsLoading ? (
-            <Card className="bg-white/5 border-white/10">
-              <CardContent className="p-6">
-                <div className="text-center text-gray-400 py-8">
-                  <RefreshCw className="w-8 h-8 mx-auto mb-2 animate-spin" />
-                  <p className="text-sm">Loading your projects...</p>
-                </div>
-              </CardContent>
-            </Card>
+            <div className="p-6 text-center py-12" style={{ background: 'rgba(244,238,228,0.02)', border: '1px solid rgba(244,238,228,0.08)' }}>
+              <RefreshCw className="w-6 h-6 mx-auto mb-3 animate-spin" style={{ color: '#e89660' }} />
+              <p className="mono uppercase tracking-[0.24em] text-[0.6rem]" style={{ color: 'rgba(244,238,228,0.4)' }}>Loading your projects…</p>
+            </div>
           ) : projectsData?.success && projectsData.data?.projects?.length > 0 ? (
             <div className="grid gap-4 sm:grid-cols-2">
               {projectsData.data.projects.slice(0, showAllProjects ? undefined : 3).map((project: any) => (
@@ -2780,21 +2818,22 @@ export default function WalletPage() {
               ))}
             </div>
           ) : (
-            <Card className="bg-white/5 border-white/10">
-              <CardContent className="p-6">
-                <div className="text-center text-gray-400 py-8">
-                  <Rocket className="w-8 h-8 mx-auto mb-2 opacity-50" />
-                  <p className="text-sm">You haven't created any projects yet</p>
-                  <p className="text-xs mt-2">Start by creating your first prediction market</p>
-                  <a
-                    href="/create"
-                    className="inline-block mt-4 px-4 py-2 bg-[#e89660]/15 border border-[#e89660]/40 hover:border-[#e89660]/70 rounded-lg text-white font-semibold transition-all text-sm"
-                  >
-                    Create Project
-                  </a>
-                </div>
-              </CardContent>
-            </Card>
+            <div className="p-6 text-center py-12" style={{ background: 'rgba(244,238,228,0.02)', border: '1px solid rgba(244,238,228,0.08)' }}>
+              <BloomIcon className="w-8 h-8 mx-auto mb-3" />
+              <p className="mono uppercase tracking-[0.24em] text-[0.6rem] mb-2" style={{ color: 'rgba(244,238,228,0.65)' }}>No projects planted yet</p>
+              <p className="italic mb-5" style={{ color: 'rgba(244,238,228,0.4)', fontFamily: 'var(--font-fraunces, serif)', fontStyle: 'italic', fontSize: '0.82rem' }}>
+                Start by creating your first prediction market.
+              </p>
+              <a
+                href="/create"
+                className="inline-block mono uppercase tracking-[0.2em] text-[0.65rem] px-5 py-2.5 transition-colors"
+                style={{ background: '#e89660', color: '#0a0814' }}
+                onMouseEnter={(e) => (e.currentTarget.style.background = '#ecb48a')}
+                onMouseLeave={(e) => (e.currentTarget.style.background = '#e89660')}
+              >
+                Plant a market
+              </a>
+            </div>
           )}
         </div>
         )}
@@ -2819,15 +2858,13 @@ export default function WalletPage() {
               showAll={showAllWatchlist}
             />
           ) : (
-            <Card className="bg-white/5 border-white/10">
-              <CardContent className="p-6">
-                <div className="text-center text-gray-400 py-8">
-                  <Heart className="w-8 h-8 mx-auto mb-2 opacity-50" />
-                  <p className="text-sm">No markets in your watchlist yet</p>
-                  <p className="text-xs mt-2">Click the heart icon on any market to add it to your watchlist</p>
-                </div>
-              </CardContent>
-            </Card>
+            <div className="p-6 text-center py-12" style={{ background: 'rgba(244,238,228,0.02)', border: '1px solid rgba(244,238,228,0.08)' }}>
+              <Heart className="w-7 h-7 mx-auto mb-3" style={{ color: 'rgba(244,238,228,0.4)' }} />
+              <p className="mono uppercase tracking-[0.24em] text-[0.6rem] mb-2" style={{ color: 'rgba(244,238,228,0.65)' }}>Watchlist is empty</p>
+              <p className="italic" style={{ color: 'rgba(244,238,228,0.4)', fontFamily: 'var(--font-fraunces, serif)', fontStyle: 'italic', fontSize: '0.82rem' }}>
+                Click the heart icon on any market to add it to your watchlist.
+              </p>
+            </div>
           )}
         </div>
         )}
