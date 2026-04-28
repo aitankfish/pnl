@@ -23,7 +23,8 @@ interface ChatMessageItemProps {
 
 function getPositionBadge(wallet: string, founderWallet?: string | null): { label: string; color: string; bg: string } | null {
   if (founderWallet && wallet === founderWallet) {
-    return { label: 'Founder', color: colors.warning, bg: 'rgba(245, 158, 11, 0.15)' };
+    // Amber — the cosmic-plant conviction signal. The founder's voice IS conviction.
+    return { label: 'Founder', color: colors.primary, bg: 'rgba(232, 150, 96, 0.15)' };
   }
   return null;
 }
@@ -53,6 +54,7 @@ export function ChatMessageItem({
   replyMessage,
 }: ChatMessageItemProps) {
   const badge = getPositionBadge(message.walletAddress, founderWallet);
+  const isFromFounder = !!founderWallet && message.walletAddress === founderWallet;
   const displayName = message.displayName || message.walletAddress.slice(0, 6) + '...';
 
   const handleLongPress = useCallback(() => {
@@ -116,7 +118,14 @@ export function ChatMessageItem({
     : [];
 
   return (
-    <Pressable onLongPress={handleLongPress} style={[styles.container, isConsecutive && styles.consecutive]}>
+    <Pressable
+      onLongPress={handleLongPress}
+      style={[
+        styles.container,
+        isConsecutive && styles.consecutive,
+        isFromFounder && styles.fromFounder,
+      ]}
+    >
       {/* Reply preview */}
       {replyMessage && (
         <View style={styles.replyPreview}>
@@ -171,6 +180,15 @@ const styles = StyleSheet.create({
   },
   consecutive: {
     paddingTop: 2,
+  },
+  // Founder messages get an amber side-rule + faint amber wash. This is
+  // the cosmic-plant "conviction" signal — the founder's voice carries
+  // weight and should never be lost in the stream.
+  fromFounder: {
+    borderLeftWidth: 3,
+    borderLeftColor: colors.primary,
+    backgroundColor: 'rgba(232, 150, 96, 0.04)',
+    paddingLeft: spacing.md - 3,
   },
   header: {
     flexDirection: 'row',

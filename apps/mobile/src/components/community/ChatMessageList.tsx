@@ -2,7 +2,7 @@ import { useRef, useCallback, useMemo } from 'react';
 import { View, FlatList, ActivityIndicator, Text, StyleSheet } from 'react-native';
 import type { IChatMessage } from '@pnl/shared/hooks';
 import { ChatMessageItem } from './ChatMessageItem';
-import { colors, spacing, typography } from '../../theme';
+import { colors, spacing, typography, editorial } from '../../theme';
 
 interface ChatMessageListProps {
   messages: IChatMessage[];
@@ -92,8 +92,9 @@ export function ChatMessageList({
   if (messages.length === 0 && !isLoading) {
     return (
       <View style={styles.empty}>
-        <Text style={styles.emptyText}>No messages yet</Text>
-        <Text style={styles.emptySubtext}>Be the first to say something!</Text>
+        <Text style={styles.emptyMood}>
+          First word in this room.{'\n'}Make it count.
+        </Text>
       </View>
     );
   }
@@ -129,15 +130,12 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    gap: spacing.xs,
     padding: spacing.xl,
   },
-  emptyText: {
-    ...typography.body,
-    color: colors.textMuted,
-  },
-  emptySubtext: {
-    ...typography.caption,
-    color: colors.textMuted,
+  emptyMood: {
+    ...editorial.mood,
+    color: colors.textSecondary,
+    textAlign: 'center',
+    maxWidth: 280,
   },
 });
