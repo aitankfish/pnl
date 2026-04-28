@@ -113,18 +113,26 @@ export function ChatMessageList({
       keyboardDismissMode="interactive"
       keyboardShouldPersistTaps="handled"
       contentContainerStyle={styles.listContent}
+      style={styles.list}
     />
   );
 }
 
 const styles = StyleSheet.create({
+  // Critical: flex:1 makes the FlatList claim all the vertical space between
+  // its siblings (pinned banner above, gating prompt / input below) — without
+  // this, the FlatList sizes to its content and the difference shows up as
+  // dead space below the gating prompt.
+  list: {
+    flex: 1,
+  },
   listContent: {
     paddingVertical: spacing.sm,
-    // No flexGrow: with `inverted`, flexGrow forces items to the visual top
-    // when content is shorter than the list — leaves a dead gap at the
-    // bottom. Without it, inverted's natural anchor is the visual bottom,
-    // which is the correct chat behavior. Empty state is rendered in a
-    // separate branch above so this doesn't affect it.
+    // No flexGrow on contentContainer: with `inverted` + flexGrow, items
+    // anchor to the visual top when content is shorter than the list,
+    // re-creating the gap. Without flexGrow, inverted's natural anchor is
+    // the visual bottom — correct chat behavior. Empty state renders in a
+    // separate branch above this FlatList.
   },
   loader: {
     paddingVertical: spacing.md,
