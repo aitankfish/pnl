@@ -11,7 +11,7 @@ import {
   StyleSheet,
   Pressable,
   ActivityIndicator,
-  Alert,
+  Linking,
 } from 'react-native';
 import GorhomBottomSheet, { BottomSheetTextInput } from '@gorhom/bottom-sheet';
 import { Ionicons } from '@expo/vector-icons';
@@ -65,7 +65,9 @@ export const TradeSheet = forwardRef<GorhomBottomSheet, TradeSheetProps>(
     const [slippageBps, setSlippageBps] = useState(100); // 1% default
     const [solBalance, setSolBalance] = useState<number>(0);
     const [tokenBalance, setTokenBalance] = useState<number>(0);
+    const [successInfo, setSuccessInfo] = useState<{ signature: string } | null>(null);
     const quoteTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+    const successTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
     // Sync initialMode when sheet opens
     useEffect(() => {
@@ -74,7 +76,13 @@ export const TradeSheet = forwardRef<GorhomBottomSheet, TradeSheetProps>(
       setOutputAmount('');
       setQuote(null);
       setError(null);
+      setSuccessInfo(null);
     }, [initialMode]);
+
+    // Cleanup the success-toast timer on unmount
+    useEffect(() => {
+      return () => { if (successTimerRef.current) clearTimeout(successTimerRef.current); };
+    }, []);
 
     // Fetch balances
     const fetchBalances = useCallback(async () => {
@@ -168,6 +176,7 @@ export const TradeSheet = forwardRef<GorhomBottomSheet, TradeSheetProps>(
       try {
         setIsSwapping(true);
         setError(null);
+        setSuccessInfo(null);
 
         const swapRes = await fetch('https://api.jup.ag/swap/v1/swap', {
           method: 'POST',
@@ -186,16 +195,27 @@ export const TradeSheet = forwardRef<GorhomBottomSheet, TradeSheetProps>(
         const txBytes = Buffer.from(swapTransaction, 'base64');
         const transaction = VersionedTransaction.deserialize(txBytes);
 
-        const provider = await solanaWallet.wallets![0].getProvider();
+        const wallet = solanaWallet.wallets?.[0];
+        if (!wallet) throw new Error('Wallet not available — please reconnect.');
+        const provider = await wallet.getProvider();
         const connection = await getSolanaConnection();
         const { signature } = await (provider as any).request({
           method: 'signAndSendTransaction',
           params: { transaction, connection },
         });
-        await connection.confirmTransaction(signature, 'confirmed');
+
+        // Match useVote: 30s confirmation timeout to prevent the UI from
+        // hanging forever when an RPC stalls.
+        const confirmPromise = connection.confirmTransaction(signature, 'confirmed');
+        const timeoutPromise = new Promise<never>((_, reject) =>
+          setTimeout(() => reject(new Error('Swap sent but confirmation timed out. Check your wallet.')), 30000),
+        );
+        await Promise.race([confirmPromise, timeoutPromise]);
 
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-        Alert.alert('Swap Successful', `Transaction: ${signature.slice(0, 8)}...`);
+        setSuccessInfo({ signature });
+        if (successTimerRef.current) clearTimeout(successTimerRef.current);
+        successTimerRef.current = setTimeout(() => setSuccessInfo(null), 8000);
 
         setInputAmount('');
         setOutputAmount('');
@@ -382,6 +402,20 @@ export const TradeSheet = forwardRef<GorhomBottomSheet, TradeSheetProps>(
             </View>
           ) : null}
 
+          {/* Success — auto-dismisses after 8s. Tap to view tx on explorer. */}
+          {successInfo ? (
+            <Pressable
+              onPress={() => Linking.openURL(`https://orb.helius.dev/tx/${successInfo.signature}`)}
+              style={styles.successBox}
+            >
+              <Ionicons name="checkmark-circle" size={14} color="#10b981" />
+              <Text style={styles.successText} numberOfLines={1}>
+                Swap successful — view tx ({successInfo.signature.slice(0, 8)}…)
+              </Text>
+              <Ionicons name="open-outline" size={12} color="#10b981" />
+            </Pressable>
+          ) : null}
+
           {/* Submit button */}
           <PressableScale
             onPress={handleSwap}
@@ -539,6 +573,25 @@ const styles = StyleSheet.create({
     padding: spacing.xs,
   },
   errorText: { fontSize: 11, color: '#ef4444' },
+
+  // Success
+  successBox: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    backgroundColor: 'rgba(16,185,129,0.1)',
+    borderWidth: 1,
+    borderColor: 'rgba(16,185,129,0.3)',
+    borderRadius: borderRadius.md,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: spacing.xs,
+  },
+  successText: {
+    flex: 1,
+    fontSize: 11,
+    color: '#10b981',
+    fontWeight: '600',
+  },
 
   // Submit
   submitBtn: {
