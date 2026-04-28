@@ -28,6 +28,7 @@ const sections: Section[] = [
   { id: 'vision', title: 'Vision & roadmap' },
   { id: 'technical', title: 'Technical' },
   { id: 'community', title: 'Join the grove' },
+  { id: 'further-reading', title: 'Further reading' },
   { id: 'disclaimer', title: 'Disclaimer' },
 ];
 

@@ -2171,10 +2171,14 @@ export default function HomePage() {
                   },
                 ].map((claim) => (
                   <article key={claim.numeral} className="grid grid-cols-[auto_1fr] gap-5 md:gap-7 items-baseline">
-                    <span className="serif text-[1.9rem] md:text-[2.1rem] leading-none"
-                      style={{ color: '#e89660', fontVariationSettings: "'SOFT' 30, 'opsz' 72", letterSpacing: '0.02em' }}>
+                    <a
+                      href={`/whitepaper#fr-${claim.numeral === 'V' ? 'i' : claim.numeral.toLowerCase()}`}
+                      onClick={(e) => { e.preventDefault(); triggerRouteTransition(`/whitepaper#fr-${claim.numeral === 'V' ? 'i' : claim.numeral.toLowerCase()}`, `Claim ${claim.numeral}`); }}
+                      title={`See sources for Claim ${claim.numeral}`}
+                      className="serif text-[1.9rem] md:text-[2.1rem] leading-none transition-opacity duration-300 hover:opacity-100 cursor-pointer"
+                      style={{ color: '#e89660', fontVariationSettings: "'SOFT' 30, 'opsz' 72", letterSpacing: '0.02em', textDecoration: 'none', opacity: 0.92 }}>
                       {claim.numeral}
-                    </span>
+                    </a>
                     <div className="flex flex-col gap-3">
                       <h3 className="serif text-[1.3rem] md:text-[1.55rem] leading-[1.2] tracking-[-0.015em]"
                         style={{ color: '#f4eee4', fontWeight: 400, fontVariationSettings: "'SOFT' 50, 'opsz' 48" }}>
@@ -2188,10 +2192,16 @@ export default function HomePage() {
                   </article>
                 ))}
               </div>
-              <div className="mt-14 pt-8 border-t" style={{ borderColor: 'rgba(244,238,228,0.08)' }}>
+              <div className="mt-14 pt-8 border-t flex flex-col sm:flex-row sm:items-center gap-5 sm:gap-10" style={{ borderColor: 'rgba(244,238,228,0.08)' }}>
                 <a href="/whitepaper" onClick={(e) => { e.preventDefault(); triggerRouteTransition('/whitepaper', 'The thesis'); }} className="group inline-flex items-center gap-3 mono text-[0.72rem] uppercase tracking-[0.26em] hover:text-[#f4eee4] transition-colors cursor-pointer" style={{ color: '#e89660' }}>
                   <span className="relative inline-block after:absolute after:left-0 after:bottom-[-4px] after:h-px after:w-full after:bg-current after:scale-x-0 after:origin-left group-hover:after:scale-x-100 after:transition-transform after:duration-500">
                     Read the full thesis
+                  </span>
+                  <span className="transition-transform duration-300 group-hover:translate-x-1">→</span>
+                </a>
+                <a href="/whitepaper#further-reading" onClick={(e) => { e.preventDefault(); triggerRouteTransition('/whitepaper#further-reading', 'Further reading'); }} className="group inline-flex items-center gap-3 mono text-[0.72rem] uppercase tracking-[0.26em] hover:text-[#f4eee4] transition-colors cursor-pointer" style={{ color: 'rgba(232,150,96,0.7)' }}>
+                  <span className="relative inline-block after:absolute after:left-0 after:bottom-[-4px] after:h-px after:w-full after:bg-current after:scale-x-0 after:origin-left group-hover:after:scale-x-100 after:transition-transform after:duration-500">
+                    See the canon
                   </span>
                   <span className="transition-transform duration-300 group-hover:translate-x-1">→</span>
                 </a>

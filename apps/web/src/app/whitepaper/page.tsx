@@ -373,8 +373,10 @@ export default function WhitepaperPage() {
                   key={claim.numeral}
                   className="grid grid-cols-[auto_1fr] gap-5 sm:gap-7 items-baseline"
                 >
-                  <span
-                    className="leading-none"
+                  <a
+                    href={`#fr-${claim.numeral === 'V' ? 'i' : claim.numeral.toLowerCase()}`}
+                    title={`See sources for Claim ${claim.numeral}`}
+                    className="leading-none transition-opacity duration-300 hover:opacity-100"
                     style={{
                       color: AMBER,
                       fontFamily: 'var(--font-fraunces, serif)',
@@ -382,10 +384,12 @@ export default function WhitepaperPage() {
                       fontSize: 'clamp(1.7rem, 3.5vw, 2.1rem)',
                       fontVariationSettings: '"SOFT" 30, "opsz" 72',
                       letterSpacing: '0.02em',
+                      textDecoration: 'none',
+                      opacity: 0.92,
                     }}
                   >
                     {claim.numeral}
-                  </span>
+                  </a>
                   <div className="flex flex-col gap-2.5">
                     <h3
                       className="leading-[1.2]"
@@ -1444,9 +1448,238 @@ export default function WhitepaperPage() {
               </div>
             </section>
 
+            {/* ─── Further reading ───
+                The canon PNL leans on. Each group anchors to one of the
+                five claims in the opening thesis chapter, so a reader who
+                wants to verify can trace a claim back to its source. Listed
+                openly because the work isn't ours — it's what made the
+                work possible. */}
+            <section id="further-reading" className="scroll-mt-28">
+              <h2>§ 10 — Further reading</h2>
+              <p>
+                PNL did not invent the ideas it stands on. Below is the
+                canon we leaned on — the work that shaped each of the five
+                claims in our thesis. We list it openly so the reader can
+                verify, and so the next builder can pick up where we paused.
+              </p>
+
+              <h3
+                id="fr-iii"
+                className="scroll-mt-28"
+                style={{
+                  color: AMBER,
+                  fontFamily: 'var(--font-fraunces, serif)',
+                  fontStyle: 'italic',
+                  fontWeight: 400,
+                  fontSize: '1.05rem',
+                  marginTop: '2.25rem',
+                  marginBottom: '0.6rem',
+                  letterSpacing: '-0.005em',
+                }}
+              >
+                On markets as information — Claim III
+              </h3>
+              <ul>
+                <li>
+                  <strong>Scott Duke Kominers, Alex Tabarrok &amp; Sonal Chokshi —</strong>{' '}
+                  <em>
+                    <a
+                      href="https://a16zcrypto.com/posts/podcast/prediction-markets-explained"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                    >
+                      Prediction markets — everything you need to know
+                    </a>
+                  </em>{' '}
+                  (a16z crypto, 2025). The modern explainer for why prediction
+                  markets aggregate information better than polls or models.
+                  The closing arc — from forecasting events to <em>info finance</em>{' '}
+                  — is the frame PNL extends from outcomes to coordination.
+                </li>
+                <li>
+                  <strong>Robin Hanson —</strong>{' '}
+                  <em>
+                    <a
+                      href="https://mason.gmu.edu/~rhanson/futarchy.html"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                    >
+                      Shall we vote on values, but bet on beliefs?
+                    </a>
+                  </em>{' '}
+                  (2000). The foundational case that markets-on-commitment
+                  outperform votes-on-opinion. PNL narrows the same instinct
+                  to a single decision — should this idea launch?
+                </li>
+              </ul>
+
+              <h3
+                id="fr-iv"
+                className="scroll-mt-28"
+                style={{
+                  color: AMBER,
+                  fontFamily: 'var(--font-fraunces, serif)',
+                  fontStyle: 'italic',
+                  fontWeight: 400,
+                  fontSize: '1.05rem',
+                  marginTop: '2.25rem',
+                  marginBottom: '0.6rem',
+                  letterSpacing: '-0.005em',
+                }}
+              >
+                On the limits of venture — Claim IV
+              </h3>
+              <ul>
+                <li>
+                  <strong>Placeholder VC —</strong>{' '}
+                  <em>
+                    <a
+                      href="https://www.placeholder.vc/blog/2021/4/1/the-original-sin"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                    >
+                      The Original Sin
+                    </a>
+                  </em>{' '}
+                  (2021). On how opacity in early-stage capital reproduces past
+                  wealth and power asymmetries. The case for transparent,
+                  on-chain capital formation that PNL inherits — without the
+                  antagonism toward venture itself.
+                </li>
+                <li>
+                  <strong>Galaxy Research —</strong>{' '}
+                  <em>
+                    <a
+                      href="https://www.galaxy.com/insights/research/2024-institutional-crypto-hedge-fund-and-venture-report"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                    >
+                      2024 Institutional Crypto Hedge Fund &amp; Venture Report
+                    </a>
+                  </em>
+                  . Quantifies the funnel: 1,632 crypto venture deals against
+                  34,471 in traditional markets — the asymmetry that defines
+                  who never gets seen.
+                </li>
+              </ul>
+
+              <h3
+                id="fr-ii"
+                className="scroll-mt-28"
+                style={{
+                  color: AMBER,
+                  fontFamily: 'var(--font-fraunces, serif)',
+                  fontStyle: 'italic',
+                  fontWeight: 400,
+                  fontSize: '1.05rem',
+                  marginTop: '2.25rem',
+                  marginBottom: '0.6rem',
+                  letterSpacing: '-0.005em',
+                }}
+              >
+                On origination in the age of AI — Claim II
+              </h3>
+              <ul>
+                <li>
+                  <strong>a16z crypto —</strong>{' '}
+                  <em>
+                    <a
+                      href="https://a16zcrypto.com/posts/article/ai-crypto-crossovers"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                    >
+                      AI x crypto crossovers
+                    </a>
+                  </em>
+                  . On where AI shifts the value of human-generated work, and
+                  why crypto is uniquely positioned to preserve and price
+                  human agency.
+                </li>
+                <li>
+                  <strong>Galaxy Research —</strong>{' '}
+                  <em>
+                    <a
+                      href="https://www.galaxy.com/insights/perspectives/playing-the-future-in-2025-and-beyond"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                    >
+                      Playing the future in 2025 &amp; beyond
+                    </a>
+                  </em>
+                  . On &ldquo;technologies that prioritize human agency in an
+                  AI-centric world.&rdquo; The macro thesis behind PNL&rsquo;s
+                  belief that origination becomes scarcer — and therefore more
+                  valuable — as machines learn to execute.
+                </li>
+              </ul>
+
+              <h3
+                id="fr-i"
+                className="scroll-mt-28"
+                style={{
+                  color: AMBER,
+                  fontFamily: 'var(--font-fraunces, serif)',
+                  fontStyle: 'italic',
+                  fontWeight: 400,
+                  fontSize: '1.05rem',
+                  marginTop: '2.25rem',
+                  marginBottom: '0.6rem',
+                  letterSpacing: '-0.005em',
+                }}
+              >
+                On the failure modes we&rsquo;re fixing — Claims I &amp; V
+              </h3>
+              <ul>
+                <li>
+                  <strong>Galaxy Research —</strong>{' '}
+                  <em>
+                    <a
+                      href="https://www.galaxy.com/insights/research/agentic-capital-markets-ai-agents-crypto-ralph-wiggum-truth-terminal-gas-town"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                    >
+                      Raising for robots: developing agentic capital markets
+                    </a>
+                  </em>
+                  . The Ralph Wiggum / Gas Town episode: an agent attracted
+                  serious capital &ldquo;purely by garnering attention&hellip;
+                  with no link to the meme&rsquo;s value.&rdquo; The exact
+                  failure pattern PNL inverts — conviction-gated, not
+                  attention-gated.
+                </li>
+                <li>
+                  <strong>Galaxy Research —</strong>{' '}
+                  <em>
+                    <a
+                      href="https://www.galaxy.com/insights/research/memecoins-pump-fun-solana-kols"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                    >
+                      The state of memecoins
+                    </a>
+                  </em>
+                  . The reference baseline for launchpad-era pathologies —
+                  short hold-times, rug rates, lost trust. PNL is the
+                  structural answer to the problem this paper describes.
+                </li>
+              </ul>
+
+              <p
+                style={{
+                  color: CREAM_FAINT,
+                  fontStyle: 'italic',
+                  fontSize: '0.9rem',
+                  marginTop: '2.25rem',
+                }}
+              >
+                If you have found something we should be reading, the grove is
+                open. Send it our way.
+              </p>
+            </section>
+
             {/* ─── Disclaimer ─── */}
             <section id="disclaimer" className="scroll-mt-28">
-              <h2>§ 10 — Disclaimer</h2>
+              <h2>§ 11 — Disclaimer</h2>
               <p
                 style={{
                   color: CREAM_FAINT,
