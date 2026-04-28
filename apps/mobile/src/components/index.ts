@@ -51,3 +51,4 @@ export { NewProjectsPill } from './NewProjectsPill';
 export { NewBadge } from './NewBadge';
 export { VoteToast } from './VoteToast';
 export type { VoteToastState } from './VoteToast';
+export { ReconnectingBanner } from './ReconnectingBanner';

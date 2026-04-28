@@ -21,7 +21,7 @@ import { swrConfig } from '@pnl/shared/services';
 import { PRIVY_APP_ID, PRIVY_CLIENT_ID } from '../src/config/init';
 import { AuthProvider } from '../src/providers/AuthProvider';
 import { VoiceRoomProvider, useVoiceRoomContextSafe } from '../src/providers/VoiceRoomProvider';
-import { StarField } from '../src/components';
+import { StarField, ReconnectingBanner } from '../src/components';
 import { MiniVoiceBar } from '../src/components/community';
 
 SplashScreen.preventAutoHideAsync();
@@ -136,6 +136,7 @@ export default function RootLayout() {
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
       <OfflineBanner />
+      <ReconnectingBanner />
       <PrivyProvider
         appId={PRIVY_APP_ID}
         clientId={PRIVY_CLIENT_ID}
