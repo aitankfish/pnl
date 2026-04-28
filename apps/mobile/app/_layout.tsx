@@ -12,6 +12,11 @@ import { Stack, usePathname, router } from 'expo-router';
 import NetInfo from '@react-native-community/netinfo';
 import * as SplashScreen from 'expo-splash-screen';
 import * as Linking from 'expo-linking';
+import {
+  useFonts,
+  Fraunces_400Regular,
+  Fraunces_400Regular_Italic,
+} from '@expo-google-fonts/fraunces';
 import { SWRConfig } from 'swr';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { PrivyProvider } from '@privy-io/expo';
@@ -133,6 +138,15 @@ function AppContent() {
 }
 
 export default function RootLayout() {
+  const [fontsLoaded, fontsError] = useFonts({
+    Fraunces_400Regular,
+    Fraunces_400Regular_Italic,
+  });
+
+  // Block render until fonts settle (success OR network error — either way we
+  // proceed; only the "still loading" state holds the splash).
+  if (!fontsLoaded && !fontsError) return null;
+
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
       <OfflineBanner />
