@@ -120,7 +120,11 @@ export function ChatMessageList({
 const styles = StyleSheet.create({
   listContent: {
     paddingVertical: spacing.sm,
-    flexGrow: 1,
+    // No flexGrow: with `inverted`, flexGrow forces items to the visual top
+    // when content is shorter than the list — leaves a dead gap at the
+    // bottom. Without it, inverted's natural anchor is the visual bottom,
+    // which is the correct chat behavior. Empty state is rendered in a
+    // separate branch above so this doesn't affect it.
   },
   loader: {
     paddingVertical: spacing.md,
