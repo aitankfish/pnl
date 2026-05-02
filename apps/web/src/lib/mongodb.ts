@@ -725,6 +725,189 @@ const MessageReactionSchema = new mongoose.Schema({
 // Compound index to ensure one reaction per user per message per emoji
 MessageReactionSchema.index({ messageId: 1, walletAddress: 1, emoji: 1 }, { unique: true });
 
+// ========================================
+// Research Paper Schemas (Phase 1: sentiment-only, no on-chain)
+// ========================================
+
+// Subschema for individual paper revisions. Append-only — every "edit" is a
+// new entry in the versions array; old PDFs stay pinned on IPFS forever.
+const ResearchPaperVersionSchema = new mongoose.Schema(
+  {
+    version: { type: Number, required: true },
+    paperUrl: { type: String, required: true },
+    title: { type: String, required: true, maxlength: 255 },
+    summary: { type: String, maxlength: 500 },
+    githubUrl: { type: String, maxlength: 500 },
+    changelog: { type: String, maxlength: 500 },
+    createdAt: { type: Date, default: Date.now },
+  },
+  { _id: false },
+);
+
+const ResearchPaperSchema = new mongoose.Schema({
+  authorWallet: {
+    type: String,
+    required: true,
+    index: true,
+  },
+  // Top-level fields always mirror the *current* version for fast reads.
+  title: {
+    type: String,
+    required: true,
+    maxlength: 255,
+  },
+  authorName: {
+    type: String,
+    required: true,
+    maxlength: 120,
+  },
+  authorXHandle: {
+    type: String,
+    maxlength: 30,
+  },
+  paperUrl: {
+    type: String,
+    required: true,
+  },
+  summary: {
+    type: String,
+    maxlength: 500,
+  },
+  githubUrl: {
+    type: String,
+    maxlength: 500,
+  },
+  // Versioning — append-only history. v1 is written at first publish.
+  versions: {
+    type: [ResearchPaperVersionSchema],
+    default: [],
+  },
+  currentVersion: {
+    type: Number,
+    default: 1,
+  },
+  likeCount: {
+    type: Number,
+    default: 0,
+  },
+  dislikeCount: {
+    type: Number,
+    default: 0,
+  },
+  status: {
+    type: String,
+    enum: ['active', 'hidden'],
+    default: 'active',
+    index: true,
+  },
+  createdAt: {
+    type: Date,
+    default: Date.now,
+    index: true,
+  },
+  updatedAt: {
+    type: Date,
+    default: Date.now,
+    index: true,
+  },
+});
+
+ResearchPaperSchema.index({ status: 1, createdAt: -1 });
+ResearchPaperSchema.index({ status: 1, updatedAt: -1 });
+// Text-ish index for the search autocomplete (title is the dominant match).
+ResearchPaperSchema.index({ authorWallet: 1, title: 1 });
+
+const PaperReactionSchema = new mongoose.Schema({
+  paperId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'ResearchPaper',
+    required: true,
+    index: true,
+  },
+  walletAddress: {
+    type: String,
+    required: true,
+  },
+  reaction: {
+    type: String,
+    enum: ['like', 'dislike'],
+    required: true,
+  },
+  createdAt: {
+    type: Date,
+    default: Date.now,
+  },
+});
+
+PaperReactionSchema.index({ paperId: 1, walletAddress: 1 }, { unique: true });
+
+// ========================================
+// Paper Citations — junction collection between papers and projects.
+// ========================================
+//
+// Designed for both Phase A (same-wallet, auto-accepted) and Phase B
+// (cross-author, requires acceptance). Public surfaces filter on
+// status IN ('auto', 'accepted'); pending citations stay invisible.
+//
+const PaperCitationSchema = new mongoose.Schema({
+  paperId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'ResearchPaper',
+    required: true,
+    index: true,
+  },
+  projectId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Project',
+    required: true,
+    index: true,
+  },
+  // Wallet of the project founder (the one requesting the citation).
+  addedBy: {
+    type: String,
+    required: true,
+    index: true,
+  },
+  // Denormalized author wallet so the inbox query is a single hit.
+  paperAuthorWallet: {
+    type: String,
+    required: true,
+    index: true,
+  },
+  status: {
+    type: String,
+    enum: ['auto', 'pending', 'accepted', 'rejected', 'withdrawn'],
+    required: true,
+    index: true,
+  },
+  role: {
+    type: String,
+    enum: ['thesis', 'foundation', 'reference'],
+    default: 'reference',
+  },
+  // Optional one-line note from the founder explaining the citation.
+  citationNote: {
+    type: String,
+    maxlength: 280,
+  },
+  createdAt: {
+    type: Date,
+    default: Date.now,
+    index: true,
+  },
+  acceptedAt: { type: Date },
+  rejectedAt: { type: Date },
+});
+
+// One paper cited at most once per project.
+PaperCitationSchema.index({ paperId: 1, projectId: 1 }, { unique: true });
+// Inbox: pending citations for a given author, newest first.
+PaperCitationSchema.index({ paperAuthorWallet: 1, status: 1, createdAt: -1 });
+// Project page: visible citations for a project, by role.
+PaperCitationSchema.index({ projectId: 1, status: 1 });
+// Paper page: projects citing a paper, accepted only.
+PaperCitationSchema.index({ paperId: 1, status: 1 });
+
 // Export models - Force recreation to pick up schema changes
 if (mongoose.models.Project) {
   delete mongoose.models.Project;
@@ -750,6 +933,15 @@ if (mongoose.models.ChatMessage) {
 if (mongoose.models.MessageReaction) {
   delete mongoose.models.MessageReaction;
 }
+if (mongoose.models.ResearchPaper) {
+  delete mongoose.models.ResearchPaper;
+}
+if (mongoose.models.PaperReaction) {
+  delete mongoose.models.PaperReaction;
+}
+if (mongoose.models.PaperCitation) {
+  delete mongoose.models.PaperCitation;
+}
 
 export const Project = mongoose.model('Project', ProjectSchema);
 export const PredictionMarket = mongoose.model('PredictionMarket', PredictionMarketSchema);
@@ -759,6 +951,9 @@ export const UserProfile = mongoose.model('UserProfile', UserProfileSchema, 'use
 export const UserFollow = mongoose.model('UserFollow', UserFollowSchema, 'user_follows');
 export const ChatMessage = mongoose.model('ChatMessage', ChatMessageSchema, 'chat_messages');
 export const MessageReaction = mongoose.model('MessageReaction', MessageReactionSchema, 'message_reactions');
+export const ResearchPaper = mongoose.model('ResearchPaper', ResearchPaperSchema, 'research_papers');
+export const PaperReaction = mongoose.model('PaperReaction', PaperReactionSchema, 'paper_reactions');
+export const PaperCitation = mongoose.model('PaperCitation', PaperCitationSchema, 'paper_citations');
 
 // Type definitions
 export interface IProject {
@@ -844,4 +1039,54 @@ export interface IMessageReaction {
   walletAddress: string;
   emoji: string;
   createdAt: Date;
+}
+
+export interface IResearchPaperVersion {
+  version: number;
+  paperUrl: string;
+  title: string;
+  summary?: string;
+  githubUrl?: string;
+  changelog?: string;
+  createdAt: Date;
+}
+
+export interface IResearchPaper {
+  _id: string;
+  authorWallet: string;
+  title: string;
+  authorName: string;
+  authorXHandle?: string;
+  paperUrl: string;
+  summary?: string;
+  githubUrl?: string;
+  versions: IResearchPaperVersion[];
+  currentVersion: number;
+  likeCount: number;
+  dislikeCount: number;
+  status: 'active' | 'hidden';
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+export interface IPaperReaction {
+  _id: string;
+  paperId: string;
+  walletAddress: string;
+  reaction: 'like' | 'dislike';
+  createdAt: Date;
+}
+
+export interface IPaperCitation {
+  _id: string;
+  paperId: string;
+  projectId: string;
+  addedBy: string;
+  paperAuthorWallet: string;
+  status: 'auto' | 'pending' | 'accepted' | 'rejected' | 'withdrawn';
+  role: 'thesis' | 'foundation' | 'reference';
+  citationNote?: string;
+  createdAt: Date;
+  acceptedAt?: Date;
+  rejectedAt?: Date;
 }

@@ -21,6 +21,7 @@ import {
   SunIcon,
   RootIcon,
 } from '@/components/PlantIcons';
+import { ResearchGrid } from './ResearchGrid';
 
 // ── Cosmic-plant palette ──
 const BG = '#0a0814';
@@ -160,6 +161,34 @@ const PER_PAGE_OPTIONS: DropdownOption[] = ITEMS_PER_PAGE_OPTIONS.map((n) => ({
 }));
 
 export default function BrowsePage() {
+  const [viewMode, setViewMode] = useState<'markets' | 'research'>('markets');
+  // Discovery filter — surfaces are different per view:
+  //   markets: 'all' | 'thesis'  (only markets with a linked paper)
+  //   research: 'all' | 'code' | 'cited'
+  const [marketDiscovery, setMarketDiscovery] = useState<'all' | 'thesis'>('all');
+  const [researchDiscovery, setResearchDiscovery] = useState<'all' | 'code' | 'cited'>('all');
+  // Citation index — set of marketAddresses + paperIds with visible
+  // citations. Powers the ✎ THESIS / ✎ CITED badges and filter chips.
+  const [citationIndex, setCitationIndex] = useState<{
+    marketAddresses: Set<string>;
+    paperIds: Set<string>;
+  }>({ marketAddresses: new Set(), paperIds: new Set() });
+  useEffect(() => {
+    let cancelled = false;
+    fetch('/api/research/citation-index')
+      .then((r) => r.json())
+      .then((json) => {
+        if (cancelled || !json?.success) return;
+        setCitationIndex({
+          marketAddresses: new Set<string>(json.data.marketAddresses || []),
+          paperIds: new Set<string>(json.data.paperIds || []),
+        });
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, []);
   const [votingState, setVotingState] = useState<{ marketId: string; voteType: 'yes' | 'no' } | null>(null);
   const [selectedCategory, setSelectedCategory] = useState<string>('All');
   const [selectedStatus, setSelectedStatus] = useState<string>('active');
@@ -451,6 +480,79 @@ export default function BrowsePage() {
           </p>
         </header>
 
+        {/* ─── View toggle: markets vs research ─── */}
+        <div className="flex justify-center mb-6">
+          <div
+            className="inline-flex"
+            style={{ border: `1px solid ${HAIR_STRONG}`, padding: 2 }}
+          >
+            {(['markets', 'research'] as const).map((mode) => {
+              const active = viewMode === mode;
+              const label = mode === 'markets' ? 'Markets' : 'Research';
+              return (
+                <button
+                  key={mode}
+                  type="button"
+                  onClick={() => setViewMode(mode)}
+                  className="mono uppercase tracking-[0.22em] text-[0.6rem] px-4 py-2 transition-colors"
+                  style={{
+                    background: active ? AMBER : 'transparent',
+                    color: active ? BG : CREAM_DIM,
+                  }}
+                  onMouseEnter={(e) => {
+                    if (!active) e.currentTarget.style.color = CREAM;
+                  }}
+                  onMouseLeave={(e) => {
+                    if (!active) e.currentTarget.style.color = CREAM_DIM;
+                  }}
+                >
+                  {label}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+
+        {viewMode === 'research' && (
+          <>
+            <div className="flex flex-wrap items-center justify-between gap-3 mb-5">
+              <DiscoveryChips
+                chips={[
+                  { value: 'all', label: 'All' },
+                  { value: 'code', label: '🐙 With code' },
+                  { value: 'cited', label: '✎ Cited' },
+                ]}
+                active={researchDiscovery}
+                onChange={(v) =>
+                  setResearchDiscovery(v as 'all' | 'code' | 'cited')
+                }
+              />
+              <Link
+                href="/research/researchers"
+                className="mono uppercase tracking-[0.22em] text-[0.55rem] transition-colors"
+                style={{ color: AMBER }}
+              >
+                browse researchers →
+              </Link>
+            </div>
+            <ResearchGrid
+              citedPaperIds={citationIndex.paperIds}
+              filter={researchDiscovery}
+            />
+          </>
+        )}
+
+        {viewMode === 'markets' && (<>
+
+        <DiscoveryChips
+          chips={[
+            { value: 'all', label: 'All' },
+            { value: 'thesis', label: '✎ With thesis' },
+          ]}
+          active={marketDiscovery}
+          onChange={(v) => setMarketDiscovery(v as 'all' | 'thesis')}
+        />
+
         {/* ─── Search + filters ─── */}
         <div className="mb-6 sm:mb-8 space-y-4">
           {/* Search */}
@@ -615,13 +717,20 @@ export default function BrowsePage() {
         {/* ─── Grid ─── */}
         {!loading && !error && filteredMarkets.length > 0 && (
           <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-            {filteredMarkets.map((market) => (
+            {filteredMarkets
+              .filter((m) =>
+                marketDiscovery === 'thesis'
+                  ? citationIndex.marketAddresses.has(m.marketAddress)
+                  : true,
+              )
+              .map((market) => (
               <MarketCard
                 key={market.id}
                 market={market}
                 isHot={selectedStatus === 'active' && hotProjectIds.has(market.id)}
                 isNew={animatingMarketIds.has(market.id)}
                 isPulsing={pulsingAddresses.has(market.marketAddress)}
+                hasThesis={citationIndex.marketAddresses.has(market.marketAddress)}
                 position={userPositions.get(market.marketAddress)}
                 voting={
                   votingState !== null && votingState.marketId === market.id
@@ -744,6 +853,8 @@ export default function BrowsePage() {
           message={errorDialog.message}
           details={errorDialog.details}
         />
+
+        </>)}
       </div>
 
       {/* Animations shared by every card */}
@@ -758,6 +869,51 @@ export default function BrowsePage() {
           100% { transform: translateY(0); opacity: 1; }
         }
       `}</style>
+    </div>
+  );
+}
+
+function DiscoveryChips({
+  chips,
+  active,
+  onChange,
+}: {
+  chips: Array<{ value: string; label: string }>;
+  active: string;
+  onChange: (v: string) => void;
+}) {
+  return (
+    <div className="flex flex-wrap gap-1.5 mb-5">
+      {chips.map((c) => {
+        const isOn = c.value === active;
+        return (
+          <button
+            key={c.value}
+            type="button"
+            onClick={() => onChange(c.value)}
+            className="mono uppercase tracking-[0.22em] text-[0.55rem] px-3 py-1.5 transition-colors"
+            style={{
+              background: isOn ? AMBER : 'transparent',
+              color: isOn ? BG : CREAM_DIM,
+              border: `1px solid ${isOn ? AMBER : HAIR_STRONG}`,
+            }}
+            onMouseEnter={(e) => {
+              if (!isOn) {
+                e.currentTarget.style.color = CREAM;
+                e.currentTarget.style.borderColor = AMBER + '66';
+              }
+            }}
+            onMouseLeave={(e) => {
+              if (!isOn) {
+                e.currentTarget.style.color = CREAM_DIM;
+                e.currentTarget.style.borderColor = HAIR_STRONG;
+              }
+            }}
+          >
+            {c.label}
+          </button>
+        );
+      })}
     </div>
   );
 }
@@ -836,6 +992,7 @@ function MarketCard({
   isHot,
   isNew,
   isPulsing,
+  hasThesis,
   position,
   voting,
   anyVoting,
@@ -845,6 +1002,7 @@ function MarketCard({
   isHot: boolean;
   isNew: boolean;
   isPulsing: boolean;
+  hasThesis?: boolean;
   position?: { side: string; amount: number };
   voting: 'yes' | 'no' | null;
   anyVoting: boolean;
@@ -963,6 +1121,11 @@ function MarketCard({
           {isHot && !isNew && (
             <Tag color={AMBER}>
               <BloomIcon className="w-2.5 h-2.5 inline mr-0.5" /> Hot
+            </Tag>
+          )}
+          {hasThesis && (
+            <Tag color={AMBER}>
+              <span style={{ marginRight: '0.2em' }}>✎</span> Thesis
             </Tag>
           )}
           <Tag color={CREAM_DIM}>{formatLabel(market.category)}</Tag>

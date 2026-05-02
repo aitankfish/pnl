@@ -12,6 +12,7 @@ import UserInfo from './UserInfo';
 import GlobalSearch from './GlobalSearch';
 import NotificationDropdown from './NotificationDropdown';
 import { SeedIcon, TreeIcon, BloomIcon, BellflowerIcon, BasketIcon, BowMark } from './PlantIcons';
+import { InboxNavItem } from './research/InboxNavItem';
 
 interface NavItem {
   id: string;
@@ -221,6 +222,10 @@ function Sidebar({ currentPage }: SidebarProps) {
               />
             )}
           </Link>
+
+          {/* Citation inbox — only renders when the connected wallet has
+              pending citations. Silent for everyone else. */}
+          <InboxNavItem active={currentPage === 'research-inbox'} />
 
           {/* Merch basket (harvest glyph) — desktop only, subtle */}
           <Link
