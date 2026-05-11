@@ -13,7 +13,7 @@ import { useState, useCallback } from 'react';
 import { useWallet } from './useWallet';
 import { getSolanaConnection } from '../solana/connection';
 import { createClientLogger } from '../utils/logger';
-import { apiUrl } from '../utils/api';
+import { authenticatedFetch } from '../utils/authenticated-fetch';
 import { useWallets, useSignAndSendTransaction, useStandardWallets } from '@privy-io/react-auth/solana';
 import { useNetwork } from './useNetwork';
 import bs58 from 'bs58';
@@ -65,7 +65,7 @@ export function useVoting() {
 
       // Step 1: Prepare transaction (server-side)
       logger.info('Preparing transaction...');
-      const prepareResponse = await fetch(apiUrl('/api/markets/vote/prepare'), {
+      const prepareResponse = await authenticatedFetch('/api/markets/vote/prepare', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -179,7 +179,7 @@ export function useVoting() {
         amount: actualAmountSpent,
         signature,
       });
-      const completeResponse = await fetch(apiUrl('/api/markets/vote/complete'), {
+      const completeResponse = await authenticatedFetch('/api/markets/vote/complete', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

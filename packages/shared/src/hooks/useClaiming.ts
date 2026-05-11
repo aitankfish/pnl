@@ -8,7 +8,7 @@
 import { useState } from 'react';
 import { useWallet } from './useWallet';
 import { getSolanaConnection } from '../solana/connection';
-import { apiUrl } from '../utils/api';
+import { authenticatedFetch } from '../utils/authenticated-fetch';
 import { useWallets, useSignAndSendTransaction, useStandardWallets } from '@privy-io/react-auth/solana';
 import { useNetwork } from './useNetwork';
 import bs58 from 'bs58';
@@ -46,7 +46,7 @@ export function useClaiming() {
 
       // Step 1: Prepare transaction
       console.log('Preparing claim rewards transaction...');
-      const prepareResponse = await fetch(apiUrl('/api/markets/claim/prepare'), {
+      const prepareResponse = await authenticatedFetch('/api/markets/claim/prepare', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -135,7 +135,7 @@ export function useClaiming() {
       // STEP 4: Update database to mark claim as completed
       console.log('Updating database...');
       try {
-        await fetch(apiUrl('/api/markets/claim/complete'), {
+        await authenticatedFetch('/api/markets/claim/complete', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({

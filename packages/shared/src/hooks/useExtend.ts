@@ -8,7 +8,7 @@ import { useState } from 'react';
 import { useWallet } from './useWallet';
 import { getSolanaConnection } from '../solana/connection';
 import { useNetwork } from './useNetwork';
-import { apiUrl } from '../utils/api';
+import { authenticatedFetch } from '../utils/authenticated-fetch';
 import { useSignAndSendTransaction, useWallets, useStandardWallets } from '@privy-io/react-auth/solana';
 import bs58 from 'bs58';
 
@@ -35,7 +35,7 @@ export function useExtend() {
 
       // Step 1: Prepare transaction
       console.log('Preparing extend market transaction...');
-      const prepareResponse = await fetch(apiUrl('/api/markets/extend/prepare'), {
+      const prepareResponse = await authenticatedFetch('/api/markets/extend/prepare', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -104,7 +104,7 @@ export function useExtend() {
         // Step 3: Call complete endpoint to update database and create notifications
         console.log('Updating database and creating notifications...');
         try {
-          const completeResponse = await fetch(apiUrl('/api/markets/extend/complete'), {
+          const completeResponse = await authenticatedFetch('/api/markets/extend/complete', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({

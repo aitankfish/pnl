@@ -8,7 +8,7 @@ import { useState } from 'react';
 import { useWallet } from './useWallet';
 import { getSolanaConnection } from '../solana/connection';
 import { useNetwork } from './useNetwork';
-import { apiUrl } from '../utils/api';
+import { authenticatedFetch } from '../utils/authenticated-fetch';
 import { useSignAndSendTransaction, useWallets, useStandardWallets } from '@privy-io/react-auth/solana';
 import bs58 from 'bs58';
 
@@ -35,7 +35,7 @@ export function useTeamVesting() {
       setIsInitializing(true);
 
       console.log('Preparing init team vesting transaction...');
-      const prepareResponse = await fetch(apiUrl('/api/markets/team-vesting/init'), {
+      const prepareResponse = await authenticatedFetch('/api/markets/team-vesting/init', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -141,7 +141,7 @@ export function useTeamVesting() {
       setIsClaiming(true);
 
       console.log('Preparing claim team tokens transaction...');
-      const prepareResponse = await fetch(apiUrl('/api/markets/team-vesting/claim'), {
+      const prepareResponse = await authenticatedFetch('/api/markets/team-vesting/claim', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

@@ -17,7 +17,7 @@ import { TransactionInstruction } from '@solana/web3.js';
 import { getSolanaConnection } from '../solana/connection';
 import { useNetwork } from './useNetwork';
 import { getEnvConfig } from '../config/environment';
-import { apiUrl } from '../utils/api';
+import { authenticatedFetch } from '../utils/authenticated-fetch';
 import { useSignAndSendTransaction, useSignTransaction, useWallets, useStandardWallets } from '@privy-io/react-auth/solana';
 import bs58 from 'bs58';
 
@@ -78,7 +78,7 @@ export function useResolution() {
       // Step 2: Normal resolution (NO wins or Refund)
       // -------------------------
       console.log('Preparing market resolution transaction...');
-      const prepareResponse = await fetch(apiUrl('/api/markets/resolve/prepare'), {
+      const prepareResponse = await authenticatedFetch('/api/markets/resolve/prepare', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -165,7 +165,7 @@ export function useResolution() {
 
       // Update market state in database
       console.log('Updating market state in database...');
-      const updateResponse = await fetch(apiUrl('/api/markets/resolve/complete'), {
+      const updateResponse = await authenticatedFetch('/api/markets/resolve/complete', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -355,7 +355,7 @@ export function useResolution() {
           console.log(`   Attempt ${attempt}/${maxRetries}...`);
 
           // Use backend proxy endpoint to avoid CORS
-          const ipfsResponse = await fetch(apiUrl('/api/pump/upload-ipfs'), {
+          const ipfsResponse = await authenticatedFetch('/api/pump/upload-ipfs', {
             method: 'POST',
             body: formData,
           });
@@ -395,7 +395,7 @@ export function useResolution() {
       console.log('Preparing native atomic transaction...');
       const connection = await getSolanaConnection();
 
-      const prepareResponse = await fetch(apiUrl('/api/markets/resolve/prepare-native-transaction'), {
+      const prepareResponse = await authenticatedFetch('/api/markets/resolve/prepare-native-transaction', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -567,7 +567,7 @@ export function useResolution() {
 
       // Update database
       console.log('Updating market state in database...');
-      const updateResponse = await fetch(apiUrl('/api/markets/resolve/complete'), {
+      const updateResponse = await authenticatedFetch('/api/markets/resolve/complete', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

@@ -7,7 +7,7 @@ import { useState } from 'react';
 import { useWallet } from './useWallet';
 import { getSolanaConnection } from '../solana/connection';
 import { useNetwork } from './useNetwork';
-import { apiUrl } from '../utils/api';
+import { authenticatedFetch } from '../utils/authenticated-fetch';
 import { useSignAndSendTransaction, useWallets, useStandardWallets } from '@privy-io/react-auth/solana';
 import bs58 from 'bs58';
 
@@ -31,7 +31,7 @@ export function useEmergencyDrain() {
       setIsDraining(true);
 
       console.log('Preparing emergency vault drain...');
-      const prepareResponse = await fetch(apiUrl('/api/treasury/emergency-drain'), {
+      const prepareResponse = await authenticatedFetch('/api/treasury/emergency-drain', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

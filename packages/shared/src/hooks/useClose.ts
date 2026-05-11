@@ -8,7 +8,7 @@ import { useState } from 'react';
 import { useWallet } from './useWallet';
 import { getSolanaConnection } from '../solana/connection';
 import { useNetwork } from './useNetwork';
-import { apiUrl } from '../utils/api';
+import { authenticatedFetch } from '../utils/authenticated-fetch';
 import { useSignAndSendTransaction, useWallets, useStandardWallets } from '@privy-io/react-auth/solana';
 import bs58 from 'bs58';
 
@@ -32,7 +32,7 @@ export function useClose() {
       setIsClosingPosition(true);
 
       console.log('Preparing close position transaction...');
-      const prepareResponse = await fetch(apiUrl('/api/markets/close-position'), {
+      const prepareResponse = await authenticatedFetch('/api/markets/close-position', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -135,7 +135,7 @@ export function useClose() {
       setIsClosingMarket(true);
 
       console.log('Preparing close market transaction...');
-      const prepareResponse = await fetch(apiUrl('/api/markets/close-market'), {
+      const prepareResponse = await authenticatedFetch('/api/markets/close-market', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
