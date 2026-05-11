@@ -80,7 +80,11 @@ export function useVoting() {
       const prepareResult = await prepareResponse.json();
 
       if (!prepareResult.success) {
-        throw new Error(prepareResult.error || 'Failed to prepare vote transaction');
+        // Surface server-side details (e.g., "401 Unauthorized") so parseError
+        // and the toast aren't stuck on a generic "An unexpected error".
+        const base = prepareResult.error || 'Failed to prepare vote transaction';
+        const detail = prepareResult.details ? ` — ${prepareResult.details}` : '';
+        throw new Error(`${base}${detail}`);
       }
 
       logger.info('Transaction prepared successfully', {

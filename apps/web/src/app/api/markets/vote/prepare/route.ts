@@ -9,7 +9,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { PublicKey } from '@solana/web3.js';
 import { buildBuyYesTransaction, buildBuyNoTransaction } from '@/lib/anchor-program';
 import { createClientLogger } from '@/lib/logger';
-import { SOLANA_NETWORK } from '@/config/solana';
+import { SOLANA_NETWORK, RPC_ENDPOINT } from '@/config/solana';
 import { withWalletOwnership } from '@/lib/auth/require-wallet';
 import { checkRateLimit } from '@/lib/auth/rate-limit';
 
@@ -80,19 +80,23 @@ export const POST = withWalletOwnership(async (request, authUser) => {
     const [treasuryPda] = getTreasuryPDA(targetNetwork);
     logger.info('Treasury PDA being used', { treasuryPda: treasuryPda.toBase58() });
 
-    // Build transaction based on vote type (pass network for dynamic program ID selection)
+    // Build transaction based on vote type. rpcEndpoint is the server-resolved
+    // URL (built from HELIUS_API_KEY) so getLatestBlockhash doesn't depend on
+    // the browser-side NEXT_PUBLIC_HELIUS_MAINNET_RPC being correct in deploy env.
     const result = voteType === 'yes'
       ? await buildBuyYesTransaction({
           market: marketPubkey,
           user: userPubkey,
           solAmount: lamports,
           network: targetNetwork,
+          rpcEndpoint: RPC_ENDPOINT,
         })
       : await buildBuyNoTransaction({
           market: marketPubkey,
           user: userPubkey,
           solAmount: lamports,
           network: targetNetwork,
+          rpcEndpoint: RPC_ENDPOINT,
         });
 
     // Serialize transaction for client-side signing

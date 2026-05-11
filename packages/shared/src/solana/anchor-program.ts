@@ -150,12 +150,16 @@ export async function buildBuyYesTransaction(params: {
   solAmount: number;
   wallet?: any;
   network?: 'devnet' | 'mainnet-beta';
+  // Server callers should pass a URL built from HELIUS_API_KEY so the public
+  // NEXT_PUBLIC_HELIUS_MAINNET_RPC isn't on the hot path for blockhash fetches.
+  rpcEndpoint?: string;
 }) {
   const config = getEnvConfig();
   const network = params.network || config.SOLANA_NETWORK;
-  const rpcEndpoint = network === 'mainnet-beta'
-    ? config.HELIUS_MAINNET_RPC || 'https://api.mainnet-beta.solana.com'
-    : config.HELIUS_DEVNET_RPC || 'https://api.devnet.solana.com';
+  const rpcEndpoint = params.rpcEndpoint
+    || (network === 'mainnet-beta'
+      ? config.HELIUS_MAINNET_RPC || 'https://api.mainnet-beta.solana.com'
+      : config.HELIUS_DEVNET_RPC || 'https://api.devnet.solana.com');
 
   const [treasuryPda] = getTreasuryPDA(network);
   const [positionPda] = getPositionPDA(params.market, params.user, network);
@@ -195,12 +199,16 @@ export async function buildBuyNoTransaction(params: {
   solAmount: number;
   wallet?: any;
   network?: 'devnet' | 'mainnet-beta';
+  // Server callers should pass a URL built from HELIUS_API_KEY so the public
+  // NEXT_PUBLIC_HELIUS_MAINNET_RPC isn't on the hot path for blockhash fetches.
+  rpcEndpoint?: string;
 }) {
   const config = getEnvConfig();
   const network = params.network || config.SOLANA_NETWORK;
-  const rpcEndpoint = network === 'mainnet-beta'
-    ? config.HELIUS_MAINNET_RPC || 'https://api.mainnet-beta.solana.com'
-    : config.HELIUS_DEVNET_RPC || 'https://api.devnet.solana.com';
+  const rpcEndpoint = params.rpcEndpoint
+    || (network === 'mainnet-beta'
+      ? config.HELIUS_MAINNET_RPC || 'https://api.mainnet-beta.solana.com'
+      : config.HELIUS_DEVNET_RPC || 'https://api.devnet.solana.com');
 
   const [treasuryPda] = getTreasuryPDA(network);
   const [positionPda] = getPositionPDA(params.market, params.user, network);

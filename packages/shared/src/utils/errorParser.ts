@@ -37,10 +37,15 @@ export function parseError(error: unknown): ParsedError {
     return String(err);
   };
 
+  // When nothing in our pattern catalog matches, use the actual error message
+  // as the toast body instead of a canned "An unexpected error occurred". The
+  // canned text was hiding 401s, blockhash failures, and other server-side
+  // causes that the user needs to see to diagnose anything.
+  const rawMsg = getErrorMessage(error);
   const defaultError: ParsedError = {
     title: 'Transaction Failed',
-    message: 'An unexpected error occurred. Please try again.',
-    details: getErrorMessage(error),
+    message: rawMsg || 'An unexpected error occurred. Please try again.',
+    details: rawMsg,
   };
 
   if (!error) return defaultError;
