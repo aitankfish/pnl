@@ -8,6 +8,7 @@ import { authFetch } from '@/lib/auth/fetch-with-auth';
 import { config } from '@/lib/config';
 import { createClientLogger } from '@/lib/logger';
 import { useWallet } from '@/hooks/useWallet';
+import { useSolBalance } from '@/lib/hooks/useSolBalance';
 import {
   useWallets,
   useSignAndSendTransaction,
@@ -224,7 +225,6 @@ export default function CreatePage() {
   const [submissionStep, setSubmissionStep] = useState<SubmissionStep>('idle');
   const [isMounted, setIsMounted] = useState(false);
   const [isCustomPoolAmount, setIsCustomPoolAmount] = useState(false);
-  const [walletBalance, setWalletBalance] = useState<number | null>(null);
   const [planted, setPlanted] = useState<{
     marketId: string;
     marketAddress: string;
@@ -241,27 +241,13 @@ export default function CreatePage() {
     setIsMounted(true);
   }, []);
 
-  // Wallet balance — uses our cached endpoint so we don't hammer Helius from
-  // every visit to the create page.
-  useEffect(() => {
-    if (!primaryWallet?.address || !authenticated) {
-      setWalletBalance(null);
-      return;
-    }
-    let cancelled = false;
-    fetch(`/api/wallet/balance?address=${encodeURIComponent(primaryWallet.address)}`)
-      .then((r) => r.json())
-      .then((data) => {
-        if (cancelled) return;
-        if (data.success && typeof data.sol === 'number') setWalletBalance(data.sol);
-      })
-      .catch(() => {
-        if (!cancelled) setWalletBalance(null);
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, [primaryWallet?.address, authenticated]);
+  // Wallet balance via the shared SWR hook — same source of truth as navbar,
+  // sidebar, and /wallet. null preserves the prior "haven't fetched yet" semantic
+  // so downstream gating still treats unknown != zero.
+  const { solBalance: _solBalance, isLoading: _solLoading } = useSolBalance(
+    authenticated ? primaryWallet?.address : null,
+  );
+  const walletBalance: number | null = authenticated && !_solLoading ? _solBalance : null;
 
   const setField = (field: keyof ProjectFormData, value: any) => {
     setFormData((prev) => ({ ...prev, [field]: value }));
