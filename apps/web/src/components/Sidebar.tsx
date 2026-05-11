@@ -6,12 +6,14 @@ import { useRouter } from 'next/navigation';
 import { useWallet } from '@/hooks/useWallet';
 import { useUserProfile } from '@/hooks/useUserProfile';
 import { useNotifications } from '@/hooks/useNotifications';
+import { useSolBalance } from '@/lib/hooks/useSolBalance';
 import { useAuthModal } from '@/contexts/AuthModalContext';
 import { User, Loader2 } from 'lucide-react';
 import UserInfo from './UserInfo';
 import GlobalSearch from './GlobalSearch';
 import NotificationDropdown from './NotificationDropdown';
 import { SeedIcon, TreeIcon, BloomIcon, BellflowerIcon, BasketIcon, BowMark } from './PlantIcons';
+import { InboxNavItem } from './research/InboxNavItem';
 
 interface NavItem {
   id: string;
@@ -38,8 +40,6 @@ const navItems: NavItem[] = [
 function Sidebar({ currentPage }: SidebarProps) {
   const [isScrolled, setIsScrolled] = useState(false);
   const [isPending, startTransition] = useTransition();
-  const [walletBalance, setWalletBalance] = useState<number | null>(null);
-  const [shouldGlowWallet, setShouldGlowWallet] = useState(false);
   const [isNotificationDropdownOpen, setIsNotificationDropdownOpen] = useState(false);
   const router = useRouter();
   const { ready, authenticated, primaryWallet } = useWallet();
@@ -47,30 +47,10 @@ function Sidebar({ currentPage }: SidebarProps) {
   const { displayName, profilePhotoUrl } = useUserProfile();
   const { unreadCount } = useNotifications();
 
-  // Low-balance detection — queries the Redis-cached /api/wallet/balance endpoint
-  // so every client shares one RPC call per 5s window instead of each hitting Helius directly.
-  useEffect(() => {
-    const checkBalance = async () => {
-      if (!primaryWallet?.address || !authenticated) {
-        setShouldGlowWallet(false);
-        return;
-      }
-      try {
-        const res = await fetch(`/api/wallet/balance?address=${encodeURIComponent(primaryWallet.address)}`);
-        const data = await res.json();
-        if (data.success && typeof data.sol === 'number') {
-          setWalletBalance(data.sol);
-          setShouldGlowWallet(data.sol < 0.02);
-        }
-      } catch (error) {
-        console.error('Error fetching balance for glow effect:', error);
-        setShouldGlowWallet(false);
-      }
-    };
-    checkBalance();
-    const interval = setInterval(checkBalance, 30000);
-    return () => clearInterval(interval);
-  }, [primaryWallet, authenticated]);
+  // Low-balance glow — shared SWR cache with navbar + wallet page, so one
+  // in-flight RPC per refresh window is reused across all consumers.
+  const { solBalance } = useSolBalance(authenticated ? primaryWallet?.address : null);
+  const shouldGlowWallet = solBalance > 0 && solBalance < 0.02;
 
   // Scroll-aware styling — transparent at top, picks up dark backdrop on scroll
   useEffect(() => {
@@ -222,6 +202,10 @@ function Sidebar({ currentPage }: SidebarProps) {
             )}
           </Link>
 
+          {/* Citation inbox — only renders when the connected wallet has
+              pending citations. Silent for everyone else. */}
+          <InboxNavItem active={currentPage === 'research-inbox'} />
+
           {/* Merch basket (harvest glyph) — desktop only, subtle */}
           <Link
             href="/merch"
@@ -255,7 +239,7 @@ function Sidebar({ currentPage }: SidebarProps) {
             }}
             title={
               shouldGlowWallet
-                ? `Low Balance: ${(Number(walletBalance) || 0).toFixed(4)} SOL — click to deposit`
+                ? `Low Balance: ${solBalance.toFixed(4)} SOL — click to deposit`
                 : authenticated
                 ? `${displayName} · Wallet`
                 : 'Connect Wallet'

@@ -8,6 +8,7 @@
 import React from 'react';
 import { useWallet } from '@/hooks/useWallet';
 import { useUserProfile } from '@/hooks/useUserProfile';
+import { useSolBalance } from '@/lib/hooks/useSolBalance';
 import { Badge } from '@/components/ui/badge';
 import {
   User,
@@ -43,85 +44,14 @@ export default function UserInfo({
   const user = contextUser;
   const wallets = primaryWallet ? [primaryWallet] : [];
 
-  // State for wallet balance
-  const [walletBalance, setWalletBalance] = React.useState<number | null>(null);
-  const [isLoadingBalance, setIsLoadingBalance] = React.useState(false);
-  const fetchingRef = React.useRef(false);
+  // SOL balance — shared SWR cache, so navbar + sidebar + wallet page all use
+  // one in-flight request per refresh window.
+  const balanceAddress = isLoggedIn && primaryWallet?.chainType === 'solana' ? primaryWallet.address : null;
+  const { solBalance, isLoading: isLoadingBalance } = useSolBalance(balanceAddress);
 
-  // Fetch actual SOL balance from the wallet
-  React.useEffect(() => {
-    const fetchBalance = async () => {
-      // Only proceed if we have a wallet and it's authenticated
-      if (!primaryWallet?.address || !isLoggedIn || fetchingRef.current) {
-        setWalletBalance(null);
-        return;
-      }
-
-      // Ensure it's a Solana wallet
-      if (primaryWallet.chainType !== 'solana') {
-        console.warn('UserInfo: Wallet is not a Solana wallet, skipping balance fetch');
-        setWalletBalance(null);
-        return;
-      }
-
-      try {
-        fetchingRef.current = true;
-        setIsLoadingBalance(true);
-        const { Connection, PublicKey, LAMPORTS_PER_SOL } = await import('@solana/web3.js');
-
-        // Get RPC endpoint based on detected network
-        const RPC_MAINNET = process.env.NEXT_PUBLIC_HELIUS_MAINNET_RPC || 'https://api.mainnet-beta.solana.com';
-        const RPC_DEVNET = process.env.NEXT_PUBLIC_HELIUS_DEVNET_RPC || 'https://api.devnet.solana.com';
-        const rpcEndpoint = network === 'mainnet-beta' ? RPC_MAINNET : RPC_DEVNET;
-
-        const connection = new Connection(rpcEndpoint, 'confirmed');
-
-        // Validate Solana address before creating PublicKey
-        let publicKey;
-        try {
-          publicKey = new PublicKey(primaryWallet.address);
-        } catch (err) {
-          console.error('Invalid Solana address:', primaryWallet.address);
-          setWalletBalance(null);
-          return;
-        }
-
-        const balance = await connection.getBalance(publicKey);
-        const balanceInSOL = balance / LAMPORTS_PER_SOL;
-
-        setWalletBalance(balanceInSOL);
-      } catch (error) {
-        console.error('Error fetching balance:', error);
-        setWalletBalance(null);
-      } finally {
-        setIsLoadingBalance(false);
-        fetchingRef.current = false;
-      }
-    };
-
-    // Debounce: wait 300ms before fetching
-    const timeout = setTimeout(fetchBalance, 300);
-
-    // Refresh balance every 60 seconds (increased from 30)
-    const interval = setInterval(fetchBalance, 60000);
-
-    return () => {
-      clearTimeout(timeout);
-      clearInterval(interval);
-    };
-  }, [primaryWallet?.address, primaryWallet?.chainType, isLoggedIn, network]);
-
-  // Get balance from primaryWallet if available
   const getWalletBalance = () => {
-    if (isLoadingBalance) {
-      return '...';
-    }
-
-    if (walletBalance !== null && walletBalance !== undefined && !isNaN(walletBalance)) {
-      return `${Number(walletBalance).toFixed(2)} SOL`;
-    }
-
-    return '0.00 SOL';
+    if (isLoadingBalance) return '...';
+    return `${solBalance.toFixed(2)} SOL`;
   };
   
   // Show loading state while authenticating

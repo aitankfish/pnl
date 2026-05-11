@@ -15,6 +15,8 @@ export interface EnvConfig {
   PINATA_JWT: string;
   PINATA_GATEWAY_URL: string;
   PRIVY_APP_ID: string;
+  PRIVY_CLIENT_ID: string;
+  VOICE_SERVER_URL: string;
 }
 
 let _config: EnvConfig | null = null;
@@ -42,6 +44,8 @@ function tryAutoInit(): EnvConfig | null {
         PINATA_JWT: process.env.PINATA_JWT || '',
         PINATA_GATEWAY_URL: process.env.PINATA_GATEWAY_URL || 'https://gateway.pinata.cloud',
         PRIVY_APP_ID: process.env.NEXT_PUBLIC_PRIVY_APP_ID || '',
+        PRIVY_CLIENT_ID: process.env.NEXT_PUBLIC_PRIVY_CLIENT_ID || '',
+        VOICE_SERVER_URL: process.env.NEXT_PUBLIC_VOICE_SERVER_URL || 'https://voice.pnl.market',
       };
       _config = config;
       return config;

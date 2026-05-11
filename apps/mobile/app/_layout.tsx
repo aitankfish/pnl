@@ -12,6 +12,11 @@ import { Stack, usePathname, router } from 'expo-router';
 import NetInfo from '@react-native-community/netinfo';
 import * as SplashScreen from 'expo-splash-screen';
 import * as Linking from 'expo-linking';
+import {
+  useFonts,
+  Fraunces_400Regular,
+  Fraunces_400Regular_Italic,
+} from '@expo-google-fonts/fraunces';
 import { SWRConfig } from 'swr';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { PrivyProvider } from '@privy-io/expo';
@@ -21,7 +26,7 @@ import { swrConfig } from '@pnl/shared/services';
 import { PRIVY_APP_ID, PRIVY_CLIENT_ID } from '../src/config/init';
 import { AuthProvider } from '../src/providers/AuthProvider';
 import { VoiceRoomProvider, useVoiceRoomContextSafe } from '../src/providers/VoiceRoomProvider';
-import { StarField } from '../src/components';
+import { StarField, ReconnectingBanner } from '../src/components';
 import { MiniVoiceBar } from '../src/components/community';
 
 SplashScreen.preventAutoHideAsync();
@@ -133,9 +138,19 @@ function AppContent() {
 }
 
 export default function RootLayout() {
+  const [fontsLoaded, fontsError] = useFonts({
+    Fraunces_400Regular,
+    Fraunces_400Regular_Italic,
+  });
+
+  // Block render until fonts settle (success OR network error — either way we
+  // proceed; only the "still loading" state holds the splash).
+  if (!fontsLoaded && !fontsError) return null;
+
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
       <OfflineBanner />
+      <ReconnectingBanner />
       <PrivyProvider
         appId={PRIVY_APP_ID}
         clientId={PRIVY_CLIENT_ID}

@@ -69,7 +69,7 @@ export function FloatingCommunitySheet({ markets, activeVoiceRooms }: FloatingCo
   return (
     <BottomSheet
       ref={sheetRef}
-      snapPoints={['60%', '100%']}
+      snapPoints={['90%', '100%']}
       onClose={handleClose}
       onChange={handleChange}
       rawContent

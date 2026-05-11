@@ -4,7 +4,6 @@
  */
 
 import { useState, useCallback } from 'react';
-import { Alert } from 'react-native';
 import { Transaction, VersionedTransaction } from '@solana/web3.js';
 import * as Haptics from 'expo-haptics';
 import { apiUrl, parseError, authenticatedPost } from '@pnl/shared/utils';
@@ -34,7 +33,13 @@ export function useVote(options?: UseVoteOptions) {
         const posRes = await fetch(apiUrl(`/api/markets/${marketId}/position?wallet=${walletAddress}&network=${network}`));
         const posData = await posRes.json();
         if (posData?.success && posData.data?.hasPosition && posData.data.side !== direction) {
-          Alert.alert('Cannot Vote', `You already voted ${posData.data.side.toUpperCase()} — can't switch sides.`);
+          options?.onStageChange?.(
+            'error',
+            direction,
+            amount,
+            marketName || '',
+            `You already voted ${posData.data.side.toUpperCase()} — can't switch sides.`,
+          );
           return false;
         }
 
@@ -53,7 +58,9 @@ export function useVote(options?: UseVoteOptions) {
         } catch {
           transaction = Transaction.from(txBytes);
         }
-        const provider = await solanaWallet.wallets![0].getProvider();
+        const wallet = solanaWallet.wallets?.[0];
+        if (!wallet) throw new Error('Wallet not available — please reconnect.');
+        const provider = await wallet.getProvider();
         const connection = await getSolanaConnection(network);
         const { signature } = await (provider as any).request({
           method: 'signAndSendTransaction',

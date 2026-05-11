@@ -97,6 +97,14 @@ const TokenStatsBar = dynamic(() => import('@/components/TokenStatsBar').then(mo
   ssr: false,
 });
 
+const MarketCitations = dynamic(
+  () =>
+    import('@/components/research/MarketCitations').then(mod => ({
+      default: mod.MarketCitations,
+    })),
+  { loading: () => null, ssr: false },
+);
+
 interface MarketDetails {
   id: string;
   marketAddress: string;
@@ -1766,6 +1774,12 @@ export default function MarketDetailClient({
               >
                 {market.description}
               </p>
+
+              {/* Linked research papers — if the founder cited any, surface
+                  the thesis prominently and any foundations below. */}
+              {market.marketAddress && (
+                <MarketCitations marketIdOrAddress={market.marketAddress} />
+              )}
 
               {/* Meta chips */}
               <div className="flex items-center flex-wrap gap-1.5">

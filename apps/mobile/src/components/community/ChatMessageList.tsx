@@ -2,7 +2,7 @@ import { useRef, useCallback, useMemo } from 'react';
 import { View, FlatList, ActivityIndicator, Text, StyleSheet } from 'react-native';
 import type { IChatMessage } from '@pnl/shared/hooks';
 import { ChatMessageItem } from './ChatMessageItem';
-import { colors, spacing, typography } from '../../theme';
+import { colors, spacing, typography, editorial } from '../../theme';
 
 interface ChatMessageListProps {
   messages: IChatMessage[];
@@ -92,8 +92,9 @@ export function ChatMessageList({
   if (messages.length === 0 && !isLoading) {
     return (
       <View style={styles.empty}>
-        <Text style={styles.emptyText}>No messages yet</Text>
-        <Text style={styles.emptySubtext}>Be the first to say something!</Text>
+        <Text style={styles.emptyMood}>
+          First word in this room.{'\n'}Make it count.
+        </Text>
       </View>
     );
   }
@@ -112,14 +113,26 @@ export function ChatMessageList({
       keyboardDismissMode="interactive"
       keyboardShouldPersistTaps="handled"
       contentContainerStyle={styles.listContent}
+      style={styles.list}
     />
   );
 }
 
 const styles = StyleSheet.create({
+  // Critical: flex:1 makes the FlatList claim all the vertical space between
+  // its siblings (pinned banner above, gating prompt / input below) — without
+  // this, the FlatList sizes to its content and the difference shows up as
+  // dead space below the gating prompt.
+  list: {
+    flex: 1,
+  },
   listContent: {
     paddingVertical: spacing.sm,
-    flexGrow: 1,
+    // No flexGrow on contentContainer: with `inverted` + flexGrow, items
+    // anchor to the visual top when content is shorter than the list,
+    // re-creating the gap. Without flexGrow, inverted's natural anchor is
+    // the visual bottom — correct chat behavior. Empty state renders in a
+    // separate branch above this FlatList.
   },
   loader: {
     paddingVertical: spacing.md,
@@ -129,15 +142,12 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    gap: spacing.xs,
     padding: spacing.xl,
   },
-  emptyText: {
-    ...typography.body,
-    color: colors.textMuted,
-  },
-  emptySubtext: {
-    ...typography.caption,
-    color: colors.textMuted,
+  emptyMood: {
+    ...editorial.mood,
+    color: colors.textSecondary,
+    textAlign: 'center',
+    maxWidth: 280,
   },
 });

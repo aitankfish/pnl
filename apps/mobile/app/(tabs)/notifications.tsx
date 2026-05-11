@@ -30,7 +30,7 @@ import { useUserSocket } from '@pnl/shared/hooks';
 import { useAuth } from '../../src/providers/AuthProvider';
 import { ScreenHeader, StatusTabs } from '../../src/components';
 import type { StatusTab } from '../../src/components/StatusTabs';
-import { colors, spacing, borderRadius } from '../../src/theme';
+import { colors, spacing, borderRadius, editorial } from '../../src/theme';
 
 /* ── Types ── */
 interface Notification {
@@ -110,10 +110,54 @@ const priorityConfig: Record<string, { label: string; bg: string; color: string 
   low: { label: 'Low', bg: 'rgba(107, 114, 128, 0.15)', color: '#6b7280' },
 };
 
-/* ── Swipe-to-delete threshold ── */
-const DELETE_THRESHOLD = 80;
+/* ── Swipe action thresholds ── */
+const BUTTON_WIDTH = 80;
+const SWIPE_FULL = BUTTON_WIDTH * 2;        // both Action + Delete revealed
+const SWIPE_DELETE_ONLY = BUTTON_WIDTH;     // only Delete revealed (no action available)
 
-/* ── Single notification row ── */
+/* ── Action labels per type ── */
+// Action-bearing types get specific verbs; everything else with an actionUrl
+// falls back to "Open". Notifications with neither type-action nor actionUrl
+// only get a Delete swipe.
+const ACTION_LABELS: Record<string, string> = {
+  claim_ready: 'Claim',
+  reward_earned: 'Claim',
+  vote_reminder: 'Vote',
+  founder_voice_live: 'Join',
+  market_resolved: 'View',
+  token_launched: 'View',
+  pool_complete: 'View',
+};
+
+function getPrimaryAction(item: Notification): { label: string } | null {
+  if (ACTION_LABELS[item.type]) return { label: ACTION_LABELS[item.type] };
+  if (item.actionUrl) return { label: 'Open' };
+  return null;
+}
+
+/* ── Action-required summary set (drives the "Needs you" header card) ── */
+const URGENT_TYPES = new Set([
+  'claim_ready',
+  'reward_earned',
+  'vote_reminder',
+  'founder_voice_live',
+]);
+
+function summaryLabelFor(type: string): string {
+  switch (type) {
+    case 'claim_ready':
+    case 'reward_earned':
+      return 'claims ready';
+    case 'vote_reminder':
+      return 'votes ending soon';
+    case 'founder_voice_live':
+      return 'voice rooms live';
+    default:
+      return type;
+  }
+}
+
+/* ── Single notification row — swipe left reveals [Action] [Delete] ── */
 function NotificationRow({
   item,
   onMarkRead,
@@ -125,10 +169,18 @@ function NotificationRow({
 }) {
   const icon = typeIcons[item.type] || defaultIcon;
   const priority = priorityConfig[item.priority];
+  const primaryAction = getPrimaryAction(item);
+  const swipeDistance = primaryAction ? SWIPE_FULL : SWIPE_DELETE_ONLY;
+
   const translateX = useSharedValue(0);
   const startX = useSharedValue(0);
 
   const handlePress = useCallback(() => {
+    if (!item.isRead) onMarkRead(item.id);
+    if (item.actionUrl) router.push(item.actionUrl as any);
+  }, [item, onMarkRead]);
+
+  const handleAction = useCallback(() => {
     if (!item.isRead) onMarkRead(item.id);
     if (item.actionUrl) router.push(item.actionUrl as any);
   }, [item, onMarkRead]);
@@ -145,11 +197,11 @@ function NotificationRow({
     })
     .onUpdate((e) => {
       const newX = startX.value + e.translationX;
-      translateX.value = Math.max(Math.min(newX, 0), -DELETE_THRESHOLD - 20);
+      translateX.value = Math.max(Math.min(newX, 0), -swipeDistance - 20);
     })
     .onEnd((e) => {
-      if (translateX.value < -DELETE_THRESHOLD / 2 || e.velocityX < -500) {
-        translateX.value = withSpring(-DELETE_THRESHOLD, { damping: 20, stiffness: 200 });
+      if (translateX.value < -swipeDistance / 2 || e.velocityX < -500) {
+        translateX.value = withSpring(-swipeDistance, { damping: 20, stiffness: 200 });
       } else {
         translateX.value = withSpring(0, { damping: 20, stiffness: 200 });
       }
@@ -169,17 +221,29 @@ function NotificationRow({
     transform: [{ translateX: translateX.value }],
   }));
 
-  const deleteOpacity = useAnimatedStyle(() => ({
-    opacity: interpolate(translateX.value, [0, -DELETE_THRESHOLD], [0, 1]),
+  const actionOpacity = useAnimatedStyle(() => ({
+    opacity: interpolate(translateX.value, [0, -swipeDistance], [0, 1]),
   }));
 
   return (
     <View style={styles.swipeContainer}>
-      {/* Delete action behind row */}
-      <Reanimated.View style={[styles.deleteAction, deleteOpacity]}>
-        <Pressable style={styles.deleteActionBtn} onPress={handleDelete}>
-          <Ionicons name="trash-outline" size={20} color="#fff" />
-          <Text style={styles.deleteActionText}>Delete</Text>
+      {/* Action buttons revealed behind the row */}
+      <Reanimated.View style={[styles.swipeActions, actionOpacity]}>
+        {primaryAction && (
+          <Pressable
+            style={[styles.actionBtn, styles.actionBtnPrimary]}
+            onPress={handleAction}
+          >
+            <Ionicons name="arrow-forward-outline" size={18} color={colors.textInverse} />
+            <Text style={styles.actionBtnPrimaryText}>{primaryAction.label}</Text>
+          </Pressable>
+        )}
+        <Pressable
+          style={[styles.actionBtn, styles.actionBtnDelete]}
+          onPress={handleDelete}
+        >
+          <Ionicons name="trash-outline" size={18} color="#fff" />
+          <Text style={styles.actionBtnDeleteText}>Delete</Text>
         </Pressable>
       </Reanimated.View>
 
@@ -343,6 +407,33 @@ export default function NotificationsScreen() {
     return notifications;
   }, [notifications, activeFilter]);
 
+  // Build the "Needs you" summary: counts of unread, urgent, action-bearing
+  // notifications grouped by type. Only includes types that genuinely need
+  // the user to *do* something (claim, vote, join), not informational ones.
+  const urgentSummary = useMemo(() => {
+    const counts: Record<string, number> = {};
+    for (const n of notifications) {
+      if (!n.isRead && URGENT_TYPES.has(n.type)) {
+        counts[n.type] = (counts[n.type] || 0) + 1;
+      }
+    }
+    const total = Object.values(counts).reduce((a, b) => a + b, 0);
+    return { counts, total };
+  }, [notifications]);
+
+  // Tapping a summary line scrolls to the first matching notification by
+  // setting the filter to All and (best-effort) navigating to its actionUrl.
+  const handleSummaryTap = useCallback(
+    (type: string) => {
+      const target = notifications.find((n) => !n.isRead && n.type === type);
+      if (target?.actionUrl) {
+        if (!target.isRead) markAsRead(target.id);
+        router.push(target.actionUrl as any);
+      }
+    },
+    [notifications, markAsRead],
+  );
+
   // Group by time period for SectionList
   const sections = useMemo(() => {
     const todayStart = new Date().setHours(0, 0, 0, 0);
@@ -423,6 +514,29 @@ export default function NotificationsScreen() {
         onTabChange={(v) => setActiveFilter(v as FilterKey)}
       />
 
+      {/* "Needs you" summary card — only when something actually needs action.
+          Cosmic-plant treatment: amber side-rule, italic Fraunces label. */}
+      {urgentSummary.total > 0 && (
+        <View style={styles.urgentCard}>
+          <View style={styles.urgentCardRule} />
+          <View style={styles.urgentCardBody}>
+            <Text style={styles.urgentCardLabel}>Needs you</Text>
+            {Object.entries(urgentSummary.counts).map(([type, count]) => (
+              <Pressable
+                key={type}
+                style={styles.urgentCardLine}
+                onPress={() => handleSummaryTap(type)}
+                hitSlop={4}
+              >
+                <Text style={styles.urgentCardCount}>{count}</Text>
+                <Text style={styles.urgentCardText}>{summaryLabelFor(type)}</Text>
+                <Ionicons name="chevron-forward" size={14} color={colors.textMuted} />
+              </Pressable>
+            ))}
+          </View>
+        </View>
+      )}
+
       {/* List */}
       {sections.length === 0 ? (
         <View style={styles.centerFill}>
@@ -477,21 +591,89 @@ const styles = StyleSheet.create({
   headerBadgeText: { color: '#fff', fontSize: 11, fontWeight: '700' },
   markAllText: { color: colors.primary, fontSize: 13, fontWeight: '600' },
 
-  // Swipe-to-delete
+  // Swipe — reveals [primary action] [delete] when actionable, or just
+  // [delete] when not. Buttons are full-height and absolute-positioned
+  // behind the row.
   swipeContainer: { overflow: 'hidden' },
-  deleteAction: {
+  swipeActions: {
     position: 'absolute',
     top: 0,
     bottom: 0,
     right: 0,
-    width: DELETE_THRESHOLD,
+    flexDirection: 'row',
+  },
+  actionBtn: {
+    width: BUTTON_WIDTH,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: '#ef4444',
+    gap: 4,
   },
-  deleteActionBtn: { alignItems: 'center', justifyContent: 'center', gap: 2 },
-  deleteActionText: { fontSize: 10, fontWeight: '700', color: '#fff' },
-  rowSlider: { backgroundColor: '#0d0d14' },
+  actionBtnPrimary: {
+    backgroundColor: colors.primary, // amber — conviction action
+  },
+  actionBtnPrimaryText: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: colors.textInverse,
+  },
+  actionBtnDelete: {
+    backgroundColor: colors.danger,
+  },
+  actionBtnDeleteText: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: '#fff',
+  },
+  rowSlider: { backgroundColor: colors.background },
+
+  // "Needs you" urgent summary card — sits above the list, surfaces
+  // counts of action-required unread notifications. Cosmic-plant
+  // treatment: amber side-rule + italic Fraunces label.
+  urgentCard: {
+    flexDirection: 'row',
+    marginHorizontal: spacing.md,
+    marginTop: spacing.sm,
+    marginBottom: spacing.xs,
+    borderRadius: borderRadius.md,
+    overflow: 'hidden',
+    backgroundColor: 'rgba(232, 150, 96, 0.06)',
+    borderWidth: 1,
+    borderColor: 'rgba(232, 150, 96, 0.12)',
+  },
+  urgentCardRule: {
+    width: 3,
+    backgroundColor: colors.primary,
+  },
+  urgentCardBody: {
+    flex: 1,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm + 2,
+    gap: 4,
+  },
+  urgentCardLabel: {
+    ...editorial.section,
+    color: colors.primary,
+    marginBottom: 2,
+  },
+  urgentCardLine: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 4,
+    gap: 8,
+  },
+  urgentCardCount: {
+    fontSize: 15,
+    fontWeight: '800',
+    fontVariant: ['tabular-nums'],
+    color: colors.primary,
+    minWidth: 22,
+  },
+  urgentCardText: {
+    flex: 1,
+    fontSize: 14,
+    fontWeight: '500',
+    color: colors.textPrimary,
+  },
 
   // Row
   row: {

@@ -1,0 +1,536 @@
+'use client';
+
+/**
+ * Research Paper submission flow.
+ *
+ * Phase 1: sentiment-only. Single-screen form (PDF + author + X handle + optional
+ * title/summary). No on-chain transaction. POSTs to /api/research/create then
+ * routes the user to the new paper's detail page.
+ */
+
+import React, { useEffect, useMemo, useState } from 'react';
+import { useRouter } from 'next/navigation';
+import { Loader2, Check, X } from 'lucide-react';
+import { authFetch } from '@/lib/auth/fetch-with-auth';
+import { useToast } from '@/lib/hooks/useToast';
+import { useWallet } from '@/hooks/useWallet';
+import { createClientLogger } from '@/lib/logger';
+
+const logger = createClientLogger();
+
+// Shared cosmic-plant palette (kept in sync with create/page.tsx).
+const BG = '#0a0814';
+const CREAM = '#f4eee4';
+const CREAM_DIM = 'rgba(244,238,228,0.65)';
+const CREAM_FAINT = 'rgba(244,238,228,0.4)';
+const HAIR_STRONG = 'rgba(244,238,228,0.16)';
+const AMBER = '#e89660';
+const PEACH = '#ecb48a';
+const FOREST = '#3f7a42';
+const EARTH = '#d67347';
+
+const MAX_PDF_MB = 25;
+const MAX_SUMMARY_CHARS = 500;
+
+interface PaperFormData {
+  title: string;
+  authorName: string;
+  authorXHandle: string;
+  summary: string;
+  githubUrl: string;
+  paper?: File;
+}
+
+const initialData: PaperFormData = {
+  title: '',
+  authorName: '',
+  authorXHandle: '',
+  summary: '',
+  githubUrl: '',
+};
+
+function looksLikeGithubRepoUrl(input: string): boolean {
+  const cleaned = input.trim().replace(/^https?:\/\//i, '').replace(/^github\.com\//i, '');
+  const parts = cleaned.split(/[/?#]/).filter(Boolean);
+  if (parts.length < 2) return false;
+  const owner = parts[0];
+  const repo = parts[1].replace(/\.git$/i, '');
+  return /^[A-Za-z0-9_.-]+$/.test(owner) && /^[A-Za-z0-9_.-]+$/.test(repo);
+}
+
+export function ResearchPaperFlow({ onBack }: { onBack: () => void }) {
+  const router = useRouter();
+  const { showToast } = useToast();
+  const { primaryWallet, authenticated } = useWallet();
+
+  const [data, setData] = useState<PaperFormData>(initialData);
+  const [errors, setErrors] = useState<Record<string, string>>({});
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const setField = (field: keyof PaperFormData, value: any) => {
+    setData((prev) => ({ ...prev, [field]: value }));
+    if (errors[field as string]) {
+      setErrors((prev) => {
+        const next = { ...prev };
+        delete next[field as string];
+        return next;
+      });
+    }
+  };
+
+  const validate = (): Record<string, string> => {
+    const e: Record<string, string> = {};
+    if (!data.title.trim()) e.title = 'Give your paper a title.';
+    else if (data.title.length > 255) e.title = 'Title must be 255 characters or fewer.';
+
+    if (!data.authorName.trim()) e.authorName = 'Author name is required.';
+    else if (data.authorName.length > 120) e.authorName = 'Keep author name under 120 characters.';
+
+    if (data.authorXHandle.trim()) {
+      const stripped = data.authorXHandle.trim().replace(/^@+/, '');
+      if (!/^[A-Za-z0-9_]{1,15}$/.test(stripped)) {
+        e.authorXHandle = 'X handles are 1–15 characters, letters/numbers/underscore only.';
+      }
+    }
+
+    if (data.summary.length > MAX_SUMMARY_CHARS) {
+      e.summary = `Summary must be under ${MAX_SUMMARY_CHARS} characters.`;
+    }
+
+    if (data.githubUrl.trim() && !looksLikeGithubRepoUrl(data.githubUrl)) {
+      e.githubUrl = 'Should look like github.com/owner/repo.';
+    }
+
+    if (!data.paper) e.paper = 'Attach the PDF to publish.';
+    else if (data.paper.type !== 'application/pdf') e.paper = 'Only PDF files are accepted.';
+    else if (data.paper.size > MAX_PDF_MB * 1024 * 1024) {
+      e.paper = `PDF must be ${MAX_PDF_MB}MB or smaller.`;
+    }
+
+    return e;
+  };
+
+  const handlePublish = async () => {
+    if (!authenticated || !primaryWallet) {
+      showToast({
+        type: 'error',
+        title: 'Wallet not connected',
+        message: 'Connect your wallet to publish.',
+      });
+      return;
+    }
+
+    const e = validate();
+    if (Object.keys(e).length > 0) {
+      setErrors(e);
+      return;
+    }
+
+    setIsSubmitting(true);
+    try {
+      const fd = new FormData();
+      fd.append('title', data.title.trim());
+      fd.append('authorName', data.authorName.trim());
+      if (data.authorXHandle.trim()) fd.append('authorXHandle', data.authorXHandle.trim());
+      if (data.summary.trim()) fd.append('summary', data.summary.trim());
+      if (data.githubUrl.trim()) fd.append('githubUrl', data.githubUrl.trim());
+      if (data.paper) fd.append('paper', data.paper);
+
+      const res = await authFetch('/api/research/create', {
+        method: 'POST',
+        body: fd,
+      });
+      const json = await res.json();
+      if (!json.success) throw new Error(json.error || 'Failed to publish paper');
+
+      router.push(`/research/${json.data.paperId}`);
+    } catch (err) {
+      logger.error('[research/create] failed', err as any);
+      const msg = err instanceof Error ? err.message : 'Unknown error';
+      showToast({
+        type: 'error',
+        title: 'Couldn’t publish the paper',
+        message: msg,
+        details: ['Try again, or reach out on Discord.'],
+      });
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  return (
+    <div className="px-4 sm:px-6 pb-20" style={{ color: CREAM }}>
+      <div className="max-w-2xl mx-auto pt-8 sm:pt-12">
+        <header className="text-center mb-8 sm:mb-10">
+          <p
+            className="mono uppercase tracking-[0.32em] text-[0.6rem] mb-2"
+            style={{ color: AMBER }}
+          >
+            Research paper
+          </p>
+          <h1
+            className="leading-[1.05] mb-3"
+            style={{
+              color: CREAM,
+              fontFamily: 'var(--font-fraunces, serif)',
+              fontWeight: 350,
+              fontSize: 'clamp(2rem, 5vw, 3rem)',
+              fontFeatureSettings: '"ss01"',
+            }}
+          >
+            Plant a paper.
+          </h1>
+          <p
+            className="mx-auto max-w-md"
+            style={{
+              color: CREAM_DIM,
+              fontFamily: 'var(--font-fraunces, serif)',
+              fontSize: 'clamp(0.95rem, 1.5vw, 1.1rem)',
+            }}
+          >
+            Drop the PDF. Tell us who wrote it. Let the grove read.
+          </p>
+        </header>
+
+        <div className="space-y-6">
+          <div>
+            <FieldLabel required>Title</FieldLabel>
+            <input
+              type="text"
+              placeholder="The title on the cover page"
+              value={data.title}
+              onChange={(e) => setField('title', e.target.value)}
+              onFocus={focusOn}
+              onBlur={focusOff}
+              style={{
+                ...inputBase,
+                borderColor: errors.title ? `${EARTH}88` : HAIR_STRONG,
+                fontFamily: 'var(--font-fraunces, serif)',
+              }}
+            />
+            <FieldError>{errors.title}</FieldError>
+          </div>
+
+          <div>
+            <FieldLabel required>Author name</FieldLabel>
+            <input
+              type="text"
+              placeholder="Your name as it appears on the paper"
+              value={data.authorName}
+              onChange={(e) => setField('authorName', e.target.value)}
+              onFocus={focusOn}
+              onBlur={focusOff}
+              style={{
+                ...inputBase,
+                borderColor: errors.authorName ? `${EARTH}88` : HAIR_STRONG,
+                fontFamily: 'var(--font-fraunces, serif)',
+              }}
+            />
+            <FieldError>{errors.authorName}</FieldError>
+          </div>
+
+          <div>
+            <FieldLabel>X handle</FieldLabel>
+            <div className="flex items-stretch">
+              <span
+                className="mono uppercase tracking-[0.22em] text-[0.65rem] flex items-center px-3"
+                style={{
+                  color: CREAM_FAINT,
+                  background: 'rgba(244,238,228,0.04)',
+                  border: `1px solid ${HAIR_STRONG}`,
+                  borderRight: 'none',
+                }}
+              >
+                @
+              </span>
+              <input
+                type="text"
+                placeholder="handle"
+                value={data.authorXHandle}
+                onChange={(e) => setField('authorXHandle', e.target.value.replace(/^@+/, ''))}
+                onFocus={focusOn}
+                onBlur={focusOff}
+                style={{
+                  ...inputBase,
+                  borderColor: errors.authorXHandle ? `${EARTH}88` : HAIR_STRONG,
+                  fontFamily: 'var(--font-fraunces, serif)',
+                }}
+              />
+            </div>
+            <FieldHint>Optional. Shown on the paper page so readers can follow you.</FieldHint>
+            <FieldError>{errors.authorXHandle}</FieldError>
+          </div>
+
+          <div>
+            <FieldLabel>One-line summary</FieldLabel>
+            <textarea
+              placeholder="What is this paper about, in one or two sentences?"
+              value={data.summary}
+              onChange={(e) => setField('summary', e.target.value)}
+              onFocus={focusOn}
+              onBlur={focusOff}
+              rows={3}
+              style={{
+                ...inputBase,
+                borderColor: errors.summary ? `${EARTH}88` : HAIR_STRONG,
+                resize: 'vertical',
+                minHeight: '88px',
+                fontFamily: 'var(--font-fraunces, serif)',
+                lineHeight: 1.5,
+              }}
+            />
+            <FieldHint>
+              Optional. {data.summary.length}/{MAX_SUMMARY_CHARS} characters
+            </FieldHint>
+            <FieldError>{errors.summary}</FieldError>
+          </div>
+
+          <div>
+            <FieldLabel>GitHub repository</FieldLabel>
+            <input
+              type="text"
+              placeholder="github.com/owner/repo"
+              value={data.githubUrl}
+              onChange={(e) => setField('githubUrl', e.target.value)}
+              onFocus={focusOn}
+              onBlur={focusOff}
+              style={{
+                ...inputBase,
+                borderColor: errors.githubUrl ? `${EARTH}88` : HAIR_STRONG,
+                fontFamily: 'var(--font-fraunces, serif)',
+              }}
+            />
+            <FieldHint>Optional. If your paper has accompanying code, link the repo and we’ll show the README on the paper page.</FieldHint>
+            <FieldError>{errors.githubUrl}</FieldError>
+          </div>
+
+          <div>
+            <FieldLabel required>Paper (PDF)</FieldLabel>
+            <PdfDrop
+              file={data.paper}
+              onFile={(f) => setField('paper', f)}
+              error={!!errors.paper}
+            />
+            <FieldHint>PDF only. Up to {MAX_PDF_MB}MB.</FieldHint>
+            <FieldError>{errors.paper}</FieldError>
+          </div>
+        </div>
+
+        <div className="flex justify-between items-center mt-12 mb-2">
+          <button
+            type="button"
+            onClick={onBack}
+            disabled={isSubmitting}
+            className="mono text-[0.62rem] uppercase tracking-[0.24em] px-4 py-2.5 transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+            style={{ color: CREAM_DIM, border: `1px solid ${HAIR_STRONG}` }}
+            onMouseEnter={(e) => {
+              if (!isSubmitting) {
+                e.currentTarget.style.color = CREAM;
+                e.currentTarget.style.borderColor = `${AMBER}66`;
+              }
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.color = CREAM_DIM;
+              e.currentTarget.style.borderColor = HAIR_STRONG;
+            }}
+          >
+            ← Different kind
+          </button>
+          <button
+            type="button"
+            onClick={handlePublish}
+            disabled={isSubmitting}
+            className="mono text-[0.65rem] uppercase tracking-[0.28em] px-6 py-3 transition-colors inline-flex items-center gap-2 disabled:cursor-wait"
+            style={{ background: AMBER, color: BG, minWidth: '200px', justifyContent: 'center' }}
+            onMouseEnter={(e) => {
+              if (!isSubmitting) e.currentTarget.style.background = PEACH;
+            }}
+            onMouseLeave={(e) => {
+              if (!isSubmitting) e.currentTarget.style.background = AMBER;
+            }}
+          >
+            {isSubmitting ? (
+              <>
+                <Loader2 className="w-4 h-4 animate-spin" />
+                Publishing
+              </>
+            ) : (
+              'Publish paper'
+            )}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ─── primitives (kept local so this file is self-contained) ───
+
+function FieldLabel({ children, required }: { children: React.ReactNode; required?: boolean }) {
+  return (
+    <label
+      className="block mono uppercase tracking-[0.22em] text-[0.6rem] mb-2"
+      style={{ color: CREAM_DIM }}
+    >
+      {children}
+      {required && <span style={{ color: AMBER }}> *</span>}
+    </label>
+  );
+}
+
+function FieldHint({ children }: { children: React.ReactNode }) {
+  return (
+    <p
+      className="mono uppercase tracking-[0.2em] text-[0.55rem] mt-1.5"
+      style={{ color: CREAM_FAINT }}
+    >
+      {children}
+    </p>
+  );
+}
+
+function FieldError({ children }: { children: React.ReactNode }) {
+  if (!children) return null;
+  return (
+    <p
+      className="mt-2 text-sm"
+      style={{ color: EARTH, fontFamily: 'var(--font-fraunces, serif)' }}
+    >
+      {children}
+    </p>
+  );
+}
+
+const inputBase: React.CSSProperties = {
+  background: 'transparent',
+  color: CREAM,
+  width: '100%',
+  padding: '0.75rem 1rem',
+  fontSize: '1rem',
+  border: `1px solid ${HAIR_STRONG}`,
+  outline: 'none',
+  transition: 'border-color 200ms',
+};
+
+function focusOn(e: React.FocusEvent<HTMLElement>) {
+  (e.currentTarget as HTMLElement).style.borderColor = AMBER;
+}
+function focusOff(e: React.FocusEvent<HTMLElement>) {
+  (e.currentTarget as HTMLElement).style.borderColor = HAIR_STRONG;
+}
+
+function PdfDrop({
+  file,
+  onFile,
+  error,
+}: {
+  file?: File;
+  onFile: (f: File | undefined) => void;
+  error: boolean;
+}) {
+  const id = useMemo(() => `paper-${Math.random().toString(36).slice(2)}`, []);
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!file) {
+      setPreviewUrl(null);
+      return;
+    }
+    const url = URL.createObjectURL(file);
+    setPreviewUrl(url);
+    return () => URL.revokeObjectURL(url);
+  }, [file]);
+
+  const remove = (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    onFile(undefined);
+  };
+
+  return (
+    <label
+      htmlFor={id}
+      className="block cursor-pointer transition-colors"
+      style={{
+        background: file ? 'rgba(63,122,66,0.06)' : 'rgba(244,238,228,0.025)',
+        border: `1px dashed ${error ? `${EARTH}88` : file ? `${FOREST}88` : HAIR_STRONG}`,
+        padding: '1.25rem',
+        textAlign: 'center',
+      }}
+    >
+      <input
+        id={id}
+        type="file"
+        accept="application/pdf,.pdf"
+        onChange={(e) => {
+          const f = e.target.files?.[0];
+          if (!f) return;
+          if (f.size > MAX_PDF_MB * 1024 * 1024) {
+            alert(`PDF must be ${MAX_PDF_MB}MB or less`);
+            e.target.value = '';
+            return;
+          }
+          onFile(f);
+        }}
+        className="hidden"
+      />
+      {file ? (
+        <div className="flex flex-col items-center">
+          <div
+            className="w-16 h-20 mb-3 flex items-center justify-center"
+            style={{
+              background: 'rgba(244,238,228,0.04)',
+              border: `1px solid ${FOREST}55`,
+              color: FOREST,
+            }}
+          >
+            <span
+              className="mono uppercase tracking-[0.18em] text-[0.62rem]"
+              style={{ color: FOREST }}
+            >
+              PDF
+            </span>
+          </div>
+          <p
+            className="text-sm truncate max-w-full"
+            style={{ color: CREAM, fontFamily: 'var(--font-fraunces, serif)' }}
+          >
+            <Check className="w-3.5 h-3.5 inline mr-1.5 -translate-y-px" style={{ color: FOREST }} />
+            {file.name}
+          </p>
+          <p
+            className="mono uppercase tracking-[0.2em] text-[0.55rem] mt-1"
+            style={{ color: CREAM_FAINT }}
+          >
+            {(file.size / 1024 / 1024).toFixed(2)} MB · click to change
+          </p>
+          <button
+            type="button"
+            onClick={remove}
+            className="mono uppercase tracking-[0.22em] text-[0.55rem] mt-2 inline-flex items-center gap-1 transition-colors"
+            style={{ color: CREAM_FAINT }}
+            onMouseEnter={(e) => (e.currentTarget.style.color = EARTH)}
+            onMouseLeave={(e) => (e.currentTarget.style.color = CREAM_FAINT)}
+          >
+            <X className="w-3 h-3" /> remove
+          </button>
+        </div>
+      ) : (
+        <div className="flex flex-col items-center py-3">
+          <p
+            className="text-sm"
+            style={{ color: CREAM, fontFamily: 'var(--font-fraunces, serif)' }}
+          >
+            Drop a PDF here, or click to choose.
+          </p>
+          <p
+            className="mono uppercase tracking-[0.2em] text-[0.55rem] mt-1"
+            style={{ color: CREAM_FAINT }}
+          >
+            PDF only · up to {MAX_PDF_MB}MB
+          </p>
+        </div>
+      )}
+    </label>
+  );
+}

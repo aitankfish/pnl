@@ -8,6 +8,7 @@ import { authFetch } from '@/lib/auth/fetch-with-auth';
 import { config } from '@/lib/config';
 import { createClientLogger } from '@/lib/logger';
 import { useWallet } from '@/hooks/useWallet';
+import { useSolBalance } from '@/lib/hooks/useSolBalance';
 import {
   useWallets,
   useSignAndSendTransaction,
@@ -27,6 +28,11 @@ import {
   LeafIcon,
 } from '@/components/PlantIcons';
 import { Dropdown, DropdownOption, DropdownGroup } from '@/components/Dropdown';
+import { ResearchPaperFlow } from './ResearchPaperFlow';
+import {
+  PaperSearchAutocomplete,
+  type PaperSearchResult,
+} from '@/components/research/PaperSearchAutocomplete';
 
 const logger = createClientLogger();
 
@@ -41,6 +47,13 @@ const AMBER = '#e89660';
 const PEACH = '#ecb48a';
 const FOREST = '#3f7a42';
 const EARTH = '#d67347';
+
+type CitationRole = 'thesis' | 'foundation' | 'reference';
+interface LinkedPaper {
+  paper: PaperSearchResult;
+  role: CitationRole;
+  citationNote: string;
+}
 
 interface ProjectFormData {
   name: string;
@@ -65,6 +78,7 @@ interface ProjectFormData {
   };
   pitchVideo?: File;
   additionalNotes: string;
+  linkedPapers: LinkedPaper[];
 }
 
 const initialFormData: ProjectFormData = {
@@ -80,6 +94,7 @@ const initialFormData: ProjectFormData = {
   marketDuration: '',
   socialLinks: { website: '', github: '', linkedin: '', twitter: '', telegram: '', discord: '' },
   additionalNotes: '',
+  linkedPapers: [],
 };
 
 type StepId = 1 | 2 | 3 | 4 | 5;
@@ -201,6 +216,7 @@ const DURATIONS: DropdownOption[] = [
 export default function CreatePage() {
   const router = useRouter();
   const { showToast } = useToast();
+  const [kind, setKind] = useState<'project' | 'research'>('project');
   const [formData, setFormData] = useState<ProjectFormData>(initialFormData);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [currentStep, setCurrentStep] = useState<StepId>(1);
@@ -209,7 +225,6 @@ export default function CreatePage() {
   const [submissionStep, setSubmissionStep] = useState<SubmissionStep>('idle');
   const [isMounted, setIsMounted] = useState(false);
   const [isCustomPoolAmount, setIsCustomPoolAmount] = useState(false);
-  const [walletBalance, setWalletBalance] = useState<number | null>(null);
   const [planted, setPlanted] = useState<{
     marketId: string;
     marketAddress: string;
@@ -226,27 +241,13 @@ export default function CreatePage() {
     setIsMounted(true);
   }, []);
 
-  // Wallet balance — uses our cached endpoint so we don't hammer Helius from
-  // every visit to the create page.
-  useEffect(() => {
-    if (!primaryWallet?.address || !authenticated) {
-      setWalletBalance(null);
-      return;
-    }
-    let cancelled = false;
-    fetch(`/api/wallet/balance?address=${encodeURIComponent(primaryWallet.address)}`)
-      .then((r) => r.json())
-      .then((data) => {
-        if (cancelled) return;
-        if (data.success && typeof data.sol === 'number') setWalletBalance(data.sol);
-      })
-      .catch(() => {
-        if (!cancelled) setWalletBalance(null);
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, [primaryWallet?.address, authenticated]);
+  // Wallet balance via the shared SWR hook — same source of truth as navbar,
+  // sidebar, and /wallet. null preserves the prior "haven't fetched yet" semantic
+  // so downstream gating still treats unknown != zero.
+  const { solBalance: _solBalance, isLoading: _solLoading } = useSolBalance(
+    authenticated ? primaryWallet?.address : null,
+  );
+  const walletBalance: number | null = authenticated && !_solLoading ? _solBalance : null;
 
   const setField = (field: keyof ProjectFormData, value: any) => {
     setFormData((prev) => ({ ...prev, [field]: value }));
@@ -462,6 +463,27 @@ export default function CreatePage() {
       if (!completeResult.success)
         throw new Error(completeResult.error || 'Failed to complete market creation');
 
+      // Submit any linked-paper citations. Failures here are non-fatal —
+      // the project is already live; citations can be added retroactively.
+      if (formData.linkedPapers.length > 0) {
+        const marketId = completeResult.data.marketId;
+        await Promise.allSettled(
+          formData.linkedPapers.map((l) =>
+            authFetch(`/api/markets/${marketId}/cite`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                paperId: l.paper.id,
+                role: l.role,
+                citationNote: l.citationNote || undefined,
+              }),
+            }).catch((err) => {
+              logger.error('[create] citation submit failed', err as any);
+            }),
+          ),
+        );
+      }
+
       // Don't toast — the celebration speaks for itself.
       setPlanted({
         marketId: completeResult.data.marketId,
@@ -502,11 +524,18 @@ export default function CreatePage() {
     return <PlantingCelebration {...planted} onWander={() => router.push('/launchpad')} />;
   }
 
+  // Research papers are a separate, much shorter flow.
+  if (kind === 'research') {
+    return <ResearchPaperFlow onBack={() => setKind('project')} />;
+  }
+
   const step = STEPS[currentStep - 1];
 
   return (
     <div className="px-4 sm:px-6 pb-20" style={{ color: CREAM }}>
       <div className="max-w-2xl mx-auto pt-8 sm:pt-12">
+        <KindTabs kind={kind} onChange={setKind} />
+
         {/* ─── Editorial step header ─── */}
         <header className="text-center mb-8 sm:mb-10">
           <div
@@ -575,6 +604,7 @@ export default function CreatePage() {
               setField={setField}
               setSocialLink={setSocialLink}
               errors={errors}
+              founderWallet={primaryWallet?.address}
             />
           )}
           {currentStep === 5 && (
@@ -659,6 +689,51 @@ export default function CreatePage() {
 }
 
 // ─────────────────────── Sub-components ───────────────────────
+
+function KindTabs({
+  kind,
+  onChange,
+}: {
+  kind: 'project' | 'research';
+  onChange: (k: 'project' | 'research') => void;
+}) {
+  const tabs: Array<{ value: 'project' | 'research'; label: string }> = [
+    { value: 'project', label: 'Project' },
+    { value: 'research', label: 'Research paper' },
+  ];
+  return (
+    <div className="flex justify-center mb-6">
+      <div
+        className="inline-flex"
+        style={{ border: `1px solid ${HAIR_STRONG}`, padding: 2 }}
+      >
+        {tabs.map((t) => {
+          const active = t.value === kind;
+          return (
+            <button
+              key={t.value}
+              type="button"
+              onClick={() => onChange(t.value)}
+              className="mono uppercase tracking-[0.22em] text-[0.6rem] px-4 py-2 transition-colors"
+              style={{
+                background: active ? AMBER : 'transparent',
+                color: active ? BG : CREAM_DIM,
+              }}
+              onMouseEnter={(e) => {
+                if (!active) e.currentTarget.style.color = CREAM;
+              }}
+              onMouseLeave={(e) => {
+                if (!active) e.currentTarget.style.color = CREAM_DIM;
+              }}
+            >
+              {t.label}
+            </button>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
 
 function ProgressDots({
   currentStep,
@@ -1071,12 +1146,54 @@ function VoiceStep({
   setField,
   setSocialLink,
   errors,
+  founderWallet,
 }: {
   formData: ProjectFormData;
   setField: (f: keyof ProjectFormData, v: any) => void;
   setSocialLink: (p: keyof ProjectFormData['socialLinks'], v: string) => void;
   errors: Record<string, string>;
+  founderWallet?: string;
 }) {
+  const linked = formData.linkedPapers;
+  const excludeIds = useMemo(() => linked.map((l) => l.paper.id), [linked]);
+  const ownLinked = useMemo(
+    () => linked.filter((l) => l.paper.authorWallet === founderWallet),
+    [linked, founderWallet],
+  );
+  const citedLinked = useMemo(
+    () => linked.filter((l) => l.paper.authorWallet !== founderWallet),
+    [linked, founderWallet],
+  );
+
+  const addPaper = (paper: PaperSearchResult, kind: 'own' | 'cited') => {
+    // First own paper defaults to "thesis"; subsequent papers (own or
+    // cited) start as 'foundation' for own and 'reference' for cited.
+    let role: CitationRole;
+    if (kind === 'own') {
+      role = ownLinked.length === 0 ? 'thesis' : 'foundation';
+    } else {
+      role = 'reference';
+    }
+    setField('linkedPapers', [
+      ...linked,
+      { paper, role, citationNote: '' },
+    ]);
+  };
+  const updateLinked = (id: string, patch: Partial<LinkedPaper>) => {
+    setField(
+      'linkedPapers',
+      linked.map((l) =>
+        l.paper.id === id ? { ...l, ...patch } : l,
+      ),
+    );
+  };
+  const removeLinked = (id: string) => {
+    setField(
+      'linkedPapers',
+      linked.filter((l) => l.paper.id !== id),
+    );
+  };
+
   return (
     <>
       <div>
@@ -1101,6 +1218,96 @@ function VoiceStep({
           maxMB={10}
           empty={{ primary: 'Click to upload PDF or Word', secondary: 'Max 10MB' }}
         />
+      </div>
+
+      <div>
+        <FieldLabel>Linked research papers</FieldLabel>
+        <FieldHint>
+          Your own papers that ground this project. The first becomes the
+          project’s thesis; others sit as foundational reading.
+        </FieldHint>
+        <div className="mt-3 space-y-3">
+          {ownLinked.length > 0 && (
+            <div className="space-y-2">
+              {ownLinked.map((l) => (
+                <LinkedPaperRow
+                  key={l.paper.id}
+                  linked={l}
+                  founderWallet={founderWallet}
+                  onRoleChange={(role) =>
+                    updateLinked(l.paper.id, { role })
+                  }
+                  onNoteChange={(note) =>
+                    updateLinked(l.paper.id, { citationNote: note })
+                  }
+                  onRemove={() => removeLinked(l.paper.id)}
+                />
+              ))}
+            </div>
+          )}
+          {founderWallet ? (
+            <PaperSearchAutocomplete
+              authorWallet={founderWallet}
+              excludeIds={excludeIds}
+              onSelect={(p) => addPaper(p, 'own')}
+              placeholder="Search your papers by title…"
+              emptyHint="No papers match. Publish one in the Research tab and come back."
+            />
+          ) : (
+            <p
+              className="mono uppercase tracking-[0.22em] text-[0.55rem]"
+              style={{ color: CREAM_FAINT }}
+            >
+              connect a wallet to link papers
+            </p>
+          )}
+        </div>
+      </div>
+
+      <div>
+        <FieldLabel>Cite work by other researchers</FieldLabel>
+        <FieldHint>
+          If your project builds on someone else’s research, cite them. Your
+          citation is sent as a request — the cited researcher will need to
+          accept it before it appears publicly on either page. (Limit 5 per
+          day.)
+        </FieldHint>
+        <div className="mt-3 space-y-3">
+          {citedLinked.length > 0 && (
+            <div className="space-y-2">
+              {citedLinked.map((l) => (
+                <LinkedPaperRow
+                  key={l.paper.id}
+                  linked={l}
+                  founderWallet={founderWallet}
+                  onRoleChange={(role) =>
+                    updateLinked(l.paper.id, { role })
+                  }
+                  onNoteChange={(note) =>
+                    updateLinked(l.paper.id, { citationNote: note })
+                  }
+                  onRemove={() => removeLinked(l.paper.id)}
+                />
+              ))}
+            </div>
+          )}
+          {founderWallet ? (
+            <PaperSearchAutocomplete
+              excludeAuthorWallet={founderWallet}
+              excludeIds={excludeIds}
+              onSelect={(p) => addPaper(p, 'cited')}
+              placeholder="Search any researcher's paper by title…"
+              emptyHint="No papers match. Try a different word."
+            />
+          ) : (
+            <p
+              className="mono uppercase tracking-[0.22em] text-[0.55rem]"
+              style={{ color: CREAM_FAINT }}
+            >
+              connect a wallet to cite work
+            </p>
+          )}
+        </div>
       </div>
 
       <div>
@@ -1168,6 +1375,129 @@ function VoiceStep({
         </div>
       </div>
     </>
+  );
+}
+
+function LinkedPaperRow({
+  linked,
+  founderWallet,
+  onRoleChange,
+  onNoteChange,
+  onRemove,
+}: {
+  linked: LinkedPaper;
+  founderWallet?: string;
+  onRoleChange: (role: CitationRole) => void;
+  onNoteChange: (note: string) => void;
+  onRemove: () => void;
+}) {
+  const isCrossAuthor =
+    !!founderWallet && linked.paper.authorWallet !== founderWallet;
+  const roles: Array<{ value: CitationRole; label: string }> = [
+    { value: 'thesis', label: 'thesis' },
+    { value: 'foundation', label: 'foundation' },
+    { value: 'reference', label: 'reference' },
+  ];
+  return (
+    <div
+      className="p-3 sm:p-4"
+      style={{
+        background: isCrossAuthor
+          ? 'rgba(232,150,96,0.05)'
+          : 'rgba(63,122,66,0.05)',
+        border: `1px solid ${isCrossAuthor ? AMBER + '44' : FOREST + '44'}`,
+      }}
+    >
+      <div className="flex items-start justify-between gap-3">
+        <div className="flex-1 min-w-0">
+          <div className="flex items-baseline gap-2 mb-1">
+            <p
+              className="line-clamp-1"
+              style={{
+                color: CREAM,
+                fontFamily: 'var(--font-fraunces, serif)',
+                fontSize: '1rem',
+                fontWeight: 400,
+              }}
+            >
+              {linked.paper.title}
+            </p>
+            <span
+              className="mono uppercase tracking-[0.2em] text-[0.5rem] flex-shrink-0"
+              style={{ color: AMBER }}
+            >
+              v{linked.paper.currentVersion}
+            </span>
+          </div>
+          <p
+            className="mono uppercase tracking-[0.22em] text-[0.55rem]"
+            style={{ color: CREAM_FAINT }}
+          >
+            {linked.paper.authorName}
+            {isCrossAuthor && (
+              <>
+                {' '}·{' '}
+                <span style={{ color: AMBER }}>citation pending consent</span>
+              </>
+            )}
+          </p>
+        </div>
+        <button
+          type="button"
+          onClick={onRemove}
+          className="mono uppercase tracking-[0.22em] text-[0.55rem] px-2 py-1 transition-colors"
+          style={{ color: CREAM_FAINT, border: `1px solid ${HAIR_STRONG}` }}
+          aria-label="Remove paper"
+        >
+          remove
+        </button>
+      </div>
+
+      <div className="mt-3 flex flex-wrap items-center gap-2">
+        <span
+          className="mono uppercase tracking-[0.22em] text-[0.55rem] mr-1"
+          style={{ color: CREAM_FAINT }}
+        >
+          role:
+        </span>
+        {roles.map((r) => {
+          const active = r.value === linked.role;
+          return (
+            <button
+              key={r.value}
+              type="button"
+              onClick={() => onRoleChange(r.value)}
+              className="mono uppercase tracking-[0.22em] text-[0.55rem] px-2.5 py-1 transition-colors"
+              style={{
+                background: active ? FOREST : 'transparent',
+                color: active ? '#fff' : CREAM_DIM,
+                border: `1px solid ${active ? FOREST : HAIR_STRONG}`,
+              }}
+            >
+              {r.label}
+            </button>
+          );
+        })}
+      </div>
+
+      <input
+        type="text"
+        placeholder="Optional one-line note (e.g., builds on §3.2)"
+        value={linked.citationNote}
+        onChange={(e) => onNoteChange(e.target.value)}
+        maxLength={280}
+        className="w-full mt-3 px-3 py-2 transition-colors focus:outline-none"
+        style={{
+          background: 'transparent',
+          border: `1px solid ${HAIR_STRONG}`,
+          color: CREAM,
+          fontFamily: 'var(--font-fraunces, serif)',
+          fontSize: '0.9rem',
+        }}
+        onFocus={(e) => (e.currentTarget.style.borderColor = AMBER)}
+        onBlur={(e) => (e.currentTarget.style.borderColor = HAIR_STRONG)}
+      />
+    </div>
   );
 }
 

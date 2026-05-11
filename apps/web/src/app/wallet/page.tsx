@@ -40,15 +40,16 @@ import {
   Coins,
   Loader2
 } from 'lucide-react';
-import { Connection, PublicKey, LAMPORTS_PER_SOL, SystemProgram, VersionedTransaction, TransactionMessage } from '@solana/web3.js';
+import { PublicKey, LAMPORTS_PER_SOL, SystemProgram, VersionedTransaction, TransactionMessage } from '@solana/web3.js';
 import { getAssociatedTokenAddressSync, createTransferInstruction, createAssociatedTokenAccountInstruction, TOKEN_PROGRAM_ID, TOKEN_2022_PROGRAM_ID } from '@solana/spl-token';
-import { RPC_ENDPOINT, SOLANA_NETWORK } from '@/config/solana';
+import { SOLANA_NETWORK } from '@/config/solana';
 import { getSolanaConnection } from '@/lib/solana';
 import type { TokenBalance } from '@/lib/hooks/useAllTokenBalances';
 import { ipfsUtils } from '@/lib/ipfs';
 import useSWR from 'swr';
 import { useUserSocket, useMarketSocket } from '@/lib/hooks/useSocket';
 import { useTokenBalance } from '@/lib/hooks/useTokenBalance';
+import { useSolBalance } from '@/lib/hooks/useSolBalance';
 import { getUsdcMint, TOKEN_DECIMALS } from '@/config/tokens';
 import { useNetwork } from '@/lib/hooks/useNetwork';
 import { JupiterSwap } from '@/components/JupiterSwap';
@@ -1169,20 +1170,22 @@ export default function WalletPage() {
     isLoading: isCreatorFeesLoading,
   } = useCreatorFees(primaryWallet?.address || null);
 
+  // SOL balance — shared SWR cache with navbar + sidebar. Direct browser RPC
+  // (matches the navbar's existing pattern) so we don't depend on the
+  // /api/wallet/balance route, which lazy-compiles in dev and stalls first hit.
+  const { solBalance, isLoading: balanceLoading, refresh: refreshSolBalance } = useSolBalance(
+    primaryWallet?.chainType === 'solana' ? primaryWallet?.address : null,
+  );
+
   // Privy fiat onramp hook
   const { fundWallet } = useFundWallet({
-    onUserExited: ({ balance }) => {
-      // Refresh balance after funding
-      if (balance) {
-        const balanceInSOL = Number(balance) / 1_000_000_000; // Convert lamports to SOL
-        setSolBalance(balanceInSOL);
-      }
+    onUserExited: () => {
+      // Funding flow closed — re-fetch on-chain to reflect any deposit
+      refreshSolBalance();
     },
   });
 
   // State
-  const [solBalance, setSolBalance] = useState<number>(0);
-  const [balanceLoading, setBalanceLoading] = useState(false);
   const [username, setUsername] = useState('');
   const [bio, setBio] = useState('');
   const [twitterHandle, setTwitterHandle] = useState('');
@@ -1257,35 +1260,7 @@ export default function WalletPage() {
     }
   }, [realtimePositions, mutatePositions, mutateProjects]);
 
-  // Fetch SOL balance
-  useEffect(() => {
-    if (!primaryWallet?.address || primaryWallet.chainType !== 'solana') {
-      setSolBalance(0);
-      return;
-    }
-
-    const fetchBalance = async () => {
-      try {
-        setBalanceLoading(true);
-        // Hit the Redis-cached backend endpoint instead of Helius directly —
-        // shared cache across tabs/sessions at 5s TTL.
-        const res = await fetch(`/api/wallet/balance?address=${encodeURIComponent(primaryWallet.address)}`);
-        const data = await res.json();
-        if (data.success && typeof data.sol === 'number') {
-          setSolBalance(data.sol);
-        }
-      } catch (error) {
-        console.error('Failed to fetch SOL balance:', error);
-        setSolBalance(0);
-      } finally {
-        setBalanceLoading(false);
-      }
-    };
-
-    fetchBalance();
-    const interval = setInterval(fetchBalance, 30000);
-    return () => clearInterval(interval);
-  }, [primaryWallet?.address, primaryWallet?.chainType]);
+  // SOL balance is fetched by useSolBalance() above — no inline polling needed.
 
   // Load profile data
   useEffect(() => {
@@ -1576,26 +1551,13 @@ export default function WalletPage() {
     // Extract signature from result and convert to base58 (Solana standard format)
     const signature = bs58.encode(result.signature);
 
-    // Wait for confirmation
+    // Wait for confirmation, then re-query balance through the shared hook
     await connection.confirmTransaction(signature, 'confirmed');
-
-    // Update SOL balance
-    const balance = await connection.getBalance(fromPubkey);
-    setSolBalance(balance / LAMPORTS_PER_SOL);
+    refreshSolBalance();
   };
 
   const handleRefresh = async () => {
-    setBalanceLoading(true);
-    try {
-      const connection = new Connection(RPC_ENDPOINT, 'confirmed');
-      const publicKey = new PublicKey(primaryWallet!.address);
-      const balance = await connection.getBalance(publicKey);
-      setSolBalance(balance / LAMPORTS_PER_SOL);
-    } catch (error) {
-      console.error('Failed to refresh balance:', error);
-    } finally {
-      setBalanceLoading(false);
-    }
+    await refreshSolBalance();
   };
 
   const handleBuySol = async () => {
