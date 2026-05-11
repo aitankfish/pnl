@@ -29,6 +29,7 @@ import {
 } from '@/components/PlantIcons';
 import { Dropdown, DropdownOption, DropdownGroup } from '@/components/Dropdown';
 import { ResearchPaperFlow } from './ResearchPaperFlow';
+import { KindTabs } from './KindTabs';
 import {
   PaperSearchAutocomplete,
   type PaperSearchResult,
@@ -689,51 +690,6 @@ export default function CreatePage() {
 }
 
 // ─────────────────────── Sub-components ───────────────────────
-
-function KindTabs({
-  kind,
-  onChange,
-}: {
-  kind: 'project' | 'research';
-  onChange: (k: 'project' | 'research') => void;
-}) {
-  const tabs: Array<{ value: 'project' | 'research'; label: string }> = [
-    { value: 'project', label: 'Project' },
-    { value: 'research', label: 'Research paper' },
-  ];
-  return (
-    <div className="flex justify-center mb-6">
-      <div
-        className="inline-flex"
-        style={{ border: `1px solid ${HAIR_STRONG}`, padding: 2 }}
-      >
-        {tabs.map((t) => {
-          const active = t.value === kind;
-          return (
-            <button
-              key={t.value}
-              type="button"
-              onClick={() => onChange(t.value)}
-              className="mono uppercase tracking-[0.22em] text-[0.6rem] px-4 py-2 transition-colors"
-              style={{
-                background: active ? AMBER : 'transparent',
-                color: active ? BG : CREAM_DIM,
-              }}
-              onMouseEnter={(e) => {
-                if (!active) e.currentTarget.style.color = CREAM;
-              }}
-              onMouseLeave={(e) => {
-                if (!active) e.currentTarget.style.color = CREAM_DIM;
-              }}
-            >
-              {t.label}
-            </button>
-          );
-        })}
-      </div>
-    </div>
-  );
-}
 
 function ProgressDots({
   currentStep,

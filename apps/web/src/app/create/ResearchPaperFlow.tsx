@@ -16,6 +16,7 @@ import { useToast } from '@/lib/hooks/useToast';
 import { useWallet } from '@/hooks/useWallet';
 import { createClientLogger } from '@/lib/logger';
 import { SeedIcon } from '@/components/PlantIcons';
+import { KindTabs } from './KindTabs';
 
 const logger = createClientLogger();
 
@@ -162,6 +163,7 @@ export function ResearchPaperFlow({ onBack }: { onBack: () => void }) {
   return (
     <div className="px-4 sm:px-6 pb-20" style={{ color: CREAM }}>
       <div className="max-w-2xl mx-auto pt-8 sm:pt-12">
+        <KindTabs kind="research" onChange={(k) => k === 'project' && onBack()} />
         <header className="text-center mb-8 sm:mb-10">
           <p
             className="mono uppercase tracking-[0.32em] text-[0.6rem] mb-2"

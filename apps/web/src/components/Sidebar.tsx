@@ -41,6 +41,9 @@ function Sidebar({ currentPage }: SidebarProps) {
   const [isScrolled, setIsScrolled] = useState(false);
   const [isPending, startTransition] = useTransition();
   const [isNotificationDropdownOpen, setIsNotificationDropdownOpen] = useState(false);
+  // Track whether the avatar image failed to load — broken IPFS gateways /
+  // 404s otherwise leave the browser rendering raw alt text in the avatar box.
+  const [avatarBroken, setAvatarBroken] = useState(false);
   const router = useRouter();
   const { ready, authenticated, primaryWallet } = useWallet();
   const { showAuthModal } = useAuthModal();
@@ -51,6 +54,12 @@ function Sidebar({ currentPage }: SidebarProps) {
   // in-flight RPC per refresh window is reused across all consumers.
   const { solBalance } = useSolBalance(authenticated ? primaryWallet?.address : null);
   const shouldGlowWallet = solBalance > 0 && solBalance < 0.02;
+
+  // Reset the broken-avatar flag whenever the photo URL changes so a new
+  // upload (or a different account) gets a fresh load attempt.
+  useEffect(() => {
+    setAvatarBroken(false);
+  }, [profilePhotoUrl]);
 
   // Scroll-aware styling — transparent at top, picks up dark backdrop on scroll
   useEffect(() => {
@@ -247,11 +256,12 @@ function Sidebar({ currentPage }: SidebarProps) {
           >
             {isPending ? (
               <Loader2 className="w-4 h-4 sm:w-5 sm:h-5 animate-spin" />
-            ) : authenticated && profilePhotoUrl ? (
+            ) : authenticated && profilePhotoUrl && !avatarBroken ? (
               <img
                 src={profilePhotoUrl}
-                alt={displayName}
+                alt=""
                 className="w-full h-full object-cover"
+                onError={() => setAvatarBroken(true)}
               />
             ) : (
               <User className="w-4 h-4 sm:w-5 sm:h-5" />
