@@ -21,6 +21,12 @@ const BATCH_DELAY_MS = 50; // Batch updates within 50ms window
 export class SocketServer {
   private io: SocketIOServer | null = null;
   private httpServer: HTTPServer | null = null;
+  // Refcount of socket connections per wallet — when first socket joins we
+  // subscribe to Helius; when last socket leaves we unsubscribe. Multiple tabs
+  // for the same user share one Helius subscription.
+  private walletSubscribers: Map<string, Set<string>> = new Map(); // wallet -> Set<socketId>
+  // Reverse map for cleanup on disconnect (avoids scanning every wallet entry).
+  private socketWallets: Map<string, Set<string>> = new Map(); // socketId -> Set<wallet>
 
   /**
    * Initialize Socket.IO server
@@ -189,6 +195,40 @@ export class SocketServer {
         }
         socket.join(`user:${walletAddress}`);
         socket.emit('subscribed', { walletAddress });
+
+        // Refcounted Helius wallet subscription — first socket for this wallet
+        // triggers the Helius accountSubscribe; later sockets just bump the count.
+        // Async import keeps the dev compile graph lighter (sync-manager pulls
+        // @solana/web3.js + Helius client).
+        try {
+          let socketIds = this.walletSubscribers.get(walletAddress);
+          const wasEmpty = !socketIds || socketIds.size === 0;
+          if (!socketIds) {
+            socketIds = new Set();
+            this.walletSubscribers.set(walletAddress, socketIds);
+          }
+          socketIds.add(socket.id);
+
+          let wallets = this.socketWallets.get(socket.id);
+          if (!wallets) {
+            wallets = new Set();
+            this.socketWallets.set(socket.id, wallets);
+          }
+          wallets.add(walletAddress);
+
+          if (wasEmpty) {
+            const { getSyncManager } = await import('@/services/blockchain-sync/sync-manager');
+            await getSyncManager().subscribeToWallet(walletAddress).catch((err) => {
+              logger.warn(`Helius wallet subscribe failed for ${walletAddress.slice(0, 8)}...`, {
+                error: err instanceof Error ? err.message : String(err),
+              });
+            });
+          }
+        } catch (err) {
+          logger.warn('wallet subscription bookkeeping failed', {
+            error: err instanceof Error ? err.message : String(err),
+          });
+        }
       });
 
       // SECURITY: broadcast:* events removed from client sockets.
@@ -262,8 +302,32 @@ export class SocketServer {
       });
 
       // Handle disconnection
-      socket.on('disconnect', () => {
+      socket.on('disconnect', async () => {
         logger.debug(`🔌 Client disconnected: ${socket.id}`);
+
+        // Decrement wallet subscription refcounts. When the last socket for
+        // a wallet disconnects, tear down its Helius subscription so we don't
+        // burn one of Helius's connection-scoped subscription slots forever.
+        const wallets = this.socketWallets.get(socket.id);
+        if (!wallets) return;
+        this.socketWallets.delete(socket.id);
+
+        for (const wallet of wallets) {
+          const subscribers = this.walletSubscribers.get(wallet);
+          if (!subscribers) continue;
+          subscribers.delete(socket.id);
+          if (subscribers.size === 0) {
+            this.walletSubscribers.delete(wallet);
+            try {
+              const { getSyncManager } = await import('@/services/blockchain-sync/sync-manager');
+              await getSyncManager().unsubscribeFromWallet(wallet);
+            } catch (err) {
+              logger.warn(`Helius wallet unsubscribe failed for ${wallet.slice(0, 8)}...`, {
+                error: err instanceof Error ? err.message : String(err),
+              });
+            }
+          }
+        }
       });
 
       // Handle errors
@@ -363,6 +427,21 @@ export class SocketServer {
       walletAddress,
       marketAddress,
       data,
+      timestamp: Date.now(),
+    });
+  }
+
+  /**
+   * Broadcast on-chain SOL balance update to the wallet's user room.
+   * Fired by event-processor when Helius pushes an accountNotification for a
+   * pubkey we subscribed to with kind='wallet'.
+   */
+  broadcastWalletBalance(walletAddress: string, payload: { lamports: number; sol: number; slot: number }): void {
+    if (!this.io) return;
+    logger.debug(`💰 Broadcasting wallet balance for ${walletAddress.slice(0, 8)}... → ${payload.sol} SOL`);
+    this.io.to(`user:${walletAddress}`).emit('wallet:balance', {
+      walletAddress,
+      ...payload,
       timestamp: Date.now(),
     });
   }
@@ -548,6 +627,14 @@ export function broadcastPositionUpdate(
 export function broadcastNotification(walletAddress: string, notification: any): void {
   const server = getSocketServer();
   server.broadcastNotification(walletAddress, notification);
+}
+
+export function broadcastWalletBalance(
+  walletAddress: string,
+  payload: { lamports: number; sol: number; slot: number },
+): void {
+  const server = getSocketServer();
+  server.broadcastWalletBalance(walletAddress, payload);
 }
 
 export function broadcastUserStats(

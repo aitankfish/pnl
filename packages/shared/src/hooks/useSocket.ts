@@ -227,6 +227,10 @@ export function useUserSocket(walletAddress: string | null) {
   const [positions, setPositions] = useState<Map<string, any>>(new Map());
   const [notifications, setNotifications] = useState<any[]>([]);
   const [userStats, setUserStats] = useState<{ followerCount?: number; followingCount?: number }>({});
+  // Socket-pushed SOL balance for this wallet — server emits wallet:balance
+  // when Helius accountSubscribe fires for the user's pubkey. null = no event
+  // received yet (consumer should fall back to SWR/poll).
+  const [walletBalance, setWalletBalance] = useState<{ lamports: number; sol: number; slot: number } | null>(null);
   const isMountedRef = useRef(true);
 
   useEffect(() => {
@@ -272,9 +276,22 @@ export function useUserSocket(walletAddress: string | null) {
       }
     };
 
+    // Listen for SOL balance updates pushed from Helius via the server.
+    // Drop stale events that have an older slot than what we already saw —
+    // Helius can deliver notifications out of order across reconnects.
+    const handleWalletBalance = (data: any) => {
+      if (!isMountedRef.current) return;
+      if (typeof data?.lamports !== 'number' || typeof data?.sol !== 'number') return;
+      setWalletBalance((prev) => {
+        if (prev && typeof data.slot === 'number' && data.slot < prev.slot) return prev;
+        return { lamports: data.lamports, sol: data.sol, slot: data.slot ?? 0 };
+      });
+    };
+
     socket.on('position:update', handlePositionUpdate);
     socket.on('notification', handleNotification);
     socket.on('user:stats', handleUserStats);
+    socket.on('wallet:balance', handleWalletBalance);
 
     // Cleanup
     return () => {
@@ -282,6 +299,7 @@ export function useUserSocket(walletAddress: string | null) {
       socket.off('position:update', handlePositionUpdate);
       socket.off('notification', handleNotification);
       socket.off('user:stats', handleUserStats);
+      socket.off('wallet:balance', handleWalletBalance);
       logger.info(`Unsubscribed from user: ${walletAddress}`);
     };
   }, [socket, isConnected, walletAddress]);
@@ -290,6 +308,7 @@ export function useUserSocket(walletAddress: string | null) {
     positions,
     notifications,
     userStats,
+    walletBalance,
     isConnected,
   };
 }

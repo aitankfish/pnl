@@ -20,10 +20,15 @@ export type BlockchainEventType =
 export interface BlockchainEvent {
   id: string; // Unique event ID
   type: BlockchainEventType;
-  accountType: 'market' | 'position' | 'unknown';
+  accountType: 'market' | 'position' | 'wallet' | 'unknown';
   address: string; // Account address
   marketId?: string; // MongoDB market ID (if known)
-  data: string; // Base64 encoded account data
+  // For market/position: base64-encoded account data parsed downstream.
+  // For wallet: omitted — we only care about lamports below.
+  data?: string;
+  // For wallet kind only: native SOL balance in lamports from the
+  // accountNotification value.lamports field. Avoids a follow-up RPC.
+  lamports?: number;
   slot: number;
   timestamp: number;
   signature?: string; // Transaction signature (if available)

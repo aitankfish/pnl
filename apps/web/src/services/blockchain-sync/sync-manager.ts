@@ -358,6 +358,28 @@ export class SyncManager {
   }
 
   /**
+   * Subscribe to a user's wallet (native SOL account) so balance changes flow
+   * through the same Helius pipeline as markets/positions. The kind='wallet'
+   * tag tells helius-client to push lamports directly without parsing data.
+   * No-ops gracefully if the sync manager hasn't started yet (e.g., during
+   * server boot).
+   */
+  async subscribeToWallet(walletAddress: string): Promise<void> {
+    if (!this.heliusClient || !this.isRunning) {
+      logger.warn('Cannot subscribe to wallet — sync manager not running', {
+        walletAddress: walletAddress.slice(0, 8) + '...',
+      });
+      return;
+    }
+    await this.heliusClient.subscribeToAccount(walletAddress, 'wallet');
+  }
+
+  async unsubscribeFromWallet(walletAddress: string): Promise<void> {
+    if (!this.heliusClient) return;
+    await this.heliusClient.unsubscribeFromAccount(walletAddress);
+  }
+
+  /**
    * Save sync status to Redis (shared across processes)
    */
   private async saveSyncStatus(): Promise<void> {
