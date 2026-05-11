@@ -82,12 +82,17 @@ export async function buildCreateMarketTransaction(params: {
   metadataUri: string;
   wallet?: any;
   network?: 'devnet' | 'mainnet-beta';
+  // Server callers can pass a server-only RPC URL (built from HELIUS_API_KEY)
+  // so they don't rely on NEXT_PUBLIC_HELIUS_MAINNET_RPC being correct in
+  // every deploy environment. Client callers omit this and use env config.
+  rpcEndpoint?: string;
 }) {
   const config = getEnvConfig();
   const network = params.network || config.SOLANA_NETWORK;
-  const rpcEndpoint = network === 'mainnet-beta'
-    ? config.HELIUS_MAINNET_RPC || 'https://api.mainnet-beta.solana.com'
-    : config.HELIUS_DEVNET_RPC || 'https://api.devnet.solana.com';
+  const rpcEndpoint = params.rpcEndpoint
+    || (network === 'mainnet-beta'
+      ? config.HELIUS_MAINNET_RPC || 'https://api.mainnet-beta.solana.com'
+      : config.HELIUS_DEVNET_RPC || 'https://api.devnet.solana.com');
 
   const programId = getProgramIdForNetwork(network);
 

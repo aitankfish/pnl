@@ -9,7 +9,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { PublicKey } from '@solana/web3.js';
 import { buildCreateMarketTransaction, extractIPFSCid } from '@/lib/anchor-program';
 import { createClientLogger } from '@/lib/logger';
-import { TARGET_POOL_OPTIONS, MIN_POOL_LAMPORTS, FEES, SOLANA_NETWORK } from '@/config/solana';
+import { TARGET_POOL_OPTIONS, MIN_POOL_LAMPORTS, FEES, SOLANA_NETWORK, RPC_ENDPOINT } from '@/config/solana';
 import { withWalletOwnership } from '@/lib/auth/require-wallet';
 
 const logger = createClientLogger();
@@ -87,7 +87,10 @@ export const POST = withWalletOwnership(async (request, authUser) => {
       targetPool: targetPoolLamports,
       marketDuration,
       metadataUri: body.metadataUri,
-      network
+      network,
+      // Server-built URL from HELIUS_API_KEY so we never fall back to the
+      // browser-visible NEXT_PUBLIC_HELIUS_MAINNET_RPC for getLatestBlockhash.
+      rpcEndpoint: RPC_ENDPOINT,
     });
 
     // Serialize transaction for client-side signing

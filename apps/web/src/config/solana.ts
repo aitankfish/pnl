@@ -22,7 +22,27 @@ import { getSolanaNetwork, getProgramId, getRpcEndpoint } from '@pnl/shared/conf
 // Many components import these as static values
 export const SOLANA_NETWORK = getSolanaNetwork();
 export const PROGRAM_ID = getProgramId();
-export const RPC_ENDPOINT = getRpcEndpoint();
+
+// RPC_ENDPOINT resolution:
+//   Server (typeof window === 'undefined'): build URL from server-only
+//     HELIUS_API_KEY so we don't depend on NEXT_PUBLIC_HELIUS_MAINNET_RPC
+//     being correctly set in the deploy environment. That's the var the
+//     browser uses; it can be rotated / domain-restricted independently
+//     of the server's needs and silently 401 every RPC call.
+//   Client: stick with the public NEXT_PUBLIC_* URL.
+function resolveRpcEndpoint(): string {
+  if (typeof window === 'undefined') {
+    const apiKey = process.env.HELIUS_API_KEY;
+    if (apiKey) {
+      return SOLANA_NETWORK === 'mainnet-beta'
+        ? `https://mainnet.helius-rpc.com/?api-key=${apiKey}`
+        : `https://devnet.helius-rpc.com/?api-key=${apiKey}`;
+    }
+  }
+  return getRpcEndpoint();
+}
+
+export const RPC_ENDPOINT = resolveRpcEndpoint();
 
 export default {
   SOLANA_NETWORK,
