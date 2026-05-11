@@ -7,7 +7,7 @@ import { popEvent, markProcessed, retryEvent, BlockchainEvent } from '@/lib/redi
 import { parseMarketAccount, parsePositionAccount, calculateDerivedFields } from './account-parser';
 import { createClientLogger } from '@/lib/logger';
 import { Db, ObjectId } from 'mongodb';
-import { broadcastMarketUpdate, broadcastPositionUpdate } from '../socket/socket-server';
+import { broadcastMarketUpdate, broadcastPositionUpdate, broadcastWalletBalance } from '../socket/socket-server';
 import { connectToDatabase, getDatabase } from '@/lib/database';
 import { updateMarketVoteCounts } from '@/lib/vote-counts';
 
@@ -55,6 +55,8 @@ export class EventProcessor {
             await this.processMarketUpdate(event);
           } else if (event.accountType === 'position') {
             await this.processPositionUpdate(event);
+          } else if (event.accountType === 'wallet') {
+            await this.processWalletUpdate(event);
           } else {
             logger.warn(`Unknown account type: ${event.accountType}`);
           }
@@ -100,6 +102,10 @@ export class EventProcessor {
    * Process market account update
    */
   private async processMarketUpdate(event: BlockchainEvent): Promise<void> {
+    if (!event.data) {
+      logger.warn(`Market event ${event.id} missing data field — skipping`);
+      return;
+    }
     // 1. Parse account data
     const marketData = parseMarketAccount(event.data);
     const derived = calculateDerivedFields(marketData);
@@ -236,6 +242,10 @@ export class EventProcessor {
    * Process position account update
    */
   private async processPositionUpdate(event: BlockchainEvent): Promise<void> {
+    if (!event.data) {
+      logger.warn(`Position event ${event.id} missing data field — skipping`);
+      return;
+    }
     // 1. Parse account data
     const positionData = parsePositionAccount(event.data);
 
@@ -334,6 +344,28 @@ export class EventProcessor {
     });
 
     logger.info(`✅ Position updated: ${event.address.slice(0, 8)}...`);
+  }
+
+  /**
+   * Process wallet (native account) balance update.
+   * Wallet events skip MongoDB — they're purely a realtime push for the UI.
+   * The lamports value comes straight from accountNotification.value.lamports
+   * (no parsing, no extra RPC).
+   */
+  private async processWalletUpdate(event: BlockchainEvent): Promise<void> {
+    if (typeof event.lamports !== 'number') {
+      logger.warn(`Wallet event ${event.id} missing lamports — skipping`);
+      return;
+    }
+
+    const sol = event.lamports / 1_000_000_000;
+    logger.debug(`💰 Wallet update ${event.address.slice(0, 8)}... → ${sol} SOL`);
+
+    broadcastWalletBalance(event.address, {
+      lamports: event.lamports,
+      sol,
+      slot: event.slot,
+    });
   }
 
   /**

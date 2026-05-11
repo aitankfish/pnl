@@ -34,11 +34,16 @@ interface AccountUpdateNotification {
   };
 }
 
+export type AccountSubscriptionKind = 'market' | 'position' | 'wallet';
+
 export class HeliusClient {
   private ws: WebSocket | null = null;
   private wsUrl: string;
   private subscriptions: Map<string, number> = new Map(); // subscription key -> subscription ID
   private subscriptionIdToPubkey: Map<number, string> = new Map(); // subscription ID -> pubkey
+  // Records what KIND of account each pubkey is, so handleAccountUpdate can route
+  // wallets (lamports-only) past the data-shape-based detectAccountType heuristic.
+  private subscriptionKinds: Map<string, AccountSubscriptionKind> = new Map(); // pubkey -> kind
   private bufferedNotifications: Map<number, any[]> = new Map(); // subscription ID -> buffered notifications (arrived before confirmation)
   private reconnectTimeout: NodeJS.Timeout | null = null;
   private reconnectAttempts = 0;
@@ -242,7 +247,7 @@ export class HeliusClient {
   /**
    * Subscribe to a specific account (market or position PDA)
    */
-  async subscribeToAccount(address: string): Promise<void> {
+  async subscribeToAccount(address: string, kind: AccountSubscriptionKind = 'market'): Promise<void> {
     if (!this.ws || this.ws.readyState !== WebSocket.OPEN) {
       throw new Error('WebSocket not connected');
     }
@@ -250,9 +255,16 @@ export class HeliusClient {
     const subscriptionKey = `account:${address}`;
 
     if (this.subscriptions.has(subscriptionKey)) {
+      // Already subscribed — make sure we record the kind in case the first
+      // subscription didn't tag it (e.g., legacy callers).
+      this.subscriptionKinds.set(address, kind);
       logger.warn(`Already subscribed to account: ${address}`);
       return;
     }
+
+    // Record kind BEFORE sending the request so the confirmation handler can
+    // route any buffered notifications correctly.
+    this.subscriptionKinds.set(address, kind);
 
     const requestId = this.getUniqueRequestId();
     const subscribeRequest = {
@@ -270,7 +282,7 @@ export class HeliusClient {
 
     this.pendingSubscriptions.set(requestId, subscriptionKey);
     this.ws.send(JSON.stringify(subscribeRequest));
-    logger.info(`📡 Subscribed to account: ${address.slice(0, 8)}... (requestId: ${requestId})`);
+    logger.info(`📡 Subscribed to account: ${address.slice(0, 8)}... (kind=${kind}, requestId: ${requestId})`);
   }
 
   /**
@@ -447,7 +459,34 @@ export class HeliusClient {
         // In accountNotification, result.value IS the account data directly
         const value: any = result.value;
 
-        if (!value || !value.data) {
+        if (!value) {
+          logger.warn('No value in accountNotification');
+          return;
+        }
+
+        // Wallets subscribe by kind — we don't care about account data, only
+        // the lamports delta. Short-circuit past detectAccountType (which would
+        // call wallets "unknown" and drop them) and push a lamports event.
+        const kind = this.subscriptionKinds.get(pubkey);
+        if (kind === 'wallet') {
+          const lamports = typeof value.lamports === 'number' ? value.lamports : null;
+          if (lamports === null) {
+            logger.warn(`Wallet notification missing lamports: ${pubkey.slice(0, 8)}...`);
+            return;
+          }
+          logger.info(`💰 Wallet balance update: ${pubkey.slice(0, 8)}... -> ${lamports} lamports`);
+          await pushEvent({
+            type: 'account_update',
+            accountType: 'wallet',
+            address: pubkey,
+            lamports,
+            slot,
+            timestamp: Date.now(),
+          });
+          return;
+        }
+
+        if (!value.data) {
           logger.warn('No account data in accountNotification');
           return;
         }
@@ -591,6 +630,8 @@ export class HeliusClient {
 
       this.ws.send(JSON.stringify(unsubscribeRequest));
       this.subscriptions.delete(subscriptionKey);
+      this.subscriptionIdToPubkey.delete(subscriptionId);
+      this.subscriptionKinds.delete(address);
       logger.info(`🔕 Unsubscribed from account: ${address}`);
     }
   }

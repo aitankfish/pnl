@@ -1,6 +1,8 @@
 'use client';
 
+import { useEffect, useRef } from 'react';
 import useSWR from 'swr';
+import { useUserSocket } from '@/lib/hooks/useSocket';
 
 const RPC_MAINNET = process.env.NEXT_PUBLIC_HELIUS_MAINNET_RPC || 'https://api.mainnet-beta.solana.com';
 const RPC_DEVNET = process.env.NEXT_PUBLIC_HELIUS_DEVNET_RPC || 'https://api.devnet.solana.com';
@@ -20,12 +22,16 @@ async function fetchSolBalance(address: string): Promise<number> {
 
 /**
  * Single source of truth for a wallet's SOL balance across the web app.
- * SWR dedupes calls across consumers in the same tab, so navbar + sidebar +
- * wallet page all share one RPC call per refresh window.
  *
- * Goes direct to Helius from the browser (same path as mobile useWalletBalance),
- * bypassing the cached server endpoint to avoid the Next.js dev lazy-compile
- * stall on first hit.
+ * Two layers:
+ *   1. Socket realtime: server subscribes the wallet to Helius accountSubscribe
+ *      on user connect; new lamports arrive within a slot (~400ms) and we
+ *      write them straight into SWR's cache.
+ *   2. SWR polling: 30s direct-RPC fetch as fallback for cold start, socket
+ *      disconnects, and reconciliation. dedupingInterval coalesces concurrent
+ *      consumers (navbar + sidebar + wallet page) into one in-flight call.
+ *
+ * Consumers don't see the layering — they always read `solBalance`.
  */
 export function useSolBalance(walletAddress: string | null | undefined) {
   const { data, error, isLoading, isValidating, mutate } = useSWR(
@@ -39,6 +45,25 @@ export function useSolBalance(walletAddress: string | null | undefined) {
       errorRetryInterval: 2_000,
     },
   );
+
+  // Bridge the socket-pushed value into SWR's cache. mutate(value, false)
+  // updates `data` without triggering a revalidation — Helius is authoritative
+  // for this push, so we trust it. The cache write also dedupes across
+  // simultaneous tabs sharing this hook (SWR de-dupes by key).
+  //
+  // NOTE: useSocket() creates a fresh io() per call (no singleton), so a page
+  // that already calls useUserSocket directly (e.g., /wallet) will hold two
+  // Socket.IO connections per session. Server-side refcounting handles
+  // correctness; turning useSocket into a singleton is a worthwhile follow-up.
+  const { walletBalance: socketBalance } = useUserSocket(walletAddress ?? null);
+  const lastAppliedSlot = useRef<number>(-1);
+  useEffect(() => {
+    if (!socketBalance || !walletAddress) return;
+    // Guard against double-applying the same event (React strict mode, re-renders).
+    if (socketBalance.slot <= lastAppliedSlot.current) return;
+    lastAppliedSlot.current = socketBalance.slot;
+    mutate(socketBalance.sol, false);
+  }, [socketBalance, walletAddress, mutate]);
 
   return {
     solBalance: data ?? 0,
