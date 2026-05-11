@@ -3674,7 +3674,7 @@ export default function MarketDetailClient({
 
       {/* Toast Notification - OUTSIDE transformed container for proper fixed positioning */}
       {showToast && (
-        <div className="fixed top-4 left-1/2 -translate-x-1/2 z-[100] animate-in fade-in slide-in-from-top-2 px-3 sm:px-0 w-[calc(100%-24px)] sm:w-auto max-w-md">
+        <div className="fixed top-20 left-1/2 -translate-x-1/2 z-[100] animate-in fade-in slide-in-from-top-2 px-3 sm:px-0 w-[calc(100%-24px)] sm:w-auto max-w-md">
           <div className="bg-gray-900 border border-white/20 text-white px-4 sm:px-6 py-2.5 sm:py-3 rounded-lg shadow-lg flex items-center space-x-2">
             <Globe className="w-4 h-4 sm:w-5 sm:h-5 text-cyan-400 flex-shrink-0" />
             <span className="text-sm sm:text-base">{toastMessage}</span>

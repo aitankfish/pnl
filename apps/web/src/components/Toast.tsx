@@ -22,7 +22,7 @@ export function Toast({ type, title, message, details, onClose, duration = 5000 
   }, [duration, onClose]);
 
   return (
-    <div className="fixed top-4 left-1/2 transform -translate-x-1/2 z-[100] animate-in fade-in slide-in-from-top-5 duration-300 px-3 sm:px-0 w-[calc(100%-24px)] sm:w-auto">
+    <div className="fixed top-20 left-1/2 transform -translate-x-1/2 z-[100] animate-in fade-in slide-in-from-top-5 duration-300 px-3 sm:px-0 w-[calc(100%-24px)] sm:w-auto">
       <div className="bg-gradient-to-br from-slate-900/95 to-slate-800/95 backdrop-blur-xl border border-white/20 rounded-lg shadow-2xl shadow-black/50 w-full sm:min-w-[350px] sm:max-w-md">
         <div className="p-4 space-y-3">
           {/* Header */}
