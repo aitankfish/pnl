@@ -39,9 +39,12 @@ export const POST = withWalletOwnership(async (request, authUser) => {
       }
     }
 
-    // Validate target pool (program now accepts any amount >= 0.08 SOL)
+    // Validate target pool (program now accepts any amount >= 0.08 SOL).
+    // parseInt('') / parseInt(undefined) returns NaN — and NaN < x is false in
+    // JS, so the bare numeric comparison silently lets NaN through, which then
+    // explodes later as a cryptic `BigInt(NaN)` RangeError. Check explicitly.
     const targetPoolLamports = parseInt(body.targetPool);
-    if (targetPoolLamports < MIN_POOL_LAMPORTS) {
+    if (!Number.isFinite(targetPoolLamports) || targetPoolLamports < MIN_POOL_LAMPORTS) {
       return NextResponse.json(
         {
           success: false,
@@ -51,9 +54,9 @@ export const POST = withWalletOwnership(async (request, authUser) => {
       );
     }
 
-    // Validate market duration
+    // Validate market duration — same NaN trap as targetPool.
     const marketDuration = parseInt(body.marketDuration);
-    if (marketDuration < 1 || marketDuration > 365) {
+    if (!Number.isFinite(marketDuration) || marketDuration < 1 || marketDuration > 365) {
       return NextResponse.json(
         { success: false, error: 'Market duration must be between 1 and 365 days' },
         { status: 400 }

@@ -391,8 +391,13 @@ export default function CreatePage() {
         }),
       });
       const transactionResult = await transactionResponse.json();
-      if (!transactionResult.success)
-        throw new Error(transactionResult.error || 'Failed to prepare transaction');
+      if (!transactionResult.success) {
+        // Surface the server-side root cause in the thrown message so the
+        // toast doesn't just say "Failed to prepare transaction" with no clue.
+        const baseMsg = transactionResult.error || 'Failed to prepare transaction';
+        const detail = transactionResult.details ? ` — ${transactionResult.details}` : '';
+        throw new Error(`${baseMsg}${detail}`);
+      }
 
       if (!authenticated || !primaryWallet) {
         throw new Error('Wallet disconnected — please reconnect and try again.');
