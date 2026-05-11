@@ -15,6 +15,7 @@ import { authFetch } from '@/lib/auth/fetch-with-auth';
 import { useToast } from '@/lib/hooks/useToast';
 import { useWallet } from '@/hooks/useWallet';
 import { createClientLogger } from '@/lib/logger';
+import { SeedIcon } from '@/components/PlantIcons';
 
 const logger = createClientLogger();
 
@@ -169,7 +170,7 @@ export function ResearchPaperFlow({ onBack }: { onBack: () => void }) {
             Research paper
           </p>
           <h1
-            className="leading-[1.05] mb-3"
+            className="leading-[1.05] mb-3 inline-flex items-center justify-center gap-3"
             style={{
               color: CREAM,
               fontFamily: 'var(--font-fraunces, serif)',
@@ -178,7 +179,8 @@ export function ResearchPaperFlow({ onBack }: { onBack: () => void }) {
               fontFeatureSettings: '"ss01"',
             }}
           >
-            Plant a paper.
+            <SeedIcon className="w-[0.85em] h-[0.85em]" />
+            <span>Plant the seed.</span>
           </h1>
           <p
             className="mx-auto max-w-md"
