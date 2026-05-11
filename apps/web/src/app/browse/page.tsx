@@ -12,6 +12,7 @@ import ErrorDialog from '@/components/ErrorDialog';
 import { parseError } from '@/lib/utils/errorParser';
 import { getVoteButtonStates, getMarketDisplayStatus } from '@/lib/api-utils';
 import { useWallet } from '@/hooks/useWallet';
+import { useAuthModal } from '@/contexts/AuthModalContext';
 import { Dropdown, DropdownOption } from '@/components/Dropdown';
 import {
   SeedIcon,
@@ -197,7 +198,8 @@ export default function BrowsePage() {
   const [page, setPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(25);
   const { vote } = useVoting();
-  const { primaryWallet } = useWallet();
+  const { primaryWallet, authenticated } = useWallet();
+  const { showAuthModal } = useAuthModal();
   const walletAddress = primaryWallet?.address || null;
 
   // Debounce search input → searchQuery (200ms)
@@ -361,13 +363,21 @@ export default function BrowsePage() {
   }>({ open: false, title: '', message: '', details: undefined });
 
   const QUICK_VOTE_AMOUNT = FEES.MINIMUM_INVESTMENT / 1_000_000_000;
-  const handleQuickVote = async (market: Market, voteType: 'yes' | 'no') => {
+  const handleQuickVote = async (market: Market, voteType: 'yes' | 'no', amount?: number) => {
+    // If the user hasn't signed in, route them through the onboarding modal
+    // rather than firing the vote and surfacing "Please connect your wallet"
+    // through the ErrorDialog. Same pattern the Sidebar wallet button uses.
+    if (!authenticated) {
+      showAuthModal();
+      return;
+    }
+
     setVotingState({ marketId: market.id, voteType });
     const result = await vote({
       marketId: market.id,
       marketAddress: market.marketAddress,
       voteType,
-      amount: QUICK_VOTE_AMOUNT,
+      amount: amount ?? QUICK_VOTE_AMOUNT,
     });
     setVotingState(null);
     if (!result.success) {
@@ -1006,12 +1016,18 @@ function MarketCard({
   position?: { side: string; amount: number };
   voting: 'yes' | 'no' | null;
   anyVoting: boolean;
-  onQuickVote: (m: Market, v: 'yes' | 'no') => void;
+  onQuickVote: (m: Market, v: 'yes' | 'no', amount: number) => void;
 }) {
   const status = getMarketStatus(market);
   const yesDisabled = isYesVoteDisabled(market);
   const noDisabled = isNoVoteDisabled(market);
   const isActionable = !yesDisabled || !noDisabled;
+  // Per-card bet amount with a min/max + step matching the program's minimum
+  // (0.01 SOL). Cap kept low so cards stay a "quick conviction tap" — for
+  // larger positions the user clicks through to the market detail page.
+  const QUICK_MIN = 0.01;
+  const QUICK_MAX = 1.0;
+  const [betAmount, setBetAmount] = useState(QUICK_MIN);
   const poolPercent = Math.min(market.poolProgressPercentage || 0, 100);
   const isResolved = market.resolution && market.resolution !== 'Unresolved';
   const tokenMint = (market as any).tokenMint || (market as any).pumpFunTokenAddress;
@@ -1225,44 +1241,77 @@ function MarketCard({
           }
           if (isActionable) {
             return (
-              <div className="grid grid-cols-2 gap-1.5">
-                <button
+              <div className="space-y-2">
+                {/* Compact bet-amount slider — clicking it must NOT navigate to
+                    the market detail page (the whole card is a <Link>). */}
+                <div
                   onClick={(e) => {
                     e.preventDefault();
                     e.stopPropagation();
-                    onQuickVote(market, 'yes');
                   }}
-                  disabled={anyVoting || yesDisabled}
-                  className="mono uppercase tracking-[0.22em] text-[0.6rem] py-2 transition-colors flex items-center justify-center gap-1 disabled:opacity-40 disabled:cursor-not-allowed"
-                  style={{ background: FOREST, color: CREAM }}
-                  onMouseEnter={(e) => {
-                    if (!anyVoting && !yesDisabled) e.currentTarget.style.background = '#4a8d4d';
-                  }}
-                  onMouseLeave={(e) => {
-                    if (!anyVoting && !yesDisabled) e.currentTarget.style.background = FOREST;
-                  }}
+                  className="flex items-center gap-2"
                 >
-                  {voting === 'yes' ? <Loader2 className="w-3 h-3 animate-spin" /> : 'Yes'}
-                </button>
-                <button
-                  onClick={(e) => {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    onQuickVote(market, 'no');
-                  }}
-                  disabled={anyVoting || noDisabled}
-                  className="mono uppercase tracking-[0.22em] text-[0.6rem] py-2 transition-colors flex items-center justify-center gap-1 disabled:opacity-40 disabled:cursor-not-allowed"
-                  style={{ color: EARTH, border: `1px solid ${EARTH}88` }}
-                  onMouseEnter={(e) => {
-                    if (!anyVoting && !noDisabled)
-                      e.currentTarget.style.background = 'rgba(214,115,71,0.1)';
-                  }}
-                  onMouseLeave={(e) => {
-                    if (!anyVoting && !noDisabled) e.currentTarget.style.background = 'transparent';
-                  }}
-                >
-                  {voting === 'no' ? <Loader2 className="w-3 h-3 animate-spin" /> : 'No'}
-                </button>
+                  <input
+                    type="range"
+                    min={QUICK_MIN}
+                    max={QUICK_MAX}
+                    step={0.01}
+                    value={betAmount}
+                    onChange={(e) => setBetAmount(parseFloat(e.target.value))}
+                    onPointerDown={(e) => e.stopPropagation()}
+                    onMouseDown={(e) => e.stopPropagation()}
+                    disabled={anyVoting}
+                    aria-label="Bet amount"
+                    className="flex-1 h-1 cursor-pointer disabled:cursor-not-allowed disabled:opacity-40"
+                    style={{ accentColor: AMBER }}
+                  />
+                  <span
+                    className="mono text-[0.6rem] tabular-nums w-[5ch] text-right"
+                    style={{ color: AMBER }}
+                    title={`${betAmount.toFixed(2)} SOL`}
+                  >
+                    ◎{betAmount.toFixed(2)}
+                  </span>
+                </div>
+                <div className="grid grid-cols-2 gap-1.5">
+                  <button
+                    onClick={(e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      onQuickVote(market, 'yes', betAmount);
+                    }}
+                    disabled={anyVoting || yesDisabled}
+                    className="mono uppercase tracking-[0.22em] text-[0.6rem] py-2 transition-colors flex items-center justify-center gap-1 disabled:opacity-40 disabled:cursor-not-allowed"
+                    style={{ background: FOREST, color: CREAM }}
+                    onMouseEnter={(e) => {
+                      if (!anyVoting && !yesDisabled) e.currentTarget.style.background = '#4a8d4d';
+                    }}
+                    onMouseLeave={(e) => {
+                      if (!anyVoting && !yesDisabled) e.currentTarget.style.background = FOREST;
+                    }}
+                  >
+                    {voting === 'yes' ? <Loader2 className="w-3 h-3 animate-spin" /> : 'Yes'}
+                  </button>
+                  <button
+                    onClick={(e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      onQuickVote(market, 'no', betAmount);
+                    }}
+                    disabled={anyVoting || noDisabled}
+                    className="mono uppercase tracking-[0.22em] text-[0.6rem] py-2 transition-colors flex items-center justify-center gap-1 disabled:opacity-40 disabled:cursor-not-allowed"
+                    style={{ color: EARTH, border: `1px solid ${EARTH}88` }}
+                    onMouseEnter={(e) => {
+                      if (!anyVoting && !noDisabled)
+                        e.currentTarget.style.background = 'rgba(214,115,71,0.1)';
+                    }}
+                    onMouseLeave={(e) => {
+                      if (!anyVoting && !noDisabled) e.currentTarget.style.background = 'transparent';
+                    }}
+                  >
+                    {voting === 'no' ? <Loader2 className="w-3 h-3 animate-spin" /> : 'No'}
+                  </button>
+                </div>
               </div>
             );
           }
