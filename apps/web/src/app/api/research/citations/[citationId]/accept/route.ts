@@ -13,6 +13,7 @@ import { Types } from 'mongoose';
 import { connectToDatabase, PaperCitation } from '@/lib/mongodb';
 import { withAuth } from '@/lib/auth/require-wallet';
 import { createClientLogger } from '@/lib/logger';
+import { invalidateCache } from '@/lib/redis/invalidate';
 
 const logger = createClientLogger();
 
@@ -57,6 +58,10 @@ export const POST = withAuth(async (_request, authUser, { params }: any) => {
     await citation.save();
 
     logger.info('[research/citations/accept]', { id: String(citation._id) });
+
+    // Citation index drives the THESIS / CODE / CITED badges on /browse.
+    // Without invalidation the badge takes up to 30s to appear.
+    await invalidateCache('research:citation-index');
 
     return NextResponse.json({
       success: true,

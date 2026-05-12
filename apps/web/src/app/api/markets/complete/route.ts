@@ -12,6 +12,7 @@ import { getSyncManager } from '@/services/blockchain-sync/sync-manager';
 import { tweetMarketCreated } from '@/services/twitter/twitter-service';
 import { broadcastNewMarket } from '@/services/socket/socket-server';
 import { withWalletOwnership } from '@/lib/auth/require-wallet';
+import { invalidateCache } from '@/lib/redis/invalidate';
 
 const logger = createClientLogger();
 
@@ -150,6 +151,9 @@ export const POST = withWalletOwnership(async (request: NextRequest) => {
         marketId: savedMarket._id,
       });
     });
+
+    // New market is now visible on-chain → list views should reflect it.
+    await invalidateCache('markets:list:*');
 
     return NextResponse.json({
       success: true,

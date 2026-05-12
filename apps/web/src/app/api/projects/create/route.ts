@@ -9,6 +9,7 @@ import { createClientLogger } from '@/lib/logger';
 import { connectToDatabase, Project } from '@/lib/mongodb';
 import { withAuth } from '@/lib/auth/require-wallet';
 import { checkRateLimit } from '@/lib/auth/rate-limit';
+import { invalidateCache } from '@/lib/redis/invalidate';
 
 const logger = createClientLogger();
 
@@ -259,6 +260,15 @@ export const POST = withAuth(async (request, authUser) => {
       metadataUri,
       creatorWallet: creatorWalletAddress
     });
+
+    // Project just created → market list views go stale, this wallet's
+    // profile counts (projectsCreated) tick up, and they become a founder so
+    // the "never had any tokens" creator-fees sentinel needs to drop.
+    await invalidateCache(
+      'markets:list:*',
+      `profile-counts:${creatorWalletAddress}`,
+      `creator-fees:none:${creatorWalletAddress}`,
+    );
 
     return NextResponse.json({
       success: true,

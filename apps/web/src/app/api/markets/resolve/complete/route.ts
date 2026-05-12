@@ -16,6 +16,7 @@ import { ObjectId } from 'mongodb';
 import { connectToDatabase as connectMongoose, Notification, PredictionParticipant, Project } from '@/lib/mongodb';
 import { tweetTokenLaunched, tweetMarketFailed } from '@/services/twitter/twitter-service';
 import { withWalletOwnership } from '@/lib/auth/require-wallet';
+import { invalidateCache } from '@/lib/redis/invalidate';
 
 const logger = createClientLogger();
 
@@ -405,6 +406,11 @@ export const POST = withWalletOwnership(async (request: NextRequest) => {
         marketId,
       });
     }
+
+    // Resolution flips market state + all participant positions become
+    // claimable. Purge list views; per-position caches will repopulate
+    // naturally as users hit the detail page after the announcement.
+    await invalidateCache('markets:list:*');
 
     return NextResponse.json({
       success: true,

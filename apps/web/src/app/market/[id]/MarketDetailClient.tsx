@@ -27,6 +27,7 @@ import useSWR from 'swr';
 import ErrorDialog from '@/components/ErrorDialog';
 import SuccessDialog from '@/components/SuccessDialog';
 import { useMarketSocket, useUserSocket } from '@/lib/hooks/useSocket';
+import { MarketCitations } from '@/components/research/MarketCitations';
 import { TokenLaunchAnimation } from '@/components/TokenLaunchAnimation';
 import { getVoteButtonStates, getMarketDisplayStatus } from '@/lib/api-utils';
 import {
@@ -97,13 +98,6 @@ const TokenStatsBar = dynamic(() => import('@/components/TokenStatsBar').then(mo
   ssr: false,
 });
 
-const MarketCitations = dynamic(
-  () =>
-    import('@/components/research/MarketCitations').then(mod => ({
-      default: mod.MarketCitations,
-    })),
-  { loading: () => null, ssr: false },
-);
 
 interface MarketDetails {
   id: string;

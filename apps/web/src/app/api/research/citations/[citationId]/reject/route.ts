@@ -16,6 +16,7 @@ import { Types } from 'mongoose';
 import { connectToDatabase, PaperCitation } from '@/lib/mongodb';
 import { withAuth } from '@/lib/auth/require-wallet';
 import { createClientLogger } from '@/lib/logger';
+import { invalidateCache } from '@/lib/redis/invalidate';
 
 const logger = createClientLogger();
 
@@ -60,6 +61,9 @@ export const POST = withAuth(async (_request, authUser, { params }: any) => {
     await citation.save();
 
     logger.info('[research/citations/reject]', { id: String(citation._id) });
+
+    // Drives the THESIS / CODE / CITED badges on /browse — keep it fresh.
+    await invalidateCache('research:citation-index');
 
     return NextResponse.json({
       success: true,

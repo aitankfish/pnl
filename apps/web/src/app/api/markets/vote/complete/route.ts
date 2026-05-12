@@ -16,6 +16,7 @@ import { getSolanaConnection } from '@/lib/solana';
 import { getProgramIdForNetwork } from '@/lib/anchor-program';
 import { SOLANA_NETWORK } from '@/config/solana';
 import { withWalletOwnership } from '@/lib/auth/require-wallet';
+import { invalidateCache } from '@/lib/redis/invalidate';
 
 const logger = createClientLogger();
 
@@ -265,6 +266,16 @@ export const POST = withWalletOwnership(async (request, authUser) => {
       });
       // Don't fail the request if vote count update fails
     }
+
+    // Without these invalidations, a fresh-load of /market/[id] (or /wallet)
+    // right after voting serves the pre-vote payload from Redis until the TTL
+    // expires (5s–60s depending on key). Helper is best-effort; a Redis miss
+    // just leaves the cache to expire naturally.
+    await invalidateCache(
+      `markets:position:${marketId}:${traderWallet}`, // 5s TTL — single market position
+      `positions:${traderWallet}`,                     // 5s TTL — wallet's all positions
+      `profile-counts:${traderWallet}`,                // 60s TTL — totalPredictions ticks
+    );
 
     logger.info('Vote transaction completed', {
       marketId,

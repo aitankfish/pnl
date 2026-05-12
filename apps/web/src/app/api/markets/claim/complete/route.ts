@@ -10,6 +10,7 @@ import { createClientLogger } from '@/lib/logger';
 import { connectToDatabase, PredictionParticipant } from '@/lib/mongodb';
 import { ObjectId } from 'mongodb';
 import { withWalletOwnership } from '@/lib/auth/require-wallet';
+import { invalidateCache } from '@/lib/redis/invalidate';
 
 const logger = createClientLogger();
 
@@ -69,6 +70,13 @@ export const POST = withWalletOwnership(async (request, authUser) => {
         modifiedCount: updateResult.modifiedCount,
       });
     }
+
+    // Position cache still holds the pre-claim "claimed: false" snapshot.
+    // Purge so the claim button hides immediately on the next paint.
+    await invalidateCache(
+      `markets:position:${marketId}:${userWallet}`,
+      `positions:${userWallet}`,
+    );
 
     return NextResponse.json({
       success: true,

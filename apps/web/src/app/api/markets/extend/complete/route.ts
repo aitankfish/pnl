@@ -12,6 +12,7 @@ import { COLLECTIONS } from '@/lib/database/models';
 import { ObjectId } from 'mongodb';
 import { connectToDatabase as connectMongoose, Notification, PredictionParticipant } from '@/lib/mongodb';
 import { withWalletOwnership } from '@/lib/auth/require-wallet';
+import { invalidateCache } from '@/lib/redis/invalidate';
 
 const logger = createClientLogger();
 
@@ -132,6 +133,9 @@ export const POST = withWalletOwnership(async (request: NextRequest) => {
         error: notifError instanceof Error ? notifError.message : String(notifError)
       });
     }
+
+    // Market's phase/status changed → list views and detail caches go stale.
+    await invalidateCache('markets:list:*');
 
     return NextResponse.json({
       success: true,
