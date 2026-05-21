@@ -1,0 +1,101 @@
+# PNL — Predict and Launch
+# https://pnl.market
+#
+# Policy: marketing pages, whitepaper, and public market routes are open
+# to crawlers (including AI training and AI search). Internal API routes
+# and admin surfaces are off-limits. Security still depends on auth/ACL —
+# this file is hygiene, not enforcement.
+
+# --- AI training and AI search crawlers (explicitly allowed) ---
+
+User-agent: GPTBot
+Allow: /
+Allow: /api/og
+Disallow: /api/
+Disallow: /admin/
+
+User-agent: ChatGPT-User
+Allow: /
+Allow: /api/og
+Disallow: /api/
+Disallow: /admin/
+
+User-agent: OAI-SearchBot
+Allow: /
+Allow: /api/og
+Disallow: /api/
+Disallow: /admin/
+
+User-agent: ClaudeBot
+Allow: /
+Allow: /api/og
+Disallow: /api/
+Disallow: /admin/
+
+User-agent: Claude-Web
+Allow: /
+Allow: /api/og
+Disallow: /api/
+Disallow: /admin/
+
+User-agent: anthropic-ai
+Allow: /
+Allow: /api/og
+Disallow: /api/
+Disallow: /admin/
+
+User-agent: PerplexityBot
+Allow: /
+Allow: /api/og
+Disallow: /api/
+Disallow: /admin/
+
+User-agent: Perplexity-User
+Allow: /
+Allow: /api/og
+Disallow: /api/
+Disallow: /admin/
+
+User-agent: Google-Extended
+Allow: /
+Allow: /api/og
+Disallow: /api/
+Disallow: /admin/
+
+User-agent: Applebot-Extended
+Allow: /
+Allow: /api/og
+Disallow: /api/
+Disallow: /admin/
+
+User-agent: CCBot
+Allow: /
+Allow: /api/og
+Disallow: /api/
+Disallow: /admin/
+
+User-agent: cohere-ai
+Allow: /
+Allow: /api/og
+Disallow: /api/
+Disallow: /admin/
+
+User-agent: meta-externalagent
+Allow: /
+Allow: /api/og
+Disallow: /api/
+Disallow: /admin/
+
+User-agent: Bytespider
+Allow: /
+Allow: /api/og
+Disallow: /api/
+Disallow: /admin/
+
+# --- Default policy ---
+
+User-agent: *
+Allow: /
+Allow: /api/og
+Disallow: /api/
+Disallow: /admin/

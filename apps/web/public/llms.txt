@@ -1,0 +1,54 @@
+# PNL — Predict and Launch
+
+> Idea Tokenization Platform powered by Prediction Markets on Solana. Anyone posts an idea for ~$2; a global market of believers and critics decides, with real SOL, whether it deserves to launch. YES → the idea launches as a token on pump.fun with pooled liquidity. NO → critics split the pool, paid for filtering noise. Every idea, funded or not, joins a permanent on-chain library.
+
+PNL turns idea-stage fundraising into a coordination market. Every market has two camps: believers stake YES on ideas they think should exist; critics stake NO on ideas they think won't work. When the market clears its threshold and time window, the winning side takes the pool. The protocol is live on Solana mainnet. The native token is $PNL.
+
+The thesis: most ideas die in private notebooks because the old path — venture capital, geography, proximity to a network — funds only a sliver of what's worth building. PNL replaces that gate with a public market. Conviction becomes capital. Geography stops mattering. Being wrong costs you a small stake. Being right pays the believers and graduates the idea into a tradeable token.
+
+## Core links
+
+- [Home](https://pnl.market/): Thesis, mechanic explainer, and the journey from idea to token
+- [Browse markets](https://pnl.market/browse): Catalog of all live, bloomed, withered, closed, and returned markets. Filterable by category and status.
+- [Launchpad](https://pnl.market/launchpad): "The Pulse" — live activity feed, stats across the protocol, and the entry point to plant a new idea
+- [Whitepaper](https://pnl.market/whitepaper): Full protocol design — thesis, abstract, problem, solution, mechanics, economics, vision, technical architecture
+
+## How a market works
+
+- Plant an idea for 0.015 SOL (~5 minutes to post). Title, thesis, category, target raise.
+- Two camps form. Believers stake on YES; critics stake on NO. Stakes are real SOL on Solana mainnet.
+- The market runs for a fixed window. As stakes flow in, the conviction ratio updates live.
+- When the window closes, the side with more pooled SOL wins.
+- YES wins → the idea graduates: a token launches on pump.fun, pooled liquidity is seeded, and the founder earns ongoing royalties on trading fees. Believers receive token airdrops proportional to their stake.
+- NO wins → critics split the pool, paid for protecting the commons from noise.
+- Win or lose, the idea remains in the on-chain library — a permanent public record of human imagination.
+
+## Market states
+
+- **Living** — accepting votes, time remaining
+- **Bloomed** — YES won, token launched on pump.fun
+- **Withered** — NO won, critics paid out
+- **Closed** — window expired without meeting threshold
+- **Returned** — ineligible, stakes refunded
+
+## On-chain references
+
+- $PNL token mint (SPL Token-2022 on Solana mainnet-beta): `6QuNZJzUF7oZj3GsG7fVBfidX1cE81sXhb9Czi12pump`
+- Pump.fun: https://pump.fun/coin/6QuNZJzUF7oZj3GsG7fVBfidX1cE81sXhb9Czi12pump
+- DexScreener: https://dexscreener.com/solana/6QuNZJzUF7oZj3GsG7fVBfidX1cE81sXhb9Czi12pump
+
+## Community
+
+- X / Twitter: https://x.com/pnldotmarket
+- Discord: https://discord.gg/38pkg4vm
+
+## What PNL is not
+
+- Not a memecoin launchpad — PNL gates launches with a prediction market; pump.fun and similar platforms launch on demand without curation.
+- Not a sports/event prediction market — markets resolve on the validity of an idea, not on external real-world outcomes.
+- Not crowdfunding — there is no fixed funding goal users contribute toward. Markets resolve by which side has more pooled conviction.
+- Not affiliated with PNL.FUN (a separate Solana project with a similar name and different presale-based mechanic).
+
+## License
+
+Source: https://github.com/aitankfish/pnl — MIT License.
