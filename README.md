@@ -12,7 +12,7 @@ P&L is a new paradigm for fundraising on Solana. Not every token deserves to lau
 The crypto space is flooded with tokens that never needed to exist. Meanwhile, talented builders worldwide lack access to traditional fundraising.
 
 ## The Solution
-P&L turns token launches into prediction markets. The community stakes SOL to vote YES (launch) or NO (don't launch). Market dynamics determine which ideas deserve to become tokens.
+P&L turns token launches into conviction markets — believers stake SOL on YES, critics stake SOL on NO, and the winning side takes the pool. Market dynamics determine which ideas deserve to become tokens.
 
 - **YES wins** → Token launches on pump.fun. Voters receive airdrops. Founders earn ongoing trading fees.
 - **NO wins** → NO voters share the pool. Bad ideas filtered out.
@@ -117,7 +117,7 @@ Open [http://localhost:3000](http://localhost:3000) to view the application.
 - **Dark Theme**: Modern, professional appearance with glassmorphic UI
 - **Privy Wallet Integration**: Seamless embedded wallet or external wallet connection
 - **Project Creation**: Comprehensive form with IPFS document and image storage
-- **Prediction Markets**: Community validation through on-chain prediction markets
+- **Conviction Markets**: Community validation through on-chain belief-staking — believers vote YES, critics vote NO, winning side takes the pool
 - **Real-Time Updates**: WebSocket integration for live market data synchronization
 - **Document Viewing**: IPFS-based project documentation with prominent display
 - **User Profiles**: Track investments, favorites, and project portfolios

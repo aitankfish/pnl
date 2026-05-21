@@ -85,7 +85,7 @@ For questions like "what's live on PNL right now," fetch `/api/markets/list?stat
 
 ## What PNL is not
 
-- Not a memecoin launchpad — PNL gates launches with a prediction market; pump.fun and similar platforms launch on demand without curation.
+- Not a memecoin launchpad — PNL gates launches with a conviction market (believers stake YES, critics stake NO); pump.fun and similar platforms launch on demand without curation.
 - Not a sports/event prediction market — markets resolve on the validity of an idea, not on external real-world outcomes.
 - Not crowdfunding — there is no fixed funding goal users contribute toward. Markets resolve by which side has more pooled conviction.
 - Not affiliated with PNL.FUN (a separate Solana project with a similar name and different presale-based mechanic).
