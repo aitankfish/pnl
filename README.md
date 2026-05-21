@@ -1,8 +1,12 @@
 # P&L - Predict & Launch
 
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+[![Solana](https://img.shields.io/badge/Solana-mainnet-9945FF.svg)](https://solscan.io/account/C5mVE2BwSehWJNkNvhpsoepyKwZkvSLZx29bi4MzVj86)
+[![Live](https://img.shields.io/badge/live-pnl.market-3f7a42.svg)](https://pnl.market)
+
 **Tokenize ideas. Validate through community. Launch what deserves to exist.**
 
-P&L is a new paradigm for fundraising on Solana. Not every token deserves to launch - let the crowd decide.
+P&L is a new paradigm for fundraising on Solana. Not every token deserves to launch - let the crowd decide. Live on Solana mainnet — mint `6QuNZJzUF7oZj3GsG7fVBfidX1cE81sXhb9Czi12pump`.
 
 ## The Problem
 The crypto space is flooded with tokens that never needed to exist. Meanwhile, talented builders worldwide lack access to traditional fundraising.
@@ -140,6 +144,61 @@ Open [http://localhost:3000](http://localhost:3000) to view the application.
 - **Authentication**: Privy (embedded + external wallets)
 - **Real-Time**: Socket.IO for live blockchain event streaming
 - **Caching**: Redis (Upstash) for performance optimization
+
+## 🤖 For AI Agents & Integrators
+
+PNL is designed to be readable by AI clients and integratable by Solana agents. Three surfaces exist depending on what you're building:
+
+### 1. Read PNL (LLMs, search engines, indexers)
+
+- **`https://pnl.market/llms.txt`** — protocol summary in [llmstxt.org](https://llmstxt.org) format. Lists every public route, mechanic, market state, and the JSON shape of the markets API.
+- **`https://pnl.market/sitemap.xml`** — full crawl index including every market URL.
+- **`https://pnl.market/robots.txt`** — explicit allow-list for GPTBot, ChatGPT-User, OAI-SearchBot, ClaudeBot, anthropic-ai, PerplexityBot, Google-Extended, Applebot-Extended, CCBot, cohere-ai, meta-externalagent, Bytespider, and others.
+
+### 2. Query live state (public REST, no auth)
+
+```bash
+# All active markets
+curl https://pnl.market/api/markets/list?status=active&page=1&limit=25
+
+# All markets (any state)
+curl https://pnl.market/api/markets/list?status=all
+
+# Single market by id
+curl https://pnl.market/api/markets/<id>
+```
+
+Valid `status` values: `active`, `yesWins` (bloomed), `noWins` (withered), `expired` (closed), `refund` (returned), `all`. Response shape is documented in `llms.txt`.
+
+### 3. Participate on-chain (Solana agents)
+
+The on-chain program is permissionless — any Solana keypair with SOL can call it. There is no Privy session requirement and no allow-list.
+
+- **Program ID (mainnet):** `C5mVE2BwSehWJNkNvhpsoepyKwZkvSLZx29bi4MzVj86`
+- **Source:** `apps/web/plp_program/programs/errors/src/instructions/` (Rust, Anchor 0.30.1)
+- **Reference TypeScript client:** `packages/shared/src/solana/anchor-program.ts` — shows how to build `create_market`, `buy_yes`, `buy_no` instructions with raw `@solana/web3.js` and correctly-computed Anchor discriminators (`sha256('global:<instruction>')[:8]`)
+
+Permissionless actions an agent can perform directly on the program:
+
+| Instruction | Signer | Cost | Notes |
+|---|---|---|---|
+| `create_market` | any keypair | 0.015 SOL fee | Creates a market with an IPFS metadata URI |
+| `buy_yes` / `buy_no` | any keypair | min 0.01 SOL stake | Vote with conviction |
+| `expire` | any keypair | rent only | Crank any market past its expiry timestamp |
+| `resolve_market` | any keypair | rent only | Permissionless resolution after expiry; triggers pump.fun launch CPI on YES win |
+| `claim_yes` / `claim_no` | position holder | rent only | Claim airdrops (YES) or SOL (NO) after resolution |
+
+Privileged (admin-only): `set_admin`, `withdraw_fees`, `init_treasury`, `emergency_drain_vault`.
+
+> ⚠ **Note on IDL:** the file at `apps/web/src/lib/idl/errors.json` is a stub with non-canonical discriminators. Do not feed it to `anchor.Program.fetchIdl()`. Either read the Rust source directly or copy the instruction-building pattern from `anchor-program.ts`. A proper Anchor-generated IDL is on the post-hackathon roadmap.
+
+## 🔒 Security
+
+- **License:** MIT (open-source, no patent grants — see `LICENSE`)
+- **Dependency policy:** `pnpm overrides` pins `axios ^1.15.2` and `sanitize-html ^2.17.4` to patch transitive CVEs from the `@privy-io → wagmi → @coinbase/cdp-sdk` chain. Run `pnpm install` after pulling.
+- **`/api/health`:** public response is minimal (`{status, timestamp, service, version}`). Full diagnostic payload (DB name, env-var presence map, sync state, queue depths) is gated behind an `x-health-secret` header matching the `HEALTHCHECK_SECRET` env var. Render.com health probes only need HTTP 200.
+- **`robots.txt` / `llms.txt`:** disallow `/api/*` and `/admin/*` for every agent except the explicit allow for `/api/og` (social cards) and `/api/markets/list` (the public read API). Security still depends on auth/ACL; these files are hygiene, not enforcement.
+- **Reporting vulnerabilities:** open a GitHub issue or DM [@pnldotmarket](https://x.com/pnldotmarket).
 
 ## 📋 Development Rules
 
@@ -385,7 +444,7 @@ The platform supports both development and production environments:
 
 - **Development**: Uses Solana devnet for testing
 - **Production**: Uses Solana mainnet for live trading
-- **Network Switching**: Automatic based on NODE_ENV
+- **Network Switching**: Controlled by `NEXT_PUBLIC_SOLANA_NETWORK` (`devnet` or `mainnet-beta`). Set explicitly in the deploy environment.
 
 ## 📱 Mobile Optimization
 
@@ -473,4 +532,13 @@ npm run env:check
 
 ## 📄 License
 
-MIT License - see LICENSE file for details.
+MIT — see [LICENSE](LICENSE). Copyright © 2026 Bishwanath Bastola.
+
+## 🌐 Live surface
+
+- Site: [pnl.market](https://pnl.market)
+- Token: [$PNL on pump.fun](https://pump.fun/coin/6QuNZJzUF7oZj3GsG7fVBfidX1cE81sXhb9Czi12pump) · [DexScreener](https://dexscreener.com/solana/6QuNZJzUF7oZj3GsG7fVBfidX1cE81sXhb9Czi12pump)
+- Program: [`C5mVE2BwSehWJNkNvhpsoepyKwZkvSLZx29bi4MzVj86`](https://solscan.io/account/C5mVE2BwSehWJNkNvhpsoepyKwZkvSLZx29bi4MzVj86) on Solana mainnet
+- X / Twitter: [@pnldotmarket](https://x.com/pnldotmarket)
+- Discord: [discord.gg/38pkg4vm](https://discord.gg/38pkg4vm)
+- Hackathon: [Solana Frontier 2026 submission](https://arena.colosseum.org/projects/explore/predict-and-launch)
