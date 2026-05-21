@@ -140,12 +140,29 @@ const nextConfig = {
 
   // Redirects
   async redirects() {
+    // Mintlify docs migration. Set DOCS_REDIRECTS_ENABLED=true in the deploy
+    // environment once docs.pnl.market is live and DNS resolves. Until then
+    // the legacy Next.js pages (whitepaper, how-to-buy, privacy, terms) keep
+    // serving so users don't hit broken links. After flip, 301s send traffic
+    // to the Mintlify-hosted docs and search engines update their indexes.
+    const docsRedirectsEnabled = process.env.DOCS_REDIRECTS_ENABLED === 'true';
+    const docsRedirects = docsRedirectsEnabled
+      ? [
+          { source: '/whitepaper',        destination: 'https://docs.pnl.market/whitepaper',        permanent: true },
+          { source: '/whitepaper/:path*', destination: 'https://docs.pnl.market/whitepaper/:path*', permanent: true },
+          { source: '/how-to-buy',        destination: 'https://docs.pnl.market/how-to-buy',        permanent: true },
+          { source: '/privacy',           destination: 'https://docs.pnl.market/legal/privacy',     permanent: true },
+          { source: '/terms',             destination: 'https://docs.pnl.market/legal/terms',       permanent: true },
+        ]
+      : [];
+
     return [
       {
         source: '/presentation',
         destination: '/presentation/index.html',
         permanent: false,
       },
+      ...docsRedirects,
     ];
   },
 

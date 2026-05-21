@@ -15,6 +15,9 @@ yarn-error.log*
 .next/
 out/
 build/
+# Exception: the docs site has a /build/ section ("Build with PNL") that
+# should be tracked — the broad build/ rule above was catching it.
+!docs/build/
 
 # Rust/Anchor
 target/

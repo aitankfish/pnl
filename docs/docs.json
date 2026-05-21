@@ -1,0 +1,97 @@
+{
+  "$schema": "https://mintlify.com/docs.json",
+  "theme": "mint",
+  "name": "P&L — Predict & Launch",
+  "description": "Idea tokenization on Solana. Anyone posts an idea; a conviction market of believers and critics decides with real SOL whether it launches as a token.",
+  "favicon": "/favicon.png",
+  "colors": {
+    "primary": "#e89660",
+    "light": "#ecb48a",
+    "dark": "#0a0814"
+  },
+  "logo": {
+    "light": "/logo-pnl.svg",
+    "dark": "/logo-pnl.svg"
+  },
+  "navigation": {
+    "tabs": [
+      {
+        "tab": "Documentation",
+        "groups": [
+          {
+            "group": "Getting started",
+            "pages": [
+              "index",
+              "how-to-buy"
+            ]
+          },
+          {
+            "group": "How PNL works",
+            "pages": [
+              "mechanics/overview",
+              "mechanics/economics",
+              "mechanics/lifecycle"
+            ]
+          },
+          {
+            "group": "For builders & agents",
+            "pages": [
+              "build/public-api",
+              "build/on-chain-program",
+              "build/agent-integration"
+            ]
+          },
+          {
+            "group": "Legal",
+            "pages": [
+              "legal/privacy",
+              "legal/terms",
+              "legal/disclaimer"
+            ]
+          }
+        ]
+      }
+    ],
+    "global": {
+      "anchors": [
+        {
+          "anchor": "Live site",
+          "href": "https://pnl.market",
+          "icon": "globe"
+        },
+        {
+          "anchor": "GitHub",
+          "href": "https://github.com/aitankfish/pnl",
+          "icon": "github"
+        },
+        {
+          "anchor": "X / Twitter",
+          "href": "https://x.com/pnldotmarket",
+          "icon": "x-twitter"
+        },
+        {
+          "anchor": "Discord",
+          "href": "https://discord.gg/38pkg4vm",
+          "icon": "discord"
+        }
+      ]
+    }
+  },
+  "footer": {
+    "socials": {
+      "x": "https://x.com/pnldotmarket",
+      "github": "https://github.com/aitankfish/pnl",
+      "discord": "https://discord.gg/38pkg4vm"
+    }
+  },
+  "search": {
+    "prompt": "Ask the grove..."
+  },
+  "seo": {
+    "metatags": {
+      "og:title": "P&L — Predict & Launch",
+      "og:description": "Idea tokenization on Solana. Believers and critics stake SOL — winning conviction launches the idea as a token.",
+      "og:image": "https://pnl.market/api/og"
+    }
+  }
+}

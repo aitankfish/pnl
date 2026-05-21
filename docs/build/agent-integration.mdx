@@ -1,0 +1,81 @@
+---
+title: "Agent integration"
+description: "Connect Claude Code, Cursor, and other AI agents to PNL. Tokenize ideas at the speed of agentic work."
+sidebarTitle: "For agents"
+---
+
+PNL is designed to be **agent-native**. The future is developers and creators working alongside AI agents — Claude Code, Cursor, Cline, ChatGPT — generating ideas at machine speed. Most of those ideas die in `// TODO:` comments. PNL turns them into conviction markets in seconds.
+
+## What's available today
+
+Read-side integration is fully shipped. An agent can answer "what's live on PNL?" or "what just bloomed?" with a single HTTP fetch.
+
+<CardGroup cols={2}>
+  <Card title="llms.txt" icon="brain" href="https://pnl.market/llms.txt">
+    Protocol summary in the llmstxt.org format. Drop this URL into any agent's context and it can reason about PNL.
+  </Card>
+  <Card title="robots.txt" icon="robot" href="https://pnl.market/robots.txt">
+    Explicit allow-list for GPTBot, ClaudeBot, PerplexityBot, OAI-SearchBot, Google-Extended, and 10 other AI crawlers.
+  </Card>
+  <Card title="sitemap.xml" icon="sitemap" href="https://pnl.market/sitemap.xml">
+    Full crawl index. Every market has its own indexable URL.
+  </Card>
+  <Card title="Public read API" icon="database" href="/build/public-api">
+    JSON endpoints, no auth. Live market state, single-market lookup, full filterable status set.
+  </Card>
+</CardGroup>
+
+## Agent-allowed crawlers (explicit)
+
+The `robots.txt` allows the following AI crawlers full access to public routes (`/`, `/browse`, `/launchpad`, `/whitepaper`, `/api/markets/list`, `/api/og`):
+
+- GPTBot, ChatGPT-User, OAI-SearchBot
+- ClaudeBot, Claude-Web, anthropic-ai
+- PerplexityBot, Perplexity-User
+- Google-Extended, Applebot-Extended
+- CCBot, cohere-ai
+- meta-externalagent, Bytespider
+
+`/api/*` (except `/api/og` and `/api/markets/list`) and `/admin/*` are disallowed for everyone.
+
+## What's coming next: MCP server
+
+We're building **`@pnl/mcp-server`** — a Model Context Protocol server that any MCP-compatible agent (Claude Code, Cursor with MCP, ChatGPT custom GPTs, future agents) can consume.
+
+The agent skill targets the moment of idea capture: when an agent and user are mid-workflow and a sideline idea surfaces, the agent can offer to mint it as a PNL market instantly.
+
+### Planned tools
+
+| Tool | What it does |
+|---|---|
+| `pnl_browse_markets` | List current markets — agent answers "what's live on PNL?" |
+| `pnl_get_market` | Read a single market by id or symbol |
+| `pnl_pitch_idea` | Prepare a draft market (name, description, target pool). Returns a `pnl.market/create?draft=<id>` deep-link the user opens to confirm + pay. **Agent never holds keys.** |
+| `pnl_vote_intent` | Same pattern: prepare a vote, return a deep-link the user signs in their wallet |
+
+### Example flow
+
+```
+User (in Claude Code): "Actually that idea about a Solana cron infra tool is interesting"
+Agent: "Want me to pitch it on P&L?"
+User: "Yes"
+Agent: [calls pnl_pitch_idea with extracted context]
+Agent: "Draft ready: https://pnl.market/create?draft=cron-infra-2026
+        Open the link to confirm and pay 0.015 SOL."
+```
+
+The user always confirms in their wallet. PNL becomes "git commit for ideas" — a routine action in the agent workflow.
+
+## Building today (without the MCP server)
+
+While we ship the MCP server, agents can already do everything via existing surfaces:
+
+- **Read state**: hit `/api/markets/list` (public, JSON, no auth)
+- **Reason about PNL**: drop `/llms.txt` into the agent context
+- **Build write actions**: use the [on-chain program](/build/on-chain-program) directly — fully permissionless, every action a user can take is also available to an agent with a keypair
+
+## Why agents are the right audience for PNL
+
+> **Authentic users.** The people most likely to have real ideas worth tokenizing are the people building the future. AI agents amplify this — every developer becomes a 10x ideation engine. PNL gives those ideas somewhere to go instead of dying in TODO comments.
+
+If you're building an agent and want early access to the MCP server release, drop us a note on [X](https://x.com/pnldotmarket) or [Discord](https://discord.gg/38pkg4vm).

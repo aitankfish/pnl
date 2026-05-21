@@ -1,0 +1,100 @@
+---
+title: "On-chain program"
+description: "How to interact with PNL's Anchor program directly. Permissionless write actions for agents and power users."
+sidebarTitle: "On-chain program"
+---
+
+## Program info
+
+| | |
+|---|---|
+| **Program ID (mainnet)** | `C5mVE2BwSehWJNkNvhpsoepyKwZkvSLZx29bi4MzVj86` |
+| **Framework** | Anchor 0.30.1 |
+| **Source** | [`apps/web/plp_program/programs/errors/src/`](https://github.com/aitankfish/pnl/tree/main/apps/web/plp_program/programs/errors/src) |
+| **Solscan** | [view program](https://solscan.io/account/C5mVE2BwSehWJNkNvhpsoepyKwZkvSLZx29bi4MzVj86) |
+
+## Permissionless actions (no Privy session required)
+
+Every action that builds the protocol is permissionless on-chain. Any Solana keypair with SOL can call these instructions directly via `@solana/web3.js`, bypassing the web app entirely.
+
+| Instruction | Signer | Cost | What it does |
+|---|---|---|---|
+| `create_market` | any keypair | 0.015 SOL fee | Create a new conviction market |
+| `buy_yes` | any keypair | min 0.01 SOL stake | Stake on YES |
+| `buy_no` | any keypair | min 0.01 SOL stake | Stake on NO |
+| `expire` | none (no signer) | rent only | Crank any market past its expiry timestamp |
+| `resolve_market` | none (no signer) | rent only | Permissionless resolution; triggers pump.fun launch CPI if YES wins |
+| `claim_yes` / `claim_no` | position holder | rent only | Claim token airdrop (YES) or SOL payout (NO) after resolution |
+| `refund` | position holder | rent only | Get principal back after Returned resolution |
+| `close_position`, `close_market` | position/market owner | rent only | Recover rent after claim period |
+
+## Privileged actions (admin-only)
+
+Hardcoded admin in the Rust source. Single-key, not multisig (post-hackathon roadmap).
+
+| Instruction | Required signer |
+|---|---|
+| `init_treasury` | `7iyZKvd28ZcfVKUxeezwSkvdoQ9sN1D7pEGe42w8yTkZ` (AUTHORIZED_ADMIN) |
+| `set_admin` | Current admin |
+| `withdraw_fees` | Admin |
+| `emergency_drain_vault` | Admin |
+
+## Reference TypeScript client
+
+The repo includes a hand-rolled instruction-builder that uses raw `@solana/web3.js` (NOT the Anchor SDK) and correctly computes Anchor discriminators:
+
+```typescript
+import { createHash } from 'crypto';
+
+// Anchor instruction discriminator = first 8 bytes of sha256('global:<instruction_name>')
+const discriminator = createHash('sha256')
+  .update('global:create_market', 'utf8')
+  .digest()
+  .subarray(0, 8);
+```
+
+See [`packages/shared/src/solana/anchor-program.ts`](https://github.com/aitankfish/pnl/blob/main/packages/shared/src/solana/anchor-program.ts) for the full reference implementation of `create_market`, `buy_yes`, `buy_no` instruction-building.
+
+<Warning>
+**Do not feed `apps/web/src/lib/idl/errors.json` to `anchor.Program.fetchIdl()`.** That file is a stub with non-canonical discriminators (sequential bytes, not real SHA-256 hashes). A proper Anchor-generated IDL is on the post-hackathon roadmap. For now, read the Rust source directly or copy the discriminator-building pattern from `anchor-program.ts`.
+</Warning>
+
+## PDAs (Program Derived Addresses)
+
+```
+Market PDA:      seeds = ["market",          founder.key,  hash(ipfs_cid)]
+Position PDA:    seeds = ["position",        market.key,   user.key]
+Treasury PDA:    seeds = ["treasury"]
+Market Vault:    seeds = ["market_vault",    market.key]
+Team Vesting:    seeds = ["team_vesting",    market.key]
+Founder Vesting: seeds = ["founder_vesting", market.key]
+```
+
+Use `PublicKey.findProgramAddressSync` with these seeds and the program ID to derive any account address.
+
+## Economic constants (from Rust source)
+
+```rust
+// Fees
+CREATION_FEE:        0.015 SOL       // Per market creation
+TRADE_FEE:           1.5%            // On every YES/NO purchase
+COMPLETION_FEE:      5%              // When market resolves YES or NO
+
+// Trading
+MIN_INVESTMENT:      0.01 SOL        // Minimum per trade
+TARGET_POOLS:        5/10/15 SOL     // Allowed target pool sizes
+MAX_POOL_FOR_LAUNCH: 50 SOL          // Beyond this, excess routes to founder vesting
+
+// Token distribution (YES wins)
+YES_VOTERS:          65%             // Proportional, immediate
+TEAM_TOTAL:          33%             // 8% immediate + 25% vested over 12 months
+PLATFORM:            2%              // Immediate
+
+// Founder SOL vesting (when pool > 50 SOL)
+IMMEDIATE:           8%
+VESTED:              92%             // Linear over 12 months
+```
+
+## Next: agent integration
+
+If you're building an AI agent that needs to create markets or vote on behalf of users, see [Agent Integration](/build/agent-integration). The on-chain program is fully agent-ready — only the web API is Privy-gated.

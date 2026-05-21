@@ -1,0 +1,111 @@
+---
+title: "Public read API"
+description: "Read live market state as JSON. No auth required."
+sidebarTitle: "Public API"
+---
+
+PNL exposes a public, unauthenticated REST API for reading live market state. This is the recommended way for agents, dashboards, and integrators to consume PNL data — much cheaper than scraping the realtime client-side `/browse` UI.
+
+## Endpoints
+
+| Method | Path | Description |
+|---|---|---|
+| `GET` | `/api/markets/list?status=<status>&page=<n>&limit=<n>` | List markets filtered by status |
+| `GET` | `/api/markets/<id>` | Single market by id |
+| `GET` | `/sitemap.xml` | Full crawl index, includes every market URL |
+| `GET` | `/llms.txt` | AI-readable summary of the protocol |
+
+Base URL: `https://pnl.market`
+
+## Status filter values
+
+| `status` | Meaning |
+|---|---|
+| `active` | Living markets accepting votes (default) |
+| `yesWins` | Bloomed — YES won, token launched |
+| `noWins` | Withered — NO won, critics paid out |
+| `expired` | Closed — window ended without meeting threshold |
+| `refund` | Returned — refunded due to tie or threshold |
+| `all` | Every market regardless of state |
+
+## Rate limits
+
+The read endpoints are IP-rate-limited at 60 requests per minute per IP. Cache hits (Redis) don't count against external API quotas; cache misses fall back to paid providers (Birdeye for token stats, Helius DAS for token metadata) which is why we bound the surface.
+
+## Example: fetch all active markets
+
+<CodeGroup>
+
+```bash cURL
+curl 'https://pnl.market/api/markets/list?status=active&page=1&limit=25'
+```
+
+```javascript JavaScript
+const r = await fetch('https://pnl.market/api/markets/list?status=active&page=1&limit=25');
+const { data } = await r.json();
+for (const market of data.markets) {
+  console.log(market.name, market.tokenSymbol, `${market.poolBalance / 1e9} SOL pooled`);
+}
+```
+
+```python Python
+import requests
+r = requests.get('https://pnl.market/api/markets/list', params={'status': 'active', 'limit': 25})
+for m in r.json()['data']['markets']:
+    print(m['name'], m['tokenSymbol'], f"{int(m['poolBalance'])/1e9} SOL pooled")
+```
+
+</CodeGroup>
+
+## Response shape
+
+```json
+{
+  "success": true,
+  "data": {
+    "markets": [
+      {
+        "id": "...",
+        "marketAddress": "<solana account>",
+        "name": "Nakshatra",
+        "tokenSymbol": "NAKSHATRA",
+        "description": "...",
+        "category": "ai",
+        "stage": "prototype",
+        "poolBalance": "9850000",
+        "targetPool": "15 SOL",
+        "poolProgressPercentage": 0,
+        "totalParticipants": 1,
+        "expiryTime": "2026-11-07T09:33:42.000Z",
+        "resolution": "Unresolved",
+        "displayStatus": "✅ Active",
+        "pumpFunTokenAddress": null,
+        "lastSyncedAt": "2026-05-12T00:12:45.343Z"
+      }
+    ],
+    "totalCount": 3,
+    "pagination": {
+      "page": 1,
+      "limit": 25,
+      "totalPages": 1,
+      "hasMore": false
+    }
+  }
+}
+```
+
+## Common questions
+
+**"What markets are live right now?"** → `GET /api/markets/list?status=active`
+
+**"What ideas have launched as tokens?"** → `GET /api/markets/list?status=yesWins`
+
+**"What got rejected?"** → `GET /api/markets/list?status=noWins`
+
+**"I want a specific market"** → `GET /api/markets/<id>` (the `id` from the list response)
+
+## What's NOT in this API (yet)
+
+- Vote history / position lookup by wallet — coming with the agent integration release
+- Real-time push (use the existing socket.io WebSocket if you need live updates)
+- Write actions (create market, vote) — see [On-chain Program](/build/on-chain-program) for the permissionless path
