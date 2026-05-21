@@ -141,7 +141,7 @@ export const POST = withAuth(async (request, authUser) => {
         success: false,
         error: 'Failed to prepare claim founder SOL transaction',
         details: error instanceof Error ? error.message : 'Unknown error',
-        stack: error instanceof Error ? error.stack : undefined
+        stack: process.env.NODE_ENV !== 'production' && error instanceof Error ? error.stack : undefined
       },
       { status: 500 }
     );
