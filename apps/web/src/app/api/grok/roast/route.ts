@@ -9,6 +9,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import { connectToDatabase, PredictionMarket, Project } from '@/lib/mongodb';
 import { createClientLogger } from '@/lib/logger';
 import { fetchExternalData, formatExternalDataForPrompt, ExternalDataResult } from '@/lib/external-data-fetcher';
+import { withAuth } from '@/lib/auth/require-wallet';
+import { checkRateLimit } from '@/lib/auth/rate-limit';
 
 const logger = createClientLogger();
 
@@ -250,9 +252,19 @@ async function callGrokAPI(prompt: string, systemPrompt?: string): Promise<strin
 /**
  * POST /api/grok/roast
  * Generate an analysis for a market (initial roast or resolution analysis)
+ *
+ * Auth: requires authenticated wallet. Rate-limited per wallet — the Grok-3
+ * API has real per-token cost, and an unauthenticated endpoint was an open
+ * quota-drain attack vector before this gate was added.
  */
-export async function POST(request: NextRequest) {
+export const POST = withAuth(async (request, authUser) => {
   try {
+    // 5 analyses per minute per wallet. Grok-3 calls are expensive — this
+    // bounds individual abuse without breaking legitimate "roast this market"
+    // exploration. Tighten if costs spike.
+    const rateLimited = checkRateLimit(`grok:${authUser.walletAddress}`, 5, 60_000);
+    if (rateLimited) return rateLimited;
+
     const body: GrokAnalysisRequest = await request.json();
     const { marketId, type = 'initial_roast', votingData } = body;
 
@@ -481,7 +493,7 @@ export async function POST(request: NextRequest) {
       { status: 500 }
     );
   }
-}
+});
 
 /**
  * GET /api/grok/roast?marketId=xxx

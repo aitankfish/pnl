@@ -13,8 +13,15 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClientLogger } from '@/lib/logger';
 import { getRedisClient, prefixKey } from '@/lib/redis/client';
+import { checkRateLimit } from '@/lib/auth/rate-limit';
 
 const logger = createClientLogger();
+
+function callerKey(request: NextRequest): string {
+  const fwd = request.headers.get('x-forwarded-for') || '';
+  const ip = fwd.split(',')[0]?.trim() || request.headers.get('x-real-ip') || 'unknown';
+  return `tokens-meta:${ip}`;
+}
 
 // Token metadata is immutable — safe to cache for a long time.
 // A day is a good balance: long enough to dominate cache hits, short enough
@@ -73,6 +80,13 @@ async function writeCachedMetadata(records: Array<{ mint: string; meta: TokenMet
 
 export async function POST(request: NextRequest) {
   try {
+    // 60 requests per minute per IP. Cache hits are free; cache misses fall
+    // back to Helius DAS API (paid per RPC call). This bounds the cache-miss
+    // attack where someone hammers random/invalid mints to drain Helius
+    // quota.
+    const rateLimited = checkRateLimit(callerKey(request), 60, 60_000);
+    if (rateLimited) return rateLimited;
+
     const body = await request.json();
     const { mint, mints } = body;
 

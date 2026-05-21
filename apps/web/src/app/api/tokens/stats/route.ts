@@ -15,6 +15,17 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { getRedisClient, prefixKey } from '@/lib/redis/client';
+import { checkRateLimit } from '@/lib/auth/rate-limit';
+
+// Extract caller IP for rate-limiting unauthenticated endpoints. Behind
+// Cloudflare + Render, the real client IP is in the first comma-separated
+// entry of x-forwarded-for. Falls back to a constant key so the limiter
+// still bounds total platform-wide rate even when headers are missing.
+function callerKey(request: NextRequest): string {
+  const fwd = request.headers.get('x-forwarded-for') || '';
+  const ip = fwd.split(',')[0]?.trim() || request.headers.get('x-real-ip') || 'unknown';
+  return `tokens-stats:${ip}`;
+}
 
 interface TokenStats {
   address: string;
@@ -151,6 +162,13 @@ async function fetchFromBirdeyeFallback(address: string): Promise<TokenStats> {
 
 export async function POST(request: NextRequest) {
   try {
+    // 60 requests per minute per IP. Cache hits are cheap (Redis), but cache
+    // misses fall back to Birdeye (paid). This bounds the cache-miss attack
+    // surface where someone hammers random/invalid mints to drain Birdeye
+    // quota.
+    const rateLimited = checkRateLimit(callerKey(request), 60, 60_000);
+    if (rateLimited) return rateLimited;
+
     const { addresses } = await request.json();
 
     if (!addresses || !Array.isArray(addresses)) {
@@ -235,6 +253,11 @@ export async function POST(request: NextRequest) {
 
 // GET endpoint for single token
 export async function GET(request: NextRequest) {
+  // Same rate-limit bound as POST — cache-miss attack hits the same Birdeye
+  // quota whether through batch POST or single GET.
+  const rateLimited = checkRateLimit(callerKey(request), 60, 60_000);
+  if (rateLimited) return rateLimited;
+
   const { searchParams } = new URL(request.url);
   const address = searchParams.get('address');
 
