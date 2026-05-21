@@ -1,0 +1,97 @@
+---
+title: "Market lifecycle"
+description: "Every state transition from planted idea to bloomed token."
+sidebarTitle: "Lifecycle"
+---
+
+A PNL market moves through a fixed set of states. The transitions are enforced on-chain by the Anchor program (`C5mVE2BwSehWJNkNvhpsoepyKwZkvSLZx29bi4MzVj86`).
+
+## State diagram
+
+```
+                          ┌──────────────────┐
+              create ────▶│      LIVING      │  accepting votes
+                          │  (state = 0)     │  time remaining
+                          └────────┬─────────┘
+                                   │
+                                   │  expiry timestamp reached
+                                   │  ↳ anyone calls `expire`  (permissionless)
+                                   ▼
+                          ┌──────────────────┐
+                          │     EXPIRED      │  no more votes accepted
+                          │  (state = 1)     │  awaiting resolution
+                          └────────┬─────────┘
+                                   │
+                                   │  resolve_market or finalize_*
+                                   │  (also permissionless via resolve_market)
+                                   ▼
+        ┌──────────────────────────┼──────────────────────────┐
+        ▼                          ▼                          ▼
+  ┌───────────┐             ┌───────────┐              ┌───────────┐
+  │  BLOOMED  │             │ WITHERED  │              │ RETURNED  │
+  │ YES wins  │             │ NO wins   │              │  Refund   │
+  │ token     │             │ NO voters │              │ all       │
+  │ launched  │             │ paid out  │              │ stakes    │
+  │ on        │             │           │              │ returned  │
+  │ pump.fun  │             │           │              │           │
+  └───────────┘             └───────────┘              └───────────┘
+```
+
+## State details
+
+### Living (state = 0)
+
+- Market is open for staking. Anyone can vote YES or NO.
+- Pool grows as votes accumulate. The AMM updates implied YES/NO probability live.
+- The founder may call `extend_market` once the target pool is reached (moves the market to a Funding phase that accepts only YES votes).
+
+### Expired (state = 1)
+
+- The expiry timestamp has passed.
+- No more votes accepted; the pool is final.
+- Anyone can call `expire` to move the market here. This is permissionless — you don't need to be the founder or the original voters.
+- If the target pool was reached, the market is ready for resolution.
+- If the target pool was NOT reached, refunds are now allowed.
+
+### Bloomed (resolution = YesWins)
+
+The terminal happy state. YES had more pooled SOL than NO at expiry.
+
+- 5% completion fee is taken from the pool.
+- A token is created on pump.fun via cross-program invocation (CPI).
+- 65% of the token supply distributes to YES voters proportional to their YES shares (claimable immediately via `claim_yes`).
+- 33% vests to the founder team (8% immediate, 25% over 12 months).
+- 2% to the platform PNL wallet.
+- The founder also earns ongoing pump.fun creator royalties on trading.
+
+### Withered (resolution = NoWins)
+
+The terminal "thanks for filtering" state. NO had more pooled SOL than YES.
+
+- 5% completion fee is taken from the pool.
+- 95% of the pool distributes to NO voters proportional to their NO shares (claimable via `claim_no`).
+- No token is launched.
+- The idea remains in the on-chain library as a permanent record.
+
+### Returned (resolution = Refund)
+
+The terminal "stalemate" state. Either YES and NO were exactly tied, OR the pool failed to reach the target.
+
+- No fees taken.
+- All voters get their full stake back via `refund`.
+- The idea remains in the library.
+
+## Who can do what
+
+| Action | Required signer | Notes |
+|---|---|---|
+| `create_market` | any keypair | Pays 0.015 SOL creation fee |
+| `buy_yes` / `buy_no` | any keypair | Min 0.01 SOL, pays 1.5% fee |
+| `extend_market` | founder only | Only when target reached AND YES winning |
+| `expire` | none — permissionless | Crank any market past expiry |
+| `resolve_market` | none — permissionless | Determine outcome + trigger pump.fun launch on YES |
+| `claim_yes`, `claim_no` | position holder | After resolution |
+| `refund` | position holder | After Returned resolution |
+| `close_position`, `close_market` | position / market owner | Recover rent after claim period |
+
+The fact that `expire` and `resolve_market` are permissionless means a market can never get "stuck" — anyone (including a future cron job) can crank it forward.

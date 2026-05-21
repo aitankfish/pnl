@@ -1,0 +1,52 @@
+---
+title: "How PNL works"
+description: "The mechanics of conviction markets, market lifecycle, and how a planted idea becomes a launched token."
+sidebarTitle: "Overview"
+---
+
+PNL turns idea-stage fundraising into a **conviction market**. Two camps form around every idea — believers stake SOL on YES, critics stake SOL on NO. When the market closes, the winning side takes the pool. If YES wins, the idea graduates: a token launches on pump.fun with pooled liquidity, the founder earns ongoing royalties, and believers receive token airdrops. If NO wins, critics split the pool — paid for filtering noise.
+
+This page is the 60-second tour. For the math, see [Economics](/docs/mechanics/economics). For the on-chain instructions, see [On-chain program](/docs/build/on-chain-program).
+
+## The four-step lifecycle
+
+<Steps>
+  <Step title="Plant">
+    Anyone posts an idea for **0.015 SOL** (~$2 at current SOL price). Title, thesis, target raise, duration. The market opens immediately and accepts SOL stakes.
+  </Step>
+  <Step title="Stake">
+    Believers stake YES. Critics stake NO. Minimum stake **0.01 SOL**. A 1.5% trade fee accrues to the platform treasury on every vote. One position per wallet per market.
+  </Step>
+  <Step title="Resolve">
+    At expiry, the side with more pooled SOL wins. A 5% completion fee is taken from the pool. The market enters its terminal state.
+  </Step>
+  <Step title="Distribute">
+    **YES wins** → a token launches on pump.fun with pooled liquidity. 65% of token supply airdrops to YES voters proportional to their stake. 33% vests to the founder team. 2% to the platform.
+
+    **NO wins** → 95% of the pool distributes to NO voters proportional to their stake.
+
+    **Tie or threshold-not-met** → full refund. No fees taken.
+  </Step>
+</Steps>
+
+## Market states (in PNL's own vocabulary)
+
+- **Living** — accepting votes, time remaining
+- **Bloomed** — YES won, token launched on pump.fun
+- **Withered** — NO won, critics paid out
+- **Closed** — window expired without meeting threshold
+- **Returned** — ineligible, stakes refunded
+
+## What makes PNL different
+
+| | Memecoin launchpad | Standard prediction market | PNL |
+|---|---|---|---|
+| **What you bet on** | Existing tokens | Real-world events (elections, sports) | New ideas — does this deserve to launch? |
+| **What "winning" means** | Token goes up | You called the outcome | Your conviction shaped what got built |
+| **Filter on noise** | None | None | NO voters paid to filter |
+| **Founder upside** | Trading fees on a token nobody wanted | n/a | Royalties only on community-validated ideas |
+| **Skin in the game** | Just buyers | One-sided bet | Both believers AND critics stake real SOL |
+
+## Next: the math
+
+[Economics →](/docs/mechanics/economics) covers fees, pricing, and the AMM that determines vote-share. [Lifecycle →](/docs/mechanics/lifecycle) walks every state transition with diagrams.

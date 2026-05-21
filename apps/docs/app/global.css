@@ -1,0 +1,20 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Fumadocs UI styles */
+@import 'fumadocs-ui/style.css';
+
+/* Cosmic-plant palette — match the live app */
+:root {
+  --color-fd-primary: 232 150 96;       /* amber */
+  --color-fd-primary-foreground: 10 8 20; /* deep night */
+}
+
+.dark {
+  --color-fd-background: 10 8 20;
+  --color-fd-foreground: 244 238 228;
+  --color-fd-card: 15 12 28;
+  --color-fd-muted: 22 18 36;
+  --color-fd-accent: 232 150 96;
+}

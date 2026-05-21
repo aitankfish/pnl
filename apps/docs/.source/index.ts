@@ -1,0 +1,20 @@
+// @ts-nocheck -- skip type checking
+import * as meta_3 from "../content/docs/mechanics/meta.json?collection=meta&hash=1779401625563"
+import * as meta_2 from "../content/docs/legal/meta.json?collection=meta&hash=1779401625563"
+import * as meta_1 from "../content/docs/build/meta.json?collection=meta&hash=1779401625563"
+import * as meta_0 from "../content/docs/meta.json?collection=meta&hash=1779401625563"
+import * as docs_10 from "../content/docs/mechanics/overview.mdx?collection=docs&hash=1779401625563"
+import * as docs_9 from "../content/docs/mechanics/lifecycle.mdx?collection=docs&hash=1779401625563"
+import * as docs_8 from "../content/docs/mechanics/economics.mdx?collection=docs&hash=1779401625563"
+import * as docs_7 from "../content/docs/legal/terms.mdx?collection=docs&hash=1779401625563"
+import * as docs_6 from "../content/docs/legal/privacy.mdx?collection=docs&hash=1779401625563"
+import * as docs_5 from "../content/docs/legal/disclaimer.mdx?collection=docs&hash=1779401625563"
+import * as docs_4 from "../content/docs/build/public-api.mdx?collection=docs&hash=1779401625563"
+import * as docs_3 from "../content/docs/build/on-chain-program.mdx?collection=docs&hash=1779401625563"
+import * as docs_2 from "../content/docs/build/agent-integration.mdx?collection=docs&hash=1779401625563"
+import * as docs_1 from "../content/docs/index.mdx?collection=docs&hash=1779401625563"
+import * as docs_0 from "../content/docs/how-to-buy.mdx?collection=docs&hash=1779401625563"
+import { _runtime } from "fumadocs-mdx"
+import * as _source from "../source.config"
+export const docs = _runtime.doc<typeof _source.docs>([{ info: {"path":"how-to-buy.mdx","absolutePath":"/Users/bishwanathbastola/CascadeProjects/pnl/apps/docs/content/docs/how-to-buy.mdx"}, data: docs_0 }, { info: {"path":"index.mdx","absolutePath":"/Users/bishwanathbastola/CascadeProjects/pnl/apps/docs/content/docs/index.mdx"}, data: docs_1 }, { info: {"path":"build/agent-integration.mdx","absolutePath":"/Users/bishwanathbastola/CascadeProjects/pnl/apps/docs/content/docs/build/agent-integration.mdx"}, data: docs_2 }, { info: {"path":"build/on-chain-program.mdx","absolutePath":"/Users/bishwanathbastola/CascadeProjects/pnl/apps/docs/content/docs/build/on-chain-program.mdx"}, data: docs_3 }, { info: {"path":"build/public-api.mdx","absolutePath":"/Users/bishwanathbastola/CascadeProjects/pnl/apps/docs/content/docs/build/public-api.mdx"}, data: docs_4 }, { info: {"path":"legal/disclaimer.mdx","absolutePath":"/Users/bishwanathbastola/CascadeProjects/pnl/apps/docs/content/docs/legal/disclaimer.mdx"}, data: docs_5 }, { info: {"path":"legal/privacy.mdx","absolutePath":"/Users/bishwanathbastola/CascadeProjects/pnl/apps/docs/content/docs/legal/privacy.mdx"}, data: docs_6 }, { info: {"path":"legal/terms.mdx","absolutePath":"/Users/bishwanathbastola/CascadeProjects/pnl/apps/docs/content/docs/legal/terms.mdx"}, data: docs_7 }, { info: {"path":"mechanics/economics.mdx","absolutePath":"/Users/bishwanathbastola/CascadeProjects/pnl/apps/docs/content/docs/mechanics/economics.mdx"}, data: docs_8 }, { info: {"path":"mechanics/lifecycle.mdx","absolutePath":"/Users/bishwanathbastola/CascadeProjects/pnl/apps/docs/content/docs/mechanics/lifecycle.mdx"}, data: docs_9 }, { info: {"path":"mechanics/overview.mdx","absolutePath":"/Users/bishwanathbastola/CascadeProjects/pnl/apps/docs/content/docs/mechanics/overview.mdx"}, data: docs_10 }]);
+export const meta = _runtime.meta<typeof _source.meta>([{ info: {"path":"meta.json","absolutePath":"/Users/bishwanathbastola/CascadeProjects/pnl/apps/docs/content/docs/meta.json"}, data: meta_0 }, { info: {"path":"build/meta.json","absolutePath":"/Users/bishwanathbastola/CascadeProjects/pnl/apps/docs/content/docs/build/meta.json"}, data: meta_1 }, { info: {"path":"legal/meta.json","absolutePath":"/Users/bishwanathbastola/CascadeProjects/pnl/apps/docs/content/docs/legal/meta.json"}, data: meta_2 }, { info: {"path":"mechanics/meta.json","absolutePath":"/Users/bishwanathbastola/CascadeProjects/pnl/apps/docs/content/docs/mechanics/meta.json"}, data: meta_3 }]);
