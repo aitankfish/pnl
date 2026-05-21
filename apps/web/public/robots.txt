@@ -11,84 +11,98 @@
 User-agent: GPTBot
 Allow: /
 Allow: /api/og
+Allow: /api/markets/list
 Disallow: /api/
 Disallow: /admin/
 
 User-agent: ChatGPT-User
 Allow: /
 Allow: /api/og
+Allow: /api/markets/list
 Disallow: /api/
 Disallow: /admin/
 
 User-agent: OAI-SearchBot
 Allow: /
 Allow: /api/og
+Allow: /api/markets/list
 Disallow: /api/
 Disallow: /admin/
 
 User-agent: ClaudeBot
 Allow: /
 Allow: /api/og
+Allow: /api/markets/list
 Disallow: /api/
 Disallow: /admin/
 
 User-agent: Claude-Web
 Allow: /
 Allow: /api/og
+Allow: /api/markets/list
 Disallow: /api/
 Disallow: /admin/
 
 User-agent: anthropic-ai
 Allow: /
 Allow: /api/og
+Allow: /api/markets/list
 Disallow: /api/
 Disallow: /admin/
 
 User-agent: PerplexityBot
 Allow: /
 Allow: /api/og
+Allow: /api/markets/list
 Disallow: /api/
 Disallow: /admin/
 
 User-agent: Perplexity-User
 Allow: /
 Allow: /api/og
+Allow: /api/markets/list
 Disallow: /api/
 Disallow: /admin/
 
 User-agent: Google-Extended
 Allow: /
 Allow: /api/og
+Allow: /api/markets/list
 Disallow: /api/
 Disallow: /admin/
 
 User-agent: Applebot-Extended
 Allow: /
 Allow: /api/og
+Allow: /api/markets/list
 Disallow: /api/
 Disallow: /admin/
 
 User-agent: CCBot
 Allow: /
 Allow: /api/og
+Allow: /api/markets/list
 Disallow: /api/
 Disallow: /admin/
 
 User-agent: cohere-ai
 Allow: /
 Allow: /api/og
+Allow: /api/markets/list
 Disallow: /api/
 Disallow: /admin/
 
 User-agent: meta-externalagent
 Allow: /
 Allow: /api/og
+Allow: /api/markets/list
 Disallow: /api/
 Disallow: /admin/
 
 User-agent: Bytespider
 Allow: /
 Allow: /api/og
+Allow: /api/markets/list
 Disallow: /api/
 Disallow: /admin/
 
@@ -97,5 +111,8 @@ Disallow: /admin/
 User-agent: *
 Allow: /
 Allow: /api/og
+Allow: /api/markets/list
 Disallow: /api/
 Disallow: /admin/
+
+Sitemap: https://pnl.market/sitemap.xml

@@ -31,11 +31,52 @@ The thesis: most ideas die in private notebooks because the old path — venture
 - **Closed** — window expired without meeting threshold
 - **Returned** — ineligible, stakes refunded
 
+## Public read API (for agents)
+
+Live state is most efficiently retrieved as JSON. These endpoints are read-only and require no authentication:
+
+- `GET https://pnl.market/api/markets/list?status=active&page=1&limit=25` — list of active markets. Other valid `status` values: `yesWins` (bloomed), `noWins` (withered), `expired` (closed), `refund` (returned), `all`.
+- `GET https://pnl.market/api/markets/[id]` — single market by id (from the list response). Returns mechanics, pool, votes, expiry, and resolution.
+- `GET https://pnl.market/sitemap.xml` — full crawl index including every market URL.
+
+Response shape (markets list):
+
+```
+{
+  "success": true,
+  "data": {
+    "markets": [
+      {
+        "id": "...",
+        "marketAddress": "<solana account>",
+        "name": "Nakshatra",
+        "tokenSymbol": "NAKSHATRA",
+        "description": "...",
+        "category": "ai",
+        "stage": "prototype",
+        "poolBalance": "9850000",        // lamports
+        "targetPool": "15 SOL",
+        "poolProgressPercentage": 0,
+        "totalParticipants": 1,
+        "expiryTime": "2026-11-07T09:33:42.000Z",
+        "resolution": "Unresolved",       // or YesWins / NoWins / Refund
+        "displayStatus": "✅ Active",
+        "pumpFunTokenAddress": null       // populated after a bloomed launch
+      }
+    ],
+    "totalCount": 3
+  }
+}
+```
+
+For questions like "what's live on PNL right now," fetch `/api/markets/list?status=active`. For "what has bloomed," use `status=yesWins`. The browse UI at `/browse` is the same data with realtime websockets layered on top.
+
 ## On-chain references
 
 - $PNL token mint (SPL Token-2022 on Solana mainnet-beta): `6QuNZJzUF7oZj3GsG7fVBfidX1cE81sXhb9Czi12pump`
 - Pump.fun: https://pump.fun/coin/6QuNZJzUF7oZj3GsG7fVBfidX1cE81sXhb9Czi12pump
 - DexScreener: https://dexscreener.com/solana/6QuNZJzUF7oZj3GsG7fVBfidX1cE81sXhb9Czi12pump
+- Each bloomed market also has a pump.fun token address available via the markets API.
 
 ## Community
 
