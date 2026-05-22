@@ -24,6 +24,7 @@ import { setUsernameInputSchema, callSetUsername } from './tools/set-username.js
 import { unlockInputSchema, callUnlock, lockInputSchema, callLock } from './tools/unlock.js';
 import { restoreInputSchema, callRestore } from './tools/restore.js';
 import { helpInputSchema, callHelp } from './tools/help.js';
+import { voteInputSchema, callVote } from './tools/vote.js';
 import { runInstall } from './install.js';
 
 const SERVER_NAME = 'pnl-mcp-server';
@@ -120,6 +121,13 @@ async function main(): Promise<void> {
     "Restore a PNL wallet on this machine from a BIP39 mnemonic (12 or 24 words). Use when setting up PNL on a new machine and the user already has the recovery phrase from a previous pnl_init. The mnemonic is the standard format Phantom / Solflare / Backpack / Solana CLI all accept. Refuses to overwrite an existing wallet unless allowOverwrite: true is passed. Passphrase is read from PNL_PASSPHRASE env or via OS dialog.",
     restoreInputSchema,
     async (args) => callRestore(args),
+  );
+
+  server.tool(
+    'pnl_vote',
+    "Stake YES or NO on an existing PNL market. Returns a deep-link URL with the side + amount pre-filled — the user opens it in their browser, confirms the vote panel (already populated), and signs the buy_yes / buy_no transaction with their wallet. Use this when the user says 'vote yes on X', 'fade Y', 'back the AutoImport CLI market', or similar. Phase B will add a local-signing variant for stakes under the autosign cap.",
+    voteInputSchema,
+    async (args) => callVote(args),
   );
 
   server.tool(

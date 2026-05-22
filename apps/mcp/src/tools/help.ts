@@ -54,7 +54,7 @@ export async function callHelp(_rawInput: unknown) {
       [
         ['`/pnl-browse`', 'List live conviction markets — YES%, pool, votes, founder'],
         ['`/pnl-pitch`', 'Draft a market from current conversation context, return deep-link to confirm'],
-        ['`/pnl-vote`', '_Coming next branch_ — stake YES/NO on a market'],
+        ['`/pnl-vote`', 'Stake YES or NO on an existing market (deep-link to confirm in wallet)'],
       ],
     ),
     heading('Typical first run'),

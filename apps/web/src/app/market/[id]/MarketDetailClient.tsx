@@ -1,9 +1,9 @@
 'use client';
 
-import React, { useEffect, useState, useMemo } from 'react';
+import React, { useEffect, useState, useMemo, useRef } from 'react';
 import { authFetch } from '@/lib/auth/fetch-with-auth';
 import dynamic from 'next/dynamic';
-import { useParams, useRouter } from 'next/navigation';
+import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -341,6 +341,30 @@ export default function MarketDetailClient({
   // Use minimum investment from config (convert lamports to SOL)
   const QUICK_VOTE_AMOUNT = FEES.MINIMUM_INVESTMENT / 1_000_000_000; // 0.01 SOL
   const [amount, setAmount] = useState<string>(QUICK_VOTE_AMOUNT.toString());
+
+  // ─── Vote deep-link pre-fill ───────────────────────────────────
+  // When an MCP user lands here via `pnl_vote`, the URL carries
+  // ?vote=yes&amount=0.05 (or no/<amount>). On first mount, read
+  // those params and pre-set the vote side + amount fields so the
+  // user only has to confirm + sign in their wallet. Run-once via
+  // a ref guard so editing the form doesn't get clobbered later.
+  const voteDeepLinkSearchParams = useSearchParams();
+  const voteDeepLinkApplied = useRef(false);
+  useEffect(() => {
+    if (voteDeepLinkApplied.current) return;
+    const sideParam = voteDeepLinkSearchParams?.get('vote');
+    const amountParam = voteDeepLinkSearchParams?.get('amount');
+    if (sideParam === 'yes' || sideParam === 'no') {
+      setSelectedSide(sideParam);
+    }
+    if (amountParam) {
+      const parsed = parseFloat(amountParam);
+      if (Number.isFinite(parsed) && parsed > 0) {
+        setAmount(String(parsed));
+      }
+    }
+    if (sideParam || amountParam) voteDeepLinkApplied.current = true;
+  }, [voteDeepLinkSearchParams]);
 
   // Favorite/Watchlist state
   const [isFavorite, setIsFavorite] = useState(false);
