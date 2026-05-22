@@ -943,6 +943,41 @@ if (mongoose.models.PaperCitation) {
   delete mongoose.models.PaperCitation;
 }
 
+// ─── MarketDraft ─────────────────────────────────────────────────
+//
+// Agent-prepared market drafts. The MCP server (or any external pitch
+// tool) POSTs a payload here, gets a draft id back, and hands the user
+// a /create?draft=<id> deep-link. The /create page reads the draft on
+// mount and pre-fills the form. The actual on-chain market creation
+// still goes through the existing authenticated /api/projects/create
+// + /api/markets/complete pipeline -- drafts are purely a pre-fill
+// vehicle, never used as a substitute for the signed-by-user mainnet
+// transaction.
+//
+// TTL: 24 hours. Mongo's expireAfterSeconds index on `expiresAt`
+// reaps stale drafts automatically.
+const MarketDraftSchema = new mongoose.Schema(
+  {
+    creatorWallet: { type: String, index: true },
+    source: { type: String, default: 'mcp' },
+    payload: { type: mongoose.Schema.Types.Mixed, required: true },
+    provenance: { type: mongoose.Schema.Types.Mixed },
+    expiresAt: {
+      type: Date,
+      default: () => new Date(Date.now() + 24 * 60 * 60 * 1000),
+    },
+    createdAt: { type: Date, default: Date.now },
+  },
+  { collection: 'market_drafts' },
+);
+MarketDraftSchema.index({ expiresAt: 1 }, { expireAfterSeconds: 0 });
+
+if (mongoose.models.MarketDraft) {
+  delete mongoose.models.MarketDraft;
+}
+
+export const MarketDraft = mongoose.model('MarketDraft', MarketDraftSchema);
+
 export const Project = mongoose.model('Project', ProjectSchema);
 export const PredictionMarket = mongoose.model('PredictionMarket', PredictionMarketSchema);
 export const PredictionParticipant = mongoose.model('PredictionParticipant', PredictionParticipantSchema);

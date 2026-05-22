@@ -13,6 +13,7 @@ import { tweetMarketCreated } from '@/services/twitter/twitter-service';
 import { broadcastNewMarket } from '@/services/socket/socket-server';
 import { withWalletOwnership } from '@/lib/auth/require-wallet';
 import { invalidateCache } from '@/lib/redis/invalidate';
+import { ensureUserProfile } from '@/lib/user-profile-init';
 
 const logger = createClientLogger();
 
@@ -134,6 +135,20 @@ export const POST = withWalletOwnership(async (request: NextRequest) => {
         : project.socialLinks;
       twitterHandle = socialLinks.twitter || socialLinks.x || socialLinks.Twitter || socialLinks.X;
     }
+
+    // Idempotently ensure the founder has a UserProfile so the market
+    // detail page renders a Cosmic name instead of a bare wallet address.
+    // The browser flow does this client-side at login, but MCP /
+    // external-pitch callers may post markets from wallets that have
+    // never visited pnl.market in a browser. Non-blocking — a missing
+    // profile is cosmetic, the on-chain market is the source of truth.
+    ensureUserProfile(project.founderWallet, { source: 'api' }).catch((error) => {
+      logger.warn('Failed to ensure founder profile:', {
+        error: error instanceof Error ? error.message : String(error),
+        founderWallet: project.founderWallet,
+        marketId: savedMarket._id,
+      });
+    });
 
     // Tweet about the new market (non-blocking)
     tweetMarketCreated({

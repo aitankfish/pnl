@@ -21,6 +21,7 @@ import { useNetwork } from '@/lib/hooks/useNetwork';
 import { getPositionPDA, getMarketVaultPDA } from '@/lib/anchor-program';
 import { PublicKey } from '@solana/web3.js';
 import CountdownTimer from '@/components/CountdownTimer';
+import MarketImage from '@/components/MarketImage';
 import { parseError } from '@/lib/utils/errorParser';
 import { useWallet } from '@/hooks/useWallet';
 import useSWR from 'swr';
@@ -1533,32 +1534,22 @@ export default function MarketDetailClient({
             <div className="flex flex-col gap-4">
               {/* Top: image + title + actions */}
               <div className="flex items-start gap-3 sm:gap-4">
-                {/* Project image */}
-                <div
-                  className="w-14 h-14 sm:w-20 sm:h-20 flex items-center justify-center overflow-hidden flex-shrink-0"
+                {/* Project image — falls back to a deterministic warm
+                    gradient with the ticker initial when no image URL
+                    is set or the URL 404s. */}
+                <MarketImage
+                  src={market.projectImageUrl}
+                  ticker={market.tokenSymbol}
+                  name={market.name}
+                  size={80}
+                  rounded="full"
+                  className="sm:!w-20 sm:!h-20"
                   style={{
-                    background: 'rgba(232,150,96,0.08)',
+                    width: 56,
+                    height: 56,
                     border: `1px solid ${HAIR_STRONG}`,
                   }}
-                >
-                  {market.projectImageUrl ? (
-                    <img
-                      src={market.projectImageUrl}
-                      alt={market.name}
-                      className="w-full h-full object-cover"
-                    />
-                  ) : (
-                    <span
-                      style={{
-                        color: AMBER,
-                        fontFamily: 'var(--font-fraunces, serif)',
-                        fontSize: '1.4rem',
-                      }}
-                    >
-                      {market.name.charAt(0).toUpperCase()}
-                    </span>
-                  )}
-                </div>
+                />
 
                 {/* Title + meta */}
                 <div className="flex-1 min-w-0">
