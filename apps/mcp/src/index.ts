@@ -16,6 +16,9 @@ import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
 import { browseMarketsInputSchema, callBrowseMarkets } from './tools/browse-markets.js';
 import { getMarketInputSchema, callGetMarket } from './tools/get-market.js';
+import { initInputSchema, callInit } from './tools/init.js';
+import { walletInputSchema, callWallet } from './tools/wallet.js';
+import { exportKeypairInputSchema, callExportKeypair } from './tools/export-keypair.js';
 
 const SERVER_NAME = 'pnl-mcp-server';
 const SERVER_VERSION = '0.1.0';
@@ -42,6 +45,27 @@ async function main(): Promise<void> {
     'Fetch one market by id (from pnl_browse_markets) or by on-chain market address. Returns the full market state — name, founder, description, YES%, pool sizes, expiry, on-chain address. Use this after pnl_browse_markets when the user wants details on a specific market.',
     getMarketInputSchema,
     async (args) => callGetMarket(args),
+  );
+
+  server.tool(
+    'pnl_init',
+    'First-run setup. Generates a local Solana keypair on this machine (stored at ~/.config/pnl/keypair.json, mode 0600) and returns the deposit address. Call this when the user wants to set up PNL on a new machine or asks "how do I get started with PNL?". Idempotent — if a keypair already exists, returns the existing wallet info.',
+    initInputSchema,
+    async (args) => callInit(args),
+  );
+
+  server.tool(
+    'pnl_wallet',
+    "Show the local PNL wallet's address and current SOL balance. Read-only. Call this any time the user asks 'what's my PNL wallet?', 'how much SOL do I have?', or to check whether their funding transaction has landed.",
+    walletInputSchema,
+    async (args) => callWallet(args),
+  );
+
+  server.tool(
+    'pnl_export_keypair',
+    "Reveal the local PNL secret key in base58 (Phantom-import format) and JSON-array (Solana CLI format). Requires confirm: 'EXPORT' to prevent accidental disclosure. Use only when the user explicitly asks to back up their key, move their wallet to Phantom/Solflare/etc., or migrate to another machine.",
+    exportKeypairInputSchema,
+    async (args) => callExportKeypair(args),
   );
 
   const transport = new StdioServerTransport();
