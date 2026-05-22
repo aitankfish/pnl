@@ -1,0 +1,47 @@
+{
+  "name": "@pnl/mcp-server",
+  "version": "0.1.0",
+  "description": "Model Context Protocol server for PNL — let agents (Claude Code, Cursor, Cline, Codex) browse live conviction markets and prepare new pitches with one signature in the user's own wallet.",
+  "type": "module",
+  "main": "./dist/index.js",
+  "bin": {
+    "pnl-mcp-server": "./dist/index.js"
+  },
+  "files": [
+    "dist",
+    "README.md"
+  ],
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsx watch src/index.ts",
+    "start": "node dist/index.js",
+    "prepublishOnly": "pnpm build"
+  },
+  "keywords": [
+    "mcp",
+    "model-context-protocol",
+    "pnl",
+    "solana",
+    "prediction-market",
+    "conviction-market",
+    "launchpad",
+    "claude-code",
+    "cursor",
+    "agent"
+  ],
+  "author": "Bishwa Bastola",
+  "license": "MIT",
+  "private": true,
+  "engines": {
+    "node": ">=18.18"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.0.0",
+    "zod": "^3.23.8"
+  },
+  "devDependencies": {
+    "@types/node": "^20.14.0",
+    "tsx": "^4.19.0",
+    "typescript": "^5.6.0"
+  }
+}
