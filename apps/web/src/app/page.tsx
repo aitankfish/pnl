@@ -14,8 +14,14 @@ import CosmicOnboardingModal from '@/components/CosmicOnboardingModal';
 import TokenAddress from '@/components/TokenAddress';
 import { triggerRouteTransition } from '@/components/RouteTransition';
 import dynamic from 'next/dynamic';
+import MobileLanding from '@/components/MobileLanding';
 
 const CosmicTree3D = dynamic(() => import('@/components/CosmicTree3D'), { ssr: false });
+
+// Mobile/desktop split-point. Matches Tailwind's `md:`. Below this we
+// render MobileLanding instead of the desktop scroll story — see
+// HomePage at the bottom of this file.
+const MOBILE_BREAKPOINT = 768;
 
 // Animation variants with smoother easing
 const fadeInUp = {
@@ -1084,7 +1090,11 @@ function ChapterCompanion({ opacity, y, stage }: { opacity: MotionValue<number>;
   );
 }
 
-export default function HomePage() {
+// The full 2400-line desktop landing (cosmic tree, scroll-driven chapter
+// story, sticky companion, etc.) lives here. On mobile we never mount it
+// — see the HomePage wrapper at the bottom of the file. Renamed from
+// `HomePage` so the new entry point doesn't shadow its hooks.
+function DesktopLanding() {
   const { scrollYProgress } = useScroll();
   const heroOpacity = useTransform(scrollYProgress, [0, 0.3], [1, 0]);
   const heroScale = useTransform(scrollYProgress, [0, 0.3], [1, 0.95]);
@@ -2412,4 +2422,37 @@ export default function HomePage() {
       />
     </>
   );
+}
+
+// ─── Entry point ──────────────────────────────────────────────────
+//
+// Detects the viewport at mount and routes to either the desktop scroll
+// story (DesktopLanding above) or the mobile-native landing (MobileLanding).
+//
+// We branch BEFORE mounting either real surface — that means on phones we
+// never instantiate the wallet hook, the cosmic 3D tree, the chapter
+// companion, or any of the framer-motion scroll listeners that make the
+// desktop landing crash and stutter on mobile GPUs.
+export default function HomePage() {
+  const [isMobile, setIsMobile] = useState<boolean | null>(null);
+
+  useEffect(() => {
+    const mq = window.matchMedia(`(max-width: ${MOBILE_BREAKPOINT - 1}px)`);
+    const update = () => setIsMobile(mq.matches);
+    update();
+    if (mq.addEventListener) mq.addEventListener('change', update);
+    else mq.addListener(update);
+    return () => {
+      if (mq.removeEventListener) mq.removeEventListener('change', update);
+      else mq.removeListener(update);
+    };
+  }, []);
+
+  // First paint before hydration — a deep-night skeleton so neither
+  // real surface flickers a layout in when the swap happens.
+  if (isMobile === null) {
+    return <div className="min-h-screen bg-[#0a0814]" />;
+  }
+
+  return isMobile ? <MobileLanding /> : <DesktopLanding />;
 }
