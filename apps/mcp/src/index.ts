@@ -20,6 +20,7 @@ import { initInputSchema, callInit } from './tools/init.js';
 import { walletInputSchema, callWallet } from './tools/wallet.js';
 import { exportKeypairInputSchema, callExportKeypair } from './tools/export-keypair.js';
 import { pitchIdeaInputSchema, callPitchIdea } from './tools/pitch-idea.js';
+import { setUsernameInputSchema, callSetUsername } from './tools/set-username.js';
 
 const SERVER_NAME = 'pnl-mcp-server';
 const SERVER_VERSION = '0.1.0';
@@ -74,6 +75,13 @@ async function main(): Promise<void> {
     "Pitch a new idea to PNL as a conviction market. The agent supplies the name, description, ticker symbol, category/type/stage, team size, target pool in SOL, duration in days, and optional provenance (the conversation excerpt + code snippet that birthed the idea). Returns a /create?draft=<id> deep-link the user opens in their browser to confirm + sign the create_market transaction in their own wallet. v0.2 is deep-link only -- v0.3 will add local autosigning for under-cap transactions. Use this when the user says 'pitch this on PNL', 'plant this idea', or similar.",
     pitchIdeaInputSchema,
     async (args) => callPitchIdea(args),
+  );
+
+  server.tool(
+    'pnl_set_username',
+    "Claim or rename the PNL username for the local wallet. Signs a time-bounded challenge with the keypair from pnl_init so the backend can verify wallet ownership -- no Privy session or Gmail login required. Usernames are 3-20 characters of letters/numbers/_/-. Returns 'taken' if another wallet has claimed the name. Use when the user says 'set my PNL username to X', 'rename my PNL profile', or after pnl_init when they want a custom name instead of the auto-generated Cosmic one.",
+    setUsernameInputSchema,
+    async (args) => callSetUsername(args),
   );
 
   const transport = new StdioServerTransport();
