@@ -1,77 +1,139 @@
 import { z } from 'zod';
-import { generateKeypair, getBalanceSol, hasKeypair, loadKeypair, loadConfig, WALLET_PATHS } from '../lib/wallet.js';
+import {
+  createWallet,
+  hasWallet,
+  getAddress,
+  getBalanceSol,
+  loadConfig,
+  unlockWith,
+  WALLET_PATHS,
+} from '../lib/wallet.js';
+import { promptPassphrase } from '../lib/passphrase.js';
+import { PublicKey } from '@solana/web3.js';
 
 // ─── pnl_init ────────────────────────────────────────────────────
 //
-// First-run setup. Generates a local Solana keypair (saved to
-// ~/.config/pnl/keypair.json, mode 0600), then returns the public
-// key as the deposit address for funding.
+// First-run setup. Generates a BIP39 mnemonic, derives a Solana
+// keypair at the Phantom-compatible path m/44'/501'/0'/0', encrypts
+// the secret with the user's passphrase (scrypt + AES-256-GCM), and
+// stores the encrypted blob on disk.
 //
-// Idempotent: calling it a second time without `regenerate: true`
-// just returns the existing wallet info, so an agent can safely call
-// it at the start of any conversation.
+// The mnemonic is shown to the user ONCE and never stored on disk.
+// They must back it up — that's the only recovery path.
+//
+// Passphrase source (in priority order):
+//   1. PNL_PASSPHRASE env var (set in Claude Code mcp config)
+//   2. OS-native dialog (osascript on macOS, zenity on Linux)
+//   3. Throws with a clear message on unsupported platforms
+//
+// The passphrase NEVER comes through tool arguments (no chat
+// exposure). Idempotent: calling pnl_init when a wallet exists
+// returns the existing address without prompting.
 
-export const initInputSchema = {
-  regenerate: z
-    .boolean()
-    .optional()
-    .describe(
-      'If true and a keypair already exists, the tool refuses to overwrite it without first running pnl_export_keypair (so the user can back up the seed). Default false — repeated calls return the existing wallet.',
-    ),
-} as const;
+export const initInputSchema = {} as const;
 
 const InitInput = z.object(initInputSchema);
 
 export async function callInit(rawInput: unknown) {
   InitInput.parse(rawInput ?? {});
 
-  const existed = hasKeypair();
-  const kp = existed ? loadKeypair() : generateKeypair();
-  const pubkey = kp.publicKey.toBase58();
-  const config = loadConfig();
+  // If a wallet already exists, return the existing info — no prompt,
+  // no surprises. The user can run pnl_export_keypair to back it up,
+  // or pnl_restore to replace it with a different mnemonic.
+  if (hasWallet()) {
+    const address = getAddress();
+    const config = loadConfig();
+    let balanceLine: string;
+    try {
+      const sol = await getBalanceSol(new PublicKey(address));
+      balanceLine = `Balance: ${sol.toFixed(4)} SOL`;
+    } catch (e) {
+      balanceLine = `(balance check failed — ${e instanceof Error ? e.message.slice(0, 80) : String(e)})`;
+    }
+    return {
+      content: [
+        {
+          type: 'text' as const,
+          text: [
+            'PNL wallet already initialized on this machine.',
+            '',
+            `Address: ${address}`,
+            balanceLine,
+            `Autosign cap: ${config.autosignCapSol} SOL`,
+            '',
+            'To use the wallet for signing, call pnl_unlock — passphrase is read from your PNL_PASSPHRASE env var or via an OS-native dialog. Never type it directly in chat.',
+            '',
+            'Files:',
+            `  encrypted wallet: ${WALLET_PATHS.wallet}`,
+            `  exports: ${WALLET_PATHS.exports}`,
+          ].join('\n'),
+        },
+      ],
+    };
+  }
 
-  // Try to fetch balance, but don't block on a slow RPC — the user can
-  // call pnl_wallet later to refresh.
-  let balanceLine: string;
+  // Fresh setup. Pull the passphrase from env or pop the OS dialog.
+  // With confirm: true the user types it twice to catch typos.
+  const passphrase = promptPassphrase({
+    title: 'PNL Wallet — Setup',
+    prompt: 'Choose a passphrase for your new PNL wallet. You\'ll enter it again to confirm.',
+    confirm: true,
+  });
+
+  const { address, mnemonic } = createWallet(passphrase);
+
+  // Auto-unlock so the user can immediately use the wallet for the
+  // current session without a second prompt.
+  unlockWith(passphrase, 30);
+
+  // Public balance check is best-effort; safe to skip if RPC is slow.
+  let balanceLine = '';
   try {
-    const sol = await getBalanceSol(kp.publicKey);
+    const sol = await getBalanceSol(new PublicKey(address));
     balanceLine = `Current balance: ${sol.toFixed(4)} SOL`;
-  } catch (e) {
-    balanceLine = `(balance check failed — ${e instanceof Error ? e.message.slice(0, 80) : String(e)})`;
+  } catch {
+    balanceLine = '';
   }
 
-  const lines: string[] = [];
-  if (existed) {
-    lines.push('PNL wallet already initialized on this machine.');
-  } else {
-    lines.push('PNL wallet created.');
-  }
-  lines.push('');
-  lines.push(`Deposit address: ${pubkey}`);
-  lines.push(`Phantom / Solflare deep-link: solana:${pubkey}`);
-  lines.push('');
-  lines.push(balanceLine);
-  lines.push('');
-  if (!existed) {
-    lines.push('Next steps:');
-    lines.push('  1. Send at least 0.05 SOL to the address above from any Solana wallet');
-    lines.push('     (Phantom, Solflare, Backpack, an exchange withdrawal, etc.).');
-    lines.push('  2. Once funded, post ideas with pnl_pitch_idea or vote with pnl_vote.');
-    lines.push('  3. Back up your seed any time with pnl_export_keypair { confirm: "EXPORT" }.');
-    lines.push('');
-    lines.push('Files:');
-    lines.push(`  keypair: ${WALLET_PATHS.keypair} (mode 0600)`);
-    lines.push(`  config:  ${WALLET_PATHS.config}`);
-  }
-  lines.push('');
-  lines.push(`Autosign cap: ${config.autosignCapSol} SOL — transactions at or below this size sign automatically. Larger ones return a deep-link you confirm in your external wallet. Tune with pnl_set_autosign.`);
+  const lines = [
+    'PNL wallet created.',
+    '',
+    `Deposit address: ${address}`,
+    `Phantom / Solflare deep-link: solana:${address}`,
+    balanceLine,
+    balanceLine ? '' : null,
+    '────────────────────────────────────────────────────',
+    'IMPORTANT — WRITE THIS DOWN NOW',
+    '────────────────────────────────────────────────────',
+    '',
+    'Your 12-word recovery phrase (BIP39):',
+    '',
+    `    ${mnemonic}`,
+    '',
+    'This phrase is the ONLY way to recover your wallet if you',
+    'lose access to this machine. Write it on paper and store',
+    'it somewhere safe. Anyone who has this phrase can spend',
+    'all funds on this wallet — never share it, never type it',
+    'into a website, never store it in a screenshot or cloud',
+    'note. Phantom / Solflare / Backpack will all accept this',
+    'phrase under their "Import wallet" flows.',
+    '',
+    '────────────────────────────────────────────────────',
+    '',
+    'Next steps:',
+    '  1. Save the phrase above to paper or a password manager.',
+    '  2. Send at least 0.05 SOL to the deposit address from any',
+    '     Solana wallet (Phantom, Solflare, exchange withdrawal).',
+    '  3. The wallet is now unlocked for 30 minutes. After that, run',
+    '     pnl_unlock to sign more transactions.',
+    '',
+    `Encrypted wallet file: ${WALLET_PATHS.wallet} (mode 0600)`,
+    `Exports directory:     ${WALLET_PATHS.exports} (mode 0700)`,
+  ]
+    .filter((l) => l !== null)
+    .join('\n');
 
   return {
-    content: [
-      {
-        type: 'text' as const,
-        text: lines.join('\n'),
-      },
-    ],
+    content: [{ type: 'text' as const, text: lines }],
   };
 }

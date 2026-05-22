@@ -2,7 +2,7 @@ import { z } from 'zod';
 import nacl from 'tweetnacl';
 import bs58 from 'bs58';
 import { randomBytes } from 'node:crypto';
-import { loadKeypair, hasKeypair } from '../lib/wallet.js';
+import { hasWallet, isUnlocked, requireUnlockedKeypair } from '../lib/wallet.js';
 
 // ─── pnl_set_username ────────────────────────────────────────────
 //
@@ -39,7 +39,7 @@ function getApiBase(): string {
 export async function callSetUsername(rawInput: unknown) {
   const { username } = SetUsernameInput.parse(rawInput ?? {});
 
-  if (!hasKeypair()) {
+  if (!hasWallet()) {
     return {
       content: [
         {
@@ -49,8 +49,18 @@ export async function callSetUsername(rawInput: unknown) {
       ],
     };
   }
+  if (!isUnlocked()) {
+    return {
+      content: [
+        {
+          type: 'text' as const,
+          text: 'Wallet is locked. Call pnl_unlock first — claiming a username requires a signature from your wallet. Passphrase is read from PNL_PASSPHRASE env or via an OS-native dialog.',
+        },
+      ],
+    };
+  }
 
-  const keypair = loadKeypair();
+  const keypair = requireUnlockedKeypair();
   const walletAddress = keypair.publicKey.toBase58();
 
   // Nonce: timestamped (ms) + hex randomness. Server checks the

@@ -21,6 +21,8 @@ import { walletInputSchema, callWallet } from './tools/wallet.js';
 import { exportKeypairInputSchema, callExportKeypair } from './tools/export-keypair.js';
 import { pitchIdeaInputSchema, callPitchIdea } from './tools/pitch-idea.js';
 import { setUsernameInputSchema, callSetUsername } from './tools/set-username.js';
+import { unlockInputSchema, callUnlock, lockInputSchema, callLock } from './tools/unlock.js';
+import { restoreInputSchema, callRestore } from './tools/restore.js';
 import { runInstall } from './install.js';
 
 const SERVER_NAME = 'pnl-mcp-server';
@@ -89,6 +91,27 @@ async function main(): Promise<void> {
     "Pitch a new idea to PNL as a conviction market. The agent supplies the name, description, ticker symbol, category/type/stage, team size, target pool in SOL, duration in days, and optional provenance (the conversation excerpt + code snippet that birthed the idea). Returns a /create?draft=<id> deep-link the user opens in their browser to confirm + sign the create_market transaction in their own wallet. v0.2 is deep-link only -- v0.3 will add local autosigning for under-cap transactions. Use this when the user says 'pitch this on PNL', 'plant this idea', or similar.",
     pitchIdeaInputSchema,
     async (args) => callPitchIdea(args),
+  );
+
+  server.tool(
+    'pnl_unlock',
+    "Unlock the local PNL wallet for signing. Pulls the passphrase from the PNL_PASSPHRASE env var (set in Claude Code mcp config) or pops an OS-native dialog (osascript on macOS, zenity on Linux). The passphrase NEVER comes from tool arguments and never enters the chat transcript. Caches the unlocked secret in memory for ttl_minutes (default 5, max 60). Re-call to refresh the TTL. Call this before any signing tool: pnl_set_username, pnl_export_keypair, future write-prep tools.",
+    unlockInputSchema,
+    async (args) => callUnlock(args),
+  );
+
+  server.tool(
+    'pnl_lock',
+    'Lock the local PNL wallet immediately. Wipes the cached secret from memory, future signing operations require a fresh pnl_unlock. Use this when stepping away from the machine or after a sensitive session.',
+    lockInputSchema,
+    async (args) => callLock(args),
+  );
+
+  server.tool(
+    'pnl_restore',
+    "Restore a PNL wallet on this machine from a BIP39 mnemonic (12 or 24 words). Use when setting up PNL on a new machine and the user already has the recovery phrase from a previous pnl_init. The mnemonic is the standard format Phantom / Solflare / Backpack / Solana CLI all accept. Refuses to overwrite an existing wallet unless allowOverwrite: true is passed. Passphrase is read from PNL_PASSPHRASE env or via OS dialog.",
+    restoreInputSchema,
+    async (args) => callRestore(args),
   );
 
   server.tool(
