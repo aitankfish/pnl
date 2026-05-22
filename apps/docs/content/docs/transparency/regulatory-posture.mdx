@@ -3,20 +3,20 @@ title: "Regulatory posture"
 description: "The jurisdictional questions specific to prediction-market-gated launches, what we've done about them, and what remains under counsel review."
 ---
 
-P&L operates at the intersection of two regulated activities — prediction markets and token launches — in a jurisdictional landscape that is genuinely unsettled in 2026. This page describes our current posture honestly. It is not legal advice and the situation will continue to evolve.
+PNL operates at the intersection of two regulated activities — prediction markets and token launches — in a jurisdictional landscape that is genuinely unsettled in 2026. This page describes our current posture honestly. It is not legal advice and the situation will continue to evolve.
 
 ## The legal-status question, in one paragraph
 
-P&L is a non-custodial, on-chain protocol that lets participants stake SOL on the outcome of binary questions ("does this idea deserve to launch?") with payouts settled by an open-source smart contract. The token launches that follow are executed by pump.fun's protocol, which P&L invokes via cross-program invocation. WOLP LLC (the operator) does not custody user funds, take discretion over outcomes, or operate as an intermediary in any traditional sense. Participants connect their own wallets and bear their own risk. Whether this configuration falls under any jurisdiction's prediction-market, securities, or commodities framework is the question we and our counsel are tracking.
+PNL is a non-custodial, on-chain protocol that lets participants stake SOL on the outcome of binary questions ("does this idea deserve to launch?") with payouts settled by an open-source smart contract. The token launches that follow are executed by pump.fun's protocol, which PNL invokes via cross-program invocation. WOLP LLC (the operator) does not custody user funds, take discretion over outcomes, or operate as an intermediary in any traditional sense. Participants connect their own wallets and bear their own risk. Whether this configuration falls under any jurisdiction's prediction-market, securities, or commodities framework is the question we and our counsel are tracking.
 
 ## Posture summary
 
 | Question | Our current posture |
 |---|---|
-| Is P&L a regulated prediction market? | We don't believe so. The markets aren't on external events (sports, elections) — they resolve on the validity of an idea via internal staking dynamics. There is no oracle. The mechanism is closer to a primary issuance gate than to an event-prediction market. |
-| Are launched tokens securities? | They are launched by pump.fun under pump.fun's own protocol. P&L does not custody, promote, or guarantee value. Founders receive royalties from a third-party AMM. |
-| Are P&L participants buying a security in the conviction market itself? | We don't believe so. There is no equity, no claim on enterprise value, no promise of profits derived from managerial efforts. Believers and critics stake on each other's outcomes — a closed system with no expectation of effort from a sponsor. |
-| Is this a commodities pool? | Reviewing. Solana SOL is not a CFTC-defined commodity in a binding way. The "pool" structure of YES/NO stakes resembles parimutuel betting in some configurations and resembles a binary option in others. Our counsel's current read is that the closed mechanic and absence of external resolver puts P&L outside both frames, but this is the area of greatest open uncertainty. |
+| Is PNL a regulated prediction market? | We don't believe so. The markets aren't on external events (sports, elections) — they resolve on the validity of an idea via internal staking dynamics. There is no oracle. The mechanism is closer to a primary issuance gate than to an event-prediction market. |
+| Are launched tokens securities? | They are launched by pump.fun under pump.fun's own protocol. PNL does not custody, promote, or guarantee value. Founders receive royalties from a third-party AMM. |
+| Are PNL participants buying a security in the conviction market itself? | We don't believe so. There is no equity, no claim on enterprise value, no promise of profits derived from managerial efforts. Believers and critics stake on each other's outcomes — a closed system with no expectation of effort from a sponsor. |
+| Is this a commodities pool? | Reviewing. Solana SOL is not a CFTC-defined commodity in a binding way. The "pool" structure of YES/NO stakes resembles parimutuel betting in some configurations and resembles a binary option in others. Our counsel's current read is that the closed mechanic and absence of external resolver puts PNL outside both frames, but this is the area of greatest open uncertainty. |
 | Geographic restrictions? | The web app at pnl.market does not currently geo-block. The on-chain program is permissionless by design — anyone with a Solana wallet can interact regardless of location. The legal terms of service ([here](/docs/legal/terms)) require users to comply with their own jurisdiction's laws. |
 
 ## What we have actually done
@@ -27,7 +27,7 @@ Specific actions, not posture statements:
 - **Documented the mechanism transparently.** The whitepaper, the docs you are reading, and the on-chain source code together describe every operation. There is no off-chain discretion to hide.
 - **Open-sourced the program.** The Anchor program at `C5mVE2BwSehWJNkNvhpsoepyKwZkvSLZx29bi4MzVj86` is published under MIT at [github.com/aitankfish/pnl](https://github.com/aitankfish/pnl). Anyone can audit the resolution mechanic.
 - **Operated as a non-custodial protocol.** No user funds touch WOLP LLC accounts. Treasury fees flow to a designated on-chain address (`3MihVtsLsVuEccpmz4YG72Cr8CJWf1evRorTPdPiHeEQ`). Voter stakes settle directly between participants via the program.
-- **No oracle.** The protocol does not resolve markets on external real-world events. Resolution is purely a function of the on-chain stakes. This is the structural feature that most cleanly distinguishes P&L from the activities that prediction-market regulators care about.
+- **No oracle.** The protocol does not resolve markets on external real-world events. Resolution is purely a function of the on-chain stakes. This is the structural feature that most cleanly distinguishes PNL from the activities that prediction-market regulators care about.
 - **Disclosed risks.** Every page that touches money links to [the risk disclaimer](/docs/legal/disclaimer). Users acknowledge speculation, volatility, and potential total loss.
 
 ## What's under active review

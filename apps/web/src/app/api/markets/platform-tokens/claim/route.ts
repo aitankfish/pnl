@@ -24,7 +24,7 @@ import { withAuth } from '@/lib/auth/require-wallet';
 
 const logger = createClientLogger();
 
-// P&L Platform wallet (from constants in program)
+// PNL Platform wallet (from constants in program)
 const PNL_WALLET = '3MihVtsLsVuEccpmz4YG72Cr8CJWf1evRorTPdPiHeEQ';
 
 export const POST = withAuth(async (request, authUser) => {

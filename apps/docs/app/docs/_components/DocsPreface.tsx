@@ -115,7 +115,7 @@ export default function DocsPreface() {
                      first-letter:text-[#e89660]"
         >
           This document describes a protocol that does not yet exist at scale.
-          P&L is a conviction-market launchpad on Solana mainnet — anyone posts
+          PNL is a conviction-market launchpad on Solana mainnet — anyone posts
           an idea, believers and critics stake SOL on whether it deserves to
           exist, and the winning side takes the pool. When YES wins, the idea
           graduates into a token. When NO wins, critics are paid for filtering
@@ -135,7 +135,7 @@ export default function DocsPreface() {
           mechanics, the economics, the integration surfaces, the regulatory
           posture, the limitations we have not yet fixed. There is no
           implicit knowledge. If you finish all six chapters you will know as
-          much about the operating reality of P&L as anyone inside the team.
+          much about the operating reality of PNL as anyone inside the team.
         </p>
 
         <p

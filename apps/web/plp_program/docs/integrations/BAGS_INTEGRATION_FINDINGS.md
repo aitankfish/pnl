@@ -179,7 +179,7 @@ const swapTx = await client.swap({
 
 ---
 
-## Implementation Plan for P&L Platform
+## Implementation Plan for PNL Platform
 
 ### Phase 1: Database Schema Updates
 

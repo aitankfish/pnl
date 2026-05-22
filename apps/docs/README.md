@@ -1,6 +1,6 @@
 # @pnl/docs
 
-[Fumadocs](https://fumadocs.vercel.app/)-powered documentation site for P&L.
+[Fumadocs](https://fumadocs.vercel.app/)-powered documentation site for PNL.
 Ships at **docs.pnl.market**.
 
 This is a separate Next.js app inside the monorepo. It doesn't share runtime

@@ -3,7 +3,7 @@ title: "Use of funds"
 description: "Where every fee taken by the protocol goes."
 ---
 
-P&L charges three on-chain fees and a small ongoing royalty. This page accounts for all of them.
+PNL charges three on-chain fees and a small ongoing royalty. This page accounts for all of them.
 
 ## Fee schedule
 
@@ -14,7 +14,7 @@ P&L charges three on-chain fees and a small ongoing royalty. This page accounts 
 | Completion fee | **5%** | At resolution, when YES or NO wins (not on Refund) | Platform treasury |
 | Pump.fun creator royalty | varies | After a YES win, on every trade of the launched token | Founder, directly, via pump.fun |
 
-The Pump.fun creator royalty is not paid to P&L — it's the founder's earnings, set by pump.fun's own protocol. P&L takes no part of it. We mention it because it's the largest economic flow a successful founder will receive and people frequently mistake it for a fee.
+The Pump.fun creator royalty is not paid to PNL — it's the founder's earnings, set by pump.fun's own protocol. PNL takes no part of it. We mention it because it's the largest economic flow a successful founder will receive and people frequently mistake it for a fee.
 
 ## Treasury wallet
 
@@ -36,7 +36,7 @@ In rough order of operating priority:
 4. **Pinata IPFS pinning.** Market metadata (descriptions, images, thesis attachments) is pinned permanently. Each market adds approximately 50–200 KB to the pinned set.
 5. **Domain, SSL, monitoring.** pnl.market, docs.pnl.market, security monitoring, dependency scanning.
 6. **Audit and counsel.** Smart-contract review, legal counsel on prediction-market posture, security disclosures. This will scale up as the protocol grows.
-7. **Community and grants.** Founder fees for early markets, bug bounties, ecosystem grants for builders integrating P&L.
+7. **Community and grants.** Founder fees for early markets, bug bounties, ecosystem grants for builders integrating PNL.
 
 Everything is paid in SOL until the treasury volume justifies stablecoin conversion. We don't currently sell platform fees on a schedule — they accumulate and are converted when needed.
 
@@ -63,7 +63,7 @@ A founder whose idea blooms (YES wins) receives, in order:
 
 1. **Immediate token allocation.** 8% of the launched token supply, claimable immediately via `claim_team_tokens`.
 2. **Vested token allocation.** 25% additional, vesting linearly over 12 months via the same instruction.
-3. **Pump.fun creator royalty.** A share of every trade of the launched token, paid by pump.fun's own protocol directly to the founder's wallet. No P&L involvement.
+3. **Pump.fun creator royalty.** A share of every trade of the launched token, paid by pump.fun's own protocol directly to the founder's wallet. No PNL involvement.
 4. **(If pool > 50 SOL) SOL vesting.** A bonus distribution of the excess pool, 8% immediate + 92% vested over 12 months via `claim_founder_sol`.
 
 These numbers are codified in the on-chain program. Changing them requires a program upgrade signed by the upgrade authority — not something the platform can do quietly.

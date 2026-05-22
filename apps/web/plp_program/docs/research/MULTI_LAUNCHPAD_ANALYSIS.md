@@ -307,7 +307,7 @@ From research on multi-pool tokens:
 
 ---
 
-## Recommended Architecture for P&L
+## Recommended Architecture for PNL
 
 ### Option A: Single Platform Launch (Simplest)
 
@@ -363,7 +363,7 @@ Would require:
 
 1. **Custom Token Creation**
    ```rust
-   // P&L creates and controls the token mint
+   // PNL creates and controls the token mint
    let mint = create_mint(
        authority: pnl_program,
        decimals: 6,
@@ -418,7 +418,7 @@ Instead of simultaneous bonding curve launch, focus on **post-graduation multi-v
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
-│                    P&L Token Launch                          │
+│                    PNL Token Launch                          │
 │                                                              │
 │  1. Launch on Pump.fun (or Bags)                            │
 │     └── Bonding curve phase                                  │
@@ -479,7 +479,7 @@ async function expandLiquidity(
 
 ---
 
-## Recommendation for P&L
+## Recommendation for PNL
 
 ### Short Term (MVP)
 
@@ -497,7 +497,7 @@ async function expandLiquidity(
 
 ### Long Term (If Demand Exists)
 
-**Consider building P&L's own launchpad**:
+**Consider building PNL's own launchpad**:
 - Full control over tokenomics
 - Custom bonding curves
 - Native multi-venue support

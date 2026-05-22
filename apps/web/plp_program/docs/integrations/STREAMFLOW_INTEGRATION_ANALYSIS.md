@@ -2,13 +2,13 @@
 
 ## Executive Summary
 
-This document analyzes whether P&L should use **Streamflow** for token locking/vesting instead of the current custom implementation.
+This document analyzes whether PNL should use **Streamflow** for token locking/vesting instead of the current custom implementation.
 
 **Recommendation:** Use a **hybrid approach** - keep custom YES voter distribution but consider Streamflow for founder/team vesting due to its flexibility, auditability, and reduced maintenance burden.
 
 ---
 
-## Current P&L Vesting Implementation
+## Current PNL Vesting Implementation
 
 ### Token Distribution Breakdown
 

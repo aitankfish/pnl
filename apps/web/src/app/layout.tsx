@@ -32,8 +32,8 @@ export const dynamic = 'force-dynamic';
 const BASE_URL = process.env.NEXT_PUBLIC_APP_URL || 'https://pnl.market';
 
 export const metadata: Metadata = {
-  title: 'PNL - Predict and Launch',
-  description: 'Idea Tokenization Platform powered by Prediction Markets. A new creative way of fundraising using crypto rails.',
+  title: 'PNL — Plant the idea, watch it grow',
+  description: 'A conviction market for ideas. The community stakes YES or NO on what gets tokenized and launched on Solana.',
   manifest: '/manifest.json',
   icons: {
     icon: '/logo.png',
@@ -52,7 +52,7 @@ export const metadata: Metadata = {
   // those and force every share to the same generic card.
   openGraph: {
     title: 'PNL — Plant the idea, watch it grow',
-    description: 'A conviction market for ideas. The community decides what gets tokenized and launched on Solana.',
+    description: 'A conviction market for ideas. The community stakes YES or NO on what gets tokenized and launched on Solana.',
     url: BASE_URL,
     siteName: 'PNL',
     type: 'website',
@@ -60,7 +60,7 @@ export const metadata: Metadata = {
   twitter: {
     card: 'summary_large_image',
     title: 'PNL — Plant the idea, watch it grow',
-    description: 'A conviction market for ideas. The community decides what gets tokenized and launched on Solana.',
+    description: 'A conviction market for ideas. The community stakes YES or NO on what gets tokenized and launched on Solana.',
   },
 };
 

@@ -39,7 +39,7 @@ function WalletProviderInner({ children }: WalletProviderProps) {
       theme: 'dark',
       accentColor: '#3b82f6',
       logo: '/logo.png',
-      landingHeader: 'Sign in to P&L',
+      landingHeader: 'Sign in to PNL',
       loginMessage: 'Create an account or sign in to access your wallet and start trading.',
       showWalletLoginFirst: false, // Show email/socials first
       walletList: ['phantom', 'backpack', 'solflare', 'detected_solana_wallets'], // Specific wallets first, then detected

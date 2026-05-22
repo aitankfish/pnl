@@ -1,8 +1,8 @@
-# DeFi Integration Brainstorm: Staking, Lending & Borrowing for P&L
+# DeFi Integration Brainstorm: Staking, Lending & Borrowing for PNL
 
 ## Executive Summary
 
-This document explores how P&L can integrate DeFi primitives (staking, lending, borrowing, yield) to create additional utility and revenue streams beyond the core prediction market functionality.
+This document explores how PNL can integrate DeFi primitives (staking, lending, borrowing, yield) to create additional utility and revenue streams beyond the core prediction market functionality.
 
 ---
 
@@ -10,7 +10,7 @@ This document explores how P&L can integrate DeFi primitives (staking, lending, 
 
 ```
 ┌─────────────────────────────────────────────────────────────────────────┐
-│                         P&L DeFi Ecosystem                               │
+│                         PNL DeFi Ecosystem                               │
 │                                                                          │
 │  ┌─────────────────┐  ┌─────────────────┐  ┌─────────────────┐         │
 │  │   $PNL Staking  │  │ Position Finance│  │  Yield Strategy │         │
@@ -137,7 +137,7 @@ pub struct PositionNFT {
 
 #### Option A: Custom Lending Pool
 
-Build P&L-native lending:
+Build PNL-native lending:
 
 ```rust
 // Simplified lending pool structure
@@ -219,7 +219,7 @@ Incentivize liquidity provision for launched tokens:
 ```
 Token graduates → Creates Raydium/Meteora LP
         ↓
-P&L creates LP staking pool
+PNL creates LP staking pool
         ↓
 LP providers stake LP tokens
         ↓
@@ -309,7 +309,7 @@ pub fn buy_yes_with_lst(
 
 ## Category 5: Yield Aggregation
 
-### P&L Yield Vaults
+### PNL Yield Vaults
 
 Deploy idle funds into yield strategies:
 
@@ -553,7 +553,7 @@ Platform Revenue:
 
 ## Conclusion
 
-P&L can evolve from a prediction market into a **full DeFi ecosystem** by:
+PNL can evolve from a prediction market into a **full DeFi ecosystem** by:
 
 1. **$PNL Staking** - Already planned, creates token demand
 2. **Position NFTs** - Unlock composability and secondary markets
