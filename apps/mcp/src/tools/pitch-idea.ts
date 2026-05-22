@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { Badge, headline, code, kvTable, next, reply } from '../lib/output.js';
 
 // ─── pnl_pitch_idea ──────────────────────────────────────────────
 //
@@ -190,23 +191,26 @@ export async function callPitchIdea(rawInput: unknown) {
     throw new Error(`PNL drafts API returned no deepLink — ${data.error || 'unknown error'}`);
   }
 
-  const lines = [
-    'Idea drafted on PNL.',
-    '',
-    `Open this URL to confirm and post the market to Solana mainnet:`,
-    data.deepLink,
-    '',
-    'The /create page on PNL will be pre-filled with everything you provided. You\'ll connect your wallet (or import the keypair from pnl_export_keypair into Phantom first) and sign the create_market transaction in the browser. The market goes live as soon as it confirms on-chain.',
-    '',
-    `Draft id: ${data.draftId} · expires ${data.expiresAt}`,
+  return reply(
+    headline(`${Badge.draft} Drafted · $${input.tokenSymbol.toUpperCase()} — ${input.name}`),
+    `Open this URL to confirm and post the market on Solana mainnet:`,
+    code(data.deepLink),
+    kvTable([
+      ['Idea', input.name],
+      ['Ticker', `$${input.tokenSymbol.toUpperCase()}`],
+      ['Target pool', `${input.targetPoolSol} SOL`],
+      ['Duration', `${input.durationDays} days`],
+      ['Stage', `${input.projectStage} · ${input.category}`],
+      input.provenance
+        ? ['Provenance', `${input.provenance.source}${input.provenance.timestamp ? ' · ' + input.provenance.timestamp : ''}`]
+        : (null as any),
+      ['Draft id', `\`${data.draftId}\``],
+      ['Expires', data.expiresAt ?? '—'],
+    ].filter((r): r is [string, string] => Array.isArray(r))),
+    `The /create page is pre-filled with everything above. The user signs the on-chain \`create_market\` transaction in their browser wallet (or imports the keypair from \`pnl_export_keypair\` into Phantom first). Market goes live as soon as the tx confirms (~5-15s on Solana mainnet).`,
     input.provenance
-      ? `\nProvenance attached: ${input.provenance.source} conversation${input.provenance.timestamp ? ` from ${input.provenance.timestamp}` : ''}. Will be displayed on the market page after launch.`
-      : '',
-  ]
-    .filter(Boolean)
-    .join('\n');
-
-  return {
-    content: [{ type: 'text' as const, text: lines }],
-  };
+      ? `_Provenance attached — will be displayed on the market detail page after launch._`
+      : null,
+    next('Open the URL in a browser and confirm.'),
+  );
 }

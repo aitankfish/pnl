@@ -3,6 +3,7 @@ import nacl from 'tweetnacl';
 import bs58 from 'bs58';
 import { randomBytes } from 'node:crypto';
 import { hasWallet, isUnlocked, requireUnlockedKeypair } from '../lib/wallet.js';
+import { Badge, headline, kvTable, next, reply, truncAddress, code } from '../lib/output.js';
 
 // ─── pnl_set_username ────────────────────────────────────────────
 //
@@ -89,31 +90,26 @@ export async function callSetUsername(rawInput: unknown) {
   };
 
   if (res.status === 409) {
-    return {
-      content: [
-        {
-          type: 'text' as const,
-          text: `That username is already taken by another wallet. Suggest the user try a variation (e.g. '${username}_pnl', '${username}2', etc.) and call pnl_set_username again.`,
-        },
-      ],
-    };
+    return reply(
+      headline(`${Badge.warn} Username \`${username}\` already taken.`),
+      `Suggest variations like \`${username}_pnl\`, \`${username}2\`, or different separators — then call \`pnl_set_username\` again.`,
+      next('Pick a different name and re-run.'),
+    );
   }
   if (!res.ok || !data.success) {
     throw new Error(`PNL profile API ${res.status} ${res.statusText}${data.error ? ` — ${data.error}` : ''}`);
   }
 
   const profile = data.data;
-  const lines = [
-    `Username set: ${profile?.username}`,
-    `Wallet: ${profile?.walletAddress}`,
-    profile?.profilePhotoUrl ? `Avatar: ${profile.profilePhotoUrl}` : null,
-    '',
-    `This name will show up on the market detail page for any market you create, instead of the truncated wallet address.`,
-  ]
-    .filter(Boolean)
-    .join('\n');
-
-  return {
-    content: [{ type: 'text' as const, text: lines }],
-  };
+  return reply(
+    headline(`${Badge.ok} Username set · ${profile?.username}`),
+    kvTable([
+      ['Username', profile?.username ?? null],
+      ['Wallet', profile?.walletAddress ? `\`${truncAddress(profile.walletAddress)}\`` : null],
+      ['Avatar', profile?.profilePhotoUrl ? `\`${profile.profilePhotoUrl}\`` : null],
+    ]),
+    profile?.walletAddress ? code(profile.walletAddress) : null,
+    `This name shows on the market detail page for any market you create, in place of the truncated wallet address.`,
+    next('`/pnl-pitch` to post an idea under your new name.'),
+  );
 }

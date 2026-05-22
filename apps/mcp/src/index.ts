@@ -23,6 +23,7 @@ import { pitchIdeaInputSchema, callPitchIdea } from './tools/pitch-idea.js';
 import { setUsernameInputSchema, callSetUsername } from './tools/set-username.js';
 import { unlockInputSchema, callUnlock, lockInputSchema, callLock } from './tools/unlock.js';
 import { restoreInputSchema, callRestore } from './tools/restore.js';
+import { helpInputSchema, callHelp } from './tools/help.js';
 import { runInstall } from './install.js';
 
 const SERVER_NAME = 'pnl-mcp-server';
@@ -49,6 +50,13 @@ async function main(): Promise<void> {
       // alongside the write-prep tools.
       capabilities: { tools: {} },
     },
+  );
+
+  server.tool(
+    'pnl_help',
+    "Show the PNL command reference with every available tool, what it does, and a typical first-run flow. Context-aware — adjusts the suggested next step based on whether the user has a wallet and whether it's unlocked. Use this when the user types '/pnl-help', says 'how do I use PNL', or asks what's possible.",
+    helpInputSchema,
+    async (args) => callHelp(args),
   );
 
   server.tool(

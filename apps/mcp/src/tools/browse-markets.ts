@@ -1,12 +1,8 @@
 import { z } from 'zod';
 import { browseMarkets, marketUrl, type MarketSummary } from '../lib/pnl-api.js';
+import { Badge, headline, table, next, reply } from '../lib/output.js';
 
 // ─── pnl_browse_markets ──────────────────────────────────────────
-//
-// Read-only tool. Lists live (or historical) conviction markets on PNL.
-// Agents call this to answer "what's on PNL right now?" or to find a
-// market to vote on. Returns a compact summary so the agent can decide
-// whether to drill into one with pnl_get_market.
 
 export const browseMarketsInputSchema = {
   status: z
@@ -31,48 +27,36 @@ export const browseMarketsInputSchema = {
 } as const;
 
 const BrowseMarketsInput = z.object(browseMarketsInputSchema);
-export type BrowseMarketsInput = z.infer<typeof BrowseMarketsInput>;
 
-function formatPool(lamports: number | null | undefined): string {
-  if (lamports == null) return '—';
-  const sol = lamports / 1e9;
-  if (sol < 0.001) return '< 0.001 SOL';
-  return `${sol.toFixed(sol < 1 ? 3 : 2)} SOL`;
-}
-
-// The list endpoint reports pool size as either:
-//   - totalYesStake + totalNoStake (numbers, often null pre-vote), OR
-//   - poolBalance (string or number, in lamports)
-// Single-market also exposes yesPool + noPool directly. Sum whatever is
-// present so we always show *something* if the market has any stake.
-function totalPoolLamports(m: MarketSummary): number | null {
-  const yesStake = (m.totalYesStake ?? m.yesPool) ?? null;
-  const noStake = (m.totalNoStake ?? m.noPool) ?? null;
-  if (yesStake != null || noStake != null) {
-    return (yesStake ?? 0) + (noStake ?? 0);
-  }
-  if (m.poolBalance != null) {
+function fmtPool(m: MarketSummary): string {
+  const yes = m.totalYesStake ?? m.yesPool ?? null;
+  const no = m.totalNoStake ?? m.noPool ?? null;
+  let total: number | null = null;
+  if (yes != null || no != null) {
+    total = (yes ?? 0) + (no ?? 0);
+  } else if (m.poolBalance != null) {
     const n = typeof m.poolBalance === 'string' ? Number(m.poolBalance) : m.poolBalance;
-    return Number.isFinite(n) ? n : null;
+    if (Number.isFinite(n)) total = n;
   }
-  return null;
+  if (total == null) return '—';
+  const sol = total / 1e9;
+  if (sol < 0.001) return '< 0.001';
+  if (sol < 1) return sol.toFixed(3);
+  return sol.toFixed(2);
 }
 
-function formatMarket(m: MarketSummary): string {
-  const founder = m.founderDisplayName || m.founderUsername;
-  const yesPct = m.yesPercentage != null ? `${Math.round(m.yesPercentage)}% YES` : '—';
-  const pool = formatPool(totalPoolLamports(m));
-  const votes = m.totalParticipants ?? 0;
-  const status = m.displayStatus || m.status || 'unknown';
-  const symbol = m.tokenSymbol ? `$${m.tokenSymbol}` : null;
-  return [
-    `• ${m.name}${symbol ? ` (${symbol})` : ''}${founder ? ` — by ${founder}` : ''}`,
-    `  status: ${status} · ${yesPct} · pool: ${pool} · ${votes} ${votes === 1 ? 'vote' : 'votes'}${m.timeLeft ? ` · ${m.timeLeft} left` : ''}`,
-    `  url: ${marketUrl(m.id)}`,
-    m.description ? `  "${m.description.replace(/\s+/g, ' ').trim().slice(0, 140)}${m.description.length > 140 ? '…' : ''}"` : null,
-  ]
-    .filter(Boolean)
-    .join('\n');
+function fmtYes(m: MarketSummary): string {
+  return m.yesPercentage != null ? `${Math.round(m.yesPercentage)}%` : '—';
+}
+
+function fmtStatus(m: MarketSummary): string {
+  const s = (m.displayStatus || m.status || '').toLowerCase();
+  if (s.includes('active')) return Badge.live;
+  if (s.includes('yes')) return 'YES';
+  if (s.includes('no')) return 'NO';
+  if (s.includes('refund')) return 'refund';
+  if (s.includes('expired') || s.includes('awaiting')) return Badge.pending;
+  return s || '—';
 }
 
 export async function callBrowseMarkets(rawInput: unknown) {
@@ -85,28 +69,37 @@ export async function callBrowseMarkets(rawInput: unknown) {
   const markets = data.markets ?? [];
 
   if (markets.length === 0) {
-    return {
-      content: [
-        {
-          type: 'text' as const,
-          text: `No markets matched status="${status}" on page ${page}.`,
-        },
-      ],
-    };
+    return reply(
+      headline(`No ${status === 'all' ? '' : status + ' '}markets on page ${page}.`),
+      next(status !== 'all' ? 'Try `status: "all"` to include resolved + expired.' : 'No markets on PNL yet — be the first to plant one with `/pnl-pitch`.'),
+    );
   }
 
-  const header = `${markets.length} market${markets.length === 1 ? '' : 's'} (status=${status}, page=${page}${data.total ? `, ${data.total} total` : ''}):`;
-  const body = markets.map(formatMarket).join('\n\n');
-  const more = data.hasMore
-    ? `\n\nMore markets available — call again with page=${page + 1}.`
-    : '';
+  const tableRows = markets.map((m) => {
+    const symbol = m.tokenSymbol ? `$${m.tokenSymbol}` : '—';
+    const founder = m.founderDisplayName || m.founderUsername || '—';
+    return [
+      `**${m.name}**${m.name.length > 28 ? '' : ''}`,
+      symbol,
+      fmtStatus(m),
+      fmtYes(m),
+      fmtPool(m) + ' SOL',
+      String(m.totalParticipants ?? 0),
+      founder,
+    ];
+  });
 
-  return {
-    content: [
-      {
-        type: 'text' as const,
-        text: `${header}\n\n${body}${more}\n\n— Raw JSON —\n${JSON.stringify(data, null, 2)}`,
-      },
-    ],
-  };
+  const urls = markets
+    .map((m) => `- \`${m.name}\` → ${marketUrl(m.id)}`)
+    .join('\n');
+
+  const headerLine = `${markets.length} ${status === 'all' ? '' : status + ' '}market${markets.length === 1 ? '' : 's'}${data.total ? ` of ${data.total}` : ''} · page ${page}`;
+
+  return reply(
+    headline(headerLine),
+    table(['Market', 'Ticker', 'Status', 'YES', 'Pool', 'Votes', 'Founder'], tableRows),
+    urls,
+    data.hasMore ? `_More available — call again with \`page: ${page + 1}\`._` : null,
+    next('`/pnl-get <id>` (or ask) for full detail, `/pnl-pitch` to post your own.'),
+  );
 }

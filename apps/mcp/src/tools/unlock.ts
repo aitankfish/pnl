@@ -1,20 +1,9 @@
 import { z } from 'zod';
 import { hasWallet, unlockWith, lock, unlockStatus } from '../lib/wallet.js';
 import { promptPassphrase } from '../lib/passphrase.js';
+import { Badge, headline, inline, next, reply, truncAddress } from '../lib/output.js';
 
 // ─── pnl_unlock / pnl_lock ───────────────────────────────────────
-//
-// Two tools that gate every signing operation. The wallet is locked
-// by default at process start. The user must explicitly unlock with
-// their passphrase before any tool that signs (pnl_set_username,
-// pnl_export_keypair, future Phase B autosign).
-//
-// Passphrase NEVER comes through tool args — it's pulled from the
-// PNL_PASSPHRASE env var or via an OS-native dialog. The agent's
-// chat transcript never sees it.
-//
-// Auto-locks after ttl_minutes (default 5, max 60). A new
-// pnl_unlock call refreshes the TTL.
 
 export const unlockInputSchema = {
   ttlMinutes: z
@@ -24,7 +13,7 @@ export const unlockInputSchema = {
     .max(60)
     .optional()
     .describe(
-      'How long to keep the wallet unlocked in this MCP-server process, in minutes. Default 5. Max 60. The unlocked secret is wiped from memory on TTL expiry, on pnl_lock, and on process exit.',
+      'How long to keep the wallet unlocked, in minutes. Default 5, max 60. The cached secret is wiped on TTL expiry, on pnl_lock, and on process exit.',
     ),
 } as const;
 
@@ -35,18 +24,13 @@ export async function callUnlock(rawInput: unknown) {
   const ttl = ttlMinutes ?? 5;
 
   if (!hasWallet()) {
-    return {
-      content: [
-        {
-          type: 'text' as const,
-          text: 'No PNL wallet on this machine. Run pnl_init first, or pnl_restore if you have a BIP39 mnemonic from a previous machine.',
-        },
-      ],
-    };
+    return reply(
+      headline('No PNL wallet to unlock.'),
+      `Run ${inline('pnl_init')} first to create one, or ${inline('pnl_restore')} if you have a BIP39 mnemonic.`,
+      next('`/pnl-init` or `/pnl-restore`.'),
+    );
   }
 
-  // promptPassphrase pulls from PNL_PASSPHRASE env or pops the OS
-  // dialog. The agent never sees what the user types.
   let passphrase: string;
   try {
     passphrase = promptPassphrase({
@@ -54,39 +38,25 @@ export async function callUnlock(rawInput: unknown) {
       prompt: 'Enter your PNL wallet passphrase to unlock for signing:',
     });
   } catch (e) {
-    return {
-      content: [
-        {
-          type: 'text' as const,
-          text: `Couldn't read the passphrase. ${e instanceof Error ? e.message : String(e)}`,
-        },
-      ],
-    };
+    return reply(
+      headline(`${Badge.err} Couldn't read passphrase.`),
+      e instanceof Error ? e.message : String(e),
+    );
   }
 
   try {
     const { address } = unlockWith(passphrase, ttl);
-    return {
-      content: [
-        {
-          type: 'text' as const,
-          text: [
-            `Wallet unlocked for ${ttl} minute${ttl === 1 ? '' : 's'}.`,
-            `Address: ${address}`,
-            'You can now sign transactions (pnl_set_username, pnl_export_keypair, future write-prep tools). Call pnl_lock to clear the cached secret early.',
-          ].join('\n'),
-        },
-      ],
-    };
+    return reply(
+      headline(`${Badge.unlocked} ${truncAddress(address)} unlocked for ${ttl}m`),
+      `Signing tools (\`pnl_set_username\`, \`pnl_export_keypair\`, future write-prep) are available until lock expires.`,
+      next('`/pnl-pitch` to post an idea, or `/pnl-lock` to wipe early.'),
+    );
   } catch (e) {
-    return {
-      content: [
-        {
-          type: 'text' as const,
-          text: e instanceof Error ? e.message : String(e),
-        },
-      ],
-    };
+    return reply(
+      headline(`${Badge.err} Unlock failed.`),
+      e instanceof Error ? e.message : String(e),
+      next('Re-run `/pnl-unlock` to try again.'),
+    );
   }
 }
 
@@ -95,14 +65,12 @@ export const lockInputSchema = {} as const;
 export async function callLock(_rawInput: unknown) {
   const before = unlockStatus();
   lock();
-  return {
-    content: [
-      {
-        type: 'text' as const,
-        text: before.unlocked
-          ? 'Wallet locked. The cached secret has been wiped from memory. Sign again? Run pnl_unlock first.'
-          : 'Wallet was already locked.',
-      },
-    ],
-  };
+  return reply(
+    headline(
+      before.unlocked
+        ? `${Badge.locked} Wallet locked. Cached secret wiped from memory.`
+        : `${Badge.locked} Wallet was already locked.`,
+    ),
+    before.unlocked ? next('Run `/pnl-unlock` next time you need to sign.') : null,
+  );
 }
