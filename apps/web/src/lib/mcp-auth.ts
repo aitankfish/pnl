@@ -99,7 +99,14 @@ export function verifyMcpSignature(req: SignedRequest, challenge: string): Verif
  *  and the backend stay in lockstep — any drift between the two
  *  causes verification to fail loudly. */
 export function challenge(
-  kind: 'build-create' | 'build-vote' | 'complete-create' | 'complete-vote' | 'profile',
+  kind:
+    | 'build-create'
+    | 'build-vote'
+    | 'build-claim'
+    | 'complete-create'
+    | 'complete-vote'
+    | 'complete-claim'
+    | 'profile',
   fingerprint: string,
   nonce: string,
 ): string {
