@@ -424,6 +424,13 @@ export async function GET(
 
       // Social/engagement metrics
       favoriteCount: market.favoriteCount || 0,
+
+      // Optional "born in <agent>" provenance attached when the market
+      // was drafted by an agent (Claude Code / Cursor / Cline / Codex)
+      // and the user chose to share the originating context. Null on
+      // every browser-created market and on agent markets where the
+      // user opted out.
+      provenance: (project as { provenance?: unknown })?.provenance ?? null,
     };
 
     logger.info('Fetched market details', { marketId: id });

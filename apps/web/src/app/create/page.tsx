@@ -226,6 +226,12 @@ export default function CreatePage() {
   // and avoids re-fetching across re-renders.
   const [draftLoaded, setDraftLoaded] = useState<boolean>(false);
   const [draftError, setDraftError] = useState<string | null>(null);
+  // When an agent (MCP) drafts a market, it can optionally attach a
+  // provenance record — the conversation excerpt + code snippet that
+  // birthed the idea. Keep it in state so we can pass it back to
+  // /api/projects/create on submit, where it joins the Project doc
+  // and surfaces on the market detail page as "Born in <agent> on <date>".
+  const [draftProvenance, setDraftProvenance] = useState<Record<string, unknown> | null>(null);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [currentStep, setCurrentStep] = useState<StepId>(1);
   const [furthestStep, setFurthestStep] = useState<StepId>(1);
@@ -268,10 +274,14 @@ export default function CreatePage() {
         }
         const json = (await res.json()) as {
           success: boolean;
-          data?: { payload?: Record<string, unknown> };
+          data?: { payload?: Record<string, unknown>; provenance?: Record<string, unknown> };
         };
         const payload = json?.data?.payload;
+        const provenance = json?.data?.provenance;
         if (!payload || cancelled) return;
+        if (provenance && typeof provenance === 'object') {
+          setDraftProvenance(provenance);
+        }
         setFormData((prev) => ({
           ...prev,
           name: typeof payload.name === 'string' ? payload.name : prev.name,
@@ -429,6 +439,12 @@ export default function CreatePage() {
       apiFormData.append('socialLinks', JSON.stringify(formData.socialLinks));
       apiFormData.append('additionalNotes', formData.additionalNotes || '');
       apiFormData.append('creatorWalletAddress', primaryWallet.address);
+      // If this market was drafted by an agent (via MCP) and carried
+      // a provenance record, thread it through so it lands on the
+      // Project doc and shows up on the market detail page.
+      if (draftProvenance) {
+        apiFormData.append('provenance', JSON.stringify(draftProvenance));
+      }
       if (formData.projectImage) apiFormData.append('projectImage', formData.projectImage);
       if (formData.projectDocument) apiFormData.append('projectDocument', formData.projectDocument);
       if (formData.pitchVideo) apiFormData.append('pitchVideo', formData.pitchVideo);

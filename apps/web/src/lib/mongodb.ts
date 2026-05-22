@@ -150,6 +150,18 @@ const ProjectSchema = new mongoose.Schema({
     type: [String],
     default: [],
   },
+  // Optional "tribute to the idea" record — attached when the market
+  // was drafted by an agent (Claude Code / Cursor / Cline / Codex)
+  // and the user opted in to sharing the originating context. Pinned
+  // metadata-side at draft-creation; surfaced on the market detail
+  // page as "Born in <agent> on <date>" with the excerpt + code
+  // snippet on expand.
+  provenance: {
+    source: { type: String },              // 'claude-code' | 'cursor' | 'cline' | 'codex' | 'other'
+    excerpt: { type: String, maxlength: 4000 },
+    codeSnippet: { type: String, maxlength: 4000 },
+    timestamp: { type: String },           // ISO 8601 from the agent's clock
+  },
   status: {
     type: String,
     enum: ['pending', 'active', 'resolved', 'cancelled'],

@@ -223,6 +223,19 @@ export const POST = withAuth(async (request, authUser) => {
     await connectToDatabase();
     logger.info('📊 API: MongoDB connection successful');
     
+    // Parse optional provenance — present when the market was drafted
+    // by an agent via MCP. /create page threads it through from the
+    // MarketDraft; the form serializes it as JSON.
+    let provenance: Record<string, unknown> | undefined;
+    if (body.provenance) {
+      try {
+        provenance = typeof body.provenance === 'string' ? JSON.parse(body.provenance) : body.provenance;
+        if (typeof provenance !== 'object' || provenance === null) provenance = undefined;
+      } catch {
+        provenance = undefined;
+      }
+    }
+
     // Create project document matching the MongoDB schema
     logger.info('📊 API: Creating project document');
     const projectDoc = new Project({
@@ -240,6 +253,7 @@ export const POST = withAuth(async (request, authUser) => {
       galleryImageUrls: galleryImageUris,
       pitchVideoUrl: pitchVideoUri,
       documentUrls: documentUri ? [documentUri] : [],
+      provenance,
       status: 'active',
       createdAt: new Date(),
       updatedAt: new Date(),

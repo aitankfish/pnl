@@ -22,6 +22,7 @@ import { getPositionPDA, getMarketVaultPDA } from '@/lib/anchor-program';
 import { PublicKey } from '@solana/web3.js';
 import CountdownTimer from '@/components/CountdownTimer';
 import MarketImage from '@/components/MarketImage';
+import ProvenanceBlock from '@/components/ProvenanceBlock';
 import { parseError } from '@/lib/utils/errorParser';
 import { useWallet } from '@/hooks/useWallet';
 import useSWR from 'swr';
@@ -1759,6 +1760,11 @@ export default function MarketDetailClient({
               >
                 {market.description}
               </p>
+
+              {/* Provenance — rendered only for agent-drafted markets
+                  whose founder chose to share the originating context.
+                  Renders nothing for browser-created markets. */}
+              <ProvenanceBlock provenance={(market as { provenance?: unknown })?.provenance as never} />
 
               {/* Linked research papers — if the founder cited any, surface
                   the thesis prominently and any foundations below. */}
