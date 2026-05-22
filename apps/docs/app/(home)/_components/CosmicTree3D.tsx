@@ -94,7 +94,7 @@ const LEAF_ANCHORS: [number, number, number][] = [
   [0.0, 6.9, 0], [-2.1, 6.0, 0], [1.5, 6.3, 0],
 ];
 
-function Branch({ data, startTime }: { data: BranchData; startTime: number }) {
+function Branch({ data, startTime, isStatic }: { data: BranchData; startTime: number; isStatic: boolean }) {
   const meshRef = useRef<THREE.Mesh>(null);
   const matRef = useRef<THREE.MeshBasicMaterial>(null);
 
@@ -102,10 +102,12 @@ function Branch({ data, startTime }: { data: BranchData; startTime: number }) {
     const vectors = data.points.map(([x, y, z]) => new THREE.Vector3(x, y, z));
     const c = new THREE.CatmullRomCurve3(vectors, false, 'catmullrom', 0.5);
     const g = new THREE.TubeGeometry(c, 60, data.radius, 8, false);
-    // Start hidden — growth animation reveals triangles progressively via setDrawRange
-    g.setDrawRange(0, 0);
+    // In intro mode the growth animation reveals triangles progressively via setDrawRange,
+    // so start hidden. In static mode (docs cover, remount on back-nav) the tree must
+    // appear fully drawn from frame 1 — leave the default full draw range untouched.
+    if (!isStatic) g.setDrawRange(0, 0);
     return { curve: c, geometry: g };
-  }, [data]);
+  }, [data, isStatic]);
 
   // Gradient along the branch via vertex colors
   useEffect(() => {
@@ -130,7 +132,10 @@ function Branch({ data, startTime }: { data: BranchData; startTime: number }) {
   // River-flow growth — progressively reveal the tube from base to tip via setDrawRange.
   // TubeGeometry emits vertices in order along the curve (ring by ring), so advancing the draw range
   // paints the tube as if liquid were rising through the stem.
+  // In static mode this hook is a no-op (the geometry is already at full draw range), saving
+  // ~50 per-frame setDrawRange writes on the docs cover.
   useFrame(({ clock }) => {
+    if (isStatic) return;
     if (!meshRef.current) return;
     const elapsed = clock.elapsedTime - startTime - data.delay;
     const duration = 3.0; // slower, more deliberate flow
@@ -277,6 +282,7 @@ function Mist() {
 function RootGlow({
   startTime,
   onClick,
+  isStatic,
 }: {
   startTime: number;
   // Optional click handler. When provided, the seed becomes the
@@ -284,6 +290,9 @@ function RootGlow({
   // docs from the cover page. The cursor changes to pointer on hover
   // and the seed pulses brighter to signal affordance.
   onClick?: () => void;
+  // Static mode skips the initial fade-in (seed visible at full pulse from frame 1)
+  // but the ambient pulse + hover brighten continue — those are part of "energy flowing".
+  isStatic: boolean;
 }) {
   const meshRef = useRef<THREE.Mesh>(null);
   const matRef = useRef<THREE.MeshBasicMaterial>(null);
@@ -292,12 +301,13 @@ function RootGlow({
   useFrame(({ camera, clock }) => {
     if (meshRef.current) meshRef.current.lookAt(camera.position);
     if (matRef.current) {
-      const elapsed = clock.elapsedTime - startTime;
-      const t = Math.max(0, Math.min(1, elapsed / 1.6));
-      const eased = 1 - Math.pow(1 - t, 3);
-      // Brighter on hover; a slow ambient pulse the rest of the time so
-      // it reads as a living focal point rather than a static disc.
-      const pulse = 0.92 + Math.sin((clock.elapsedTime - startTime) * 1.4) * 0.06;
+      // In static mode the fade-in is collapsed to 1 — the seed is alive from frame 1.
+      const eased = isStatic
+        ? 1
+        : 1 - Math.pow(1 - Math.max(0, Math.min(1, (clock.elapsedTime - startTime) / 1.6)), 3);
+      // Slow ambient pulse so it reads as a living focal point rather than a static disc;
+      // hover brightens to full to signal the seed is the interactive door.
+      const pulse = 0.92 + Math.sin(clock.elapsedTime * 1.4) * 0.06;
       const target = hovered ? 1 : pulse * 0.95;
       matRef.current.opacity = eased * target;
     }
@@ -330,7 +340,7 @@ function RootGlow({
         ref={matRef}
         color="#e89628"
         transparent
-        opacity={0}
+        opacity={isStatic ? 0.95 : 0}
         toneMapped={false}
       />
     </mesh>
@@ -419,7 +429,7 @@ const ROOT_CAPILLARIES: { points: [number, number, number][]; startRadius: numbe
   { points: [[1.75, -7.55, -0.4], [2.0, -7.75, -0.35], [2.15, -7.9, -0.3]], startRadius: 0.007, endRadius: 0.0025 },
 ];
 
-function RootCapillary({ data, startTime }: { data: (typeof ROOT_CAPILLARIES)[number]; startTime: number }) {
+function RootCapillary({ data, startTime, isStatic }: { data: (typeof ROOT_CAPILLARIES)[number]; startTime: number; isStatic: boolean }) {
   const matRef = useRef<THREE.MeshBasicMaterial>(null);
   const geometry = useMemo(() => {
     const vectors = data.points.map(([x, y, z]) => new THREE.Vector3(x, y, z));
@@ -476,7 +486,9 @@ function RootCapillary({ data, startTime }: { data: (typeof ROOT_CAPILLARIES)[nu
   }, [geometry, data]);
   // Gentle fade-in so the whole root system materializes smoothly on load
   // (no per-capillary staggering — the underground appears as one unified system).
+  // Static mode skips the fade entirely; the material is initialized at settled opacity.
   useFrame(({ clock }) => {
+    if (isStatic) return;
     if (!matRef.current) return;
     const elapsed = clock.elapsedTime - startTime;
     const duration = 1.1;
@@ -487,7 +499,7 @@ function RootCapillary({ data, startTime }: { data: (typeof ROOT_CAPILLARIES)[nu
   });
   return (
     <mesh geometry={geometry} frustumCulled={false}>
-      <meshBasicMaterial ref={matRef} vertexColors transparent opacity={0} toneMapped={false} />
+      <meshBasicMaterial ref={matRef} vertexColors transparent opacity={isStatic ? 0.9 : 0} toneMapped={false} />
     </mesh>
   );
 }
@@ -516,7 +528,7 @@ const LEAF_SHAPE = (() => {
 })();
 
 // Procedural billboard leaves along branches (always face camera → always visible)
-function GreenLeaves({ startTime }: { startTime: number }) {
+function GreenLeaves({ startTime, isStatic }: { startTime: number; isStatic: boolean }) {
   const groupRef = useRef<THREE.Group>(null);
   const LEAVES_PER_BRANCH = 5;
   type Leaf = { pos: THREE.Vector3; size: number; tint: number; delay: number; phase: number; baseRotZ: number };
@@ -556,9 +568,14 @@ function GreenLeaves({ startTime }: { startTime: number }) {
       if (!l) return;
       const mesh = child as THREE.Mesh;
       const mat = mesh.material as THREE.MeshBasicMaterial;
-      const elapsed = clock.elapsedTime - startTime - l.delay;
-      const fade = Math.max(0, Math.min(1, elapsed / 1.2));
-      mat.opacity = fade * 0.96;
+      // Static mode skips the per-leaf fade-in stagger entirely. Opacity is already
+      // initialized at the settled value via the JSX prop below, so we just keep
+      // billboard + wind sway running (foliage breathing is part of "energy flowing").
+      if (!isStatic) {
+        const elapsed = clock.elapsedTime - startTime - l.delay;
+        const fade = Math.max(0, Math.min(1, elapsed / 1.2));
+        mat.opacity = fade * 0.96;
+      }
       // Billboard — face the camera so leaves are always visible
       mesh.lookAt(camera.position);
       // Then add wind sway on top
@@ -577,7 +594,7 @@ function GreenLeaves({ startTime }: { startTime: number }) {
             color={colors[Math.floor(l.tint * colors.length)]}
             side={THREE.DoubleSide}
             transparent
-            opacity={0}
+            opacity={isStatic ? 0.96 : 0}
             toneMapped={false}
             depthWrite={false}
             depthTest={false}
@@ -594,7 +611,7 @@ function GreenLeaves({ startTime }: { startTime: number }) {
 //   (3) travel out along a branch to a leaf tip
 //   (4) escape outward into the universe above
 // High density of particles = many simultaneous journeys, continuously recycling.
-function EnergyPhotons({ startTime }: { startTime: number }) {
+function EnergyPhotons({ startTime, isStatic }: { startTime: number; isStatic: boolean }) {
   const groupRef = useRef<THREE.Group>(null);
   const PHOTON_COUNT = 26;
 
@@ -657,8 +674,12 @@ function EnergyPhotons({ startTime }: { startTime: number }) {
 
   useFrame(({ clock }, delta) => {
     if (!groupRef.current) return;
-    const sceneElapsed = clock.elapsedTime - startTime;
-    const sceneReady = Math.max(0, Math.min(1, (sceneElapsed - 0.8) / 1.2));
+    // In static mode the scene is fully drawn from frame 1, so photons should be
+    // at full brightness immediately. In intro mode they ramp in once the tree
+    // has had a moment to start drawing.
+    const sceneReady = isStatic
+      ? 1
+      : Math.max(0, Math.min(1, ((clock.elapsedTime - startTime) - 0.8) / 1.2));
 
     photons.current.forEach((p, i) => {
       p.t += delta * p.speed;
@@ -766,11 +787,13 @@ function Scene({
   startTime,
   onHover,
   onSeedClick,
+  isStatic,
 }: {
   markets: LiveMarket[];
   startTime: number;
   onHover: (m: LiveMarket | null, px?: number, py?: number) => void;
   onSeedClick?: () => void;
+  isStatic: boolean;
 }) {
   // The whole-tree group rotation that rocked the trunk has been
   // removed — the docs cover wants a static, anchored tree. The
@@ -779,16 +802,16 @@ function Scene({
   // swaying. EnergyPhotons + ChromaticAberration still animate too.
   return (
     <group position={[0, 0.6635, 0]} scale={0.48}>
-      <RootGlow startTime={startTime} onClick={onSeedClick} />
+      <RootGlow startTime={startTime} onClick={onSeedClick} isStatic={isStatic} />
       {ROOT_CAPILLARIES.map((c, i) => (
-        <RootCapillary key={`root-${i}`} data={c} startTime={startTime} />
+        <RootCapillary key={`root-${i}`} data={c} startTime={startTime} isStatic={isStatic} />
       ))}
       {BRANCHES.map((b, i) => (
-        <Branch key={i} data={b} startTime={startTime} />
+        <Branch key={i} data={b} startTime={startTime} isStatic={isStatic} />
       ))}
-      <GreenLeaves startTime={startTime} />
+      <GreenLeaves startTime={startTime} isStatic={isStatic} />
       <Leaves markets={markets} startTime={startTime} onHover={onHover} />
-      <EnergyPhotons startTime={startTime} />
+      <EnergyPhotons startTime={startTime} isStatic={isStatic} />
       <Mist />
     </group>
   );
@@ -831,6 +854,7 @@ export default function CosmicTree3D({
             <Scene
               markets={markets}
               startTime={startTime}
+              isStatic={skipIntro}
               onSeedClick={onSeedClick}
               onHover={(m, x, y) => {
                 if (m && x != null && y != null) setHoverInfo({ market: m, x, y });
