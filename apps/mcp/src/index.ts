@@ -25,10 +25,12 @@ import { unlockInputSchema, callUnlock, lockInputSchema, callLock } from './tool
 import { restoreInputSchema, callRestore } from './tools/restore.js';
 import { helpInputSchema, callHelp } from './tools/help.js';
 import { voteInputSchema, callVote } from './tools/vote.js';
+import { pitchNowInputSchema, callPitchNow } from './tools/pitch-now.js';
+import { voteNowInputSchema, callVoteNow } from './tools/vote-now.js';
 import { runInstall } from './install.js';
 
 const SERVER_NAME = 'pnl-mcp-server';
-const SERVER_VERSION = '0.1.0';
+const SERVER_VERSION = '0.3.0';
 
 // CLI dispatch — when invoked as `pnl-mcp-server install`, run the
 // installer that wires this server into the user's agent configs and
@@ -128,6 +130,20 @@ async function main(): Promise<void> {
     "Stake YES or NO on an existing PNL market. Returns a deep-link URL with the side + amount pre-filled — the user opens it in their browser, confirms the vote panel (already populated), and signs the buy_yes / buy_no transaction with their wallet. Use this when the user says 'vote yes on X', 'fade Y', 'back the AutoImport CLI market', or similar. Phase B will add a local-signing variant for stakes under the autosign cap.",
     voteInputSchema,
     async (args) => callVote(args),
+  );
+
+  server.tool(
+    'pnl_pitch_now',
+    "Autosign create_market. Same payload as pnl_pitch_idea (name, description, ticker, category, type, stage, team size, target pool, duration), but the MCP signs the create_market transaction locally with the encrypted-at-rest keypair and persists the market without bouncing through the browser. The wallet must be unlocked (pnl_unlock) and the creation fee (~0.015 SOL) must be within the autosign cap (defaults 0.05 SOL, overridable per-call via autosignCapSol). Returns the live market URL + tx signature. Use this when the user says 'pitch this on PNL and sign it for me', 'auto-create the market', or after pnl_pitch_idea when they say 'just do it'.",
+    pitchNowInputSchema,
+    async (args) => callPitchNow(args),
+  );
+
+  server.tool(
+    'pnl_vote_now',
+    "Autosign buy_yes / buy_no. Same shape as pnl_vote (marketId + side + amountSol) but the MCP signs the vote transaction locally and persists the trade without bouncing through the browser. Requires an unlocked wallet and the stake to be within the autosign cap (defaults 0.05 SOL, overridable per-call). Returns the on-chain tx signature + Solscan link. Use this when the user says 'vote yes on X for me', 'stake 0.02 NO on the AutoImport market', or similar autonomous-vote intent. For larger stakes, fall back to pnl_vote (deep-link).",
+    voteNowInputSchema,
+    async (args) => callVoteNow(args),
   );
 
   server.tool(

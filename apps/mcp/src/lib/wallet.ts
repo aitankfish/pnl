@@ -31,8 +31,19 @@ const WALLET_PATH = join(PNL_DIR, 'wallet.enc');
 const CONFIG_PATH = join(PNL_DIR, 'config.json');
 const EXPORTS_DIR = join(PNL_DIR, 'exports');
 
-const DEFAULT_RPC = 'https://api.mainnet-beta.solana.com';
+// Default RPC is the hosted MCP proxy on pnl.market, which forwards to
+// our paid Helius endpoint. The public Solana mainnet RPC is heavily
+// rate-limited (429s during autosign send + confirmation polling) and
+// is not a viable default for the autosign create_market / vote flows.
+// Power users override via PNL_RPC_URL.
+const DEFAULT_RPC = 'https://pnl.market/api/mcp/rpc';
 const DEFAULT_AUTOSIGN_CAP_SOL = 0.05;
+
+/** True iff the currently active RPC URL is our hosted MCP proxy.
+ *  Tools use this to decide whether to surface the BYO-Helius hint. */
+export function isUsingHostedRpc(): boolean {
+  return getRpcUrl() === DEFAULT_RPC && !process.env.PNL_RPC_URL?.trim();
+}
 
 // Solana / Phantom derivation path. Matches what `solana-keygen new`
 // and Phantom's "Add account" flow use, so a mnemonic generated here

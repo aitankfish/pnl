@@ -6,6 +6,7 @@ import {
   getBalanceSol,
   loadConfig,
   unlockWith,
+  isUsingHostedRpc,
   WALLET_PATHS,
 } from '../lib/wallet.js';
 import { promptPassphrase } from '../lib/passphrase.js';
@@ -99,6 +100,9 @@ export async function callInit(rawInput: unknown) {
       `2. Fund the wallet by sending ≥ 0.05 SOL to the deposit address from any Solana wallet.`,
       `3. The wallet is unlocked for 30 minutes. After that, run \`/pnl-unlock\` to sign more transactions.`,
     ].join('\n'),
+    isUsingHostedRpc()
+      ? `_RPC: pnl.market (hosted) — heavy use? Grab a free Helius key at helius.dev and set ${inline('PNL_RPC_URL')} in your Claude Code mcp config to skip the shared rate limit._`
+      : null,
     `Files: ${inline(WALLET_PATHS.wallet)} (mode 0600) · ${inline(WALLET_PATHS.exports)} (mode 0700)`,
     next('`/pnl-wallet` to see the address again, `/pnl-pitch` once funded.'),
   );

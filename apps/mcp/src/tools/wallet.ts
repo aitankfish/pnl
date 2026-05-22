@@ -4,6 +4,7 @@ import {
   hasWallet,
   loadConfig,
   getRpcUrl,
+  isUsingHostedRpc,
   unlockStatus,
 } from '../lib/wallet.js';
 import { PublicKey } from '@solana/web3.js';
@@ -41,6 +42,9 @@ export async function callWallet(_rawInput: unknown) {
     ? `${Badge.unlocked} ${Math.floor(secondsRemaining / 60)}m ${secondsRemaining % 60}s remaining`
     : `${Badge.locked} — run \`/pnl-unlock\` before signing`;
 
+  const hosted = isUsingHostedRpc();
+  const rpcLabel = hosted ? `\`${getRpcUrl()}\` (hosted)` : `\`${getRpcUrl()}\``;
+
   return reply(
     headline(`${truncAddress(address)} · ${balance} · ${unlocked ? Badge.unlocked : Badge.locked}`),
     kvTable([
@@ -48,10 +52,13 @@ export async function callWallet(_rawInput: unknown) {
       ['Balance', balance],
       ['Status', lockState],
       ['Autosign cap', `${config.autosignCapSol} SOL`],
-      ['RPC', `\`${getRpcUrl()}\``],
+      ['RPC', rpcLabel],
     ]),
+    hosted
+      ? `_RPC: pnl.market (hosted) — heavy use? Grab a free Helius key at helius.dev and set ${inline('PNL_RPC_URL')} in your Claude Code mcp config to skip the shared rate limit._`
+      : null,
     unlocked
-      ? next('Pitch an idea with `/pnl-pitch` or vote with `/pnl-vote` (coming in Phase B).')
+      ? next('Pitch an idea with `/pnl-pitch` or vote with `/pnl-vote`.')
       : next('Run `/pnl-unlock` to enable signing.'),
   );
 }

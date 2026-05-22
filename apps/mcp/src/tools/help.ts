@@ -48,7 +48,7 @@ export async function callHelp(_rawInput: unknown) {
         ['`/pnl-name`', 'Claim or rename your PNL username (signature-auth, no Privy / no email)'],
       ],
     ),
-    heading('Markets'),
+    heading('Markets — deep-link mode (browser signs)'),
     table(
       ['Command', 'What it does'],
       [
@@ -57,6 +57,15 @@ export async function callHelp(_rawInput: unknown) {
         ['`/pnl-vote`', 'Stake YES or NO on an existing market (deep-link to confirm in wallet)'],
       ],
     ),
+    heading('Markets — autosign mode (MCP signs locally, no browser)'),
+    table(
+      ['Command', 'What it does'],
+      [
+        ['`/pnl-pitch-now`', `Pitch + create the market in one shot (wallet must be ${Badge.unlocked}, cost within autosign cap)`],
+        ['`/pnl-vote-now`', `Stake YES or NO without leaving the terminal (wallet must be ${Badge.unlocked}, amount within autosign cap)`],
+      ],
+    ),
+    `_Autosign cap defaults to 0.05 SOL (override per-call with \`autosignCapSol\` or update \`~/.config/pnl/config.json\`)._`,
     heading('Typical first run'),
     [
       '1. `/pnl-init` — set up wallet, write down the 12-word phrase',

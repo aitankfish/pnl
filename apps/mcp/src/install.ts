@@ -150,7 +150,7 @@ export async function runInstall(argv: string[]): Promise<number> {
 
   if (!noSkills) {
     planLines.push('');
-    planLines.push(`Will also copy the slash-command skills (pnl-init, pnl-wallet, pnl-browse, pnl-pitch, pnl-name, pnl-export) to ~/.claude/skills/`);
+    planLines.push(`Will also copy the slash-command skills (pnl-init, pnl-wallet, pnl-unlock, pnl-lock, pnl-restore, pnl-export, pnl-name, pnl-browse, pnl-pitch, pnl-pitch-now, pnl-vote, pnl-vote-now, pnl-help) to ~/.claude/skills/`);
   }
 
   logBlock('Plan', planLines.join('\n'));
