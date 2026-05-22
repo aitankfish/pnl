@@ -15,10 +15,16 @@ import { ImageResponse } from 'next/og';
 export const OG_SIZE = { width: 1200, height: 630 } as const;
 export const OG_CONTENT_TYPE = 'image/png';
 
-// Load a TTF/WOFF2 from Google Fonts at request time. Edge runtime
-// only has Web APIs (no `fs`), so we fetch the font binary inline.
-// `text` lets Google subset the font to just the glyphs we need —
-// keeps the response under 50KB even for variable fonts like Fraunces.
+// Load a TTF from Google Fonts at request time. Edge runtime only has
+// Web APIs (no `fs`), so we fetch the font binary inline. `text` lets
+// Google subset the font to just the glyphs we need, keeping the
+// response under 50KB even for variable fonts like Fraunces.
+//
+// Important: do NOT send a modern browser User-Agent. Google's css2
+// endpoint serves WOFF2 to browsers, but Satori (the engine under
+// next/og) only accepts TTF / OTF — feeding it WOFF2 throws
+// "Unsupported OpenType signature wOF2". With no UA, Google falls back
+// to TTF for the same URL, which Satori parses cleanly.
 async function loadGoogleFont(
   family: string,
   text: string,
@@ -28,15 +34,13 @@ async function loadGoogleFont(
   const ital = italic ? '1,' : '0,';
   const familyParam = `${family}:ital,wght@${ital}${weight}`;
   const url = `https://fonts.googleapis.com/css2?family=${encodeURIComponent(familyParam)}&text=${encodeURIComponent(text)}`;
-  const cssRes = await fetch(url, {
-    // Faking a modern browser UA so Google returns WOFF2 (Satori handles it).
-    headers: {
-      'User-Agent':
-        'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120 Safari/537.36',
-    },
-  });
+  const cssRes = await fetch(url);
   const css = await cssRes.text();
-  const match = css.match(/src:\s*url\((https:[^)]+)\)/);
+  // Capture the truetype URL specifically — even without the UA hack
+  // Google sometimes inlines a woff/woff2 fallback alongside the ttf.
+  const match =
+    css.match(/src:\s*url\((https:[^)]+)\)\s*format\(['"]truetype['"]\)/) ||
+    css.match(/src:\s*url\((https:[^)]+)\)/);
   if (!match) throw new Error(`OG: failed to parse font url for ${family}`);
   return fetch(match[1]).then((r) => r.arrayBuffer());
 }
