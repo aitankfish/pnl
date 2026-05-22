@@ -80,7 +80,7 @@ async function verifyTxOnChain(
   }
 
   const accountKeys = tx.transaction.message.getAccountKeys();
-  const programId = getProgramIdForNetwork(SOLANA_NETWORK as 'mainnet-beta' | 'devnet');
+  const programId = getProgramIdForNetwork(SOLANA_NETWORK as 'mainnet-beta' | 'devnet').toBase58();
   const programInvolved = accountKeys.staticAccountKeys.some((k) => k.toBase58() === programId);
   if (!programInvolved) return { ok: false, status: 400, reason: 'transaction does not invoke the PNL program' };
 

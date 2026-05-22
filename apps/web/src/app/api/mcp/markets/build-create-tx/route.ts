@@ -23,6 +23,7 @@ import { buildCreateMarketTransaction, extractIPFSCid } from '@/lib/anchor-progr
 import { ipfsUtils } from '@/lib/ipfs';
 import { createClientLogger } from '@/lib/logger';
 import { checkRateLimit } from '@/lib/auth/rate-limit';
+import { SOLANA_NETWORK } from '@/config/solana';
 
 export const dynamic = 'force-dynamic';
 
@@ -122,7 +123,7 @@ export async function POST(request: NextRequest) {
         targetPool,
         marketDuration,
         metadataUri,
-        network: 'mainnet-beta',
+        network: SOLANA_NETWORK as 'mainnet-beta' | 'devnet',
       });
 
     // Serialize for transport — requireAllSignatures: false so the
