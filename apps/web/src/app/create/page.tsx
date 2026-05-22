@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, useMemo, useRef } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { Loader2, X, Check } from 'lucide-react';
 import { authFetch } from '@/lib/auth/fetch-with-auth';
@@ -216,9 +216,16 @@ const DURATIONS: DropdownOption[] = [
 
 export default function CreatePage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const draftId = searchParams?.get('draft') ?? null;
   const { showToast } = useToast();
   const [kind, setKind] = useState<'project' | 'research'>('project');
   const [formData, setFormData] = useState<ProjectFormData>(initialFormData);
+  // Draft prefill state — set once on mount when ?draft=<id> is present.
+  // Lets us show a small "pre-filled from agent draft" badge in the UI
+  // and avoids re-fetching across re-renders.
+  const [draftLoaded, setDraftLoaded] = useState<boolean>(false);
+  const [draftError, setDraftError] = useState<string | null>(null);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [currentStep, setCurrentStep] = useState<StepId>(1);
   const [furthestStep, setFurthestStep] = useState<StepId>(1);
@@ -241,6 +248,62 @@ export default function CreatePage() {
   useEffect(() => {
     setIsMounted(true);
   }, []);
+
+  // ─── Draft pre-fill ───────────────────────────────────────────
+  // When the user arrives at /create?draft=<id> (typically from an MCP
+  // tool's deep-link), fetch the agent-prepared payload and merge it
+  // into formData. We only run this once and only when draftId is
+  // present — re-mounting or query-param changes shouldn't reset the
+  // form mid-edit.
+  useEffect(() => {
+    if (!draftId || draftLoaded) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await fetch(`/api/markets/drafts/${encodeURIComponent(draftId)}`);
+        if (!res.ok) {
+          const reason = res.status === 404 ? 'expired or unknown' : `error ${res.status}`;
+          if (!cancelled) setDraftError(`Couldn't load that draft (${reason}). You can still fill the form by hand.`);
+          return;
+        }
+        const json = (await res.json()) as {
+          success: boolean;
+          data?: { payload?: Record<string, unknown> };
+        };
+        const payload = json?.data?.payload;
+        if (!payload || cancelled) return;
+        setFormData((prev) => ({
+          ...prev,
+          name: typeof payload.name === 'string' ? payload.name : prev.name,
+          description: typeof payload.description === 'string' ? payload.description : prev.description,
+          category: typeof payload.category === 'string' ? payload.category : prev.category,
+          projectType: typeof payload.projectType === 'string' ? payload.projectType : prev.projectType,
+          projectStage: typeof payload.projectStage === 'string' ? payload.projectStage : prev.projectStage,
+          location: typeof payload.location === 'string' ? payload.location : prev.location,
+          teamSize: payload.teamSize != null ? String(payload.teamSize) : prev.teamSize,
+          tokenSymbol: typeof payload.tokenSymbol === 'string' ? payload.tokenSymbol : prev.tokenSymbol,
+          targetPool: payload.targetPoolSol != null ? String(payload.targetPoolSol) : prev.targetPool,
+          marketDuration: payload.durationDays != null ? String(payload.durationDays) : prev.marketDuration,
+          socialLinks: {
+            ...prev.socialLinks,
+            ...((payload.socialLinks && typeof payload.socialLinks === 'object')
+              ? (payload.socialLinks as Partial<typeof prev.socialLinks>)
+              : {}),
+          },
+        }));
+        setDraftLoaded(true);
+      } catch (e) {
+        if (!cancelled) {
+          setDraftError(
+            `Couldn't load that draft — ${e instanceof Error ? e.message : 'network error'}. You can still fill the form by hand.`,
+          );
+        }
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [draftId, draftLoaded]);
 
   // Wallet balance via the shared SWR hook — same source of truth as navbar,
   // sidebar, and /wallet. null preserves the prior "haven't fetched yet" semantic

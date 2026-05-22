@@ -19,6 +19,7 @@ import { getMarketInputSchema, callGetMarket } from './tools/get-market.js';
 import { initInputSchema, callInit } from './tools/init.js';
 import { walletInputSchema, callWallet } from './tools/wallet.js';
 import { exportKeypairInputSchema, callExportKeypair } from './tools/export-keypair.js';
+import { pitchIdeaInputSchema, callPitchIdea } from './tools/pitch-idea.js';
 
 const SERVER_NAME = 'pnl-mcp-server';
 const SERVER_VERSION = '0.1.0';
@@ -66,6 +67,13 @@ async function main(): Promise<void> {
     "Reveal the local PNL secret key in base58 (Phantom-import format) and JSON-array (Solana CLI format). Requires confirm: 'EXPORT' to prevent accidental disclosure. Use only when the user explicitly asks to back up their key, move their wallet to Phantom/Solflare/etc., or migrate to another machine.",
     exportKeypairInputSchema,
     async (args) => callExportKeypair(args),
+  );
+
+  server.tool(
+    'pnl_pitch_idea',
+    "Pitch a new idea to PNL as a conviction market. The agent supplies the name, description, ticker symbol, category/type/stage, team size, target pool in SOL, duration in days, and optional provenance (the conversation excerpt + code snippet that birthed the idea). Returns a /create?draft=<id> deep-link the user opens in their browser to confirm + sign the create_market transaction in their own wallet. v0.2 is deep-link only -- v0.3 will add local autosigning for under-cap transactions. Use this when the user says 'pitch this on PNL', 'plant this idea', or similar.",
+    pitchIdeaInputSchema,
+    async (args) => callPitchIdea(args),
   );
 
   const transport = new StdioServerTransport();
