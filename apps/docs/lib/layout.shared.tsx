@@ -45,6 +45,9 @@ export const baseOptions: BaseLayoutProps = {
     title: <TreeMark />,
     url: '/',
   },
+  // 'GitHub' as a named text link was dropped — the githubUrl below
+  // renders the official octocat icon in the same nav, and having both
+  // surfaces was redundant.
   links: [
     {
       type: 'main',
@@ -55,12 +58,6 @@ export const baseOptions: BaseLayoutProps = {
       type: 'main',
       text: 'Live site',
       url: 'https://pnl.market',
-      external: true,
-    },
-    {
-      type: 'main',
-      text: 'GitHub',
-      url: 'https://github.com/aitankfish/pnl',
       external: true,
     },
   ],
