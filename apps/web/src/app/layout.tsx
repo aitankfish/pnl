@@ -32,6 +32,11 @@ export const dynamic = 'force-dynamic';
 const BASE_URL = process.env.NEXT_PUBLIC_APP_URL || 'https://pnl.market';
 
 export const metadata: Metadata = {
+  // Required so Next.js resolves opengraph-image.tsx URLs as absolute
+  // https://pnl.market/... rather than http://localhost:10000/... (the
+  // bound port on Render). Without this, X / Discord / Slack scrapers
+  // try to fetch localhost and the share card image renders blank.
+  metadataBase: new URL(BASE_URL),
   title: 'PNL — Plant the idea, watch it grow',
   description: 'A conviction market for ideas. The community stakes YES or NO on what gets tokenized and launched on Solana.',
   manifest: '/manifest.json',
