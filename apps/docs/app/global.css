@@ -1,20 +1,135 @@
+/* fumadocs-ui/style.css is imported directly in app/layout.tsx so Next.js's
+   CSS pipeline picks it up reliably — PostCSS was silently dropping a CSS
+   @import here. */
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
-/* Fumadocs UI styles */
-@import 'fumadocs-ui/style.css';
+/* ════════════════════════════════════════════════════════════════════
+   COSMIC-PLANT THEME
+   ────────────────────────────────────────────────────────────────────
+   Fumadocs reads its color tokens as HSL channels via the unprefixed
+   `--fd-<name>` variables — `hsl(var(--fd-background) / <alpha-value>)`.
+   So every override here is `<H> <S>% <L>%` (no commas, no `hsl()`, no
+   rgb triplets). An earlier iteration used `--color-fd-X` which is the
+   wrong namespace — those vars were silently ignored and the docs
+   pages stayed on Fumadocs defaults while the home page (which uses
+   Tailwind utilities directly) showed the real brand palette.
 
-/* Cosmic-plant palette — match the live app */
-:root {
-  --color-fd-primary: 232 150 96;       /* amber */
-  --color-fd-primary-foreground: 10 8 20; /* deep night */
+   Palette mapping:
+     #0a0814 night    → 253 45% 6%
+     #f4eee4 cream    → 35 41% 93%
+     #e89660 amber    → 23 75% 64%
+     #3f7a42 forest   → 123 32% 36%
+     #ecb48a peach    → 26 71% 73%
+     #d67347 earth    → 17 64% 56%
+     #15102a card-d   → 256 47% 12%
+     #efe7d6 card-l   → 38 49% 89%
+     #211a36 muted-d  → 256 35% 16%
+     #e6dcc7 muted-l  → 37 38% 84%
+   ════════════════════════════════════════════════════════════════════ */
+
+/* CRITICAL: the selectors below use `html` + `html.dark` (specificity 0-0-1
+   and 0-1-1) instead of `:root` + `.dark` (specificity 0-0-1 and 0-1-0).
+   Fumadocs ships its OWN `:root` + `.dark` rules in a separately-loaded
+   CSS bundle that arrives AFTER ours in the Next.js route chain. At equal
+   specificity, later wins — so Fumadocs's default grayscale theme was
+   silently overwriting our cosmic-plant palette on every page. The
+   `html.dark` selector beats Fumadocs's `.dark` regardless of order. */
+html {
+  /* Light mode (cream) — the editorial daytime view.
+     Card/sidebar is the SAME hue as background, just shifted ~3-4% in
+     lightness with low saturation, so it reads as "the same paper,
+     dimmer" rather than a different panel. */
+  --fd-background:           35 41% 93%;
+  --fd-foreground:           253 30% 10%;
+  --fd-card:                 35 22% 89%;
+  --fd-card-foreground:      253 30% 10%;
+  --fd-popover:              35 30% 95%;
+  --fd-popover-foreground:   253 30% 10%;
+  --fd-primary:              23 70% 48%;
+  --fd-primary-foreground:   35 41% 96%;
+  --fd-secondary:            35 22% 86%;
+  --fd-secondary-foreground: 253 30% 10%;
+  --fd-muted:                35 22% 86%;
+  --fd-muted-foreground:     253 18% 38%;
+  --fd-accent:               23 70% 48%;
+  --fd-accent-foreground:    35 41% 96%;
+  --fd-border:               35 18% 78%;
+  --fd-ring:                 23 70% 48%;
 }
 
-.dark {
-  --color-fd-background: 10 8 20;
-  --color-fd-foreground: 244 238 228;
-  --color-fd-card: 15 12 28;
-  --color-fd-muted: 22 18 36;
-  --color-fd-accent: 232 150 96;
+html.dark {
+  /* Night mode — the cosmic-plant default.
+     De-saturated card from 47% → 12% so the sidebar no longer reads as
+     a purple panel. Same hue as background, just one notch lighter. */
+  --fd-background:           253 30% 6%;
+  --fd-foreground:           35 41% 93%;
+  --fd-card:                 253 12% 9%;
+  --fd-card-foreground:      35 41% 93%;
+  --fd-popover:              253 18% 8%;
+  --fd-popover-foreground:   35 41% 93%;
+  --fd-primary:              23 75% 64%;
+  --fd-primary-foreground:   253 30% 6%;
+  --fd-secondary:            253 10% 13%;
+  --fd-secondary-foreground: 35 41% 93%;
+  --fd-muted:                253 10% 13%;
+  --fd-muted-foreground:     35 25% 72%;
+  --fd-accent:               23 75% 64%;
+  --fd-accent-foreground:    253 30% 6%;
+  --fd-border:               253 12% 18%;
+  --fd-ring:                 23 75% 64%;
+}
+
+/* ════════════════════════════════════════════════════════════════════
+   Typography — apply the cosmic-plant editorial voice to docs pages
+   ════════════════════════════════════════════════════════════════════ */
+
+/* H1 / H2 / H3 in the docs body and page title use Fraunces — same as
+   the home page. Other prose elements keep the sans body for readability. */
+#nd-docs-layout :is(h1, h2, h3, .fd-page-title) {
+  font-family: var(--font-serif), Georgia, serif;
+  font-weight: 350;
+  letter-spacing: -0.015em;
+}
+
+/* The page-title H1 wants a touch more presence */
+#nd-docs-layout .fd-page-title,
+#nd-docs-layout article > h1:first-of-type {
+  font-size: clamp(2rem, 4vw, 3rem);
+  line-height: 1.05;
+}
+
+/* Inline code + code blocks use JetBrains Mono — already loaded as
+   --font-mono in app/layout.tsx. Bind it explicitly so Fumadocs's
+   default monospace stack doesn't take precedence. */
+:where(code, pre, kbd) {
+  font-family: var(--font-mono), ui-monospace, monospace;
+  font-feature-settings: 'liga' 0; /* turn off ligatures for pubkey rendering */
+}
+
+/* On-chain pubkeys are long base58 strings — let them break */
+#nd-docs-layout code {
+  word-break: break-word;
+}
+
+/* ════════════════════════════════════════════════════════════════════
+   Sidebar positioning override (kept from prior fix)
+   ────────────────────────────────────────────────────────────────────
+   Fumadocs ships its base CSS as a separately-loaded bundle that
+   re-emits the Tailwind reset. Next.js loads that bundle AFTER our
+   Tailwind output, so Fumadocs's late `.fixed { position: fixed }` rule
+   overrides our earlier `.md:sticky` responsive rule. These two
+   higher-specificity (1-1-1) rules restore the intended sticky sidebar
+   at md+ and the bottom-drawer behaviour on mobile. Don't remove.
+   ════════════════════════════════════════════════════════════════════ */
+@media (min-width: 768px) {
+  #nd-docs-layout aside.md\:sticky {
+    position: sticky;
+  }
+}
+@media (max-width: 767.98px) {
+  #nd-docs-layout aside {
+    position: fixed;
+  }
 }

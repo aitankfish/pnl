@@ -21,14 +21,17 @@ test-results/
 # apps/docs/ too and pnpm can't find @pnl/docs in the workspace.
 /docs/
 
-# Build / install artifacts at any depth
+# Build / install artifacts at any depth.
+# DO NOT add `**/build/` here — it matches apps/docs/content/docs/build/ which
+# contains the developer-section MDX content. Use `.next/` for Next.js build
+# output (which is what we'd want excluded anyway). The .next/ pattern already
+# covers the actual Next.js build dirs in apps/web/ and apps/docs/.
 **/node_modules/
 **/.next/
 **/.turbo/
 **/target/
 **/.anchor/
 **/dist/
-**/build/
 **/.expo/
 
 # OS / editor

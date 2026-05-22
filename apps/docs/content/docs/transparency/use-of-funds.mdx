@@ -1,0 +1,102 @@
+---
+title: "Use of funds"
+description: "Where every fee taken by the protocol goes."
+---
+
+P&L charges three on-chain fees and a small ongoing royalty. This page accounts for all of them.
+
+## Fee schedule
+
+| Fee | Amount | Trigger | Recipient |
+|---|---|---|---|
+| Creation fee | **0.015 SOL** | Once per market, paid by the founder when planting | Platform treasury |
+| Trade fee | **1.5%** | Every YES or NO stake | Platform treasury |
+| Completion fee | **5%** | At resolution, when YES or NO wins (not on Refund) | Platform treasury |
+| Pump.fun creator royalty | varies | After a YES win, on every trade of the launched token | Founder, directly, via pump.fun |
+
+The Pump.fun creator royalty is not paid to P&L — it's the founder's earnings, set by pump.fun's own protocol. P&L takes no part of it. We mention it because it's the largest economic flow a successful founder will receive and people frequently mistake it for a fee.
+
+## Treasury wallet
+
+All on-chain platform fees flow to:
+
+```
+3MihVtsLsVuEccpmz4YG72Cr8CJWf1evRorTPdPiHeEQ
+```
+
+This wallet is auditable in real time on [Solscan](https://solscan.io/account/3MihVtsLsVuEccpmz4YG72Cr8CJWf1evRorTPdPiHeEQ). Every credit and debit is public.
+
+## What the treasury pays for
+
+In rough order of operating priority:
+
+1. **Solana RPC infrastructure.** Helius mainnet RPC, WebSocket subscriptions, archival access. The protocol cannot run without this; it is the largest recurring expense.
+2. **Compute and rent.** The platform program account, treasury PDA, vesting PDAs all hold rent-exempt minimum SOL. Markets that get closed return rent to founders and voters, not to the platform.
+3. **Production hosting.** Render.com for the web app, Vercel for documentation, Upstash for Redis, MongoDB Atlas for off-chain market metadata.
+4. **Pinata IPFS pinning.** Market metadata (descriptions, images, thesis attachments) is pinned permanently. Each market adds approximately 50–200 KB to the pinned set.
+5. **Domain, SSL, monitoring.** pnl.market, docs.pnl.market, security monitoring, dependency scanning.
+6. **Audit and counsel.** Smart-contract review, legal counsel on prediction-market posture, security disclosures. This will scale up as the protocol grows.
+7. **Community and grants.** Founder fees for early markets, bug bounties, ecosystem grants for builders integrating P&L.
+
+Everything is paid in SOL until the treasury volume justifies stablecoin conversion. We don't currently sell platform fees on a schedule — they accumulate and are converted when needed.
+
+## What the treasury does NOT pay for
+
+- **Token buybacks.** The platform does not buy back $PNL or any market-launched token. Conviction-driven trading is the only price discovery.
+- **Market-making.** The platform does not provide liquidity to any market other than through the natural mechanic (seeded liquidity at YES resolution on pump.fun).
+- **Founder grants disguised as something else.** When a founder receives a grant, it is logged as such.
+- **Paid promotion of specific markets.** All markets compete on conviction. The platform does not promote one over another.
+
+## Operating posture (next 12 months)
+
+We are in early-bootstrap operation. The treasury is small and the goals are narrow:
+
+- **Keep the protocol running.** Infrastructure and counsel are the floor. We will run them indefinitely as long as treasury holds enough SOL to fund six months of obligations.
+- **Improve the protocol.** Multisig admin, IDL regeneration, agent SDK (MCP server), and a small set of UX improvements (auto-cranker, better fail states) are the work in progress.
+- **Bring on contributors.** We are intentionally not raising priced equity in 2026. If the protocol grows, contributors are compensated in $PNL tokens released from the platform's 2% slice when bloomed markets pay out.
+
+If treasury balance drops below the rolling six-month operating cost, we will say so publicly here and reduce surface area accordingly. Quiet shutdowns are the worst outcome for users and we are committing in writing not to do that.
+
+## Founder economics in successful markets
+
+A founder whose idea blooms (YES wins) receives, in order:
+
+1. **Immediate token allocation.** 8% of the launched token supply, claimable immediately via `claim_team_tokens`.
+2. **Vested token allocation.** 25% additional, vesting linearly over 12 months via the same instruction.
+3. **Pump.fun creator royalty.** A share of every trade of the launched token, paid by pump.fun's own protocol directly to the founder's wallet. No P&L involvement.
+4. **(If pool > 50 SOL) SOL vesting.** A bonus distribution of the excess pool, 8% immediate + 92% vested over 12 months via `claim_founder_sol`.
+
+These numbers are codified in the on-chain program. Changing them requires a program upgrade signed by the upgrade authority — not something the platform can do quietly.
+
+## Token holders' economics
+
+A voter whose side wins receives:
+
+| If YES wins | If NO wins |
+|---|---|
+| 65% of the launched token supply, split proportional to YES shares held | 95% of the SOL pool (after the 5% completion fee), split proportional to NO shares held |
+| Claimable immediately via `claim_yes` | Claimable immediately via `claim_no` |
+| Plus any ongoing pump.fun trading exposure (if you keep the tokens) | Principal returned + share of losing pool |
+
+A voter whose side loses gets nothing back. This is the cost of being wrong. It is also, structurally, the source of every payout to the winning side.
+
+## Refund mechanics
+
+If the pool fails to reach its target before expiry, or if YES and NO are exactly tied, the market resolves to **Refund**. In this case:
+
+- No fees are taken. The 5% completion fee is waived.
+- All staked SOL returns to the original voters via `refund`.
+- The market remains in the on-chain library as a permanent record that it was tried and didn't reach conviction.
+
+The platform earns nothing on a Refund. This is intentional — refunds should be a clean path that punishes neither side.
+
+## Auditability
+
+Every flow described on this page is verifiable on-chain:
+
+- Treasury inflows: filter Solscan transactions for `3MihVtsLsVuEccpmz4YG72Cr8CJWf1evRorTPdPiHeEQ`
+- Founder distributions: `claim_team_tokens`, `claim_founder_sol` instructions in the program
+- Voter distributions: `claim_yes`, `claim_no` instructions
+- Refunds: `refund` instruction
+
+If the on-chain reality drifts from what this page claims, the on-chain reality is correct and this page is wrong. Tell us.

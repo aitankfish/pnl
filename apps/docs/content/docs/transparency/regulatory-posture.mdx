@@ -1,0 +1,68 @@
+---
+title: "Regulatory posture"
+description: "The jurisdictional questions specific to prediction-market-gated launches, what we've done about them, and what remains under counsel review."
+---
+
+P&L operates at the intersection of two regulated activities — prediction markets and token launches — in a jurisdictional landscape that is genuinely unsettled in 2026. This page describes our current posture honestly. It is not legal advice and the situation will continue to evolve.
+
+## The legal-status question, in one paragraph
+
+P&L is a non-custodial, on-chain protocol that lets participants stake SOL on the outcome of binary questions ("does this idea deserve to launch?") with payouts settled by an open-source smart contract. The token launches that follow are executed by pump.fun's protocol, which P&L invokes via cross-program invocation. WOLP LLC (the operator) does not custody user funds, take discretion over outcomes, or operate as an intermediary in any traditional sense. Participants connect their own wallets and bear their own risk. Whether this configuration falls under any jurisdiction's prediction-market, securities, or commodities framework is the question we and our counsel are tracking.
+
+## Posture summary
+
+| Question | Our current posture |
+|---|---|
+| Is P&L a regulated prediction market? | We don't believe so. The markets aren't on external events (sports, elections) — they resolve on the validity of an idea via internal staking dynamics. There is no oracle. The mechanism is closer to a primary issuance gate than to an event-prediction market. |
+| Are launched tokens securities? | They are launched by pump.fun under pump.fun's own protocol. P&L does not custody, promote, or guarantee value. Founders receive royalties from a third-party AMM. |
+| Are P&L participants buying a security in the conviction market itself? | We don't believe so. There is no equity, no claim on enterprise value, no promise of profits derived from managerial efforts. Believers and critics stake on each other's outcomes — a closed system with no expectation of effort from a sponsor. |
+| Is this a commodities pool? | Reviewing. Solana SOL is not a CFTC-defined commodity in a binding way. The "pool" structure of YES/NO stakes resembles parimutuel betting in some configurations and resembles a binary option in others. Our counsel's current read is that the closed mechanic and absence of external resolver puts P&L outside both frames, but this is the area of greatest open uncertainty. |
+| Geographic restrictions? | The web app at pnl.market does not currently geo-block. The on-chain program is permissionless by design — anyone with a Solana wallet can interact regardless of location. The legal terms of service ([here](/docs/legal/terms)) require users to comply with their own jurisdiction's laws. |
+
+## What we have actually done
+
+Specific actions, not posture statements:
+
+- **Engaged crypto-native counsel.** A US-based firm with prediction-market and primary-issuance experience reviewed the protocol mechanics in early 2026.
+- **Documented the mechanism transparently.** The whitepaper, the docs you are reading, and the on-chain source code together describe every operation. There is no off-chain discretion to hide.
+- **Open-sourced the program.** The Anchor program at `C5mVE2BwSehWJNkNvhpsoepyKwZkvSLZx29bi4MzVj86` is published under MIT at [github.com/aitankfish/pnl](https://github.com/aitankfish/pnl). Anyone can audit the resolution mechanic.
+- **Operated as a non-custodial protocol.** No user funds touch WOLP LLC accounts. Treasury fees flow to a designated on-chain address (`3MihVtsLsVuEccpmz4YG72Cr8CJWf1evRorTPdPiHeEQ`). Voter stakes settle directly between participants via the program.
+- **No oracle.** The protocol does not resolve markets on external real-world events. Resolution is purely a function of the on-chain stakes. This is the structural feature that most cleanly distinguishes P&L from the activities that prediction-market regulators care about.
+- **Disclosed risks.** Every page that touches money links to [the risk disclaimer](/docs/legal/disclaimer). Users acknowledge speculation, volatility, and potential total loss.
+
+## What's under active review
+
+Areas where we have not reached a settled posture and are continuing to work with counsel:
+
+- **The role of the operator.** WOLP LLC operates the web frontend and the Anchor program upgrade authority. To what extent does operating a frontend imply intermediary status? Counsel's current view is that hosting a UI is not custodianship and the on-chain mechanism is the legally relevant surface — but this is jurisdiction-specific.
+- **Jurisdictional reach.** We have not made an explicit decision to geo-block users in any specific country. We have terms of service requiring users to comply with their own jurisdiction's law, but enforcement is on the user.
+- **Token classification of $PNL itself.** The native $PNL token launched on pump.fun in early 2026 with no presale, no allocation to insiders beyond the 2% platform slice that bloomed markets pay out. It trades on pump.fun's bonding curve mechanism. Whether $PNL itself qualifies as a security in any specific jurisdiction is under review.
+- **AML/KYC obligations.** As a non-custodial protocol with no fiat onramp operated by WOLP, we do not currently perform KYC. Privy (our embedded wallet provider) handles its own compliance for user-facing wallet creation. Whether protocol-level AML obligations attach to fee-receiving wallets is an evolving area.
+
+## Pending decisions
+
+Likely changes to the posture over the next 12 months:
+
+- **Move treasury control to a multisig.** Currently the treasury wallet and admin instructions are gated by a single keypair (`7iyZKvd28ZcfVKUxeezwSkvdoQ9sN1D7pEGe42w8yTkZ`). This is operationally simple but represents a single point of compromise. We intend to move to a Squads multisig before treasury balance exceeds a threshold we'll publish.
+- **Publish a SECURITY.md disclosure policy.** GitHub-hosted, with PGP key for confidential reports.
+- **Quarterly transparency report.** Once volume justifies it, a quarterly post detailing fees collected, infrastructure costs paid, contributor compensation, and material protocol changes.
+
+## What we will NOT do
+
+Some things we are explicitly committing not to do, since the absence of these commitments is often what makes crypto projects feel untrustworthy:
+
+- **Quiet shutdowns.** If the protocol is ceasing operation, this page will say so before the web app goes dark. The on-chain program remains usable regardless of whether we host a frontend.
+- **Retroactive fee changes hidden in updates.** Fee changes require a program upgrade signed by the upgrade authority. We will document fee changes here before they happen, with a transition window.
+- **Insider rugs.** The platform's 2% slice is allocated through the on-chain `claim_platform_tokens` instruction in the same way voter and founder allocations work. There is no separate insider-vesting contract.
+- **Privacy theater.** Users' wallet addresses and stake history are public on Solana by design. We don't pretend otherwise. The [privacy policy](/docs/legal/privacy) covers the only off-chain data we touch.
+
+## How to verify any of this
+
+- **Treasury balance:** [Solscan](https://solscan.io/account/3MihVtsLsVuEccpmz4YG72Cr8CJWf1evRorTPdPiHeEQ)
+- **Program source:** [GitHub](https://github.com/aitankfish/pnl/tree/main/apps/web/plp_program)
+- **Program account:** [Solscan](https://solscan.io/account/C5mVE2BwSehWJNkNvhpsoepyKwZkvSLZx29bi4MzVj86)
+- **Upgrade authority:** [Solscan](https://solscan.io/account/HPjEBipn8BtQM4n11itba3p8dFZjjfpWLkUiW8mU4mo)
+- **$PNL token mint:** [DexScreener](https://dexscreener.com/solana/6QuNZJzUF7oZj3GsG7fVBfidX1cE81sXhb9Czi12pump)
+- **Operating company:** WOLP LLC, US-registered
+
+If you are a regulator or counsel and have questions, the channel is [contact via Discord](https://discord.gg/38pkg4vm) or open an issue on [GitHub](https://github.com/aitankfish/pnl/issues).

@@ -123,3 +123,4 @@ dist/
 *.orig.*
 web-build/
 .vercel
+.gstack/

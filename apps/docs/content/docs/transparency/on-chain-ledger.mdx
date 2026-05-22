@@ -1,0 +1,123 @@
+---
+title: "On-chain ledger"
+description: "Every privileged wallet, what it can do, and how to verify."
+---
+
+Every account with any kind of authority over the P&L protocol is listed here. If a wallet has the ability to move funds, modify the program, or take administrative action, it's on this page.
+
+## The program itself
+
+| | |
+|---|---|
+| Address | `C5mVE2BwSehWJNkNvhpsoepyKwZkvSLZx29bi4MzVj86` |
+| Type | Executable program account (BPF Loader Upgradeable) |
+| Owner | `BPFLoaderUpgradeab1e11111111111111111111111` (Solana's system loader) |
+| Source | [github.com/aitankfish/pnl](https://github.com/aitankfish/pnl/tree/main/apps/web/plp_program) |
+| License | MIT |
+| Solscan | [view program](https://solscan.io/account/C5mVE2BwSehWJNkNvhpsoepyKwZkvSLZx29bi4MzVj86) |
+
+The program is the only entity that can move funds out of market vaults or the treasury. The instructions it accepts are fixed at deploy time — changing them requires a program upgrade, signed by the upgrade authority below.
+
+## Upgrade authority
+
+| | |
+|---|---|
+| Address | `HPjEBipn8BtQM4n11itba3p8dFZjjfpWLkUiW8mU4mo` |
+| Capability | Can upgrade or close the deployed program at `C5mVE2…` |
+| Held by | Operating team (single keypair, cold storage) |
+| Multisig? | Not yet — planned. |
+| Solscan | [view authority](https://solscan.io/account/HPjEBipn8BtQM4n11itba3p8dFZjjfpWLkUiW8mU4mo) |
+
+The upgrade authority is the most powerful single key in the system. A malicious upgrade could drain everything. We are committed to:
+
+- Never closing the program (see [known limitations](/docs/transparency/known-limitations#the-leaked-deployer-mnemonic-in-git-history) for why this matters)
+- Announcing any upgrade with at least 48-hour notice in the [Discord](https://discord.gg/38pkg4vm) and on this page
+- Migrating to multisig before treasury balance exceeds a threshold (TBD, will be posted here)
+
+## Treasury
+
+| | |
+|---|---|
+| Address | `3MihVtsLsVuEccpmz4YG72Cr8CJWf1evRorTPdPiHeEQ` |
+| Capability | Receives all platform fees (creation, trade, completion) |
+| Solscan | [view treasury](https://solscan.io/account/3MihVtsLsVuEccpmz4YG72Cr8CJWf1evRorTPdPiHeEQ) |
+
+This wallet is the recipient of every platform fee. Every credit and debit is public. The wallet itself cannot move SOL on its own — withdrawals require a `withdraw_fees` instruction signed by the admin (see below).
+
+## Admin
+
+| | |
+|---|---|
+| Address | `7iyZKvd28ZcfVKUxeezwSkvdoQ9sN1D7pEGe42w8yTkZ` |
+| Capability | `init_treasury` (one-time, already executed), `set_admin`, `withdraw_fees`, `emergency_drain_vault` |
+| Held by | Operating team (single keypair, hardcoded in the Rust program) |
+| Multisig? | Not yet — planned. |
+| Solscan | [view admin](https://solscan.io/account/7iyZKvd28ZcfVKUxeezwSkvdoQ9sN1D7pEGe42w8yTkZ) |
+
+The admin can:
+
+- **`set_admin`**: Pass admin rights to a different wallet. One-time, on-chain.
+- **`withdraw_fees`**: Move accumulated SOL out of the treasury account.
+- **`emergency_drain_vault`**: Drain SOL from a specific market vault. Reserved for situations where a market is stuck (e.g., a pump.fun CPI failure), to make participants whole. Has never been invoked in production.
+
+The admin **cannot** unilaterally modify any market's outcome or change voter positions. Resolution is enforced by the program logic, not by admin discretion.
+
+## $PNL token mint
+
+| | |
+|---|---|
+| Address | `6QuNZJzUF7oZj3GsG7fVBfidX1cE81sXhb9Czi12pump` |
+| Protocol | spl-token-2022 (with metadata extension) |
+| Launched via | pump.fun |
+| Mint authority | null (immutable supply) |
+| Freeze authority | null (cannot be frozen) |
+| Update authority | null (metadata immutable) |
+| DexScreener | [chart + liquidity](https://dexscreener.com/solana/6QuNZJzUF7oZj3GsG7fVBfidX1cE81sXhb9Czi12pump) |
+| Pump.fun | [bonding curve history](https://pump.fun/coin/6QuNZJzUF7oZj3GsG7fVBfidX1cE81sXhb9Czi12pump) |
+
+The $PNL token mint has all three authorities set to null at the mint level — supply is fixed, no freeze, no metadata changes. This was set by pump.fun's protocol at the time of graduation; we did not have the option to keep these authorities.
+
+## Hardcoded protocol constants
+
+These addresses are baked into the Rust source code at `apps/web/plp_program/programs/errors/src/constants.rs`. They cannot be changed without a program upgrade.
+
+| Constant | Address | Purpose |
+|---|---|---|
+| `PNL_WALLET` | `3MihVtsLsVuEccpmz4YG72Cr8CJWf1evRorTPdPiHeEQ` | Treasury recipient (same as above) |
+| `AUTHORIZED_ADMIN` | `7iyZKvd28ZcfVKUxeezwSkvdoQ9sN1D7pEGe42w8yTkZ` | Admin signer (same as above) |
+| `PUMP_FUN_PROGRAM_ID` | `6EF8rrecthR5Dkzon8Nwu78hRvfCKubJ14M5uBEwF6P` | The pump.fun launch program we CPI into |
+
+## Program-derived addresses (PDAs)
+
+These are deterministically derived by the program, not held by any wallet:
+
+```
+Treasury PDA       = ["treasury"]
+Market PDA         = ["market", founder, hash(ipfs_cid)]
+Position PDA       = ["position", market, user]
+Market Vault PDA   = ["market_vault", market]
+Team Vesting PDA   = ["team_vesting", market]
+Founder Vesting PDA = ["founder_vesting", market]
+```
+
+Use `PublicKey.findProgramAddressSync(seeds, programId)` with these seeds and the program ID to derive any of them client-side.
+
+## Things this list does NOT contain
+
+For completeness, things that are sometimes assumed to exist but don't:
+
+- **No insider wallet** holding pre-mine $PNL allocation
+- **No team allocation** of the $PNL native token (the 33% goes to *market founders*, not the platform)
+- **No paused-protocol bit** — the program does not have a global pause; it cannot be turned off short of upgrading to a version with one
+- **No oracle account** — the protocol does not consume any external data feed
+- **No fee changes outside the program** — the 0.015/1.5%/5% values are constants, not config
+
+## How to audit
+
+The strongest verification path is to read the source. Specifically:
+
+1. [`programs/errors/src/constants.rs`](https://github.com/aitankfish/pnl/blob/main/apps/web/plp_program/programs/errors/src/constants.rs) — every hardcoded address
+2. [`programs/errors/src/instructions/init_treasury.rs`](https://github.com/aitankfish/pnl/blob/main/apps/web/plp_program/programs/errors/src/instructions/init_treasury.rs) — the admin gate
+3. [`programs/errors/src/instructions/withdraw_fees.rs`](https://github.com/aitankfish/pnl/blob/main/apps/web/plp_program/programs/errors/src/instructions/withdraw_fees.rs) — what admin can actually do with treasury
+
+If any address on this page diverges from what's in the source, the source is authoritative. Tell us.

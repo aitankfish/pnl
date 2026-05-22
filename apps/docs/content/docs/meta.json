@@ -2,9 +2,11 @@
   "title": "Documentation",
   "pages": [
     "index",
+    "manifesto",
     "how-to-buy",
     "mechanics",
     "build",
+    "transparency",
     "legal"
   ]
 }

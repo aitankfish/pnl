@@ -1,0 +1,98 @@
+---
+title: "Known limitations"
+description: "The rough edges in the protocol we haven't fixed yet. Listed so you can plan around them."
+---
+
+Every protocol at this stage has limitations. This page is a complete list of the ones we know about as of May 2026. If you discover one not listed here, [open an issue](https://github.com/aitankfish/pnl/issues).
+
+## Single-key admin (no multisig yet)
+
+**What it is:** Three privileged on-chain instructions (`set_admin`, `withdraw_fees`, `emergency_drain_vault`) require a signature from a single hardcoded admin keypair: `7iyZKvd28ZcfVKUxeezwSkvdoQ9sN1D7pEGe42w8yTkZ`.
+
+**Risk:** If that keypair is compromised, an attacker could drain accumulated treasury fees, change the admin, or trigger emergency drain on individual market vaults.
+
+**Mitigation today:** The keypair is held in cold storage and never signs from a development machine. The wallet has minimal SOL balance (rent-exempt minimum only) and treasury fees are swept periodically. Loss exposure on any single compromise event is bounded.
+
+**Path forward:** Move admin control to a Squads multisig. This requires either (a) deploying a wrapper contract that the multisig signs through, or (b) re-deploying the program with a multisig admin. Both are real surgery. Targeted for post-hackathon.
+
+## The stub IDL at `apps/web/src/lib/idl/errors.json`
+
+**What it is:** An IDL file in the repo with **non-canonical discriminators** (sequential bytes like `[10,11,12,...]` rather than the SHA-256 hashes Anchor actually uses).
+
+**Risk:** If an integrator feeds this IDL to `anchor.Program.fetchIdl()` and tries to call `closeMarket`, `closePosition`, or `claimRewards` through the standard Anchor SDK, they will broadcast malformed transactions that the program rejects. Funds are not at risk, but the UX is broken.
+
+**Mitigation today:** The reference TypeScript client at `packages/shared/src/solana/anchor-program.ts` hand-rolls these instructions with correctly computed discriminators (`sha256('global:<instruction>')[:8]`). The main app and the recommended integration path bypass the stub IDL entirely.
+
+**Path forward:** Run `anchor build` to generate a real IDL, replace the stub, publish to the program account via `anchor idl init`. Documented as the post-hackathon priority because it requires testing the entire Anchor SDK path to ensure no regressions.
+
+## The leaked deployer mnemonic in git history
+
+**What it is:** A 12-word BIP-39 mnemonic was committed to the repository in late 2025 and removed in a later commit, but **git history retains it forever**. It derives to the program ID itself: `C5mVE2BwSehWJNkNvhpsoepyKwZkvSLZx29bi4MzVj86`.
+
+**Risk (bounded):** The keypair has no signing authority over the currently-deployed program. The program is loader-owned (`BPFLoaderUpgradeab1e1111...`), executable, and the upgrade authority is a separate key (`HPjEBipn8BtQM4n11itba3p8dFZjjfpWLkUiW8mU4mo`) that was NOT compromised. The mnemonic gives an attacker nothing while the program stays deployed.
+
+**The actual residual risk:** If the program at `C5mVE2…` is ever **closed** via `solana program close`, the program ID becomes redeployable. Anyone holding the leaked mnemonic could then redeploy a malicious program at the same address. Frontends still pointing at that program ID would unknowingly call malicious code.
+
+**Mitigation:** Never close the program. This is an operational commitment, documented here.
+
+**Path forward:** This residual risk persists as long as `C5mVE2…` is the program ID. Rotating to a new program ID would require migrating every market, which is essentially redeploying the protocol. Not justified by the bounded risk; will revisit if the mitigation ever becomes hard to maintain.
+
+## Outstanding Next.js CVEs
+
+**What it is:** The web app (`apps/web/`) currently runs Next.js 14.2.35. Dependabot flags 10 high-severity CVEs in this version, including a SSRF via WebSocket upgrades (CVE-2026-44578) and a middleware/proxy bypass with i18n routes (CVE-2026-44573).
+
+**Risk assessment per CVE:**
+- *SSRF via WebSocket upgrades*: real, but requires the app to handle Upgrade headers in a vulnerable way. Our routes don't, but the framework-level path remains.
+- *Middleware bypass with i18n*: not applicable — we don't use Pages Router i18n.
+- *DoS via Server Components*: the user-impact is server resource exhaustion. Cloudflare in front mitigates simple cases.
+
+**Mitigation today:** Cloudflare WAF + rate limits on `/api/*`, the stack-trace leak fix shipped in `283e0cd`, and the `/api/health` infrastructure leak fix shipped in `f758393`.
+
+**Path forward:** Upgrade to Next.js 15.5.16. The breaking changes (`force-cache` removal, async `params`, fetch caching semantics) require a half-day of work and demo regression testing. Targeted for post-hackathon.
+
+## bigint-buffer transitive dependency
+
+**What it is:** A native module dependency pulled in via `@solana/web3.js` with a known buffer-overflow vulnerability (CVE-2025-3194) and no upstream patch published.
+
+**Risk:** The attack requires user-controlled BigInt input to `toBigIntLE`. The Solana web3.js paths we use don't expose this to user input.
+
+**Mitigation:** None currently available — it's a no-upstream-patch situation. We monitor for an updated `@solana/web3.js` release that drops the dependency.
+
+## Privy single-instance React conflict (mitigated)
+
+**What it is:** Earlier in deployment, `styled-jsx` (pulled in transitively) bundled its own React copy, causing "Cannot read properties of null (reading 'useContext')" errors during static prerender on Vercel.
+
+**Status:** Fixed via `pnpm.overrides` in root `package.json` forcing a single React 18.3.1 across the workspace. Not a current risk; documented for posterity in case the lockfile ever drifts.
+
+## Fake IDL discriminators (different from #2 above)
+
+The on-chain instruction discriminators for `closeMarket`, `closePosition`, and `claimRewards` in the stub IDL are wrong. The hot path (`create_market`, `buy_yes`, `buy_no`, `resolve_market`, `claim_yes`, `claim_no`) is hand-rolled correctly. This means users *can* create markets, vote, and claim rewards — they cannot close their position to recover rent if they go through the standard Anchor SDK path.
+
+## Auto-cranker not implemented
+
+**What it is:** `resolve_market` is permissionless — anyone can crank an expired market forward. We don't currently run a server-side service to do this automatically. Markets sit Expired until someone cranks them, which is usually the founder or a believer who wants to claim airdrops.
+
+**Risk:** UX friction, not safety. A market that nobody cranks stays in Expired state indefinitely; resolution and claims are blocked.
+
+**Why we haven't shipped it:** The pump.fun launch CPI inside `resolve_market` mints a token with the *founder* as the creator (so they earn pump.fun creator royalties). A naive server-side cranker would need to be the founder for each market, which doesn't work. We're exploring delegation patterns.
+
+**Path forward:** Either (a) modify the program to accept the founder pubkey as a non-signer account that the CPI honors, or (b) build a cranker that prompts the founder to sign a single delegation transaction at market creation time.
+
+## What we've already shipped
+
+For completeness, things that were limitations but are now fixed:
+
+| Was | Now |
+|---|---|
+| Private GitHub repo | Public, MIT-licensed (`90f17c9`) |
+| Critical sanitize-html CVE | Patched (`ed9c31b`) |
+| 4 high axios CVEs (transitive via Privy → CDP SDK) | Patched via pnpm overrides (`ed9c31b`) |
+| `/api/health` leaking infrastructure topology | Stripped public payload, gated full payload behind `HEALTHCHECK_SECRET` (`f758393`) |
+| 14 API routes leaking server stack traces in error responses | Gated behind `NODE_ENV !== 'production'` (`283e0cd`) |
+| `/api/printify/orders` accepting any tx signature | Full on-chain SOL payment verification (`7d75864`) |
+| `/api/grok/roast` unauthenticated | Wrapped with `withAuth` + 5/min rate limit (`7d75864`) |
+| `/api/tokens/*` cache-miss quota drain vector | IP-based rate limit 60/min (`7d75864`) |
+
+## How to report a limitation we haven't listed
+
+GitHub issue: [github.com/aitankfish/pnl/issues](https://github.com/aitankfish/pnl/issues). Tag with `limitation` or `security`. For security disclosures, DM [@pnldotmarket on X](https://x.com/pnldotmarket) before opening a public issue.

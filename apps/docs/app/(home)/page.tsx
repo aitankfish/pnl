@@ -1,35 +1,43 @@
-import Link from 'next/link';
+'use client';
+
+// Docs landing — book cover.
+//
+// Same top navbar strip as the docs interior (tree mark left + Search /
+// theme toggle / GitHub right), overlaid on the cosmic tree scene.
+// The body of the page is just the tree. Clicking the yellow seed at
+// the base of the trunk enters /docs.
+
+import { useRouter } from 'next/navigation';
+import dynamic from 'next/dynamic';
 import { HomeLayout } from 'fumadocs-ui/layouts/home';
 import { baseOptions } from '@/lib/layout.shared';
 
+const CosmicTree3D = dynamic(
+  () => import('./_components/CosmicTree3D'),
+  { ssr: false },
+);
+
 export default function HomePage() {
+  const router = useRouter();
+
   return (
-    <HomeLayout {...baseOptions}>
-      <main className="flex flex-col items-center justify-center min-h-[calc(100vh-3.5rem)] px-6 text-center">
-        <p className="text-sm uppercase tracking-[0.32em] text-fd-muted-foreground mb-4">
-          Docs
-        </p>
-        <h1 className="text-4xl md:text-6xl font-serif font-light mb-6 leading-tight max-w-3xl">
-          The launchpad where the crowd decides which ideas deserve to launch.
-        </h1>
-        <p className="text-lg text-fd-muted-foreground max-w-2xl mb-10">
-          Idea tokenization on Solana. Believers and critics stake SOL — winning
-          conviction launches the idea as a token. Live on mainnet.
-        </p>
-        <div className="flex gap-4">
-          <Link
-            href="/docs"
-            className="px-6 py-3 bg-fd-primary text-fd-primary-foreground font-medium hover:opacity-90 transition-opacity"
-          >
-            Read the docs →
-          </Link>
-          <Link
-            href="https://pnl.market"
-            className="px-6 py-3 border border-fd-border hover:border-fd-primary transition-colors"
-          >
-            Open the app
-          </Link>
-        </div>
+    // HomeLayout gives us the same nav chrome as the docs interior.
+    // We extend baseOptions with `nav.transparentMode: 'top'` so the
+    // bar is transparent at scroll-top, letting the cosmic tree scene
+    // show through behind it.
+    <HomeLayout
+      {...baseOptions}
+      nav={{ ...baseOptions.nav, transparentMode: 'top' }}
+    >
+      <main className="relative w-full h-[calc(100vh-3.5rem)] overflow-hidden bg-[#0a0814]">
+        {/* The 3D tree. CosmicTree3D positions itself absolute inset-0.
+            skipIntro renders it fully grown immediately. The seed at the
+            base is the only interactive element. */}
+        <CosmicTree3D
+          markets={[]}
+          skipIntro
+          onSeedClick={() => router.push('/docs')}
+        />
       </main>
     </HomeLayout>
   );
