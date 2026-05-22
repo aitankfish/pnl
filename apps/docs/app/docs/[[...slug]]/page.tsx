@@ -63,6 +63,19 @@ export function generateStaticParams() {
   return source.generateParams();
 }
 
+// Per-page metadata + OG image.
+//
+// We can't drop an `opengraph-image.tsx` next to this file because the
+// optional catch-all `[[...slug]]` segment triggers a known Next.js
+// route-sort crash when paired with a metadata file. Workaround: point
+// openGraph.images at /api/og?... with the page title/description as
+// query params. The /api/og endpoint renders the shared OG template.
+function ogImageUrl(title: string, subtitle?: string): string {
+  const params = new URLSearchParams({ title });
+  if (subtitle) params.set('subtitle', subtitle);
+  return `/api/og?${params.toString()}`;
+}
+
 export async function generateMetadata(props: {
   params: Promise<{ slug?: string[] }>;
 }) {
@@ -71,16 +84,42 @@ export async function generateMetadata(props: {
   // rather than running through source.getPage (which would NotFound on
   // an empty slug if we ever delete content/docs/index.mdx).
   if (!params.slug || params.slug.length === 0) {
+    const title = 'Documentation';
+    const description =
+      'PNL documentation — manifesto, mechanics, build, transparency. Edition 001 · May 2026.';
     return {
-      title: 'Documentation',
-      description:
-        'P&L documentation — manifesto, mechanics, build, transparency. Edition 001 · May 2026.',
+      title,
+      description,
+      openGraph: {
+        title,
+        description,
+        images: [ogImageUrl(title, description)],
+      },
+      twitter: {
+        card: 'summary_large_image',
+        title,
+        description,
+        images: [ogImageUrl(title, description)],
+      },
     };
   }
   const page = source.getPage(params.slug);
   if (!page) notFound();
+  const title: string = page.data.title;
+  const description: string | undefined = page.data.description;
   return {
-    title: page.data.title,
-    description: page.data.description,
+    title,
+    description,
+    openGraph: {
+      title,
+      description,
+      images: [ogImageUrl(title, description)],
+    },
+    twitter: {
+      card: 'summary_large_image',
+      title,
+      description,
+      images: [ogImageUrl(title, description)],
+    },
   };
 }

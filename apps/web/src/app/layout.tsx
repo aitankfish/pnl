@@ -45,26 +45,22 @@ export const metadata: Metadata = {
     statusBarStyle: 'black-translucent',
     title: 'PNL',
   },
+  // openGraph.images and twitter.images are intentionally absent — Next.js
+  // auto-discovers opengraph-image.tsx files in the route tree (root,
+  // /market/[id], /research/[id]) and wires the generated PNGs in as
+  // og:image with the right size/type. Listing a URL here would shadow
+  // those and force every share to the same generic card.
   openGraph: {
-    title: 'PNL - Predict and Launch',
-    description: 'Idea Tokenization Platform powered by Prediction Markets. Launch your ideas with community validation.',
+    title: 'PNL — Plant the idea, watch it grow',
+    description: 'A conviction market for ideas. The community decides what gets tokenized and launched on Solana.',
     url: BASE_URL,
     siteName: 'PNL',
-    images: [
-      {
-        url: `${BASE_URL}/api/og`,
-        width: 1200,
-        height: 630,
-        alt: 'PNL - Predict and Launch',
-      },
-    ],
     type: 'website',
   },
   twitter: {
     card: 'summary_large_image',
-    title: 'PNL - Predict and Launch',
-    description: 'Idea Tokenization Platform powered by Prediction Markets. Launch your ideas with community validation.',
-    images: [`${BASE_URL}/api/og`],
+    title: 'PNL — Plant the idea, watch it grow',
+    description: 'A conviction market for ideas. The community decides what gets tokenized and launched on Solana.',
   },
 };
 

@@ -30,20 +30,30 @@ const jetbrainsMono = JetBrains_Mono({
   variable: '--font-mono',
 });
 
+// Note: og:image is intentionally absent here — Next.js auto-discovers the
+// route-local opengraph-image.tsx files (one at the root for the cover, one
+// at /docs/[[...slug]] for per-MDX pages) and wires their generated PNGs in
+// as og:image with the right size/type. Listing an image URL here would
+// shadow that and force every share to the same generic card.
 export const metadata = {
   title: {
-    default: 'P&L — Predict & Launch',
-    template: '%s · P&L Docs',
+    default: 'PNL Docs',
+    template: '%s · PNL Docs',
   },
   description:
     'Idea tokenization on Solana. Anyone posts an idea; a conviction market of believers and critics decides with real SOL whether it launches as a token.',
   openGraph: {
-    title: 'P&L — Predict & Launch',
+    title: 'PNL Docs',
     description:
       'The launchpad where the crowd decides which ideas deserve to launch. Live on Solana mainnet.',
     url: 'https://docs.pnl.market',
-    siteName: 'P&L Docs',
-    images: ['https://pnl.market/api/og'],
+    siteName: 'PNL',
+  },
+  twitter: {
+    card: 'summary_large_image',
+    title: 'PNL Docs',
+    description:
+      'Idea tokenization on Solana. A conviction market for what should be built next.',
   },
 };
 
