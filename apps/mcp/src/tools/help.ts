@@ -63,9 +63,24 @@ export async function callHelp(_rawInput: unknown) {
       [
         ['`/pnl-pitch-now`', `Pitch + create the market in one shot (wallet must be ${Badge.unlocked}, cost within autosign cap)`],
         ['`/pnl-vote-now`', `Stake YES or NO without leaving the terminal (wallet must be ${Badge.unlocked}, amount within autosign cap)`],
+        ['`/pnl-claim-now`', `Claim rewards on a resolved market (wallet must be ${Badge.unlocked}, no cap — claim is a withdrawal)`],
       ],
     ),
-    `_Autosign cap defaults to 0.05 SOL (override per-call with \`autosignCapSol\` or update \`~/.config/pnl/config.json\`)._`,
+    `_Autosign cap defaults to 0.05 SOL (override per-call with \`autosignCapSol\` or update \`~/.config/pnl/config.json\`). Claim has no cap — it's a withdrawal of funds the program already owes you._`,
+    heading('Claim (deep-link mode)'),
+    table(
+      ['Command', 'What it does'],
+      [
+        ['`/pnl-claim`', 'Open the claim panel on /market/<id> — sign in browser wallet'],
+      ],
+    ),
+    heading('Activity'),
+    table(
+      ['Command', 'What it does'],
+      [
+        ['`/pnl-notify`', 'New notifications since last check (votes on your markets, resolutions, claim-ready). Includes profile URL.'],
+      ],
+    ),
     heading('Typical first run'),
     [
       '1. `/pnl-init` — set up wallet, write down the 12-word phrase',

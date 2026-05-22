@@ -117,7 +117,14 @@ export function signChallenge(challenge: string, keypair: Keypair): string {
 /** Re-export the canonical challenge string format so the MCP and the
  *  backend stay in lockstep. Mirrors apps/web/src/lib/mcp-auth.ts. */
 export function challenge(
-  kind: 'build-create' | 'build-vote' | 'complete-create' | 'complete-vote' | 'profile',
+  kind:
+    | 'build-create'
+    | 'build-vote'
+    | 'build-claim'
+    | 'complete-create'
+    | 'complete-vote'
+    | 'complete-claim'
+    | 'profile',
   fingerprint: string,
   nonce: string,
 ): string {

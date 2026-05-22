@@ -27,10 +27,13 @@ import { helpInputSchema, callHelp } from './tools/help.js';
 import { voteInputSchema, callVote } from './tools/vote.js';
 import { pitchNowInputSchema, callPitchNow } from './tools/pitch-now.js';
 import { voteNowInputSchema, callVoteNow } from './tools/vote-now.js';
+import { claimInputSchema, callClaim } from './tools/claim.js';
+import { claimNowInputSchema, callClaimNow } from './tools/claim-now.js';
+import { notifyInputSchema, callNotify } from './tools/notify.js';
 import { runInstall } from './install.js';
 
 const SERVER_NAME = 'pnl-mcp-server';
-const SERVER_VERSION = '0.3.0';
+const SERVER_VERSION = '0.4.0';
 
 // CLI dispatch — when invoked as `pnl-mcp-server install`, run the
 // installer that wires this server into the user's agent configs and
@@ -144,6 +147,27 @@ async function main(): Promise<void> {
     "Autosign buy_yes / buy_no. Same shape as pnl_vote (marketId + side + amountSol) but the MCP signs the vote transaction locally and persists the trade without bouncing through the browser. Requires an unlocked wallet and the stake to be within the autosign cap (defaults 0.05 SOL, overridable per-call). Returns the on-chain tx signature + Solscan link. Use this when the user says 'vote yes on X for me', 'stake 0.02 NO on the AutoImport market', or similar autonomous-vote intent. For larger stakes, fall back to pnl_vote (deep-link).",
     voteNowInputSchema,
     async (args) => callVoteNow(args),
+  );
+
+  server.tool(
+    'pnl_claim',
+    "Claim rewards on a resolved PNL market in deep-link mode. Returns a /market/<id>?claim=1 URL — the market detail page opens the claim panel and the user signs the claim_rewards tx in their browser wallet. The market must be resolved (YES wins, NO wins, or refund) and the wallet must have an unclaimed position on it. For autosign (no browser), use pnl_claim_now. Use when the user says 'claim my rewards on X', 'claim YES wins on AutoImport', or after a market the user voted on has resolved.",
+    claimInputSchema,
+    async (args) => callClaim(args),
+  );
+
+  server.tool(
+    'pnl_claim_now',
+    "Autosign claim_rewards. Same arg as pnl_claim (marketId). The MCP fetches the on-chain market + position state, builds the claim_rewards tx (with Token2022 ATA creation for YES wins), signs locally with the encrypted-at-rest keypair, sends, and persists. No autosign cap — claiming is a withdrawal of funds the user is already owed, not a spend. Wallet must be unlocked (pnl_unlock). Returns the on-chain tx + Solscan link + profile URL. Use when the user says 'claim it for me' or 'auto-claim X' on a resolved market.",
+    claimNowInputSchema,
+    async (args) => callClaimNow(args),
+  );
+
+  server.tool(
+    'pnl_notify',
+    "Show recent notifications for the local PNL wallet — votes on markets you created, resolutions, claim-ready alerts, milestones. Stateful: tracks last-seen on disk so successive calls only show new items (pass all: true to override). Includes a clickable link to the user's PNL profile at /profile/<wallet>. Use when the user says 'what's new on PNL', 'any updates', 'check notifications', or invokes /pnl-notify. No wallet unlock needed (read-only).",
+    notifyInputSchema,
+    async (args) => callNotify(args),
   );
 
   server.tool(
