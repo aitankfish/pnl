@@ -1,7 +1,7 @@
 {
   "name": "@pnl/mcp-server",
-  "version": "0.1.0",
-  "description": "Model Context Protocol server for PNL — let agents (Claude Code, Cursor, Cline, Codex) browse live conviction markets and prepare new pitches with one signature in the user's own wallet.",
+  "version": "0.3.0",
+  "description": "Model Context Protocol server for PNL — let agents (Claude Code, Cursor, Cline, Codex) browse live conviction markets, pitch ideas as markets, and stake YES/NO without leaving the terminal. Local encrypted wallet, autosign for sub-cap amounts, deep-link for larger ones.",
   "type": "module",
   "main": "./dist/index.js",
   "bin": {
