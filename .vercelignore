@@ -1,0 +1,38 @@
+# .vercelignore — controls what gets uploaded to Vercel.
+# Uses the same syntax as .gitignore. Vercel only needs the files required
+# to build @pnl/docs, which is a standalone Next.js app with no workspace
+# internal deps. Everything else can be excluded — speeds up uploads and
+# avoids errors like unreadable Unix-domain-socket files in Solana test-
+# ledgers ('Unknown system error -102').
+
+# Other apps (deployed separately on Render / TestFlight)
+apps/web/
+apps/mobile/
+Predict and Launch/
+
+# Standalone tools and dev workspaces
+pnl-agents/
+scripts/
+presentation/
+test-results/
+
+# Mintlify-era docs scaffold (superseded by apps/docs)
+# Note: leading slash anchors to repo root — otherwise the pattern catches
+# apps/docs/ too and pnpm can't find @pnl/docs in the workspace.
+/docs/
+
+# Build / install artifacts at any depth
+**/node_modules/
+**/.next/
+**/.turbo/
+**/target/
+**/.anchor/
+**/dist/
+**/build/
+**/.expo/
+
+# OS / editor
+.DS_Store
+.idea/
+.vscode/
+*.swp

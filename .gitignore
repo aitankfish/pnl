@@ -122,3 +122,4 @@ dist/
 *.mobileprovision
 *.orig.*
 web-build/
+.vercel
