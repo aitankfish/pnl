@@ -21,9 +21,23 @@ import { walletInputSchema, callWallet } from './tools/wallet.js';
 import { exportKeypairInputSchema, callExportKeypair } from './tools/export-keypair.js';
 import { pitchIdeaInputSchema, callPitchIdea } from './tools/pitch-idea.js';
 import { setUsernameInputSchema, callSetUsername } from './tools/set-username.js';
+import { runInstall } from './install.js';
 
 const SERVER_NAME = 'pnl-mcp-server';
 const SERVER_VERSION = '0.1.0';
+
+// CLI dispatch — when invoked as `pnl-mcp-server install`, run the
+// installer that wires this server into the user's agent configs and
+// drops the slash-command skills into ~/.claude/skills/. Otherwise
+// (the case the agent runtime hits) start the stdio MCP server.
+async function maybeRunCli(): Promise<boolean> {
+  const subcommand = process.argv[2];
+  if (subcommand === 'install') {
+    const code = await runInstall(process.argv.slice(2));
+    process.exit(code);
+  }
+  return false;
+}
 
 async function main(): Promise<void> {
   const server = new McpServer(
@@ -93,7 +107,10 @@ async function main(): Promise<void> {
   process.stderr.write(`[${SERVER_NAME}@${SERVER_VERSION}] ready · ${process.env.PNL_API_BASE_URL || 'https://pnl.market'}\n`);
 }
 
-main().catch((err) => {
+(async () => {
+  await maybeRunCli();
+  await main();
+})().catch((err) => {
   process.stderr.write(`[${SERVER_NAME}] fatal: ${err instanceof Error ? err.stack ?? err.message : String(err)}\n`);
   process.exit(1);
 });
