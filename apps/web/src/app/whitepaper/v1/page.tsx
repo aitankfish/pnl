@@ -13,25 +13,6 @@ import AMMSimulator from '@/components/whitepaper/AMMSimulator';
 import WhitepaperSidebar from '@/components/whitepaper/WhitepaperSidebar';
 import VersionChip from '@/components/whitepaper/VersionChip';
 
-// v2 sections list (adds Agent-native between Vision and Technical).
-// Passed into WhitepaperSidebar so the right-rail nav matches the
-// content order of this version.
-const V2_SECTIONS = [
-  { id: 'thesis', title: 'The thesis' },
-  { id: 'abstract', title: 'Abstract' },
-  { id: 'problem', title: 'The problem' },
-  { id: 'solution', title: 'The solution' },
-  { id: 'how-it-works', title: 'How it works' },
-  { id: 'benefits', title: 'Why build & invest' },
-  { id: 'economics', title: 'Economics' },
-  { id: 'vision', title: 'Vision & roadmap' },
-  { id: 'agent-native', title: 'Agent-native' },
-  { id: 'technical', title: 'Technical' },
-  { id: 'community', title: 'Join the grove' },
-  { id: 'further-reading', title: 'Further reading' },
-  { id: 'disclaimer', title: 'Disclaimer' },
-];
-
 const BASE_URL = process.env.NEXT_PUBLIC_APP_URL || 'https://pnl.market';
 
 // ── Cosmic-plant palette (inline so the file is self-contained) ──
@@ -238,7 +219,7 @@ function DistRow({
 export default function WhitepaperPage() {
   return (
     <div className="min-h-screen" style={{ color: CREAM }}>
-      <WhitepaperSidebar sections={V2_SECTIONS} />
+      <WhitepaperSidebar />
 
       <div className="space-y-8 px-4 sm:px-6 md:px-8 pt-6 pb-16 lg:pl-72">
         <div className="max-w-3xl mx-auto">
@@ -279,10 +260,10 @@ export default function WhitepaperPage() {
               className="mono uppercase tracking-[0.26em] text-[0.55rem] mt-5"
               style={{ color: CREAM_FAINT }}
             >
-              Version 2.0 · May 2026 · Solana mainnet
+              Version 1.0 · December 2025 · Solana mainnet
             </p>
             <div className="mt-6 flex justify-center">
-              <VersionChip version="v2.0" state="current" date="May 2026" />
+              <VersionChip version="v1.0" state="archived" date="December 2025" />
             </div>
           </header>
 
@@ -1290,114 +1271,9 @@ export default function WhitepaperPage() {
               </div>
             </section>
 
-            {/* ─── Agent-native ─── */}
-            <section id="agent-native" className="scroll-mt-28">
-              <h2>§ 08 — Agent-native</h2>
-
-              <p>
-                Most ideas die in <code style={{ color: AMBER, fontFamily: 'var(--font-mono, monospace)' }}>// TODO:</code> comments.
-                The future of building is developers and creators working alongside AI agents
-                — Claude Code, Cursor, Cline, Codex, and the next one — generating ideas at
-                machine speed faster than any single person can act on them. PNL is built to
-                be the place those ideas go.
-              </p>
-
-              <Callout eyebrow="The thesis" accent={AMBER}>
-                <p style={{ color: CREAM, fontFamily: 'var(--font-fraunces, serif)', fontStyle: 'italic', fontSize: '1.05rem', lineHeight: 1.55 }}>
-                  Every developer becomes a 10x ideator. The bottleneck shifts from
-                  &ldquo;having ideas&rdquo; to &ldquo;deciding which ones deserve to exist.&rdquo;
-                  A conviction market is exactly the right substrate for that triage.
-                </p>
-              </Callout>
-
-              <h3 style={{ color: CREAM, fontFamily: 'var(--font-fraunces, serif)', fontSize: '1.35rem', marginTop: '2rem', marginBottom: '0.5rem' }}>
-                The surface
-              </h3>
-              <p>
-                <code style={{ color: AMBER, fontFamily: 'var(--font-mono, monospace)' }}>@pnl/mcp-server</code>
-                {' '}v0.4.0 ships a Model Context Protocol server with{' '}
-                <strong style={{ color: CREAM }}>16 tools</strong> across read, wallet,
-                identity, and market actions. Any MCP-compatible agent can read live PNL
-                state, pitch ideas as markets, vote on existing ones, and claim rewards
-                — without leaving the terminal.
-              </p>
-
-              <p>
-                Two flows ship for every write action:
-              </p>
-
-              <ul style={{ color: CREAM_DIM, paddingLeft: '1.25rem', marginBottom: '1.25rem', listStyle: 'none' }}>
-                <li style={{ marginBottom: '0.5rem' }}>
-                  <span style={{ color: AMBER, marginRight: '0.5rem' }}>·</span>
-                  <strong style={{ color: CREAM }}>Deep-link.</strong> The agent prepares
-                  a draft; the user opens a URL and signs in their browser wallet. Works
-                  with any wallet — Phantom, Solflare, Backpack, Privy. No setup beyond
-                  what a normal PNL user already has.
-                </li>
-                <li>
-                  <span style={{ color: AMBER, marginRight: '0.5rem' }}>·</span>
-                  <strong style={{ color: CREAM }}>Autosign.</strong> The MCP signs
-                  locally with an encrypted-at-rest keypair and posts the market without
-                  a browser bounce. Bounded by a configurable cap (default 0.05 SOL) so
-                  the agent can&apos;t move large amounts unilaterally.
-                </li>
-              </ul>
-
-              <h3 style={{ color: CREAM, fontFamily: 'var(--font-fraunces, serif)', fontSize: '1.35rem', marginTop: '2rem', marginBottom: '0.5rem' }}>
-                Trust model
-              </h3>
-              <p>
-                Non-custodial by design. The MCP holds an encrypted keypair on the
-                user&apos;s local machine — scrypt (N=2<sup>17</sup>) for key derivation,
-                AES-256-GCM for the secret, BIP39 12-word mnemonic for recovery. The
-                passphrase is delivered via OS-native dialog or{' '}
-                <code style={{ color: AMBER, fontFamily: 'var(--font-mono, monospace)' }}>PNL_PASSPHRASE</code>
-                {' '}env, never typed in chat where it would flow through an LLM API.
-              </p>
-
-              <p>
-                The autosign cap is a hard ceiling — per-call overrides can only{' '}
-                <em>lower</em> it, never raise. A malicious project description or
-                notification cannot coax the agent into draining the wallet. To raise
-                the ceiling the user must edit{' '}
-                <code style={{ color: AMBER, fontFamily: 'var(--font-mono, monospace)' }}>~/.config/pnl/config.json</code>
-                {' '}themselves.
-              </p>
-
-              <p>
-                Sig-auth challenges on mutating endpoints fold a SHA-256 of the request
-                body into the signature. An attacker who captures a sig within the 5-minute
-                nonce window cannot rewrite the project name, vote side, or claim amount
-                — the hash flips, the sig fails to verify, the backend rejects.
-              </p>
-
-              <Callout eyebrow="What this means for the grove" accent={FOREST}>
-                <p style={{ color: CREAM, lineHeight: 1.65 }}>
-                  The protocol doesn&apos;t change. The on-ramp gets cheaper. An idea
-                  that would have died in a code comment can now be a live conviction
-                  market in roughly ten seconds, signed locally, no browser bounce. The
-                  community still decides what deserves to launch — agents just make it
-                  easier for more ideas to reach the community in the first place.
-                </p>
-              </Callout>
-
-              <p style={{ color: CREAM_DIM, marginTop: '1.25rem' }}>
-                Full reference for the MCP server — install, tool surface, backend
-                endpoints, env vars, security model:{' '}
-                <a
-                  href="https://docs.pnl.market/docs/build/mcp-server"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  style={{ color: AMBER, borderBottom: `1px dashed ${AMBER}80` }}
-                >
-                  docs.pnl.market/docs/build/mcp-server
-                </a>
-              </p>
-            </section>
-
             {/* ─── Technical ─── */}
             <section id="technical" className="scroll-mt-28">
-              <h2>§ 09 — Technical architecture</h2>
+              <h2>§ 08 — Technical architecture</h2>
 
               <div
                 style={{
@@ -1498,7 +1374,7 @@ export default function WhitepaperPage() {
 
             {/* ─── Community CTA ─── */}
             <section id="community" className="scroll-mt-28">
-              <h2>§ 10 — Join the grove</h2>
+              <h2>§ 09 — Join the grove</h2>
               <p>
                 PNL is community-owned. We don't have a marketing team. We
                 have <em>you</em> — believers who want to fund what matters.
@@ -1583,7 +1459,7 @@ export default function WhitepaperPage() {
                 openly because the work isn't ours — it's what made the
                 work possible. */}
             <section id="further-reading" className="scroll-mt-28">
-              <h2>§ 11 — Further reading</h2>
+              <h2>§ 10 — Further reading</h2>
               <p>
                 PNL did not invent the ideas it stands on. Below is the
                 canon we leaned on — the work that shaped each of the five
@@ -1807,7 +1683,7 @@ export default function WhitepaperPage() {
 
             {/* ─── Disclaimer ─── */}
             <section id="disclaimer" className="scroll-mt-28">
-              <h2>§ 12 — Disclaimer</h2>
+              <h2>§ 11 — Disclaimer</h2>
               <p
                 style={{
                   color: CREAM_FAINT,

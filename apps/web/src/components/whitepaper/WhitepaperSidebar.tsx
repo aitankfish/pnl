@@ -17,7 +17,10 @@ interface Section {
   title: string;
 }
 
-const sections: Section[] = [
+// Default = v1 (genesis) whitepaper section order. v2 + later pass a
+// `sections` prop with an updated list (e.g. adds 'agent-native'
+// between Vision and Technical).
+const DEFAULT_SECTIONS: Section[] = [
   { id: 'thesis', title: 'The thesis' },
   { id: 'abstract', title: 'Abstract' },
   { id: 'problem', title: 'The problem' },
@@ -86,7 +89,11 @@ const playCosmicSound = () => {
   }
 };
 
-export default function WhitepaperSidebar() {
+interface WhitepaperSidebarProps {
+  sections?: Section[];
+}
+
+export default function WhitepaperSidebar({ sections = DEFAULT_SECTIONS }: WhitepaperSidebarProps = {}) {
   const [activeSection, setActiveSection] = useState<string>('abstract');
   const [isMobileOpen, setIsMobileOpen] = useState(false);
 
