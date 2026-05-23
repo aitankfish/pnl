@@ -44,6 +44,16 @@ function Sidebar({ currentPage }: SidebarProps) {
   // Track whether the avatar image failed to load — broken IPFS gateways /
   // 404s otherwise leave the browser rendering raw alt text in the avatar box.
   const [avatarBroken, setAvatarBroken] = useState(false);
+  // Hydration guard. The wallet/auth state is only resolved client-side
+  // (Privy + wallet provider hydrate after first paint), so the avatar
+  // slot would render <Loader2 /> on the server and a different icon on
+  // the client → React hydration mismatch on the SVG <path>. We render
+  // a deterministic default (<User />) until `mounted` flips, then swap
+  // to the real auth-derived icon on the client.
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => {
+    setMounted(true);
+  }, []);
   const router = useRouter();
   const { ready, authenticated, primaryWallet } = useWallet();
   const { showAuthModal } = useAuthModal();
@@ -254,7 +264,10 @@ function Sidebar({ currentPage }: SidebarProps) {
                 : 'Connect Wallet'
             }
           >
-            {isPending ? (
+            {!mounted ? (
+              // SSR + first paint — deterministic, matches server output exactly.
+              <User className="w-4 h-4 sm:w-5 sm:h-5" />
+            ) : isPending ? (
               <Loader2 className="w-4 h-4 sm:w-5 sm:h-5 animate-spin" />
             ) : authenticated && profilePhotoUrl && !avatarBroken ? (
               <img
