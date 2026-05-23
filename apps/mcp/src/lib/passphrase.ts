@@ -33,16 +33,29 @@ function fromEnv(): string | null {
 }
 
 function macosPrompt(prompt: string, title: string): string {
-  // osascript escapes: we use a heredoc-style applescript and inject
-  // strings as bash args (execFileSync arrays are safe from shell injection).
-  const script = `display dialog "${prompt.replace(/"/g, '\\"')}" default answer "" with hidden answer with title "${title.replace(/"/g, '\\"')}"
+  // Pass prompt + title via env vars so they never go through AppleScript
+  // string interpolation. `system attribute` reads them at runtime — no
+  // escape logic to get wrong, and no path for a future caller's user-
+  // controlled input to break out of the dialog literal.
+  const script = `set p to system attribute "PNL_DIALOG_PROMPT"
+set t to system attribute "PNL_DIALOG_TITLE"
+display dialog p default answer "" with hidden answer with title t
 return text returned of result`;
-  const out = execFileSync('osascript', ['-e', script], { encoding: 'utf8' });
+  const out = execFileSync('osascript', ['-e', script], {
+    encoding: 'utf8',
+    env: { ...process.env, PNL_DIALOG_PROMPT: prompt, PNL_DIALOG_TITLE: title },
+  });
   return out.trim();
 }
 
 function linuxPrompt(prompt: string, _title: string): string {
-  const out = execFileSync('zenity', ['--password', '--title', _title], { encoding: 'utf8' });
+  // zenity args are passed via execFileSync's array form, which is already
+  // safe from shell-injection — no escape needed.
+  const out = execFileSync(
+    'zenity',
+    ['--password', '--title', _title, '--text', prompt],
+    { encoding: 'utf8' },
+  );
   return out.trim();
 }
 
