@@ -58,7 +58,7 @@ const VERSIONS: Version[] = [
     state: 'current',
     title: 'Agent-native integration',
     summary:
-      "Adds a new section on PNL's agent surface — the @pnl/mcp-server (v0.4.0, 16 tools, autosign + deep-link flows, encrypted-at-rest local wallet). Documents the trust model: non-custodial, autosign cap as a hard ceiling, sig-auth challenges payload-bound against tampering. Existing sections preserved verbatim from v1.",
+      "Adds a new section on PNL's agent surface — the @pnlmarket/mcp-server (v0.4.0, 16 tools, autosign + deep-link flows, encrypted-at-rest local wallet). Documents the trust model: non-custodial, autosign cap as a hard ceiling, sig-auth challenges payload-bound against tampering. Existing sections preserved verbatim from v1.",
   },
   {
     slug: 'v1',

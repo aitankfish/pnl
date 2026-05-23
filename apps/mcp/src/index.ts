@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// @pnl/mcp-server — Model Context Protocol server for PNL.
+// @pnlmarket/mcp-server — Model Context Protocol server for PNL.
 //
 // Lets agents (Claude Code, Cursor, Cline, Codex, the next one) browse
 // the live conviction-market state on pnl.market and — in later versions

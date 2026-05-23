@@ -1,13 +1,13 @@
 // ─── pnl-mcp-server install ──────────────────────────────────────
 //
-// One-shot installer that wires @pnl/mcp-server into the user's agent
+// One-shot installer that wires @pnlmarket/mcp-server into the user's agent
 // of choice (Claude Code, Cursor, Cline) and optionally drops the
 // SKILL.md slash commands into their skills directory.
 //
 // Usage:
-//   npx @pnl/mcp-server install            # prints plan, asks for confirm
-//   npx @pnl/mcp-server install --write    # apply without confirmation
-//   npx @pnl/mcp-server install --skills   # only install slash commands
+//   npx @pnlmarket/mcp-server install            # prints plan, asks for confirm
+//   npx @pnlmarket/mcp-server install --write    # apply without confirmation
+//   npx @pnlmarket/mcp-server install --skills   # only install slash commands
 //
 // Idempotent: re-running is safe. Existing entries get replaced
 // in-place, no duplicates accumulate.
@@ -19,7 +19,7 @@ import { fileURLToPath } from 'node:url';
 
 const SERVER_KEY = 'pnl';
 const NPX_COMMAND = 'npx';
-const NPX_ARGS = ['-y', '@pnl/mcp-server'];
+const NPX_ARGS = ['-y', '@pnlmarket/mcp-server'];
 
 interface AgentTarget {
   label: string;
@@ -114,7 +114,7 @@ export async function runInstall(argv: string[]): Promise<number> {
   const skillsOnly = flags.has('--skills');
   const noSkills = flags.has('--no-skills');
 
-  process.stdout.write('\n@pnl/mcp-server installer\n');
+  process.stdout.write('\n@pnlmarket/mcp-server installer\n');
 
   // 1. Discover target configs.
   const targets = candidates();
@@ -131,11 +131,11 @@ export async function runInstall(argv: string[]): Promise<number> {
   const planLines: string[] = [];
   if (present.length === 0) {
     planLines.push('No agent config files found at the standard locations.');
-    planLines.push('You can still run the server directly. After installing globally with `npm i -g @pnl/mcp-server`, add this to your agent\'s MCP config:');
+    planLines.push('You can still run the server directly. After installing globally with `npm i -g @pnlmarket/mcp-server`, add this to your agent\'s MCP config:');
     planLines.push('');
     planLines.push(JSON.stringify({ mcpServers: { [SERVER_KEY]: { command: NPX_COMMAND, args: NPX_ARGS } } }, null, 2));
   } else {
-    planLines.push('Will add an `mcpServers.pnl` entry pointing to `npx -y @pnl/mcp-server` in:');
+    planLines.push('Will add an `mcpServers.pnl` entry pointing to `npx -y @pnlmarket/mcp-server` in:');
     for (const t of present) {
       planLines.push(`  • ${t.label}: ${t.configPath}`);
     }
@@ -157,7 +157,7 @@ export async function runInstall(argv: string[]): Promise<number> {
 
   if (!write) {
     process.stdout.write(
-      '\nRe-run with `--write` (or `-y`) to apply.\n  npx @pnl/mcp-server install --write\n\n',
+      '\nRe-run with `--write` (or `-y`) to apply.\n  npx @pnlmarket/mcp-server install --write\n\n',
     );
     return 0;
   }

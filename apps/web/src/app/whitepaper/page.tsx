@@ -1314,7 +1314,7 @@ export default function WhitepaperPage() {
                 The surface
               </h3>
               <p>
-                <code style={{ color: AMBER, fontFamily: 'var(--font-mono, monospace)' }}>@pnl/mcp-server</code>
+                <code style={{ color: AMBER, fontFamily: 'var(--font-mono, monospace)' }}>@pnlmarket/mcp-server</code>
                 {' '}v0.4.0 ships a Model Context Protocol server with{' '}
                 <strong style={{ color: CREAM }}>16 tools</strong> across read, wallet,
                 identity, and market actions. Any MCP-compatible agent can read live PNL

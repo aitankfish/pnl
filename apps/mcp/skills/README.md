@@ -1,6 +1,6 @@
 # PNL skills for Claude Code
 
-Short slash commands that wrap the `@pnl/mcp-server` tools. Install
+Short slash commands that wrap the `@pnlmarket/mcp-server` tools. Install
 these once and you can type `/pnl-init`, `/pnl-wallet`, `/pnl-browse`,
 `/pnl-pitch`, `/pnl-export` in any Claude Code session instead of
 asking the agent to call MCP tools by name.

@@ -1,4 +1,4 @@
-# `@pnl/mcp-server`
+# `@pnlmarket/mcp-server`
 
 The Model Context Protocol server for [PNL](https://pnl.market) — let
 your agent (Claude Code, Cursor, Cline, Codex, the next one) browse
@@ -83,10 +83,10 @@ controls on their own machine.
 
 ### One-shot installer (recommended)
 
-After `pnpm install && pnpm -F @pnl/mcp-server build`:
+After `pnpm install && pnpm -F @pnlmarket/mcp-server build`:
 
 ```bash
-npx @pnl/mcp-server install --write
+npx @pnlmarket/mcp-server install --write
 ```
 
 That wires the MCP server into every supported host config it
