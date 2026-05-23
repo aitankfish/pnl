@@ -30,7 +30,7 @@ import { tweetMarketCreated } from '@/services/twitter/twitter-service';
 import { broadcastNewMarket } from '@/services/socket/socket-server';
 import { invalidateCache } from '@/lib/redis/invalidate';
 import { ensureUserProfile } from '@/lib/user-profile-init';
-import { verifyMcpSignature, challenge } from '@/lib/mcp-auth';
+import { verifyMcpSignature, challenge, signedRequestHash } from '@/lib/mcp-auth';
 import { checkRateLimit } from '@/lib/auth/rate-limit';
 import { getSolanaConnection } from '@/lib/solana';
 import { getProgramIdForNetwork } from '@/lib/anchor-program';
@@ -161,7 +161,13 @@ export async function POST(request: NextRequest) {
 
     // Verify signature first — cheap, in-memory. Bail before the RPC
     // call if the request is malformed or unauthorized.
-    const challengeStr = challenge('complete-create', body.txSignature, body.nonce);
+    //
+    // The challenge folds in a SHA-256 of the request body minus auth
+    // fields, so an attacker who captures a sig within the 5min nonce
+    // window cannot rewrite the project name / description / ticker /
+    // ipfsCid without invalidating the sig.
+    const payloadHash = signedRequestHash(body as unknown as Record<string, unknown>);
+    const challengeStr = challenge('complete-create', body.txSignature, body.nonce, payloadHash);
     const verified = verifyMcpSignature(
       { walletAddress: body.walletAddress, nonce: body.nonce, signature: body.signature },
       challengeStr,

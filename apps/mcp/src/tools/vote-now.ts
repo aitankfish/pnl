@@ -12,6 +12,7 @@ import {
   freshNonce,
   signChallenge,
   challenge,
+  signedRequestHash,
 } from '../lib/sign.js';
 import { getMarket } from '../lib/pnl-api.js';
 import { Badge, headline, code, kvTable, inline, next, reply, hr } from '../lib/output.js';
@@ -41,7 +42,7 @@ export const voteNowInputSchema = {
     .positive()
     .optional()
     .describe(
-      'Optional override for the per-call autosign cap. Defaults to the value in ~/.config/pnl/config.json (0.05 SOL). Stakes above the cap fail with an explicit error — the user should use pnl_vote for the deep-link flow in that case.',
+      'Optional cap override that can only LOWER the autosign limit for this call, never raise it. Ceiling is from ~/.config/pnl/config.json (default 0.05 SOL). Stakes above the (lowered) cap fail before any signing — use pnl_vote for the deep-link flow in that case.',
     ),
 } as const;
 
@@ -84,7 +85,14 @@ export async function callVoteNow(rawInput: unknown) {
 
   // Cap check before any I/O. The user's stake itself is the dominant
   // cost — Solana tx fees are ~5000 lamports (0.000005 SOL).
-  const cap = input.autosignCapSol ?? loadConfig().autosignCapSol;
+  //
+  // Cap policy: the user's configured cap is the ceiling — the
+  // per-call autosignCapSol arg can only LOWER it, never raise.
+  // To raise the cap the user edits ~/.config/pnl/config.json directly.
+  const configCap = loadConfig().autosignCapSol;
+  const cap = input.autosignCapSol != null
+    ? Math.min(input.autosignCapSol, configCap)
+    : configCap;
   if (input.amountSol > cap) {
     throw new Error(
       `Stake ${input.amountSol} SOL exceeds autosign cap ${cap} SOL. Either raise the cap (autosignCapSol arg) or use pnl_vote for the browser deep-link flow.`,
@@ -153,10 +161,20 @@ export async function callVoteNow(rawInput: unknown) {
     confirmTimeoutMs: 90_000,
   });
 
-  // 3. sig-auth complete-vote
+  // 3. Build complete-vote body, hash it into the challenge, sign.
+  //    The hash binds the sig to voteType + amountSol + marketId so an
+  //    attacker who captures the sig within the nonce window cannot
+  //    rewrite the side or amount on the persisted trade row.
   const nonce = freshNonce();
+  const completeBodyCore = {
+    txSignature,
+    marketId: onchainId,
+    voteType: input.vote,
+    amountSol: input.amountSol,
+  };
+  const payloadHash = signedRequestHash(completeBodyCore);
   const sig = signChallenge(
-    challenge('complete-vote', txSignature, nonce),
+    challenge('complete-vote', txSignature, nonce, payloadHash),
     keypair,
   );
   const completeRes = await fetch(`${base}/api/mcp/markets/complete-vote`, {
@@ -166,10 +184,7 @@ export async function callVoteNow(rawInput: unknown) {
       walletAddress,
       nonce,
       signature: sig,
-      txSignature,
-      marketId: onchainId,
-      voteType: input.vote,
-      amountSol: input.amountSol,
+      ...completeBodyCore,
     }),
   });
   const completeJson = (await completeRes.json()) as CompleteResponse;

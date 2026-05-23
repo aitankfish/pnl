@@ -7,6 +7,7 @@ import {
 } from '@solana/web3.js';
 import nacl from 'tweetnacl';
 import bs58 from 'bs58';
+import { createHash } from 'node:crypto';
 import { getConnection } from './wallet.js';
 
 // ─── PNL MCP — transaction signing + send helpers ─────────────────
@@ -115,7 +116,9 @@ export function signChallenge(challenge: string, keypair: Keypair): string {
 }
 
 /** Re-export the canonical challenge string format so the MCP and the
- *  backend stay in lockstep. Mirrors apps/web/src/lib/mcp-auth.ts. */
+ *  backend stay in lockstep. Mirrors apps/web/src/lib/mcp-auth.ts.
+ *  When payloadHash is supplied, the sig binds to the request body —
+ *  see signedRequestHash() below. */
 export function challenge(
   kind:
     | 'build-create'
@@ -127,6 +130,42 @@ export function challenge(
     | 'profile',
   fingerprint: string,
   nonce: string,
+  payloadHash?: string,
 ): string {
+  if (payloadHash) {
+    return `pnl-mcp:${kind}:${fingerprint}:${payloadHash}:${nonce}`;
+  }
   return `pnl-mcp:${kind}:${fingerprint}:${nonce}`;
+}
+
+/** Canonical JSON: keys sorted, no whitespace, recursive. Matches
+ *  apps/web/src/lib/mcp-auth.ts (and JSON.stringify's handling of
+ *  `undefined`) so both sides hash identical bytes regardless of
+ *  whether the body has been through JSON serialization yet. */
+function canonicalJson(value: unknown): string {
+  if (value === undefined) return 'null';
+  if (value === null || typeof value !== 'object') return JSON.stringify(value);
+  if (Array.isArray(value)) {
+    return '[' + value.map(canonicalJson).join(',') + ']';
+  }
+  const obj = value as Record<string, unknown>;
+  // Drop undefined-valued keys (mirrors JSON.stringify) so the body
+  // we hash before sending matches the body the backend receives.
+  const keys = Object.keys(obj).filter((k) => obj[k] !== undefined).sort();
+  return (
+    '{' +
+    keys.map((k) => JSON.stringify(k) + ':' + canonicalJson(obj[k])).join(',') +
+    '}'
+  );
+}
+
+/** SHA-256 of the request body minus auth fields (walletAddress,
+ *  nonce, signature) — first 16 hex chars. Both MCP-side (before
+ *  signing) and backend (verifying) compute the same hash so the sig
+ *  is bound to the exact payload. Tampering with any payload field
+ *  invalidates the sig. */
+export function signedRequestHash(body: Record<string, unknown>): string {
+  const { walletAddress: _w, nonce: _n, signature: _s, ...payload } = body;
+  void _w; void _n; void _s;
+  return createHash('sha256').update(canonicalJson(payload), 'utf8').digest('hex').slice(0, 16);
 }

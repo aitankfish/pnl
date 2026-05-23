@@ -382,6 +382,45 @@ export function exportToFile(): { path: string; address: string } {
   return { path, address: kp.publicKey.toBase58() };
 }
 
+/** Writes a freshly-generated BIP39 mnemonic to a 0600 file under
+ *  ~/.config/pnl/exports/ and returns the path. The mnemonic itself
+ *  is intentionally NOT returned in the function result — it never
+ *  enters the agent's reply transcript (which would flow through the
+ *  LLM API). The caller passes the user the path; the user `cat`s
+ *  the file locally and moves it to their password manager.
+ *
+ *  Same security model as exportToFile() for the secret key. */
+export function writeMnemonicToFile(mnemonic: string, address: string): { path: string } {
+  ensureExportsDir();
+  const ts = new Date().toISOString().replace(/[:.]/g, '-');
+  const path = join(EXPORTS_DIR, `mnemonic-${ts}.txt`);
+  const body = [
+    '# PNL wallet recovery phrase',
+    `# Generated: ${new Date().toISOString()}`,
+    `# Address: ${address}`,
+    '#',
+    '# THIS IS THE 12-WORD RECOVERY PHRASE FOR YOUR PNL WALLET.',
+    '# Anyone with these words can spend the SOL on this wallet.',
+    '# Treat it like a password.',
+    '#',
+    '# After moving these words to a password manager / paper backup,',
+    '# DELETE THIS FILE: rm "' + path + '"',
+    '#',
+    '# This phrase imports cleanly into Phantom / Solflare / Backpack',
+    '# (BIP39, Solana derivation path m/44\'/501\'/0\'/0\').',
+    '',
+    mnemonic,
+    '',
+  ].join('\n');
+  writeFileSync(path, body, { mode: 0o600 });
+  try {
+    chmodSync(path, 0o600);
+  } catch {
+    /* non-fatal */
+  }
+  return { path };
+}
+
 // ─── Config (autosign cap, RPC URL) ──────────────────────────────
 
 export function loadConfig(): PnlConfig {

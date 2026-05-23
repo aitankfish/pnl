@@ -18,6 +18,7 @@
 import { PublicKey } from '@solana/web3.js';
 import nacl from 'tweetnacl';
 import bs58 from 'bs58';
+import { createHash } from 'node:crypto';
 
 const NONCE_MAX_AGE_MS = 5 * 60 * 1000;
 const NONCE_CLOCK_SKEW_MS = 60 * 1000;
@@ -109,6 +110,48 @@ export function challenge(
     | 'profile',
   fingerprint: string,
   nonce: string,
+  payloadHash?: string,
 ): string {
+  // When payloadHash is provided, fold it into the canonical challenge.
+  // This binds the sig to the request body — an attacker who captures
+  // a sig within the 5min nonce window cannot rewrite the body fields
+  // (project name, vote type, amount, etc.) without invalidating the
+  // sig. All mutating endpoints (complete-*) require a payloadHash.
+  if (payloadHash) {
+    return `pnl-mcp:${kind}:${fingerprint}:${payloadHash}:${nonce}`;
+  }
   return `pnl-mcp:${kind}:${fingerprint}:${nonce}`;
+}
+
+/** Canonical JSON: keys sorted, no whitespace, recursive. Matches
+ *  JSON.stringify's handling of `undefined` (drop keys / nulls in
+ *  arrays) so both sides hash the same bytes whether they see a body
+ *  pre- or post-JSON-roundtrip. */
+function canonicalJson(value: unknown): string {
+  // `undefined` as a top-level array element → `null` (matches JSON.stringify)
+  if (value === undefined) return 'null';
+  if (value === null || typeof value !== 'object') return JSON.stringify(value);
+  if (Array.isArray(value)) {
+    return '[' + value.map(canonicalJson).join(',') + ']';
+  }
+  const obj = value as Record<string, unknown>;
+  // Drop undefined-valued keys entirely. JSON.stringify does the same,
+  // so a body that round-trips through fetch arrives identically to the
+  // one we hashed on the client.
+  const keys = Object.keys(obj).filter((k) => obj[k] !== undefined).sort();
+  return (
+    '{' +
+    keys.map((k) => JSON.stringify(k) + ':' + canonicalJson(obj[k])).join(',') +
+    '}'
+  );
+}
+
+/** SHA-256 hash (first 16 hex chars) of the request body's payload
+ *  fields. Auth fields (walletAddress / nonce / signature) are excluded
+ *  so the hash represents what the user is *committing to* — not the
+ *  envelope. Both client + server compute this the same way. */
+export function signedRequestHash(body: Record<string, unknown>): string {
+  const { walletAddress: _w, nonce: _n, signature: _s, ...payload } = body;
+  void _w; void _n; void _s;
+  return createHash('sha256').update(canonicalJson(payload), 'utf8').digest('hex').slice(0, 16);
 }

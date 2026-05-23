@@ -28,7 +28,7 @@ import { getSolanaConnection } from '@/lib/solana';
 import { getProgramIdForNetwork } from '@/lib/anchor-program';
 import { SOLANA_NETWORK } from '@/config/solana';
 import { invalidateCache } from '@/lib/redis/invalidate';
-import { verifyMcpSignature, challenge } from '@/lib/mcp-auth';
+import { verifyMcpSignature, challenge, signedRequestHash } from '@/lib/mcp-auth';
 import { checkRateLimit } from '@/lib/auth/rate-limit';
 
 export const dynamic = 'force-dynamic';
@@ -117,8 +117,12 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Signature verification first — cheap.
-    const challengeStr = challenge('complete-vote', body.txSignature, body.nonce);
+    // Signature verification first — cheap. Payload-bound: the sig
+    // covers voteType + amountSol + marketId so an attacker cannot
+    // rewrite the side or amount on the persisted trade row given a
+    // captured sig.
+    const payloadHash = signedRequestHash(body as unknown as Record<string, unknown>);
+    const challengeStr = challenge('complete-vote', body.txSignature, body.nonce, payloadHash);
     const verified = verifyMcpSignature(
       { walletAddress: body.walletAddress, nonce: body.nonce, signature: body.signature },
       challengeStr,

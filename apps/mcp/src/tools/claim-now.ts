@@ -6,6 +6,7 @@ import {
   freshNonce,
   signChallenge,
   challenge,
+  signedRequestHash,
 } from '../lib/sign.js';
 import { getMarket } from '../lib/pnl-api.js';
 import { Badge, headline, code, kvTable, inline, next, reply, hr } from '../lib/output.js';
@@ -116,10 +117,16 @@ export async function callClaimNow(rawInput: unknown) {
     { confirmTimeoutMs: 90_000 },
   );
 
-  // 4. sig-auth complete-claim
+  // 4. sig-auth complete-claim — challenge binds the body so an
+  //    attacker can't rewrite marketId on the persisted claim row.
   const nonce = freshNonce();
+  const completeBodyCore = {
+    txSignature,
+    marketId: onchainId,
+  };
+  const payloadHash = signedRequestHash(completeBodyCore);
   const sig = signChallenge(
-    challenge('complete-claim', txSignature, nonce),
+    challenge('complete-claim', txSignature, nonce, payloadHash),
     keypair,
   );
   const completeRes = await fetch(`${base}/api/mcp/markets/complete-claim`, {
@@ -129,8 +136,7 @@ export async function callClaimNow(rawInput: unknown) {
       walletAddress,
       nonce,
       signature: sig,
-      txSignature,
-      marketId: onchainId,
+      ...completeBodyCore,
     }),
   });
   const completeJson = (await completeRes.json()) as CompleteResponse;

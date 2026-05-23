@@ -12,6 +12,7 @@ import {
   freshNonce,
   signChallenge,
   challenge,
+  signedRequestHash,
 } from '../lib/sign.js';
 import { pitchIdeaInputSchema } from './pitch-idea.js';
 import { Badge, headline, code, kvTable, inline, next, reply, hr } from '../lib/output.js';
@@ -44,7 +45,7 @@ export const pitchNowInputSchema = {
     .positive()
     .optional()
     .describe(
-      'Optional override for the autosign cap on this call. Defaults to the cap from ~/.config/pnl/config.json (0.05 SOL out of the box). The full creation cost includes the market creation fee (~0.015 SOL) plus a Solana tx fee (~0.000005 SOL); if the wallet balance is below the cap, the call fails before any signing happens.',
+      'Optional cap override that can only LOWER the autosign limit for this call, never raise it. The ceiling is the cap from ~/.config/pnl/config.json (default 0.05 SOL). To raise the ceiling, the user must edit the config file directly — this arg cannot bypass it.',
     ),
 } as const;
 
@@ -96,7 +97,17 @@ export async function callPitchNow(rawInput: unknown) {
   //    the creation fee + tx fee combined are well under 0.02 SOL but
   //    we sanity-check against the user's configured cap to catch
   //    "wallet only has 0.001 SOL" before pinning IPFS.
-  const cap = input.autosignCapSol ?? loadConfig().autosignCapSol;
+  //
+  //    Cap policy: the user's configured cap (~/.config/pnl/config.json)
+  //    is the ceiling — the per-call autosignCapSol arg can only LOWER
+  //    it, never raise. This blocks prompt-injection where a malicious
+  //    project description coaxes the agent into passing a huge
+  //    autosignCapSol to bypass the user-set ceiling. To raise the cap
+  //    the user has to edit the config file themselves.
+  const configCap = loadConfig().autosignCapSol;
+  const cap = input.autosignCapSol != null
+    ? Math.min(input.autosignCapSol, configCap)
+    : configCap;
   const balance = await getBalanceSol(new PublicKey(walletAddress));
   if (balance < 0.02) {
     throw new Error(
@@ -157,18 +168,13 @@ export async function callPitchNow(rawInput: unknown) {
     confirmTimeoutMs: 90_000,
   });
 
-  // 5. Sign the complete-create challenge.
+  // 5. Build the complete-create body first, then sign a challenge that
+  //    folds in a SHA-256 of the body. The hash binds the sig to the
+  //    exact payload — a captured sig cannot be replayed with a tampered
+  //    project name / description / cid before our own complete-create
+  //    call lands (5min nonce window).
   const nonce = freshNonce();
-  const sig = signChallenge(
-    challenge('complete-create', txSignature, nonce),
-    keypair,
-  );
-
-  // 6. Persist + broadcast via complete-create.
-  const completeBody = {
-    walletAddress,
-    nonce,
-    signature: sig,
+  const completeBodyCore = {
     txSignature,
     marketAddress: built.marketPda,
     ipfsCid: built.ipfsCid,
@@ -193,6 +199,19 @@ export async function callPitchNow(rawInput: unknown) {
         : undefined,
     },
     provenance: input.provenance,
+  };
+  const payloadHash = signedRequestHash(completeBodyCore);
+  const sig = signChallenge(
+    challenge('complete-create', txSignature, nonce, payloadHash),
+    keypair,
+  );
+
+  // 6. Persist + broadcast via complete-create.
+  const completeBody = {
+    walletAddress,
+    nonce,
+    signature: sig,
+    ...completeBodyCore,
   };
 
   const completeRes = await fetch(`${base}/api/mcp/markets/complete-create`, {

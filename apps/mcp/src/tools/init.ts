@@ -7,6 +7,7 @@ import {
   loadConfig,
   unlockWith,
   isUsingHostedRpc,
+  writeMnemonicToFile,
   WALLET_PATHS,
 } from '../lib/wallet.js';
 import { promptPassphrase } from '../lib/passphrase.js';
@@ -71,6 +72,13 @@ export async function callInit(rawInput: unknown) {
   const { address, mnemonic } = createWallet(passphrase);
   unlockWith(passphrase, 30); // auto-unlock for the next 30min
 
+  // The 12-word recovery phrase is the keys to the wallet. We MUST NOT
+  // return it in the agent's reply — that text would flow through the
+  // LLM API + sit in Claude Code's session transcript on disk. Instead,
+  // write it to a 0600 file and tell the user the path so they can
+  // `cat` it locally + move it to their password manager + delete.
+  const { path: mnemonicPath } = writeMnemonicToFile(mnemonic, address);
+
   let balanceLine = '';
   try {
     const sol = await getBalanceSol(new PublicKey(address));
@@ -88,17 +96,19 @@ export async function callInit(rawInput: unknown) {
       ['Status', `${Badge.unlocked} 30m`],
     ].filter((r): r is [string, string] => Array.isArray(r))),
     hr,
-    heading('Write this down NOW — recovery phrase'),
-    code(mnemonic),
+    heading('Recovery phrase — written to disk, NOT shown here'),
+    `The 12-word BIP39 recovery phrase was written to ${inline(mnemonicPath)} (mode 0600). Open the file locally to read it — it is NOT in this transcript by design, because anything in this reply flows through the LLM API + is logged by Claude Code.`,
+    code(`cat "${mnemonicPath}"`),
     quote(
-      'This 12-word phrase is the ONLY way to recover your wallet if you lose this machine. Paper or password manager only. Anyone with the phrase can spend the funds — never share it, never paste it into a website, never store it in a screenshot. Phantom / Solflare / Backpack will all import it.',
+      'This 12-word phrase is the ONLY way to recover your wallet if you lose this machine. After you have moved it to a password manager / paper backup, DELETE the file: `rm "' + mnemonicPath + '"`. Anyone with the phrase can spend the funds.',
     ),
     hr,
     heading('Next'),
     [
-      `1. Save the phrase above before continuing.`,
-      `2. Fund the wallet by sending ≥ 0.05 SOL to the deposit address from any Solana wallet.`,
-      `3. The wallet is unlocked for 30 minutes. After that, run \`/pnl-unlock\` to sign more transactions.`,
+      `1. \`cat\` the recovery file above and move the 12 words to your password manager / paper backup.`,
+      `2. ${inline(`rm "${mnemonicPath}"`)} when you are done so the cleartext mnemonic is not sitting in \`~/.config/pnl/exports/\`.`,
+      `3. Fund the wallet by sending ≥ 0.05 SOL to the deposit address from any Solana wallet.`,
+      `4. The wallet is unlocked for 30 minutes. After that, run \`/pnl-unlock\` to sign more transactions.`,
     ].join('\n'),
     isUsingHostedRpc()
       ? `_RPC: pnl.market (hosted) — heavy use? Grab a free Helius key at helius.dev and set ${inline('PNL_RPC_URL')} in your Claude Code mcp config to skip the shared rate limit._`

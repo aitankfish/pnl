@@ -16,7 +16,7 @@ import { connectToDatabase, PredictionParticipant } from '@/lib/mongodb';
 import { ObjectId } from 'mongodb';
 import { createClientLogger } from '@/lib/logger';
 import { invalidateCache } from '@/lib/redis/invalidate';
-import { verifyMcpSignature, challenge } from '@/lib/mcp-auth';
+import { verifyMcpSignature, challenge, signedRequestHash } from '@/lib/mcp-auth';
 import { checkRateLimit } from '@/lib/auth/rate-limit';
 import { getSolanaConnection } from '@/lib/solana';
 import { getProgramIdForNetwork } from '@/lib/anchor-program';
@@ -102,7 +102,8 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const challengeStr = challenge('complete-claim', body.txSignature, body.nonce);
+    const payloadHash = signedRequestHash(body as unknown as Record<string, unknown>);
+    const challengeStr = challenge('complete-claim', body.txSignature, body.nonce, payloadHash);
     const verified = verifyMcpSignature(
       { walletAddress: body.walletAddress, nonce: body.nonce, signature: body.signature },
       challengeStr,
