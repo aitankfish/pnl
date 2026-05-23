@@ -1,8 +1,21 @@
+// ─────────────────────────────────────────────────────────────────
+// HIDDEN ROUTE — content lives at docs.pnl.market/docs/legal/privacy
+// Registry: apps/web/HIDDEN_ROUTES.md
+// To restore: delete `PrivacyPolicy` stub, rename `PrivacyPolicyOriginal`
+//             → `PrivacyPolicy`. Untouch the rest.
+// ─────────────────────────────────────────────────────────────────
 'use client';
 
+import { redirect } from 'next/navigation';
 import EditorialDoc from '@/components/EditorialDoc';
 
 export default function PrivacyPolicy() {
+  redirect('https://docs.pnl.market/docs/legal/privacy');
+  return null;
+}
+
+// ─── ORIGINAL COMPONENT — restore by renaming to PrivacyPolicy ───
+function PrivacyPolicyOriginal() {
   return (
     <EditorialDoc
       eyebrow="Promise"

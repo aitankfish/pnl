@@ -1,8 +1,21 @@
+// ─────────────────────────────────────────────────────────────────
+// HIDDEN ROUTE — content lives at docs.pnl.market/docs/legal/terms
+// Registry: apps/web/HIDDEN_ROUTES.md
+// To restore: delete `TermsOfService` stub, rename `TermsOriginal`
+//             → `TermsOfService`. Untouch the rest.
+// ─────────────────────────────────────────────────────────────────
 'use client';
 
+import { redirect } from 'next/navigation';
 import EditorialDoc from '@/components/EditorialDoc';
 
 export default function TermsOfService() {
+  redirect('https://docs.pnl.market/docs/legal/terms');
+  return null;
+}
+
+// ─── ORIGINAL COMPONENT — restore by renaming to TermsOfService ──
+function TermsOriginal() {
   return (
     <EditorialDoc
       eyebrow="Promise"

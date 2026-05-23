@@ -1,6 +1,12 @@
+// ─────────────────────────────────────────────────────────────────
+// HIDDEN ROUTE — content lives at docs.pnl.market/docs/how-to-buy
+// Registry: apps/web/HIDDEN_ROUTES.md
+// To restore: delete `HowToBuy` stub below, rename `HowToBuyOriginal`
+//             → `HowToBuy` + `export default`. Untouch the rest.
+// ─────────────────────────────────────────────────────────────────
 'use client';
 
-import { useRouter } from 'next/navigation';
+import { redirect, useRouter } from 'next/navigation';
 import { ExternalLink, ChevronDown, Copy, Check } from 'lucide-react';
 import { useState, useCallback, useRef } from 'react';
 import EditorialDoc from '@/components/EditorialDoc';
@@ -402,6 +408,12 @@ function PlatformSection({
 }
 
 export default function HowToBuy() {
+  redirect('https://docs.pnl.market/docs/how-to-buy');
+  return null;
+}
+
+// ─── ORIGINAL COMPONENT — restore by renaming to HowToBuy + export default ──
+function HowToBuyOriginal() {
   const router = useRouter();
   const touchStartX = useRef(0);
   const touchStartY = useRef(0);
