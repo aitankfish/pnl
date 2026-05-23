@@ -13,24 +13,30 @@ Current release: **v0.4.0** · MIT · code at
 
 ## Install
 
-The one-shot installer is the fast path:
+One command:
 
 ```bash
-git clone https://github.com/aitankfish/pnl.git
-cd pnl
-pnpm install
-pnpm -F @pnlmarket/mcp-server build
-npx @pnlmarket/mcp-server install --write
+npx -y @pnlmarket/mcp-server install --write
 ```
 
-This wires the MCP server into every supported host config it finds
-(Claude Code, Cursor, Cline, Codex, Windsurf) and copies 16 slash-command
-skills into `~/.claude/skills/`. Restart your agent — the tools appear.
+That wires the MCP server into every supported host config it finds
+(Claude Code, Cursor, Cline, Codex, Windsurf, Claude Desktop) and copies
+16 slash-command skills into `~/.claude/skills/`. Restart your agent —
+the tools appear.
 
-Run without `--write` first to preview the plan. Flags:
+Run without `--write` first to preview the plan (it'll show which
+config files it intends to touch, then ask you to re-run with `--write`
+to apply):
 
-- `--skills` — only install slash commands, skip MCP config writes
-- `--no-skills` — skip slash commands, only wire MCP servers
+```bash
+npx -y @pnlmarket/mcp-server install
+```
+
+Useful flags:
+
+- `--write` (or `-y`) — apply without confirmation
+- `--skills` — only install slash commands, skip MCP host configs
+- `--no-skills` — skip slash commands, only wire MCP hosts
 
 ### Manual
 
@@ -41,8 +47,8 @@ the MCP servers section of its config:
 {
   "mcpServers": {
     "pnl": {
-      "command": "node",
-      "args": ["/absolute/path/to/pnl/apps/mcp/dist/index.js"]
+      "command": "npx",
+      "args": ["-y", "@pnlmarket/mcp-server"]
     }
   }
 }

@@ -29,18 +29,16 @@ ones, encrypted-at-rest local wallet with BIP39 recovery.
 
 ## Quick start (Claude Code)
 
+One command — no clone, no build, no manual config:
+
 ```bash
-git clone https://github.com/aitankfish/pnl.git
-cd pnl
-pnpm install
-pnpm -F @pnlmarket/mcp-server build
-npx @pnlmarket/mcp-server install --write
+npx -y @pnlmarket/mcp-server install --write
 ```
 
 The installer wires the MCP server into every supported host config it
-finds on the machine (Claude Code, Cursor, Cline, Codex, Windsurf) and
-drops 16 slash-command skills into `~/.claude/skills/`. Restart your
-agent and the tools appear.
+finds on the machine (Claude Code, Cursor, Cline, Codex, Windsurf,
+Claude Desktop) and drops 16 slash-command skills into
+`~/.claude/skills/`. Restart your agent and the tools appear.
 
 Then:
 

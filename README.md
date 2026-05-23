@@ -192,13 +192,12 @@ Privileged (admin-only): `set_admin`, `withdraw_fees`, `init_treasury`, `emergen
 
 > ⚠ **Note on IDL:** the file at `apps/web/src/lib/idl/errors.json` is a stub with non-canonical discriminators. Do not feed it to `anchor.Program.fetchIdl()`. Either read the Rust source directly or copy the instruction-building pattern from `anchor-program.ts`. A proper Anchor-generated IDL is on the post-hackathon roadmap.
 
-### 4. MCP server — `@pnlmarket/mcp-server` v0.4.0
+### 4. MCP server — `@pnlmarket/mcp-server` v0.4.3
 
 Drop-in Model Context Protocol server for Claude Code, Cursor, Cline, Codex, and any MCP-compatible agent. Read live markets, pitch ideas, vote, claim — without leaving the terminal.
 
 ```bash
-pnpm -F @pnlmarket/mcp-server build
-npx @pnlmarket/mcp-server install --write
+npx -y @pnlmarket/mcp-server install --write
 ```
 
 The installer wires the server into every supported host config it finds and copies 16 slash commands into `~/.claude/skills/`. Restart your agent and `/pnl-help`, `/pnl-pitch-now`, `/pnl-vote-now`, `/pnl-claim-now`, `/pnl-notify`, etc. all work.

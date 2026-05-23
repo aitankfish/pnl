@@ -83,15 +83,13 @@ controls on their own machine.
 
 ### One-shot installer (recommended)
 
-After `pnpm install && pnpm -F @pnlmarket/mcp-server build`:
-
 ```bash
-npx @pnlmarket/mcp-server install --write
+npx -y @pnlmarket/mcp-server install --write
 ```
 
 That wires the MCP server into every supported host config it
-finds on the machine (Claude Code, Cursor, Cline, Codex, Windsurf)
-and copies the 13 slash-command skills into
+finds on the machine (Claude Code, Cursor, Cline, Codex, Windsurf,
+Claude Desktop) and copies the 16 slash-command skills into
 `~/.claude/skills/`.
 
 Run without `--write` first to see the plan. Flags:
