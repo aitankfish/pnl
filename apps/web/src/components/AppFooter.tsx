@@ -175,15 +175,13 @@ export default function AppFooter() {
             Plant ideas. Watch them grow.
           </p>
 
-          {/* Wayfinding */}
+          {/* Wayfinding — How to buy / Privacy / Terms collapsed into Docs.
+              See apps/web/HIDDEN_ROUTES.md for the hidden in-app routes that
+              still 307 → docs.pnl.market for any legacy backlinks. */}
           <nav className="flex items-center gap-2.5">
             <NavLink href="/whitepaper">Whitepaper</NavLink>
             <Sep />
-            <NavLink href="/how-to-buy">How to buy</NavLink>
-            <Sep />
-            <NavLink href="/privacy">Privacy</NavLink>
-            <Sep />
-            <NavLink href="/terms">Terms</NavLink>
+            <NavLink href="https://docs.pnl.market" external>Docs</NavLink>
           </nav>
 
           <span className="hidden sm:inline-block w-px h-3" style={{ background: HAIR_STRONG }} />

@@ -143,8 +143,9 @@ export default function MobileLanding() {
           <ProofRow label="Program" value="C5mVE2…Vj86" />
         </div>
         <div className="mt-5 flex items-center justify-center gap-5 mono text-[0.6rem] uppercase tracking-[0.22em] text-[#8a7f72]">
-          <Link href="/how-to-buy" className="hover:text-[#ecb48a] transition-colors">
-            How to buy
+          {/* How to buy collapsed into Docs — see apps/web/HIDDEN_ROUTES.md */}
+          <Link href="https://docs.pnl.market" className="hover:text-[#ecb48a] transition-colors">
+            Docs
           </Link>
           <span aria-hidden className="text-[#3a3530]">·</span>
           <Link href="/launched" className="hover:text-[#ecb48a] transition-colors">
