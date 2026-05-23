@@ -142,6 +142,16 @@ export function useAllMarketsSocket() {
   const [activeVoiceRooms, setActiveVoiceRooms] = useState<Map<string, number>>(new Map());
   const isMountedRef = useRef(true);
 
+  // Batch incoming market:update events into a single setState per
+  // animation frame. Without this, a burst of votes / pool changes
+  // would fire N consecutive React renders on every consumer of this
+  // hook (BrowsePage, LaunchpadPage), which cascades through every
+  // market card — janky during slider drags + wasted CPU. rAF
+  // batching collapses N events arriving in the same ~16ms tick into
+  // one update with the latest data per market address.
+  const pendingMarketUpdatesRef = useRef<Map<string, any>>(new Map());
+  const rafIdRef = useRef<number | null>(null);
+
   useEffect(() => {
     isMountedRef.current = true;
     if (!socket || !isConnected) return;
@@ -150,18 +160,32 @@ export function useAllMarketsSocket() {
     logger.info('Subscribing to all markets');
     socket.emit('subscribe:all-markets');
 
+    const flushPendingMarketUpdates = () => {
+      rafIdRef.current = null;
+      if (!isMountedRef.current) return;
+      const batch = pendingMarketUpdatesRef.current;
+      if (batch.size === 0) return;
+      pendingMarketUpdatesRef.current = new Map();
+      setMarketUpdates((prev) => {
+        const next = new Map(prev);
+        batch.forEach((data, addr) => next.set(addr, data));
+        return next;
+      });
+    };
+
     // Listen for market updates
     const handleMarketUpdate = (data: any) => {
       if (!isMountedRef.current) return;
       logger.info(`Market update: ${data.marketAddress.slice(0, 8)}...`);
-      setMarketUpdates((prev) => {
-        const next = new Map(prev);
-        next.set(data.marketAddress, {
-          ...data.data,
-          timestamp: data.timestamp,
-        });
-        return next;
+      // Stash + schedule one rAF flush. Re-entrant calls within the
+      // same frame coalesce into the same flush.
+      pendingMarketUpdatesRef.current.set(data.marketAddress, {
+        ...data.data,
+        timestamp: data.timestamp,
       });
+      if (rafIdRef.current == null && typeof requestAnimationFrame !== 'undefined') {
+        rafIdRef.current = requestAnimationFrame(flushPendingMarketUpdates);
+      }
     };
 
     // Listen for new market creation
@@ -201,6 +225,14 @@ export function useAllMarketsSocket() {
       socket.off('market:update', handleMarketUpdate);
       socket.off('market:created', handleMarketCreated);
       socket.off('voice:activity', handleVoiceActivity);
+      // Drop any pending rAF flush — if a market:update arrived in
+      // the same tick as unmount, we don't want to setState on a dead
+      // component.
+      if (rafIdRef.current != null && typeof cancelAnimationFrame !== 'undefined') {
+        cancelAnimationFrame(rafIdRef.current);
+        rafIdRef.current = null;
+      }
+      pendingMarketUpdatesRef.current.clear();
       logger.info('Unsubscribed from all markets');
     };
   }, [socket, isConnected]);

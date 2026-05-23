@@ -188,10 +188,26 @@ export class SyncManager {
       const db = getDatabase();
 
       const markets = await db.collection('predictionmarkets')
-        .find({}, { projection: { marketAddress: 1 } })
+        .find({}, { projection: { marketAddress: 1, lastSyncedAt: 1 } })
         .toArray();
 
-      logger.info(`📥 Fetching current state for ${markets.length} markets...`);
+      // Skip markets that were synced very recently — covers rolling
+      // deploys where a previous instance kept the on-chain state
+      // fresh and the WS event processor (now coming back online)
+      // will continue keeping it fresh. Saves RPC credits on every
+      // restart proportional to the active market count.
+      const FRESH_WINDOW_MS = 60_000; // 60s
+      const now = Date.now();
+      const validMarkets = markets.filter(m => {
+        if (!m.marketAddress) return false;
+        const last = m.lastSyncedAt ? new Date(m.lastSyncedAt).getTime() : 0;
+        if (now - last < FRESH_WINDOW_MS) return false; // fresh, skip
+        return true;
+      });
+      const freshSkipCount = markets.length - validMarkets.length - markets.filter(m => !m.marketAddress).length;
+      logger.info(
+        `📥 Fetching current state for ${validMarkets.length} markets (skipped ${freshSkipCount} freshly-synced within ${FRESH_WINDOW_MS / 1000}s)`
+      );
 
       // Get RPC endpoint - use HELIUS_API_KEY for backend (not domain-restricted)
       const heliusApiKey = process.env.HELIUS_API_KEY;
@@ -215,7 +231,6 @@ export class SyncManager {
 
       // Process markets in smaller batches to avoid rate limiting
       const BATCH_SIZE = 5; // Reduced from 10 to avoid rate limits
-      const validMarkets = markets.filter(m => m.marketAddress);
 
       for (let i = 0; i < validMarkets.length; i += BATCH_SIZE) {
         const batch = validMarkets.slice(i, i + BATCH_SIZE);

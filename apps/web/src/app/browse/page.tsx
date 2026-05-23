@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import useSWR from 'swr';
 import Link from 'next/link';
 import { Loader2, ChevronLeft, ChevronRight } from 'lucide-react';
@@ -363,33 +363,40 @@ export default function BrowsePage() {
   }>({ open: false, title: '', message: '', details: undefined });
 
   const QUICK_VOTE_AMOUNT = FEES.MINIMUM_INVESTMENT / 1_000_000_000;
-  const handleQuickVote = async (market: Market, voteType: 'yes' | 'no', amount?: number) => {
-    // If the user hasn't signed in, route them through the onboarding modal
-    // rather than firing the vote and surfacing "Please connect your wallet"
-    // through the ErrorDialog. Same pattern the Sidebar wallet button uses.
-    if (!authenticated) {
-      showAuthModal();
-      return;
-    }
+  // useCallback so the prop reference stays stable across BrowsePage
+  // re-renders. Without this, every socket event would defeat the
+  // React.memo on MarketCard (new function ref → memo bails → all
+  // cards re-render → mid-drag slider jitter, etc.)
+  const handleQuickVote = useCallback(
+    async (market: Market, voteType: 'yes' | 'no', amount?: number) => {
+      // If the user hasn't signed in, route them through the onboarding modal
+      // rather than firing the vote and surfacing "Please connect your wallet"
+      // through the ErrorDialog. Same pattern the Sidebar wallet button uses.
+      if (!authenticated) {
+        showAuthModal();
+        return;
+      }
 
-    setVotingState({ marketId: market.id, voteType });
-    const result = await vote({
-      marketId: market.id,
-      marketAddress: market.marketAddress,
-      voteType,
-      amount: amount ?? QUICK_VOTE_AMOUNT,
-    });
-    setVotingState(null);
-    if (!result.success) {
-      const parsedError = parseError(result.error);
-      setErrorDialog({
-        open: true,
-        title: parsedError.title,
-        message: parsedError.message,
-        details: parsedError.details,
+      setVotingState({ marketId: market.id, voteType });
+      const result = await vote({
+        marketId: market.id,
+        marketAddress: market.marketAddress,
+        voteType,
+        amount: amount ?? QUICK_VOTE_AMOUNT,
       });
-    }
-  };
+      setVotingState(null);
+      if (!result.success) {
+        const parsedError = parseError(result.error);
+        setErrorDialog({
+          open: true,
+          title: parsedError.title,
+          message: parsedError.message,
+          details: parsedError.details,
+        });
+      }
+    },
+    [authenticated, showAuthModal, vote, QUICK_VOTE_AMOUNT],
+  );
 
   // Hot — top 2 by participants among active/pool-complete
   const hotProjects = useMemo(() => {
@@ -997,7 +1004,15 @@ function BrowseLoading() {
 }
 
 // ─── Market card ───
-function MarketCard({
+//
+// Wrapped in React.memo so unrelated parent re-renders (every blockchain
+// event arriving via socket causes BrowsePage to re-render — see
+// useAllMarketsSocket) don't cascade to all cards. Without memo, a
+// vote anywhere on the platform would interrupt a slider drag mid-flight.
+//
+// All callback props (onQuickVote) are useCallback-stabilized in the
+// parent so default shallow equality short-circuits correctly.
+const MarketCard = React.memo(function MarketCard({
   market,
   isHot,
   isNew,
@@ -1327,7 +1342,7 @@ function MarketCard({
       </div>
     </Link>
   );
-}
+});
 
 function Tag({
   children,
