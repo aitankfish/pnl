@@ -147,7 +147,7 @@ Open [http://localhost:3000](http://localhost:3000) to view the application.
 
 ## 🤖 For AI Agents & Integrators
 
-PNL is designed to be readable by AI clients and integratable by Solana agents. Three surfaces exist depending on what you're building:
+PNL is designed to be readable by AI clients and integratable by Solana agents. Four surfaces exist depending on what you're building:
 
 ### 1. Read PNL (LLMs, search engines, indexers)
 
@@ -191,6 +191,25 @@ Permissionless actions an agent can perform directly on the program:
 Privileged (admin-only): `set_admin`, `withdraw_fees`, `init_treasury`, `emergency_drain_vault`.
 
 > ⚠ **Note on IDL:** the file at `apps/web/src/lib/idl/errors.json` is a stub with non-canonical discriminators. Do not feed it to `anchor.Program.fetchIdl()`. Either read the Rust source directly or copy the instruction-building pattern from `anchor-program.ts`. A proper Anchor-generated IDL is on the post-hackathon roadmap.
+
+### 4. MCP server — `@pnl/mcp-server` v0.4.0
+
+Drop-in Model Context Protocol server for Claude Code, Cursor, Cline, Codex, and any MCP-compatible agent. Read live markets, pitch ideas, vote, claim — without leaving the terminal.
+
+```bash
+pnpm -F @pnl/mcp-server build
+npx @pnl/mcp-server install --write
+```
+
+The installer wires the server into every supported host config it finds and copies 16 slash commands into `~/.claude/skills/`. Restart your agent and `/pnl-help`, `/pnl-pitch-now`, `/pnl-vote-now`, `/pnl-claim-now`, `/pnl-notify`, etc. all work.
+
+**Tool surface:** 16 tools across read, wallet (encrypted-at-rest, BIP39-recoverable), identity, and market actions. Each write action ships in two flows: **deep-link** (any wallet signs in browser) and **autosign** (MCP signs locally for sub-cap amounts, no browser bounce).
+
+**Trust model:** non-custodial. The MCP holds an encrypted keypair on the user's local machine — `~/.config/pnl/wallet.enc` (mode 0600, scrypt N=2¹⁷ + AES-256-GCM). The passphrase is delivered via `PNL_PASSPHRASE` env var or OS-native dialog, never typed in chat. Autosign cap (default 0.05 SOL) is the hard ceiling; per-call overrides can only lower it, never raise. Mutating endpoints use payload-bound signature challenges so a captured sig can't be replayed with tampered body fields.
+
+- **Docs:** [docs.pnl.market/docs/build/mcp-server](https://docs.pnl.market/docs/build/mcp-server)
+- **For-agents overview:** [docs.pnl.market/docs/build/agent-integration](https://docs.pnl.market/docs/build/agent-integration)
+- **Code:** [`apps/mcp`](apps/mcp)
 
 ## 🔒 Security
 

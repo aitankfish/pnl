@@ -1,0 +1,218 @@
+---
+title: "Quickstart"
+description: "Read live markets in 30 seconds. Create one on-chain in 5 minutes."
+---
+
+You don't need an account, an API key, or to install anything to start reading. You need a Solana wallet with ~0.05 SOL to start writing.
+
+## Read a live market — 30 seconds
+
+```bash
+curl 'https://pnl.market/api/markets/list?status=active&limit=3' | jq .
+```
+
+That's the whole read surface. Returns JSON with market addresses, pool balances, target pools, voter counts, expiry, current resolution status, and links to the on-chain accounts. Drop the response into your agent's context and it can answer questions about live markets immediately.
+
+For a single market by id:
+
+```bash
+curl 'https://pnl.market/api/markets/<id>' | jq .
+```
+
+No auth, no rate-limit-on-reads outside reasonable IP throttling (60/min), and the data is cached so the latency is low.
+
+## Vote on an existing market — 5 minutes
+
+The voting instruction (`buy_yes` / `buy_no`) is permissionless on-chain. Any Solana keypair with ≥0.01 SOL can stake. The web UI wraps this in Privy auth, but you can call it directly.
+
+```typescript
+import { Connection, PublicKey, Keypair, SystemProgram, Transaction, TransactionInstruction, LAMPORTS_PER_SOL } from '@solana/web3.js';
+import { createHash } from 'crypto';
+
+const PROGRAM_ID = new PublicKey('C5mVE2BwSehWJNkNvhpsoepyKwZkvSLZx29bi4MzVj86');
+const RPC = 'https://api.mainnet-beta.solana.com'; // or your Helius endpoint
+
+const user = Keypair.fromSecretKey(/* your secret key here */);
+const marketAddress = new PublicKey('<paste-market-address-from-api>');
+const solAmount = 0.05; // SOL to stake
+
+// 1. Build the Anchor instruction discriminator
+const discriminator = createHash('sha256')
+  .update('global:buy_yes', 'utf8')
+  .digest()
+  .subarray(0, 8);
+
+// 2. Pack the args: 8-byte discriminator + 8-byte u64 lamports
+const lamports = BigInt(Math.floor(solAmount * LAMPORTS_PER_SOL));
+const data = Buffer.concat([
+  discriminator,
+  Buffer.from(new BigUint64Array([lamports]).buffer),
+]);
+
+// 3. Derive the PDAs (see /docs/build/on-chain-program for full seed list)
+const [treasuryPda] = PublicKey.findProgramAddressSync(
+  [Buffer.from('treasury')],
+  PROGRAM_ID,
+);
+const [marketVaultPda] = PublicKey.findProgramAddressSync(
+  [Buffer.from('market_vault'), marketAddress.toBuffer()],
+  PROGRAM_ID,
+);
+const [positionPda] = PublicKey.findProgramAddressSync(
+  [Buffer.from('position'), marketAddress.toBuffer(), user.publicKey.toBuffer()],
+  PROGRAM_ID,
+);
+
+// 4. Build the transaction
+const connection = new Connection(RPC, 'confirmed');
+const { blockhash } = await connection.getLatestBlockhash();
+
+const ix = new TransactionInstruction({
+  programId: PROGRAM_ID,
+  keys: [
+    { pubkey: marketAddress, isSigner: false, isWritable: true },
+    { pubkey: marketVaultPda, isSigner: false, isWritable: true },
+    { pubkey: positionPda, isSigner: false, isWritable: true },
+    { pubkey: treasuryPda, isSigner: false, isWritable: true },
+    { pubkey: user.publicKey, isSigner: true, isWritable: true },
+    { pubkey: SystemProgram.programId, isSigner: false, isWritable: false },
+  ],
+  data,
+});
+
+const tx = new Transaction({ feePayer: user.publicKey, recentBlockhash: blockhash }).add(ix);
+tx.sign(user);
+
+const sig = await connection.sendRawTransaction(tx.serialize());
+await connection.confirmTransaction(sig, 'confirmed');
+console.log('YES vote cast:', sig);
+```
+
+This is the **exact same code path** the web app uses — the only difference is auth. Both go through the program's `buy_yes` instruction. No SDK is required.
+
+## Create a market — 5 minutes (founder path)
+
+Creating a market is also permissionless. You pay 0.015 SOL to plant. The pattern is identical to voting, with two extra inputs (IPFS CID for metadata + target pool + duration).
+
+```typescript
+import { createHash } from 'crypto';
+
+// Same imports + setup as the voting example above
+
+const ipfsCid = 'bafkreig...your-pinned-metadata-cid...';
+const targetPoolLamports = 5n * BigInt(LAMPORTS_PER_SOL); // 5 SOL
+const expiryUnix = BigInt(Math.floor(Date.now() / 1000) + 7 * 86400); // 7 days
+const metadataUri = `ipfs://${ipfsCid}`;
+
+const discriminator = createHash('sha256')
+  .update('global:create_market', 'utf8')
+  .digest()
+  .subarray(0, 8);
+
+// Pack: discriminator + string(ipfs_cid) + u64(target_pool) + i64(expiry_time) + string(metadata_uri)
+function packString(s: string): Buffer {
+  const buf = Buffer.from(s, 'utf8');
+  return Buffer.concat([Buffer.from(new Uint32Array([buf.length]).buffer), buf]);
+}
+function packU64(n: bigint): Buffer { return Buffer.from(new BigUint64Array([n]).buffer); }
+function packI64(n: bigint): Buffer { return Buffer.from(new BigInt64Array([n]).buffer); }
+
+const data = Buffer.concat([
+  discriminator,
+  packString(ipfsCid),
+  packU64(targetPoolLamports),
+  packI64(expiryUnix),
+  packString(metadataUri),
+]);
+
+// Derive the Market PDA — note: seed includes a hash of the IPFS CID
+const cidHash = createHash('sha256').update(ipfsCid).digest();
+const [marketPda] = PublicKey.findProgramAddressSync(
+  [Buffer.from('market'), user.publicKey.toBuffer(), cidHash],
+  PROGRAM_ID,
+);
+const [marketVaultPda] = PublicKey.findProgramAddressSync(
+  [Buffer.from('market_vault'), marketPda.toBuffer()],
+  PROGRAM_ID,
+);
+const [treasuryPda] = PublicKey.findProgramAddressSync(
+  [Buffer.from('treasury')],
+  PROGRAM_ID,
+);
+
+const ix = new TransactionInstruction({
+  programId: PROGRAM_ID,
+  keys: [
+    { pubkey: marketPda, isSigner: false, isWritable: true },
+    { pubkey: marketVaultPda, isSigner: false, isWritable: true },
+    { pubkey: treasuryPda, isSigner: false, isWritable: true },
+    { pubkey: user.publicKey, isSigner: true, isWritable: true },
+    { pubkey: SystemProgram.programId, isSigner: false, isWritable: false },
+  ],
+  data,
+});
+
+// Send the transaction same as the voting example.
+```
+
+The metadata you pin to IPFS should be a JSON object like:
+
+```json
+{
+  "name": "My idea",
+  "description": "Long thesis here...",
+  "category": "ai",
+  "stage": "idea",
+  "tokenSymbol": "MYIDEA",
+  "image": "https://ipfs.io/ipfs/your-image-cid",
+  "socials": {
+    "twitter": "https://x.com/youraccount",
+    "github": "https://github.com/yourrepo"
+  }
+}
+```
+
+The web app's projects-create endpoint handles the IPFS pin for you if you'd rather use it.
+
+## Crank an expired market — 30 seconds
+
+If you see a market past its expiry timestamp that nobody has resolved yet, you can crank it forward. This is permissionless and the instruction takes no signer:
+
+```typescript
+const expireDiscriminator = createHash('sha256').update('global:expire', 'utf8').digest().subarray(0, 8);
+
+const ix = new TransactionInstruction({
+  programId: PROGRAM_ID,
+  keys: [
+    { pubkey: marketAddress, isSigner: false, isWritable: true },
+  ],
+  data: expireDiscriminator, // no args
+});
+
+// Build tx, sign with your own keypair (you pay the small tx fee), broadcast.
+```
+
+After `expire` succeeds, anyone can call `resolve_market` to determine the outcome. The pump.fun launch CPI inside `resolve_market` requires the founder pubkey as a non-signer account (see [On-chain program](/docs/build/on-chain-program) for the full instruction reference).
+
+## Claim winnings — 30 seconds
+
+If you voted on the winning side, your share is sitting in the program waiting for you to claim:
+
+```typescript
+// For YES voters whose market bloomed (token launched)
+const ix = buildIx('global:claim_yes', /* market, position, vesting accounts */);
+
+// For NO voters whose market withered
+const ix = buildIx('global:claim_no', /* market, position, market vault */);
+
+// For both sides if the market resolved to Refund
+const ix = buildIx('global:refund', /* market, position, market vault */);
+```
+
+The full account list for each instruction is in the [on-chain program reference](/docs/build/on-chain-program).
+
+## Where to go next
+
+- **Reading more state than the markets endpoint exposes?** See the [Public read API](/docs/build/public-api) for the full endpoint surface and JSON shape.
+- **Building an integration that needs the on-chain truth?** See the [On-chain program reference](/docs/build/on-chain-program) for every instruction, its account list, and its argument layout.
+- **Wiring this into an AI agent?** See [Agent integration](/docs/build/agent-integration) for `llms.txt`, the planned MCP server, and the recommended hand-off pattern (agent prepares, user signs).

@@ -1,0 +1,11 @@
+{
+  "title": "For builders & agents",
+  "pages": [
+    "quickstart",
+    "architecture",
+    "public-api",
+    "on-chain-program",
+    "agent-integration",
+    "mcp-server"
+  ]
+}

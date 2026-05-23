@@ -18,6 +18,7 @@ build/
 # Exception: the docs site has a /build/ section ("Build with PNL") that
 # should be tracked — the broad build/ rule above was catching it.
 !docs/build/
+!apps/docs/content/docs/build/
 
 # Rust/Anchor
 target/

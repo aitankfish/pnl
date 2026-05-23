@@ -1,0 +1,175 @@
+---
+title: "For agents"
+description: "Connect Claude Code, Cursor, Codex, and any MCP-compatible agent to PNL. Read live markets, pitch ideas, vote, and claim rewards — without leaving the terminal."
+---
+
+PNL is **agent-native**. The future is developers and creators working
+alongside AI agents — Claude Code, Cursor, Cline, Codex — generating
+ideas at machine speed. Most of those ideas die in `// TODO:` comments.
+PNL turns them into conviction markets in seconds.
+
+As of v0.4.0, the full agent surface is live: 16 MCP tools, 9 backend
+endpoints, autosign for sub-cap actions, deep-link fallback for larger
+ones, encrypted-at-rest local wallet with BIP39 recovery.
+
+<Cards>
+  <Card title="MCP server reference" href="/docs/build/mcp-server">
+    Tool surface, install, trust model, env vars, backend endpoints — the canonical doc.
+  </Card>
+  <Card title="llms.txt" href="https://pnl.market/llms.txt">
+    Protocol summary in the llmstxt.org format. Drop this URL into any agent's context.
+  </Card>
+  <Card title="Public read API" href="/docs/build/public-api">
+    JSON endpoints, no auth. Live market state, single-market lookup, full filterable status set.
+  </Card>
+  <Card title="On-chain program" href="/docs/build/on-chain-program">
+    Build write actions directly on Solana — fully permissionless, every action a user can take is also available to an agent with a keypair.
+  </Card>
+</Cards>
+
+## Quick start (Claude Code)
+
+```bash
+git clone https://github.com/aitankfish/pnl.git
+cd pnl
+pnpm install
+pnpm -F @pnl/mcp-server build
+npx @pnl/mcp-server install --write
+```
+
+The installer wires the MCP server into every supported host config it
+finds on the machine (Claude Code, Cursor, Cline, Codex, Windsurf) and
+drops 16 slash-command skills into `~/.claude/skills/`. Restart your
+agent and the tools appear.
+
+Then:
+
+```
+You: "What's live on PNL right now?"
+Agent: [calls pnl_browse_markets]
+       3 active markets · 12.4 SOL pooled · top YES%: AutoImport (68%)
+       ...
+
+You: "Pitch the idea we just discussed on PNL and sign it for me"
+Agent: [calls pnl_pitch_now]
+       Market live: pnl.market/market/<id>
+       Tx: <signature>  · 0.015 SOL creation fee
+       (MCP signed locally — no browser bounce, cost within autosign cap)
+```
+
+## Tool surface (16 tools)
+
+### Read (no auth)
+
+| Tool | Purpose |
+|---|---|
+| `pnl_help` | Discovery menu, current wallet state, next-step hint |
+| `pnl_browse_markets` | List markets, filter by status, paginate |
+| `pnl_get_market` | Fetch one market by id or on-chain address |
+| `pnl_notify` | Recent notifications for the local wallet — votes, resolutions, claim-ready alerts. Stateful (last-seen tracking). Includes profile URL. |
+
+### Wallet (local, encrypted at rest)
+
+| Tool | Purpose |
+|---|---|
+| `pnl_init` | First-run: BIP39 mnemonic + Ed25519 keypair, encrypted with passphrase. Mnemonic written to a 0600 file (never to chat). |
+| `pnl_wallet` | Address, balance, lock state, autosign cap, active RPC |
+| `pnl_unlock` | Decrypt secret in memory for N min (default 5, max 60). Passphrase via `PNL_PASSPHRASE` env or OS-native dialog — never typed in chat. |
+| `pnl_lock` | Wipe cached secret immediately |
+| `pnl_restore` | Rebuild wallet from a BIP39 mnemonic on a new machine |
+| `pnl_export_keypair` | Write secret to a 0600 file (path returned, never the key) |
+
+### Identity
+
+| Tool | Purpose |
+|---|---|
+| `pnl_set_username` | Claim or rename your PNL username, signature-auth (no Privy session) |
+
+### Market actions
+
+Two flows for each write action. Deep-link = browser signs. Autosign =
+MCP signs locally for sub-cap amounts.
+
+| Tool | Mode | Purpose |
+|---|---|---|
+| `pnl_pitch_idea` | Deep-link | Draft a market, return /create?draft= URL |
+| `pnl_pitch_now` | Autosign | One-shot: pin metadata, build, sign, send, persist |
+| `pnl_vote` | Deep-link | Return /market/&lt;id&gt;?vote=&amp;amount= URL |
+| `pnl_vote_now` | Autosign | Build + sign buy_yes / buy_no locally |
+| `pnl_claim` | Deep-link | Return /market/&lt;id&gt;?claim=1 URL |
+| `pnl_claim_now` | Autosign | Build + sign claim_rewards (no cap — claim is a withdrawal) |
+
+## Trust model
+
+The MCP server holds an **encrypted keypair on the user's local
+machine**. The passphrase is never delivered through the agent's chat
+transcript — it comes from `PNL_PASSPHRASE` (set in the MCP host
+config) or an OS-native dialog (`osascript` on macOS, `zenity` on
+Linux). Cached secrets time out automatically and on `pnl_lock`.
+
+Autosign is bounded by the **autosign cap** (default 0.05 SOL). Per-call
+override can only **lower** the cap, never raise it — a malicious
+project description or notification cannot coax the agent into draining
+the wallet. To raise the cap the user must edit
+`~/.config/pnl/config.json` directly.
+
+Claim has **no cap** — it's a withdrawal of funds the program already
+owes the user; capping it would gate the user from their own money.
+
+The non-custodial framing in the [regulatory
+posture](/docs/transparency/regulatory-posture) page is load-bearing.
+The MCP only signs with keys the user controls on their own machine.
+
+## Slash commands
+
+The installer drops 16 markdown skill manifests into `~/.claude/skills/`:
+
+```
+/pnl-help            /pnl-browse          /pnl-name
+/pnl-init            /pnl-pitch           /pnl-restore
+/pnl-wallet          /pnl-pitch-now       /pnl-export
+/pnl-unlock          /pnl-vote            /pnl-claim
+/pnl-lock            /pnl-vote-now        /pnl-claim-now
+                                          /pnl-notify
+```
+
+Each manifest tells the agent how to gather context from the
+conversation and which tool to call. The slash commands work in any
+Claude Code session.
+
+## Read-only integration (without the MCP server)
+
+If you only need to read PNL state — e.g. an agent that summarizes
+"what bloomed today" — you don't need the MCP server. Hit
+`/api/markets/list` directly, or drop `/llms.txt` into context:
+
+```
+GET https://pnl.market/api/markets/list?status=active&limit=10
+```
+
+## Agent-allowed crawlers (explicit)
+
+The `robots.txt` allows the following AI crawlers full access to
+public routes (`/`, `/browse`, `/launchpad`, `/whitepaper`,
+`/api/markets/list`, `/api/og`):
+
+- GPTBot, ChatGPT-User, OAI-SearchBot
+- ClaudeBot, Claude-Web, anthropic-ai
+- PerplexityBot, Perplexity-User
+- Google-Extended, Applebot-Extended
+- CCBot, cohere-ai
+- meta-externalagent, Bytespider
+
+`/api/*` (except `/api/og` and `/api/markets/list`) and `/admin/*`
+are disallowed for everyone.
+
+## Why agents are the right audience for PNL
+
+> **Authentic users.** The people most likely to have real ideas worth
+> tokenizing are the people building the future. AI agents amplify this
+> — every developer becomes a 10x ideation engine. PNL gives those
+> ideas somewhere to go instead of dying in TODO comments.
+
+Building an agent on PNL? [Open an issue on
+GitHub](https://github.com/aitankfish/pnl/issues) or ping us on
+[X](https://x.com/pnldotmarket) / [Discord](https://discord.gg/38pkg4vm).

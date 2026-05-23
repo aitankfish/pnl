@@ -1,0 +1,237 @@
+---
+title: "MCP server"
+description: "Canonical reference for @pnl/mcp-server — 16 tools, 9 endpoints, encrypted local wallet, autosign for sub-cap actions. Install in 60 seconds."
+---
+
+`@pnl/mcp-server` is the Model Context Protocol server that lets any
+MCP-compatible agent (Claude Code, Cursor, Cline, Codex, the next one)
+read live PNL state, pitch ideas as markets, vote on existing ones, and
+claim rewards — without leaving the terminal.
+
+Current release: **v0.4.0** · MIT · code at
+[apps/mcp](https://github.com/aitankfish/pnl/tree/main/apps/mcp).
+
+## Install
+
+The one-shot installer is the fast path:
+
+```bash
+git clone https://github.com/aitankfish/pnl.git
+cd pnl
+pnpm install
+pnpm -F @pnl/mcp-server build
+npx @pnl/mcp-server install --write
+```
+
+This wires the MCP server into every supported host config it finds
+(Claude Code, Cursor, Cline, Codex, Windsurf) and copies 16 slash-command
+skills into `~/.claude/skills/`. Restart your agent — the tools appear.
+
+Run without `--write` first to preview the plan. Flags:
+
+- `--skills` — only install slash commands, skip MCP config writes
+- `--no-skills` — skip slash commands, only wire MCP servers
+
+### Manual
+
+If the installer doesn't recognize your host, drop this snippet into
+the MCP servers section of its config:
+
+```json
+{
+  "mcpServers": {
+    "pnl": {
+      "command": "node",
+      "args": ["/absolute/path/to/pnl/apps/mcp/dist/index.js"]
+    }
+  }
+}
+```
+
+The server speaks standard MCP over stdio.
+
+## Tool surface (16 tools)
+
+### Read
+
+`pnl_help`, `pnl_browse_markets`, `pnl_get_market`, `pnl_notify`. All
+public, no auth, no wallet unlock needed. `pnl_notify` is stateful —
+tracks last-seen at `~/.config/pnl/last-seen.json` so successive calls
+only return new items.
+
+### Wallet (encrypted at rest)
+
+`pnl_init`, `pnl_wallet`, `pnl_unlock`, `pnl_lock`, `pnl_restore`,
+`pnl_export_keypair`. The wallet lives at `~/.config/pnl/wallet.enc`
+(mode 0600), encrypted with scrypt (N=2¹⁷) + AES-256-GCM. BIP39 12-word
+mnemonic at the Phantom-compatible derivation path `m/44'/501'/0'/0'` —
+imports cleanly into Phantom / Solflare / Backpack and vice versa.
+
+The mnemonic is **never shown in chat**. `pnl_init` writes it to a 0600
+file under `~/.config/pnl/exports/mnemonic-<ts>.txt` and returns the
+path. The user `cat`s the file locally, moves the phrase to a password
+manager, then `rm`s the file.
+
+### Identity
+
+`pnl_set_username` — sig-auth username claim. No Privy session needed;
+the MCP signs a challenge with the local keypair and the backend
+verifies ownership.
+
+### Market actions — two flows for each
+
+| Action | Deep-link (browser signs) | Autosign (MCP signs locally) |
+|---|---|---|
+| Pitch | `pnl_pitch_idea` | `pnl_pitch_now` |
+| Vote | `pnl_vote` | `pnl_vote_now` |
+| Claim | `pnl_claim` | `pnl_claim_now` |
+
+Deep-link works on any wallet, requires no unlock. Autosign requires
+`pnl_unlock` and is bounded by the autosign cap (claim is uncapped —
+it's a withdrawal).
+
+## Slash commands
+
+The installer drops 16 markdown skill manifests into `~/.claude/skills/`:
+
+```
+/pnl-help            /pnl-browse          /pnl-name
+/pnl-init            /pnl-pitch           /pnl-restore
+/pnl-wallet          /pnl-pitch-now       /pnl-export
+/pnl-unlock          /pnl-vote            /pnl-claim
+/pnl-lock            /pnl-vote-now        /pnl-claim-now
+                                          /pnl-notify
+```
+
+Each manifest tells the agent how to gather context from the
+conversation and which tool to call.
+
+## Trust model
+
+The MCP holds an encrypted keypair on disk. The passphrase is delivered
+to the process via `PNL_PASSPHRASE` env var (set in the MCP host config)
+or an OS-native dialog. The agent's chat transcript never sees the
+passphrase. Cached secrets time out automatically and on `pnl_lock`.
+
+### Autosign cap
+
+- **Default**: 0.05 SOL ceiling, configurable in `~/.config/pnl/config.json`
+- **Per-call override**: `autosignCapSol` arg can only **lower** the
+  ceiling, never raise it
+- **Claim**: no cap (withdrawal of funds the program already owes the user)
+
+To raise the ceiling the user edits the config file directly — this
+arg cannot bypass it.
+
+### Sig-auth payload binding
+
+Mutating endpoints (`complete-create`, `complete-vote`, `complete-claim`)
+require a signature over a canonical challenge that **includes a SHA-256
+of the request body** (minus auth fields). An attacker who captures a
+sig within the 5min nonce window cannot rewrite the body fields
+(project name, vote type, amount, etc.) — the hash flips, the sig
+fails to verify, 401.
+
+### On-chain verification
+
+Every complete-\* endpoint fetches the user's tx via the configured RPC
+and confirms: it succeeded, it invoked the PNL program, and the first
+signer matches the claimed wallet. Backend writes only happen after
+all three pass.
+
+## Backend surface
+
+The MCP talks to these endpoints on pnl.market:
+
+```
+POST /api/mcp/rpc                          JSON-RPC proxy → our Helius
+POST /api/mcp/markets/build-create-tx      unsigned create_market tx
+POST /api/mcp/markets/complete-create      sig-auth, persist after confirm
+POST /api/mcp/markets/build-vote-tx        unsigned buy_yes / buy_no tx
+POST /api/mcp/markets/complete-vote        sig-auth, persist trade
+POST /api/mcp/markets/build-claim-tx       unsigned claim_rewards tx
+POST /api/mcp/markets/complete-claim       sig-auth, mark claimed
+POST /api/mcp/profile                      sig-auth, username claim
+GET  /api/notifications?wallet=...         read notifications (public)
+```
+
+Challenge format for mutating routes:
+
+```
+pnl-mcp:<kind>:<fingerprint>:<payloadHash>:<nonce>
+```
+
+Where `kind` is one of `complete-create | complete-vote | complete-claim
+| profile`, `fingerprint` is the tx signature (or username for
+profile), `payloadHash` is the first 16 hex chars of sha256(canonical
+JSON of body minus auth fields), and `nonce` is `<unix-ms>-<hex>` with
+a 5min freshness window plus 1min clock-skew tolerance.
+
+## Environment variables
+
+| Variable | Default | When to override |
+|---|---|---|
+| `PNL_API_BASE_URL` | `https://pnl.market` | Pointing at devnet, staging, or a local Next.js dev server |
+| `PNL_RPC_URL` | `https://pnl.market/api/mcp/rpc` (hosted proxy) | BYO Helius key for heavier use — grab a free key at [helius.dev](https://helius.dev) |
+| `PNL_PASSPHRASE` | (prompt via OS dialog) | Skip OS unlock prompt for unattended agents — only set in MCP host config, not shell history |
+
+The default RPC is the hosted proxy. Rate-limited 60 reads/min and 10
+sends/min per IP. Set `PNL_RPC_URL` to your own Helius endpoint to
+bypass that.
+
+## Wallet file layout
+
+```
+~/.config/pnl/
+├── wallet.enc          # encrypted secret + metadata (mode 0600)
+├── config.json         # autosign cap + RPC URL (mode 0644)
+├── last-seen.json      # pnl_notify state (mode 0600)
+└── exports/            # timestamped backup dumps (mode 0700)
+    ├── keypair-<ts>.txt
+    └── mnemonic-<ts>.txt
+```
+
+## Example flow — pitch an idea, sign locally
+
+```
+User (in Claude Code, mid-coding):
+  "Hey actually this idea about a Solana cron infra tool is good"
+
+Agent: "Want to pitch it on PNL?"
+User: "Yes — and sign it for me, I'm unlocked"
+
+Agent: [calls pnl_pitch_now]
+       Market live: pnl.market/market/6a10fc2fcedc6875b903cf39
+       Token: $CRON
+       Tx: 6z7FM6zz...EZkA6J
+       Founder: 3TwHCp...cn8W
+       Creation fee: 0.0150 SOL (within 0.05 cap)
+
+       The MCP signed and sent the create_market transaction locally
+       — no browser bounce needed.
+
+User: "What's been happening since I last checked?"
+Agent: [calls pnl_notify]
+       3 new updates for 3TwHCp...cn8W
+       [vote]   2026-05-22 18:30  Someone voted YES on $CRON  $CRON
+       [vote]   2026-05-22 18:35  Pool crossed 1 SOL on $CRON $CRON
+       [claim]  2026-05-22 19:01  Your TOKEN market resolved  $TOKEN
+
+       Profile: pnl.market/profile/3TwHCp...cn8W
+```
+
+## Non-custodial framing
+
+The MCP server **never holds keys for anyone but the local user**. The
+keypair lives encrypted at rest on the user's machine; the user holds
+the passphrase. PNL's [regulatory
+posture](/docs/transparency/regulatory-posture) page describes the
+non-custodial stance in detail — it's load-bearing, and the MCP
+inherits it directly.
+
+## Links
+
+- Code: [github.com/aitankfish/pnl/tree/main/apps/mcp](https://github.com/aitankfish/pnl/tree/main/apps/mcp)
+- Issues: [github.com/aitankfish/pnl/issues](https://github.com/aitankfish/pnl/issues)
+- For-agents overview: [/docs/build/agent-integration](/docs/build/agent-integration)
+- Public read API: [/docs/build/public-api](/docs/build/public-api)

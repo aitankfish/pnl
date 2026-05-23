@@ -1,0 +1,162 @@
+---
+title: "Architecture"
+description: "How the pieces fit together — on-chain program, web app, sync layer, IPFS, agent surfaces."
+---
+
+PNL has more moving parts than most documentation lets on. This page describes them honestly so you can integrate at the right layer and avoid reinventing things that exist.
+
+## The layers, top-down
+
+```
+┌──────────────────────────────────────────────────────────────────┐
+│  AGENT SURFACES                                                  │
+│  Claude Code · Cursor · Cline · ChatGPT · custom agents          │
+│  via /llms.txt + /api/markets/list + (future) MCP server         │
+└────────────────────────┬─────────────────────────────────────────┘
+                         │ HTTP read · MCP tools (planned)
+                         │
+┌────────────────────────▼─────────────────────────────────────────┐
+│  DOCS + READ API                                                 │
+│  docs.pnl.market (Fumadocs + Vercel)                             │
+│  pnl.market/api/markets/list, /api/markets/[id]                  │
+│  Read-only · public · no auth · 60 req/min/IP                    │
+└────────────────────────┬─────────────────────────────────────────┘
+                         │ Cached via Redis (Upstash)
+                         │
+┌────────────────────────▼─────────────────────────────────────────┐
+│  WEB APP                                                         │
+│  pnl.market (Next.js 14 · Render)                                │
+│  Privy embedded wallets · authenticated write paths              │
+│  Server prepares unsigned txs · client signs · client broadcasts │
+└────────────────────────┬─────────────────────────────────────────┘
+                         │ Read from MongoDB · prepare on Solana
+                         │
+            ┌────────────┴────────────┐
+            │                         │
+┌───────────▼───────────┐  ┌──────────▼──────────────────────────┐
+│  OFF-CHAIN INDEX      │  │  ON-CHAIN PROGRAM                   │
+│  MongoDB Atlas        │  │  C5mVE2…wB7c on Solana mainnet      │
+│  Market metadata      │  │  Anchor 0.30.1 · MIT                │
+│  User profiles        │  │  Permissionless write surface       │
+│  Cached vote counts   │  │  Source of truth for ALL economics  │
+└───────────▲───────────┘  └──────────┬──────────────────────────┘
+            │                         │
+            │                         │ Helius WebSocket subscribes
+            │                         │ to program accounts
+            │                         │
+            └─────────┬───────────────┘
+                      │
+┌─────────────────────▼────────────────────────────────────────────┐
+│  BLOCKCHAIN SYNC                                                 │
+│  Helius RPC + WebSocket                                          │
+│  Event queue (Redis) → Mongo writes                              │
+│  Cron job for price/market-cap snapshots                         │
+└───────────────────────────────────────────────────────────────────┘
+                      │
+                      │ For new YES-resolution markets
+                      ▼
+┌──────────────────────────────────────────────────────────────────┐
+│  PUMP.FUN CPI                                                    │
+│  6EF8rrecthR5Dkzon8Nwu78hRvfCKubJ14M5uBEwF6P                     │
+│  Token mint + bonding curve · creator royalty to founder         │
+│  Invoked from resolve_market on YES wins                         │
+└──────────────────────────────────────────────────────────────────┘
+                      │
+                      │ Tokens then trade
+                      ▼
+                  Raydium / Meteora / Jupiter
+```
+
+## Source of truth
+
+The on-chain program at `C5mVE2BwSehWJNkNvhpsoepyKwZkvSLZx29bi4MzVj86` is the only authoritative source for:
+
+- **Pool balances** (each market's vault PDA holds SOL)
+- **Vote counts and per-user positions** (each Position PDA holds a user's stake)
+- **Resolution outcome** (the Market struct's `resolution` field, written exclusively by the program)
+- **Fee accumulation** (the Treasury PDA)
+- **Vesting state** (Team Vesting and Founder Vesting PDAs)
+
+Everything else is a derivative — MongoDB caches market metadata, the web UI snapshots vote totals, the indexer materializes timelines. If any of these diverge from chain, chain wins. The web app exposes a "sync this market from chain" debug endpoint for exactly this case.
+
+## Off-chain index (MongoDB)
+
+MongoDB Atlas stores:
+
+- **Project metadata** — title, description, thesis, image IPFS CID, social links, category. This is the *content* of a market; the on-chain program only knows the IPFS CID that points to it.
+- **Materialized vote counts and totals** — cached for fast list/browse queries. Updated by the blockchain-sync service.
+- **User profiles** — Privy auth state, wallet linkings, display names. None of this is on-chain.
+- **Notifications, chat messages, comments** — purely off-chain, non-authoritative.
+
+The reason metadata is off-chain: Solana account storage is expensive. A 50KB market description would cost $5 in rent for a single account. We pin the full description to IPFS, store the IPFS CID on-chain (~50 bytes), and cache the resolved content in MongoDB for fast reads. Anyone can re-resolve from IPFS independently.
+
+## Blockchain sync service
+
+The Helius WebSocket subscription watches the program's account space and pushes deltas into a Redis queue. A worker processes the queue:
+
+1. Identifies the account type (Market, Position, Treasury, Vesting)
+2. Parses the account data using the same Rust struct layouts the program uses
+3. Writes the parsed state to MongoDB
+4. Broadcasts the update to connected Socket.IO clients
+
+Cron jobs run alongside for things WebSockets don't cover:
+
+- **Price snapshots** for launched tokens (Birdeye, every minute)
+- **Holder counts** for launched tokens (Helius DAS, hourly)
+- **Cache warmups** for the markets-list endpoint
+
+Source: [`apps/web/src/services/blockchain-sync/`](https://github.com/aitankfish/pnl/tree/main/apps/web/src/services/blockchain-sync) in the repo.
+
+## Pump.fun CPI
+
+When a market resolves YES, `resolve_market` performs a cross-program invocation into pump.fun's program (`6EF8rrecthR5Dkzon8Nwu78hRvfCKubJ14M5uBEwF6P`) to:
+
+1. Create a new token mint
+2. Deposit pooled SOL as initial liquidity
+3. Set the founder's wallet as the pump.fun creator (so they receive ongoing royalties)
+4. Mint the supply: 65% goes to YES voters (pending claim), 33% to the founder team (pending claim + vesting), 2% to the PNL platform
+
+The launched token then trades on pump.fun's bonding curve until it graduates to a Raydium pool (per pump.fun's protocol, not ours).
+
+We did not modify pump.fun. We invoke their public mint instruction.
+
+## Agent surfaces
+
+The agent-facing surfaces are intentionally minimal and read-only today:
+
+- **`/llms.txt`** at `https://pnl.market/llms.txt` — the protocol summary in [llmstxt.org](https://llmstxt.org) format. Any AI agent can drop this into context and reason about PNL.
+- **`/robots.txt`** — explicit allow-list for 14+ AI crawlers.
+- **`/api/markets/list`** — public JSON. The same endpoint the web app uses for browsing.
+- **`/sitemap.xml`** — every market URL.
+
+The write path (creating markets, voting) is fully permissionless on-chain but routed through Privy-auth'd web APIs for human users. Agents can either:
+
+1. **Bypass the web app entirely** and call the on-chain program directly via `@solana/web3.js` with their own keypair (see [On-chain program](/docs/build/on-chain-program))
+2. **Wait for the MCP server** that we're building, which exposes draft-link tools so the agent prepares the action and the user confirms in their wallet (see [Agent integration](/docs/build/agent-integration))
+
+## Where to hook in
+
+If you're building an integration, here are the recommended entry points:
+
+| Use case | Entry point |
+|---|---|
+| Read market state for display | `GET /api/markets/list?status=active` |
+| Read a single market | `GET /api/markets/<id>` |
+| Real-time updates | Socket.IO at `pnl.market/socket` (events: `market:updated`, `market:created`, `vote:cast`) |
+| Create a market programmatically | Direct on-chain `create_market` instruction |
+| Vote programmatically | Direct on-chain `buy_yes` / `buy_no` instruction |
+| Crank an expired market | Direct on-chain `expire` and then `resolve_market` instructions (both permissionless) |
+| Subscribe to all program events | Helius WebSocket on the program account |
+
+Going through the on-chain program is always faster and more authoritative than the off-chain APIs. The web API is there for convenience and rate-limit-friendliness — it caches, batches, and pre-resolves IPFS for you. The on-chain program is there when you need real-time, ground-truth state.
+
+## What we don't have yet
+
+Honest list of architectural pieces not yet built:
+
+- **TypeScript SDK** (`@pnl/sdk` on npm) — the closest thing today is reading `packages/shared/src/solana/anchor-program.ts` in the repo
+- **MCP server** (`@pnl/mcp-server`) — see [Agent integration](/docs/build/agent-integration) for what it'll expose
+- **Proper Anchor IDL** for use with `@coral-xyz/anchor` — see [known limitations](/docs/transparency/known-limitations#the-stub-idl-at-apps-web-src-lib-idl-errors-json)
+- **Auto-cranker for expired markets** — see [known limitations](/docs/transparency/known-limitations#auto-cranker-not-implemented)
+
+If you need any of these urgently for an integration, [open an issue](https://github.com/aitankfish/pnl/issues) — having a real consumer accelerates the priority.
