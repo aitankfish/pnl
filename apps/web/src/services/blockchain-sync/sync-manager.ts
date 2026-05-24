@@ -48,17 +48,19 @@ export class SyncManager {
       this.heliusClient = new HeliusClient(this.network, this.programId);
       await this.heliusClient.connect();
 
-      // 2. Subscribe to program (all markets and positions)
-      logger.info('📡 Subscribing to program accounts...');
-      await this.heliusClient.subscribeToProgram();
-
-      // 2b. Subscribe to individual markets as fallback (programSubscribe may not work reliably)
+      // 2. Subscribe to individual markets + positions.
+      //
+      // Used to also call subscribeToProgram() here — that's a firehose
+      // for every account owned by our program, billed per delivered
+      // notification (Helius charges per byte of streamed data). Combined
+      // with the individual accountSubscribes below it produced DUPLICATE
+      // notifications for every market/position update. Removing the
+      // program-level subscription halves the streaming cost without
+      // losing coverage: the individual subscribes catch the same events.
       await this.subscribeToExistingMarkets();
-
-      // 2c. Subscribe to existing Position accounts (programSubscribe may not catch Position updates reliably)
       await this.subscribeToExistingPositions();
 
-      // 2d. Perform initial state sync (fetch current on-chain state for all markets)
+      // 2c. Perform initial state sync (fetch current on-chain state for all markets)
       logger.info('🔄 Performing initial state sync...');
       await this.performInitialSync();
 
@@ -139,22 +141,46 @@ export class SyncManager {
   }
 
   /**
-   * Subscribe to all existing Position accounts in database
+   * Subscribe to Position accounts for ACTIVE markets only.
+   *
+   * Was subscribing to every Position ever created, including positions on
+   * resolved or expired markets that will never change state again. Each
+   * dead-market position kept an open WS subscription billing Helius for
+   * any notification (mostly nothing, but Helius bills the standing sub).
+   * Filtering by market.marketState === 0 (active) drops the sub count
+   * proportionally to the dead/active position ratio — typically 5-10x
+   * fewer subs after a few weeks of operation.
    */
   private async subscribeToExistingPositions(): Promise<void> {
     try {
       await connectToDatabase();
       const db = getDatabase();
 
-      // Get all participants with their Position PDAs
+      // Build the active-market address set first; we'll only sub positions
+      // whose marketAddress is in this set.
+      const activeMarkets = await db.collection('predictionmarkets')
+        .find(
+          { $or: [{ marketState: 0 }, { marketState: { $exists: false } }] },
+          { projection: { marketAddress: 1 } }
+        )
+        .toArray();
+      const activeMarketAddresses = new Set(
+        activeMarkets.map((m) => m.marketAddress).filter(Boolean)
+      );
+
       const participants = await db.collection('predictionparticipants')
         .find(
-          { positionPdaAddress: { $exists: true, $ne: null } },
+          {
+            positionPdaAddress: { $exists: true, $ne: null },
+            marketAddress: { $in: Array.from(activeMarketAddresses) },
+          },
           { projection: { positionPdaAddress: 1 } }
         )
         .toArray();
 
-      logger.info(`📡 Subscribing to ${participants.length} individual Position accounts...`);
+      logger.info(
+        `📡 Subscribing to ${participants.length} Position accounts (active markets only; ${activeMarketAddresses.size} active markets)...`,
+      );
 
       for (const participant of participants) {
         if (participant.positionPdaAddress && this.heliusClient) {
@@ -167,7 +193,7 @@ export class SyncManager {
         }
       }
 
-      logger.info(`✅ Subscribed to ${participants.length} Position accounts`);
+      logger.info(`✅ Subscribed to ${participants.length} active Position accounts`);
 
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : String(error);
@@ -184,6 +210,28 @@ export class SyncManager {
     try {
       logger.info('🔄 Starting initial state sync for all markets...');
 
+      // Cross-instance coordination: if any other Render replica started
+      // a full sync within the last 5 minutes, skip ours entirely. Without
+      // this gate, every replica restart (auto-deploy, crash-recovery,
+      // periodic respawn) triggers N×M Helius getAccountInfo calls where
+      // N = replica count and M = market count. Redis SET NX gives us a
+      // lock-with-TTL primitive that's safe across instances.
+      try {
+        const redis = getRedisClient();
+        const lockKey = prefixKey('sync:initial-sync-lock');
+        const acquired = await redis.set(lockKey, String(Date.now()), 'EX', 300, 'NX');
+        if (acquired !== 'OK') {
+          logger.info('⏭️  Initial sync skipped — another instance ran one within the last 5 min');
+          return;
+        }
+      } catch (lockError) {
+        // Redis down: fall through and run the sync. Better to over-sync
+        // than to skip when the gate itself fails.
+        logger.warn('Sync gate Redis check failed, proceeding with full sync', {
+          error: lockError instanceof Error ? lockError.message : String(lockError),
+        });
+      }
+
       await connectToDatabase();
       const db = getDatabase();
 
@@ -191,12 +239,11 @@ export class SyncManager {
         .find({}, { projection: { marketAddress: 1, lastSyncedAt: 1 } })
         .toArray();
 
-      // Skip markets that were synced very recently — covers rolling
-      // deploys where a previous instance kept the on-chain state
-      // fresh and the WS event processor (now coming back online)
-      // will continue keeping it fresh. Saves RPC credits on every
-      // restart proportional to the active market count.
-      const FRESH_WINDOW_MS = 60_000; // 60s
+      // Per-market freshness window. Bumped 60s → 300s so a slightly-late
+      // restart (e.g., 2-3 min gap) still skips markets that the previous
+      // instance's WS subs already kept current. Combined with the
+      // cross-instance lock above, this makes restart storms a non-event.
+      const FRESH_WINDOW_MS = 300_000; // 5 min
       const now = Date.now();
       const validMarkets = markets.filter(m => {
         if (!m.marketAddress) return false;
