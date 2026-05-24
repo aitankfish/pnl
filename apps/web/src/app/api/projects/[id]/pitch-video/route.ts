@@ -35,10 +35,8 @@ async function resolveProject(id: string) {
   return project;
 }
 
-export async function POST(
-  request: NextRequest,
-  { params }: { params: { id: string } },
-) {
+export async function POST(request: NextRequest, props: { params: Promise<{ id: string }> }) {
+  const params = await props.params;
   try {
     const id = params.id;
 
@@ -116,10 +114,8 @@ export async function POST(
   }
 }
 
-export async function DELETE(
-  request: NextRequest,
-  { params }: { params: { id: string } },
-) {
+export async function DELETE(request: NextRequest, props: { params: Promise<{ id: string }> }) {
+  const params = await props.params;
   try {
     const id = params.id;
     // Verify founder via JWT auth

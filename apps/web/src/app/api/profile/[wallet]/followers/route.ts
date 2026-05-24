@@ -17,10 +17,8 @@ const logger = createClientLogger();
  * GET /api/profile/[wallet]/followers
  * Get list of followers for a user
  */
-export async function GET(
-  request: NextRequest,
-  { params }: { params: { wallet: string } }
-) {
+export async function GET(request: NextRequest, props: { params: Promise<{ wallet: string }> }) {
+  const params = await props.params;
   try {
     const { wallet: followingWallet } = params;
     const { searchParams } = new URL(request.url);

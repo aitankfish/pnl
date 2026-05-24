@@ -48,9 +48,12 @@ export default async function Page(props: {
             Tabs,
             Tab,
             // Mintlify component aliases (Tip / Note / Warning) → Callout variants
-            Tip: (props: any) => <Callout type="info" {...props} />,
-            Note: (props: any) => <Callout {...props} />,
-            Warning: (props: any) => <Callout type="warn" {...props} />,
+            Tip: (props: any) => <Callout type="info" /* @next-codemod-ignore 'props' is used with spread syntax (...). Any asynchronous properties of 'props' must be awaited when accessed. */
+            {...props} />,
+            Note: (props: any) => <Callout /* @next-codemod-ignore 'props' is used with spread syntax (...). Any asynchronous properties of 'props' must be awaited when accessed. */
+            {...props} />,
+            Warning: (props: any) => <Callout type="warn" /* @next-codemod-ignore 'props' is used with spread syntax (...). Any asynchronous properties of 'props' must be awaited when accessed. */
+            {...props} />,
             CodeGroup: Tabs,
           }}
         />

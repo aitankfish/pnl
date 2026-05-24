@@ -17,10 +17,8 @@ const logger = createClientLogger();
  * GET /api/profile/[wallet]/follow-status?viewer=<wallet>
  * Check if viewer is following this user
  */
-export async function GET(
-  request: NextRequest,
-  { params }: { params: { wallet: string } }
-) {
+export async function GET(request: NextRequest, props: { params: Promise<{ wallet: string }> }) {
+  const params = await props.params;
   try {
     const { wallet: followingWallet } = params;
     const { searchParams } = new URL(request.url);

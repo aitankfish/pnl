@@ -35,11 +35,6 @@ const nextConfig = {
   // Standalone output for better deployment
   output: 'standalone',
 
-  // Use JS Terser instead of SWC minifier — SWC's emoji handling chokes on
-  // variation-selector combos (↩️, ⚠️, 🗑️, 🗳️) that appear in source.
-  // Tradeoff: slightly slower build, higher memory; correct minification.
-  swcMinify: false,
-
   // Enable compression
   compress: true,
 
@@ -48,6 +43,19 @@ const nextConfig = {
 
   // Disable source maps in production to reduce build memory
   productionBrowserSourceMaps: false,
+
+  // Skip webpack bundling for server-only packages (major memory savings).
+  // Promoted out of experimental in Next 15.
+  serverExternalPackages: [
+    'mongoose',
+    'mongodb',
+    'winston',
+    'twitter-api-v2',
+    'helius-sdk',
+    '@pump-fun/pump-sdk',
+    'ioredis',
+    'socket.io',
+  ],
 
   // Experimental features for better performance
   experimental: {
@@ -60,20 +68,8 @@ const nextConfig = {
       'framer-motion',
       'recharts',
     ],
-    instrumentationHook: true, // Enable instrumentation.ts for server-side initialization
     // Run webpack in a separate worker to reduce main process memory
     webpackBuildWorker: true,
-    // Skip webpack bundling for server-only packages (major memory savings)
-    serverComponentsExternalPackages: [
-      'mongoose',
-      'mongodb',
-      'winston',
-      'twitter-api-v2',
-      'helius-sdk',
-      '@pump-fun/pump-sdk',
-      'ioredis',
-      'socket.io',
-    ],
   },
 
   // Webpack configuration
