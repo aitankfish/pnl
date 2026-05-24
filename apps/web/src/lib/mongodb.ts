@@ -510,6 +510,7 @@ const NotificationSchema = new mongoose.Schema({
       'claim_ready',
       'pool_complete',
       'founder_voice_live',
+      'announcement',
     ],
   },
   title: {
