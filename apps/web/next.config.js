@@ -174,6 +174,34 @@ const nextConfig = {
     // — this only constrains browser JS on other sites.
     const ALLOWED_ORIGIN =
       '(?<origin>https://(www\\.)?pnl\\.market|https://docs\\.pnl\\.market|http://localhost:\\d+)';
+
+    // Content-Security-Policy in REPORT-ONLY mode: it blocks nothing, it only
+    // POSTs violation reports to /api/csp-report so we can observe what a real
+    // enforcing policy would break before turning it on. script/style keep
+    // 'unsafe-inline' (Next bootstrap + inline styles) for now — tightening to
+    // nonces is a later pass; this pass is about pinning down the external
+    // connect/frame/media origins (Privy, WalletConnect, Helius/Solana RPC,
+    // Jupiter, Cloudflare Stream, voice). img-src uses https: because token
+    // logos come from arbitrary origins.
+    const cspReportOnly = [
+      "default-src 'self'",
+      "base-uri 'self'",
+      "object-src 'none'",
+      "frame-ancestors 'self'",
+      "form-action 'self'",
+      "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://challenges.cloudflare.com https://accounts.google.com",
+      "style-src 'self' 'unsafe-inline'",
+      "img-src 'self' data: blob: https:",
+      "font-src 'self' data:",
+      "media-src 'self' blob: https://cloudflarestream.com https://*.cloudflarestream.com https://videodelivery.net https://*.videodelivery.net",
+      "worker-src 'self' blob:",
+      "child-src 'self' blob:",
+      "manifest-src 'self'",
+      "connect-src 'self' https://api.mainnet-beta.solana.com wss://api.mainnet-beta.solana.com https://api.devnet.solana.com wss://api.devnet.solana.com https://mainnet.helius-rpc.com wss://mainnet.helius-rpc.com https://devnet.helius-rpc.com wss://devnet.helius-rpc.com https://orb.helius.dev https://api.jup.ag https://lite-api.jup.ag https://*.pinata.cloud https://gateway.pinata.cloud https://api.coingecko.com https://auth.privy.io https://*.privy.io https://explorer-api.walletconnect.com https://*.walletconnect.com https://*.walletconnect.org wss://relay.walletconnect.com wss://relay.walletconnect.org https://voice.pnl.market wss://voice.pnl.market https://cloudflarestream.com https://*.cloudflarestream.com https://videodelivery.net https://challenges.cloudflare.com",
+      "frame-src 'self' https://auth.privy.io https://challenges.cloudflare.com https://verify.walletconnect.com https://verify.walletconnect.org https://cloudflarestream.com https://*.cloudflarestream.com https://iframe.cloudflarestream.com https://www.youtube.com https://www.youtube-nocookie.com https://accounts.google.com",
+      "report-uri /api/csp-report",
+    ].join('; ');
+
     return [
       {
         source: '/api/:path*',
@@ -198,6 +226,7 @@ const nextConfig = {
           { key: 'X-Frame-Options', value: 'SAMEORIGIN' },
           { key: 'Referrer-Policy', value: 'strict-origin-when-cross-origin' },
           { key: 'Permissions-Policy', value: 'camera=(self), microphone=(self), geolocation=()' },
+          { key: 'Content-Security-Policy-Report-Only', value: cspReportOnly },
         ],
       },
       {
