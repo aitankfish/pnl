@@ -5,6 +5,7 @@ import { MessageSquare, Mic, Send } from 'lucide-react';
 import ChatRoom from './ChatRoom';
 import VoiceRoom from '../voice/VoiceRoom';
 import { useVoiceRoomContextSafe } from '@/lib/context/VoiceRoomContext';
+import { safeExternalUrl } from '@/lib/safe-url';
 
 // ── Cosmic-plant palette (shared across the app) ──
 const CREAM = '#f4eee4';
@@ -48,9 +49,13 @@ function SocialLink({
   title: string;
   children: React.ReactNode;
 }) {
+  // Founder-supplied social URLs — only render if they resolve to a safe
+  // http(s) link. Blocks javascript:/data: href XSS.
+  const safe = safeExternalUrl(href);
+  if (!safe) return null;
   return (
     <a
-      href={href}
+      href={safe}
       target="_blank"
       rel="noopener noreferrer"
       title={title}

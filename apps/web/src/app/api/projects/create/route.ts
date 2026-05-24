@@ -10,6 +10,25 @@ import { connectToDatabase, Project } from '@/lib/mongodb';
 import { withAuth } from '@/lib/auth/require-wallet';
 import { checkRateLimit } from '@/lib/auth/rate-limit';
 import { invalidateCache } from '@/lib/redis/invalidate';
+import { safeExternalUrl } from '@/lib/safe-url';
+
+/**
+ * Strip any socialLinks value that isn't a safe http(s) URL. Stored
+ * socialLinks are later rendered as <a href> on the market page; a
+ * `javascript:` value there is stored XSS. Defense-in-depth alongside
+ * the render-site guards — kills the bad data at the door so it never
+ * reaches the DB / IPFS metadata.
+ */
+function sanitizeSocialLinks(input: unknown): Record<string, string> {
+  if (!input || typeof input !== 'object') return {};
+  const out: Record<string, string> = {};
+  for (const [key, val] of Object.entries(input as Record<string, unknown>)) {
+    if (typeof val !== 'string' || !val.trim()) continue;
+    const safe = safeExternalUrl(val);
+    if (safe) out[key] = safe;
+  }
+  return out;
+}
 
 const logger = createClientLogger();
 
@@ -116,6 +135,11 @@ export const POST = withAuth(async (request, authUser) => {
       body = await request.json();
     }
     
+    // Sanitize founder-supplied social links to safe http(s) URLs before
+    // they flow into IPFS metadata + the project doc (both later rendered
+    // as <a href>). Drops javascript:/data:/garbage entries entirely.
+    body.socialLinks = sanitizeSocialLinks(body.socialLinks);
+
     logger.info('📊 API: Request body processed successfully');
     logger.info('Creating new project', {
       projectName: body.name,

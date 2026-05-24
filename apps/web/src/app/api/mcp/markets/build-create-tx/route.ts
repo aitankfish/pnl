@@ -24,6 +24,20 @@ import { ipfsUtils } from '@/lib/ipfs';
 import { createClientLogger } from '@/lib/logger';
 import { checkRateLimit } from '@/lib/auth/rate-limit';
 import { SOLANA_NETWORK } from '@/config/solana';
+import { safeExternalUrl } from '@/lib/safe-url';
+
+/** Drop any socialLinks entry that isn't a safe http(s) URL — same
+ *  stored-XSS guard as the web /api/projects/create path. */
+function sanitizeSocialLinks(input: unknown): Record<string, string> {
+  if (!input || typeof input !== 'object') return {};
+  const out: Record<string, string> = {};
+  for (const [key, val] of Object.entries(input as Record<string, unknown>)) {
+    if (typeof val !== 'string' || !val.trim()) continue;
+    const safe = safeExternalUrl(val);
+    if (safe) out[key] = safe;
+  }
+  return out;
+}
 
 export const dynamic = 'force-dynamic';
 
@@ -94,7 +108,7 @@ export async function POST(request: NextRequest) {
       tokenSymbol: body.tokenSymbol!,
       marketDuration: body.durationDays!,
       minimumStake: 0.05,
-      socialLinks: body.socialLinks || {},
+      socialLinks: sanitizeSocialLinks(body.socialLinks),
       pitchVideoUrl: body.pitchVideoUrl || undefined,
       additionalNotes: body.additionalNotes || undefined,
       image: body.projectImageUrl || undefined,

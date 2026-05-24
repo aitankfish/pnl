@@ -2,6 +2,7 @@
 
 import React, { useEffect, useState, useMemo, useRef } from 'react';
 import { authFetch } from '@/lib/auth/fetch-with-auth';
+import { safeExternalUrl } from '@/lib/safe-url';
 import dynamic from 'next/dynamic';
 import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import { Button } from '@/components/ui/button';
@@ -1872,9 +1873,9 @@ export default function MarketDetailClient({
                 )}
 
                 {/* Docs */}
-                {market.documentUrls && market.documentUrls.length > 0 && (
+                {market.documentUrls && market.documentUrls.length > 0 && safeExternalUrl(market.documentUrls[0]) && (
                   <a
-                    href={market.documentUrls[0]}
+                    href={safeExternalUrl(market.documentUrls[0])!}
                     target="_blank"
                     rel="noopener noreferrer"
                     className="mono uppercase tracking-[0.22em] text-[0.55rem] px-2 py-1 inline-flex items-center gap-1 transition-colors"
@@ -1894,9 +1895,9 @@ export default function MarketDetailClient({
                 )}
 
                 {/* Social links */}
-                {market.metadata?.socialLinks?.website && (
+                {safeExternalUrl(market.metadata?.socialLinks?.website) && (
                   <a
-                    href={market.metadata.socialLinks.website}
+                    href={safeExternalUrl(market.metadata!.socialLinks!.website)!}
                     target="_blank"
                     rel="noopener noreferrer"
                     className="mono uppercase tracking-[0.22em] text-[0.55rem] px-2 py-1 inline-flex items-center gap-1 transition-colors"
@@ -1914,9 +1915,9 @@ export default function MarketDetailClient({
                     <Globe className="w-2.5 h-2.5" /> Site
                   </a>
                 )}
-                {market.metadata?.socialLinks?.github && (
+                {safeExternalUrl(market.metadata?.socialLinks?.github) && (
                   <a
-                    href={market.metadata.socialLinks.github}
+                    href={safeExternalUrl(market.metadata!.socialLinks!.github)!}
                     target="_blank"
                     rel="noopener noreferrer"
                     className="mono uppercase tracking-[0.22em] text-[0.55rem] px-2 py-1 inline-flex items-center gap-1 transition-colors"

@@ -20,6 +20,7 @@ import {
 import { Types } from 'mongoose';
 import { connectToDatabase, ResearchPaper } from '@/lib/mongodb';
 import { ghCachedFetch, parseRepoFromUrl } from '@/lib/github';
+import { safeExternalUrl } from '@/lib/safe-url';
 import { FileTree } from '@/components/research/FileTree';
 import { PaperActivityFeed } from '@/components/research/PaperActivityFeed';
 import { CodeSubnav } from '@/components/research/CodeSubnav';
@@ -205,8 +206,9 @@ export default async function CodeOverviewPage({ params, searchParams }: PagePro
                   current={activeRef}
                 />
                 <span className="ml-auto" />
+                {safeExternalUrl(repo.html_url || paper.githubUrl) && (
                 <a
-                  href={repo.html_url || paper.githubUrl}
+                  href={safeExternalUrl(repo.html_url || paper.githubUrl)!}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="mono uppercase tracking-[0.22em] text-[0.6rem] inline-flex items-center gap-1.5 transition-colors"
@@ -216,6 +218,7 @@ export default async function CodeOverviewPage({ params, searchParams }: PagePro
                   view on github
                   <ExternalLink className="w-3 h-3" />
                 </a>
+                )}
               </div>
             )}
           </header>
