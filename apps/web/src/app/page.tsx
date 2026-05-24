@@ -1124,7 +1124,9 @@ function DesktopLanding() {
   const starsFarY = useTransform(heroScroll, [0, 1], ['0%', '-6%']);
   const starsMidY = useTransform(heroScroll, [0, 1], ['0%', '-14%']);
   const starsNearY = useTransform(heroScroll, [0, 1], ['0%', '-24%']);
-  const launchRef = useRef<HTMLSpanElement>(null);
+  // motion.div consumes this ref, but the style mutation reads
+  // .fontVariationSettings which is shared across HTMLElement subtypes.
+  const launchRef = useRef<HTMLDivElement>(null);
   const plantRef = useRef<HTMLDivElement>(null);
   useMotionValueEvent(heroScroll, 'change', (v) => {
     if (!launchRef.current) return;

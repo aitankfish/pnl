@@ -21,6 +21,7 @@ interface SearchResult {
   projectName?: string;
   projectImageUrl?: string | null;
   tokenSymbol?: string | null;
+  marketState?: number;
 }
 
 export default function GlobalSearch() {

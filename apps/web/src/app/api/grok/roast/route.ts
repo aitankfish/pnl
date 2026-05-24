@@ -365,7 +365,7 @@ export const POST = withAuth(async (request, authUser) => {
       teamSize: project.teamSize,
       tokenSymbol: project.tokenSymbol,
       socialLinks: socialLinksObj,
-      location: project.location,
+      location: project.location ?? undefined,
       documentUrls: project.documentUrls,
       additionalNotes: additionalNotes,
     };
@@ -407,7 +407,7 @@ export const POST = withAuth(async (request, authUser) => {
       const initialRoast = existingAnalyses.find((a: any) => a.type === 'initial_roast')?.content
         || market.grokRoast?.content;
 
-      prompt = generateResolutionPrompt(projectData, votingData, initialRoast);
+      prompt = generateResolutionPrompt(projectData, votingData, initialRoast ?? undefined);
       logger.info('Generating resolution analysis', { marketId, outcome: votingData.outcome });
       analysisContent = await callGrokAPI(prompt, 'You are a witty crypto analyst providing post-mortem analysis of prediction markets. Be theatrical but insightful.');
     } else {

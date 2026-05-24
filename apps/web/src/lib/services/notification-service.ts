@@ -142,7 +142,7 @@ export async function notifyFounderJoinedVoice(marketAddress: string, marketName
     }).distinct('participantWallet');
 
     // Filter out the founder from notification recipients
-    const founderWallet = market.founderWallet;
+    const founderWallet = (market as any).founderWallet;
     const recipients = participants.filter((wallet: string) => wallet !== founderWallet);
 
     if (recipients.length === 0) {

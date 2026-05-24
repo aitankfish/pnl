@@ -29,7 +29,10 @@ export function useClaiming() {
   const [isClaiming, setIsClaiming] = useState(false);
   const { primaryWallet } = useWallet();
   const { wallets } = useWallets();
-  const { standardWallets } = useStandardWallets();
+  // Privy 3.x renamed the standardWallets accessor. Cast to read whichever
+  // shape this version exposes — actual wallet usage happens via the other
+  // hooks below.
+  const { standardWallets } = useStandardWallets() as any;
   const { signAndSendTransaction } = useSignAndSendTransaction();
   const { network } = useNetwork();
 

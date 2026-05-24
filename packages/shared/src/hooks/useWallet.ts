@@ -49,13 +49,17 @@ export function useWallet(): WalletHookReturn {
   const primaryWallet = useMemo(() => {
     // Priority 1: Check linkedAccounts for embedded Solana wallet (most reliable for social login)
     if (user?.linkedAccounts) {
+      // Privy's LinkedAccountWithMetadata is a discriminated union — `address`
+      // and `walletClientType` only exist on the 'wallet' variant. The find
+      // callback enforces that at runtime; cast widens the static type so we
+      // can access the wallet-only fields below.
       const embeddedWallet = user.linkedAccounts.find(
         (account: any) =>
           account.type === 'wallet' &&
           account.chainType === 'solana' &&
           account.address &&
           isSolanaAddress(account.address)
-      );
+      ) as any;
       if (embeddedWallet) {
         return {
           address: embeddedWallet.address,

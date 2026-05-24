@@ -3,7 +3,7 @@
 import { useState, useCallback, useRef, useEffect } from 'react';
 import { io, Socket } from 'socket.io-client';
 import { Device } from 'mediasoup-client';
-import type { Transport, Producer, Consumer, RtpCapabilities } from 'mediasoup-client/lib/types';
+import type { Transport, Producer, Consumer, RtpCapabilities } from 'mediasoup-client/types';
 
 export interface VoiceParticipant {
   peerId: string;

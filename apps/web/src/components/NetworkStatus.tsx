@@ -88,7 +88,7 @@ export default function NetworkStatus({
               <div>
                 <span className="text-white/60">Environment:</span>
                 <span className="ml-1 text-white">
-                  {envConfig.dynamic.isSandbox ? 'Sandbox' : 'Live'}
+                  {envConfig.network === 'devnet' ? 'Sandbox' : 'Live'}
                 </span>
               </div>
               <div>

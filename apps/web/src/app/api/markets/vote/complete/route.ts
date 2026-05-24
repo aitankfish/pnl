@@ -30,25 +30,38 @@ async function verifyTransactionOnChain(
   network: string,
 ): Promise<{ verified: boolean; error?: string }> {
   try {
-    const connection = await getSolanaConnection(network);
-    const tx = await connection.getTransaction(signature, {
-      commitment: 'confirmed',
-      maxSupportedTransactionVersion: 0,
-    });
+    const connection = await getSolanaConnection(network as 'devnet' | 'mainnet-beta');
+
+    // Submitted-but-not-yet-indexed txs are normal: the client calls this
+    // endpoint immediately after sending the transaction, but the RPC may
+    // take a few seconds to confirm. Retry with exponential backoff before
+    // declaring the tx missing (500ms, 1s, 2s, 4s, 8s ≈ 15.5s total).
+    let tx: Awaited<ReturnType<typeof connection.getTransaction>> = null;
+    for (let attempt = 0; attempt < 5; attempt++) {
+      tx = await connection.getTransaction(signature, {
+        commitment: 'confirmed',
+        maxSupportedTransactionVersion: 0,
+      });
+      if (tx) break;
+      if (attempt < 4) await new Promise((r) => setTimeout(r, 500 * 2 ** attempt));
+    }
 
     if (!tx) {
-      return { verified: false, error: 'Transaction not found on-chain' };
+      return { verified: false, error: 'Transaction not found on-chain after retries' };
     }
 
     if (tx.meta?.err) {
       return { verified: false, error: 'Transaction failed on-chain' };
     }
 
-    // Verify the program was involved
-    const programId = getProgramIdForNetwork(network as any);
+    // Verify the program was involved. Both sides must be strings — comparing
+    // a base58 string to a PublicKey object with === is always false (this
+    // was a latent bug; fixed by serializing programId first).
+    const programId = getProgramIdForNetwork(network as 'devnet' | 'mainnet-beta');
+    const programIdStr = programId.toBase58();
     const accountKeys = tx.transaction.message.getAccountKeys();
     const programInvolved = accountKeys.staticAccountKeys.some(
-      (key) => key.toBase58() === programId,
+      (key) => key.toBase58() === programIdStr,
     );
 
     if (!programInvolved) {
@@ -63,13 +76,15 @@ async function verifyTransactionOnChain(
 
     return { verified: true };
   } catch (error: any) {
-    // If verification fails (RPC issue), allow the request but log warning
-    // The blockchain sync will eventually reconcile
+    // RPC-level error (network blip, rate limit). Fail-open so a transient
+    // RPC issue doesn't reject legitimate votes; the blockchain sync will
+    // reconcile state asynchronously. Note: this branch only fires on
+    // exceptions, NOT on `tx == null` — the latter is now fail-closed above.
     logger.warn('Transaction verification failed (non-blocking)', {
       signature,
       error: error.message,
     });
-    return { verified: true }; // Fail-open for RPC issues
+    return { verified: true }; // Fail-open for RPC exceptions only
   }
 }
 

@@ -438,17 +438,21 @@ export async function GET(
     // Hide vote percentages for unresolved markets to prevent bandwagon voting
     // Users can still vote, but can't see how others voted until resolution
     if (resolution === 'Unresolved') {
-      marketDetails.yesPercentage = null;
-      marketDetails.noPercentage = null;
-      marketDetails.sharesYesPercentage = null;
-      marketDetails.yesVotes = null;
-      marketDetails.noVotes = null;
-      marketDetails.totalYesStake = null;
-      marketDetails.totalNoStake = null;
-      marketDetails.yesPool = null;
-      marketDetails.noPool = null;
-      marketDetails.totalYesShares = null;
-      marketDetails.totalNoShares = null;
+      // Hide vote percentages/totals for unresolved markets. The inferred
+      // object type uses `number`, but we're masking with null; cast for the
+      // assignment block.
+      const md = marketDetails as any;
+      md.yesPercentage = null;
+      md.noPercentage = null;
+      md.sharesYesPercentage = null;
+      md.yesVotes = null;
+      md.noVotes = null;
+      md.totalYesStake = null;
+      md.totalNoStake = null;
+      md.yesPool = null;
+      md.noPool = null;
+      md.totalYesShares = null;
+      md.totalNoShares = null;
     }
 
     return NextResponse.json(

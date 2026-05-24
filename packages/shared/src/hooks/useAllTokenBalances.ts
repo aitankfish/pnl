@@ -73,7 +73,7 @@ async function fetchTokenBalances(walletAddress: string): Promise<TokenBalance[]
     if (response.ok) {
       const data = await response.json();
       if (data.success && data.metadata && Array.isArray(data.metadata)) {
-        const metaMap = new Map(data.metadata.map((m: any) => [m.mint, m]));
+        const metaMap = new Map<string, any>(data.metadata.map((m: any) => [m.mint, m]));
         return tokenBalances.map((token) => {
           const meta = metaMap.get(token.mint);
           return meta

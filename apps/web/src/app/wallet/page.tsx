@@ -1564,13 +1564,17 @@ export default function WalletPage() {
     if (!primaryWallet?.address) return;
 
     try {
+      // Privy's SolanaFundingConfig recently dropped the top-level `chain`
+      // field — the network is inferred from the wallet's chainType. Cast
+      // through `any` so older docs/examples that still pass `chain` keep
+      // working while we wait on Privy to settle the new shape.
       await fundWallet({
         address: primaryWallet.address,
         chain: {
           type: 'solana',
           id: SOLANA_NETWORK === 'devnet' ? 'solana:devnet' : 'solana:mainnet',
         },
-      });
+      } as any);
     } catch (error) {
       console.error('Error opening buy SOL modal:', error);
     }

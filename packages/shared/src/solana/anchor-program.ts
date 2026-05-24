@@ -10,7 +10,10 @@ import { getProgramId, getRpcEndpoint, PDA_SEEDS, FEES, MIN_POOL_LAMPORTS, TARGE
 import { createHash } from 'crypto';
 import idlJson from '../idl/errors.json';
 
-type PlpPredictionMarket = typeof idlJson;
+// The Anchor-generated IDL JSON is loosely typed (no on-chain discriminators
+// surfaced to TypeScript), so we constrain the Program generic to `Idl` and
+// access named accounts via the dynamic indexer below.
+type PlpPredictionMarket = Idl;
 
 export function getProgramIdForNetwork(network?: 'devnet' | 'mainnet-beta'): PublicKey {
   const config = getEnvConfig();
@@ -291,20 +294,24 @@ export async function buildCloseMarketTransaction(params: {
   return { transaction: tx };
 }
 
+// AccountNamespace<Idl> doesn't expose the specific account names declared
+// in errors.json (market / position / treasury), so we cast once per call
+// site. The runtime lookup is the same — Anchor builds the namespace from
+// the IDL's `accounts` array regardless of how it's typed here.
 export async function fetchMarketData(marketPda: PublicKey, wallet?: any) {
   const program = getProgram(wallet);
-  return await program.account.market.fetch(marketPda);
+  return await (program.account as any).market.fetch(marketPda);
 }
 
 export async function fetchPositionData(positionPda: PublicKey, wallet?: any) {
   const program = getProgram(wallet);
-  return await program.account.position.fetch(positionPda);
+  return await (program.account as any).position.fetch(positionPda);
 }
 
 export async function fetchTreasuryData(wallet?: any) {
   const program = getProgram(wallet);
   const [treasuryPda] = getTreasuryPDA();
-  return await program.account.treasury.fetch(treasuryPda);
+  return await (program.account as any).treasury.fetch(treasuryPda);
 }
 
 export function extractIPFSCid(metadataUri: string): string {

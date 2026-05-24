@@ -100,7 +100,7 @@ export class SocketServer {
       const sub = getRedisSubClient();
 
       // Subscribe to chat channels
-      sub.subscribe(REDIS_CHANNELS.CHAT_MESSAGE, (err: Error | null) => {
+      sub.subscribe(REDIS_CHANNELS.CHAT_MESSAGE, (err) => {
         if (err) {
           console.error('❌ Failed to subscribe to chat:message channel:', err.message);
           logger.error('Failed to subscribe to chat:message channel:', { error: err.message });
@@ -180,7 +180,7 @@ export class SocketServer {
               const user = await privy.getUser(claims.userId);
               const linkedWallet = user.linkedAccounts?.find(
                 (a: any) => a.type === 'wallet' && a.chainType === 'solana',
-              );
+              ) as any;
               const verifiedWallet = linkedWallet?.address || user.wallet?.address;
               if (verifiedWallet !== walletAddress) {
                 socket.emit('error', { message: 'Wallet mismatch' });

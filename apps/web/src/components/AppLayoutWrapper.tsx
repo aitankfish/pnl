@@ -10,7 +10,9 @@ interface AppLayoutWrapperProps {
 }
 
 export default function AppLayoutWrapper({ children, footer }: AppLayoutWrapperProps) {
-  const pathname = usePathname();
+  // usePathname() returns null on the server until hydration; treat that as
+  // a non-matching pathname so the layout renders the full chrome by default.
+  const pathname = usePathname() ?? '';
 
   // Hide navbar and footer on the landing page
   const isLandingPage = pathname === '/';

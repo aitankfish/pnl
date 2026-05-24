@@ -290,7 +290,10 @@ export default function MarketDetailClient({
   // the route still rendered (we fall back to client-side fetch + error UI).
   initialMarket: MarketDetails | null;
 }) {
-  const params = useParams();
+  // useParams() is typed as `T | null` to cover non-dynamic routes / pre-
+  // hydration, but this component only renders under /market/[id] where the
+  // route segment is guaranteed present.
+  const params = useParams<{ id: string }>()!;
   const router = useRouter();
   const { primaryWallet } = useWallet();
   const { network } = useNetwork(); // Get current network from wallet
@@ -605,7 +608,28 @@ export default function MarketDetailClient({
   // Construct merged data from MongoDB (market state) + socket data
   // NO direct blockchain RPC calls needed - data synced via WebSocket to MongoDB
   const mergedOnchainData = useMemo(() => {
-    if (!market) return { success: false, data: null };
+    // Safe defaults for the not-loaded branch — keeps `data` non-nullable so
+    // downstream sites don't need to guard. Consumers that care about the
+    // distinction still check the `success` flag.
+    const emptyData = {
+      founder: '',
+      poolBalance: '0',
+      poolProgressPercentage: 0,
+      resolution: 'Unresolved' as string,
+      phase: 'Prediction' as string | number,
+      totalYesShares: '0',
+      totalNoShares: '0',
+      tokenMint: null as string | null,
+      pumpFunTokenAddress: null as string | null,
+      targetPool: 0,
+      hasExcessSol: false,
+      excessSolInSol: 0,
+      teamVestingInitialized: false,
+      teamVestingData: null as any,
+      founderVestingInitialized: false,
+      founderVestingData: null as any,
+    };
+    if (!market) return { success: false, data: emptyData };
 
     // Check if market is resolved - for resolved markets, we preserve final pool values
     // (API returns finalPoolBalance/finalPoolProgressPercentage as poolBalance/poolProgressPercentage)
@@ -1122,7 +1146,7 @@ export default function MarketDetailClient({
 
     const result = await initVesting({
       marketAddress: market.marketAddress,
-      teamWallet: mergedOnchainData.data.founder,
+      teamWallet: mergedOnchainData.data.founder || market.founderWallet || '',
       totalTokenSupply,
     });
 
@@ -3031,7 +3055,7 @@ export default function MarketDetailClient({
                               </>
                             )}
                           </div>
-                          {!primaryWallet && primaryWallet?.address !== mergedOnchainData.data.founder && (
+                          {(!primaryWallet || primaryWallet.address !== mergedOnchainData.data.founder) && (
                             <p className="mono uppercase tracking-[0.22em] text-[0.55rem]" style={{ color: AMBER }}>Connect wallet to see your position</p>
                           )}
                         </div>

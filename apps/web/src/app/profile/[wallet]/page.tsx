@@ -27,8 +27,10 @@ import { useUserSocket } from '@/lib/hooks/useSocket';
 const fetcher = (url: string) => fetch(url).then((res) => res.json());
 
 export default function PublicProfilePage() {
-  const params = useParams();
-  const profileWallet = params.wallet as string;
+  // useParams() is typed as `T | null` but this route is /profile/[wallet]
+  // so the segment is always present at runtime.
+  const params = useParams<{ wallet: string }>()!;
+  const profileWallet = params.wallet;
   const { primaryWallet } = useWallet();
   const viewerWallet = primaryWallet?.address;
 

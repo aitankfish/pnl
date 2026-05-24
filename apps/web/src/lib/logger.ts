@@ -8,8 +8,10 @@ import { createClientLogger } from '@pnl/shared/utils';
 // Re-export client logger from shared package
 export { createClientLogger };
 
-// Logger metadata type
-type LogMetadata = Record<string, unknown> | undefined;
+// Logger metadata type — accepts a structured record OR a raw value (caught
+// error, response body, etc.) so callers can do `logger.error('msg', err)`
+// without manually wrapping unknowns.
+type LogMetadata = Record<string, unknown> | unknown;
 
 // Winston logger type
 interface WinstonLogger {
@@ -31,7 +33,7 @@ if (isServer) {
     // eslint-disable-next-line @typescript-eslint/no-require-imports
     const winston = require('winston');
 
-    serverLogger = winston.createLogger({
+    const logger: WinstonLogger = winston.createLogger({
       level: process.env.NODE_ENV === 'development' ? 'debug' : 'info',
       format: winston.format.combine(
         winston.format.timestamp(),
@@ -50,18 +52,20 @@ if (isServer) {
     });
 
     if (process.env.NODE_ENV === 'production') {
-      serverLogger.add(
+      logger.add(
         new winston.transports.File({
           filename: 'logs/error.log',
           level: 'error',
         })
       );
-      serverLogger.add(
+      logger.add(
         new winston.transports.File({
           filename: 'logs/combined.log',
         })
       );
     }
+
+    serverLogger = logger;
   } catch (error) {
     console.error('Failed to initialize Winston logger:', error);
   }

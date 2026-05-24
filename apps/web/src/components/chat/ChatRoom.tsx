@@ -108,7 +108,7 @@ export default function ChatRoom({ marketAddress, walletAddress, founderWallet, 
       {/* Pinned Messages */}
       {pinnedMessages.length > 0 && (
         <PinnedMessages
-          messages={pinnedMessages}
+          messages={pinnedMessages as any}
           founderWallet={founderWallet}
           currentWallet={walletAddress}
           onUnpin={(messageId) => togglePin(messageId, false)}
@@ -117,7 +117,7 @@ export default function ChatRoom({ marketAddress, walletAddress, founderWallet, 
 
       {/* Message List */}
       <MessageList
-        messages={messages}
+        messages={messages as any}
         isLoading={isLoading}
         hasMore={hasMore}
         currentWallet={walletAddress}

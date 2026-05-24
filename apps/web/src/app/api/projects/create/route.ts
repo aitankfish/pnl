@@ -30,7 +30,10 @@ export const POST = withAuth(async (request, authUser) => {
     if (contentType?.includes('multipart/form-data')) {
       logger.info('📊 API: Processing FormData');
       const formData = await request.formData();
-      body = Object.fromEntries(formData.entries());
+      // FormDataEntryValue is `string | File`; we augment `body` with
+      // additional fields below (galleryImageFiles array, projectImage File).
+      // Type as `any` so the augmentation typechecks.
+      body = Object.fromEntries(formData.entries()) as any;
       
       logger.info('📊 API: FormData entries:', Object.keys(body));
       
