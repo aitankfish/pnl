@@ -89,7 +89,13 @@ class DatabaseManager {
 
     const createIndexSafely = async (collection: string, index: any) => {
       try {
-        await this.db!.collection(collection).createIndex(index);
+        // Accept both legacy shape (plain key spec) and the new
+        // `{ key, options }` shape so we can opt in to `unique: true` etc.
+        if (index && index.key && index.options) {
+          await this.db!.collection(collection).createIndex(index.key, index.options);
+        } else {
+          await this.db!.collection(collection).createIndex(index);
+        }
       } catch (error: any) {
         // Ignore IndexKeySpecsConflict (code 86) - index exists with different spec
         // Ignore IndexOptionsConflict (code 85) - index exists with different options
@@ -97,7 +103,35 @@ class DatabaseManager {
           // Silently skip - index already exists
           return;
         }
+        // E11000 (duplicate key) when creating a unique index means existing
+        // rows violate uniqueness. Caller handles dedup; surface the error.
         throw error;
+      }
+    };
+
+    // Dedupe TRADE_HISTORY by signature before attempting to create the
+    // unique index. Otherwise createIndex throws E11000 and the unique
+    // constraint never lands. Keeps the earliest insert (lowest _id).
+    const dedupeTradeHistory = async () => {
+      try {
+        const coll = this.db!.collection(COLLECTIONS.TRADE_HISTORY);
+        const dups = await coll.aggregate([
+          { $match: { signature: { $exists: true, $ne: null } } },
+          { $group: { _id: '$signature', ids: { $push: '$_id' }, count: { $sum: 1 } } },
+          { $match: { count: { $gt: 1 } } },
+        ]).toArray();
+        if (dups.length === 0) return;
+        let removed = 0;
+        for (const d of dups) {
+          // Keep the earliest _id (oldest insert), delete the rest.
+          const ids = d.ids.slice().sort();
+          const toDelete = ids.slice(1);
+          const r = await coll.deleteMany({ _id: { $in: toDelete } });
+          removed += r.deletedCount || 0;
+        }
+        console.log(`🧹 Deduped TRADE_HISTORY: removed ${removed} duplicate signature record(s) across ${dups.length} signature(s)`);
+      } catch (err: any) {
+        console.warn('⚠️  TRADE_HISTORY dedupe failed; index create may fail:', err.message);
       }
     };
 
@@ -130,6 +164,20 @@ class DatabaseManager {
       // Create indexes for market_time_series collection
       for (const index of INDEXES.MARKET_TIME_SERIES) {
         await createIndexSafely('market_time_series', index);
+      }
+
+      // TRADE_HISTORY: dedupe first (required for unique index), then index.
+      await dedupeTradeHistory();
+      for (const index of INDEXES.TRADE_HISTORY) {
+        await createIndexSafely(COLLECTIONS.TRADE_HISTORY, index);
+      }
+
+      // Chat indexes — performance only, no uniqueness required.
+      for (const index of INDEXES.CHAT_MESSAGES) {
+        await createIndexSafely(COLLECTIONS.CHAT_MESSAGES, index);
+      }
+      for (const index of INDEXES.MESSAGE_REACTIONS) {
+        await createIndexSafely(COLLECTIONS.MESSAGE_REACTIONS, index);
       }
 
       // Create TTL index for market_time_series (auto-delete after 30 days)

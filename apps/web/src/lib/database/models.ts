@@ -228,7 +228,12 @@ export const INDEXES = {
     { marketId: 1, timestamp: -1 },
   ],
   TRADE_HISTORY: [
-    { signature: 1 },  // Unique index added at runtime for replay protection
+    // Unique on signature: the only DB-side guard against vote/complete
+    // replay. Without this, the `findOne({signature})` + `insertOne` pair
+    // in vote/complete is TOCTOU-vulnerable and concurrent retries double-
+    // count trades. Createindexes() handles E11000 on existing duplicates
+    // by running a dedupe pass first.
+    { key: { signature: 1 }, options: { unique: true } },
   ],
   CHAT_MESSAGES: [
     { marketAddress: 1, createdAt: -1 },

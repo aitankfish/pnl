@@ -180,7 +180,16 @@ export async function POST(request: NextRequest) {
     };
     try {
       await db.collection(COLLECTIONS.TRADE_HISTORY).insertOne(tradeRecord);
-    } catch (e) {
+    } catch (e: any) {
+      // E11000 = race-loser: a concurrent /complete-vote request with the
+      // same signature already wrote the trade. Reject as already-processed
+      // so we don't double-count via the participant upsert below.
+      if (e?.code === 11000) {
+        return NextResponse.json(
+          { success: false, error: 'Transaction already processed' },
+          { status: 409 },
+        );
+      }
       logger.error('[mcp/complete-vote] trade insert failed (non-fatal)', {
         error: e instanceof Error ? e.message : String(e),
       });

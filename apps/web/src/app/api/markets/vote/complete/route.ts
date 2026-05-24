@@ -184,7 +184,18 @@ export const POST = withWalletOwnership(async (request, authUser) => {
 
       await db.collection(COLLECTIONS.TRADE_HISTORY).insertOne(tradeRecord);
       logger.info('Trade recorded in MongoDB', { signature });
-    } catch (error) {
+    } catch (error: any) {
+      // E11000 duplicate-key from the unique-on-signature index means a
+      // concurrent request already wrote this trade. Treat as success
+      // for the loser of the race — chain state is unchanged and the
+      // earlier insert already covers vote counting / history.
+      if (error?.code === 11000) {
+        logger.info('Trade signature already recorded (race-loser)', { signature });
+        return NextResponse.json(
+          { success: false, error: 'Transaction already processed' },
+          { status: 409 },
+        );
+      }
       logger.error('Failed to record trade in MongoDB (non-fatal)', {
         error: error instanceof Error ? error.message : String(error)
       });
