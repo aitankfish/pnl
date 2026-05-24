@@ -64,16 +64,33 @@ function WalletProviderInner({ children }: WalletProviderProps) {
       },
     },
 
-    // Solana network configuration - Required for embedded wallet UIs
+    // Solana network configuration - Required for embedded wallet UIs.
+    //
+    // We intentionally use the public Solana RPC here (NOT our Helius RPC).
+    // Reason: Privy's SDK polls Helius's enhanced "wallettransfers" API in
+    // the background for every connected wallet (~0.3 RPS sustained per
+    // session) to power their "Recent Activity" tab and incoming-transfer
+    // notifications. With our Helius key, that pollers alone burns ~1M
+    // credits/month — and 99% of users never see those features because
+    // /wallet renders richer trade history from our own MongoDB anyway.
+    //
+    // Trade-off: public RPC doesn't expose enhanced APIs, so the calls
+    // fail silently and Privy's in-wallet "Activity" tab shows empty.
+    // Standard RPC methods (getBalance, sendTransaction, accountSubscribe)
+    // work fine on the public endpoint — wallet balance, signing, and
+    // submission flows are unaffected.
+    //
+    // Our own server-side code keeps using HELIUS_API_KEY for the calls
+    // that need enhanced features and SLA (tx verification, sync manager).
     solana: {
       rpcs: {
         'solana:mainnet': {
-          rpc: createSolanaRpc(process.env.NEXT_PUBLIC_HELIUS_MAINNET_RPC || 'https://api.mainnet-beta.solana.com'),
-          rpcSubscriptions: createSolanaRpcSubscriptions(process.env.NEXT_PUBLIC_HELIUS_WS_MAINNET || 'wss://api.mainnet-beta.solana.com'),
+          rpc: createSolanaRpc('https://api.mainnet-beta.solana.com'),
+          rpcSubscriptions: createSolanaRpcSubscriptions('wss://api.mainnet-beta.solana.com'),
         },
         'solana:devnet': {
-          rpc: createSolanaRpc(process.env.NEXT_PUBLIC_HELIUS_DEVNET_RPC || 'https://api.devnet.solana.com'),
-          rpcSubscriptions: createSolanaRpcSubscriptions(process.env.NEXT_PUBLIC_HELIUS_WS_DEVNET || 'wss://api.devnet.solana.com'),
+          rpc: createSolanaRpc('https://api.devnet.solana.com'),
+          rpcSubscriptions: createSolanaRpcSubscriptions('wss://api.devnet.solana.com'),
         },
       },
     },
