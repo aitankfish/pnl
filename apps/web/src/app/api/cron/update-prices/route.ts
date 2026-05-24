@@ -31,15 +31,8 @@ interface TokenStats {
   updatedAt: number;
 }
 
-/**
- * Fetch stats for a single token from Birdeye
- */
-async function fetchSingleTokenStats(address: string): Promise<TokenStats> {
-  // Server-only env var — see note in /api/tokens/stats/route.ts. Legacy
-  // NEXT_PUBLIC_ name kept as fallback while the env var rename rolls out.
-  const birdeyeApiKey = process.env.BIRDEYE_API_KEY || process.env.NEXT_PUBLIC_BIRDEYE_API_KEY;
-
-  const emptyStats: TokenStats = {
+function emptyStats(address: string): TokenStats {
+  return {
     address,
     price: null,
     priceChange24h: null,
@@ -49,44 +42,80 @@ async function fetchSingleTokenStats(address: string): Promise<TokenStats> {
     liquidity: null,
     updatedAt: Date.now(),
   };
+}
 
-  if (!birdeyeApiKey) return emptyStats;
+/**
+ * Primary source: Birdeye token_overview. Server-only env var — see note
+ * in /api/tokens/stats/route.ts. Legacy NEXT_PUBLIC_ name kept as fallback
+ * while the env var rename rolls out. Returns null on any failure so the
+ * caller can try the next source.
+ */
+async function fetchFromBirdeye(address: string): Promise<TokenStats | null> {
+  const birdeyeApiKey = process.env.BIRDEYE_API_KEY || process.env.NEXT_PUBLIC_BIRDEYE_API_KEY;
+  if (!birdeyeApiKey) return null;
 
   try {
     const response = await fetch(
       `https://public-api.birdeye.so/defi/token_overview?address=${address}`,
-      {
-        headers: {
-          'X-API-KEY': birdeyeApiKey,
-          'x-chain': 'solana',
-        },
-      }
+      { headers: { 'X-API-KEY': birdeyeApiKey, 'x-chain': 'solana' } },
     );
-
-    if (!response.ok) {
-      throw new Error(`Birdeye API error: ${response.status}`);
-    }
+    if (!response.ok) return null;
 
     const data = await response.json();
-
-    if (!data.success || !data.data) {
-      throw new Error('Invalid Birdeye response');
-    }
+    if (!data.success || !data.data) return null;
 
     return {
       address,
-      price: data.data.price || null,
-      priceChange24h: data.data.priceChange24hPercent || null,
-      marketCap: data.data.mc || null,
-      volume24h: data.data.v24hUSD || null,
-      holders: data.data.holder || null,
-      liquidity: data.data.liquidity || null,
+      price: data.data.price ?? null,
+      priceChange24h: data.data.priceChange24hPercent ?? null,
+      marketCap: data.data.mc ?? null,
+      volume24h: data.data.v24hUSD ?? null,
+      holders: data.data.holder ?? null,
+      liquidity: data.data.liquidity ?? null,
       updatedAt: Date.now(),
     };
-  } catch (error) {
-    logger.error(`Error fetching stats for ${address}:`, { error });
-    return emptyStats;
+  } catch {
+    return null;
   }
+}
+
+/**
+ * Fallback source: Jupiter Lite Price API. Free, no key required. Covers
+ * price + priceChange24h + liquidity; marketCap/volume24h/holders stay
+ * null. Lets the cron keep populating the cache even if Birdeye's quota
+ * is exhausted or the account is mid-activation.
+ */
+async function fetchFromJupiter(address: string): Promise<TokenStats | null> {
+  try {
+    const response = await fetch(
+      `https://lite-api.jup.ag/price/v3?ids=${encodeURIComponent(address)}`,
+    );
+    if (!response.ok) return null;
+
+    const data = await response.json();
+    const entry = data?.[address];
+    if (!entry || typeof entry.usdPrice !== 'number') return null;
+
+    return {
+      address,
+      price: entry.usdPrice,
+      priceChange24h: typeof entry.priceChange24h === 'number' ? entry.priceChange24h : null,
+      marketCap: null,
+      volume24h: null,
+      holders: null,
+      liquidity: typeof entry.liquidity === 'number' ? entry.liquidity : null,
+      updatedAt: Date.now(),
+    };
+  } catch {
+    return null;
+  }
+}
+
+async function fetchSingleTokenStats(address: string): Promise<TokenStats> {
+  const stats = (await fetchFromBirdeye(address)) || (await fetchFromJupiter(address));
+  if (stats) return stats;
+  logger.warn(`No external source returned stats for ${address}`);
+  return emptyStats(address);
 }
 
 

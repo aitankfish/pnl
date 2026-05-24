@@ -99,17 +99,8 @@ async function getBatchCachedStats(addresses: string[]): Promise<Map<string, Tok
   return results;
 }
 
-/**
- * Fallback: Fetch from Birdeye for tokens not in cache
- */
-async function fetchFromBirdeyeFallback(address: string): Promise<TokenStats> {
-  // Server-only env var — must NOT have the NEXT_PUBLIC_ prefix, otherwise
-  // it gets baked into the client bundle and the whole point of the proxy
-  // is defeated. Legacy NEXT_PUBLIC_BIRDEYE_API_KEY is read as a fallback
-  // so an in-flight deploy doesn't break, but it should be removed.
-  const birdeyeApiKey = process.env.BIRDEYE_API_KEY || process.env.NEXT_PUBLIC_BIRDEYE_API_KEY;
-
-  const emptyStats: TokenStats = {
+function emptyStats(address: string): TokenStats {
+  return {
     address,
     price: null,
     priceChange24h: null,
@@ -119,49 +110,101 @@ async function fetchFromBirdeyeFallback(address: string): Promise<TokenStats> {
     liquidity: null,
     updatedAt: Date.now(),
   };
+}
 
-  if (!birdeyeApiKey) return emptyStats;
+async function writeCache(address: string, stats: TokenStats): Promise<void> {
+  try {
+    const redis = getRedisClient();
+    const key = prefixKey(`${REDIS_KEY_PREFIX}${address}`);
+    await redis.setex(key, 120, JSON.stringify(stats));
+  } catch {
+    // Cache write failures are non-fatal — the next request will retry.
+  }
+}
+
+/**
+ * Primary fallback: Birdeye token_overview. Returns the richest data
+ * (price, marketCap, volume24h, holders, liquidity, priceChange24h) when
+ * the key is set and the account has CUs. Returns null on any failure
+ * so the caller can try the next source.
+ *
+ * Server-only env var — must NOT have the NEXT_PUBLIC_ prefix, otherwise
+ * it gets baked into the client bundle and the whole point of the proxy
+ * is defeated. Legacy NEXT_PUBLIC_BIRDEYE_API_KEY is read as a fallback
+ * so an in-flight deploy doesn't break, but it should be removed.
+ */
+async function fetchFromBirdeye(address: string): Promise<TokenStats | null> {
+  const birdeyeApiKey = process.env.BIRDEYE_API_KEY || process.env.NEXT_PUBLIC_BIRDEYE_API_KEY;
+  if (!birdeyeApiKey) return null;
 
   try {
     const response = await fetch(
       `https://public-api.birdeye.so/defi/token_overview?address=${address}`,
-      {
-        headers: {
-          'X-API-KEY': birdeyeApiKey,
-          'x-chain': 'solana',
-        },
-      }
+      { headers: { 'X-API-KEY': birdeyeApiKey, 'x-chain': 'solana' } },
     );
-
-    if (!response.ok) throw new Error(`Birdeye API error: ${response.status}`);
+    if (!response.ok) return null;
 
     const data = await response.json();
-    if (!data.success || !data.data) throw new Error('Invalid response');
+    if (!data.success || !data.data) return null;
 
-    const stats: TokenStats = {
+    return {
       address,
-      price: data.data.price || null,
-      priceChange24h: data.data.priceChange24hPercent || null,
-      marketCap: data.data.mc || null,
-      volume24h: data.data.v24hUSD || null,
-      holders: data.data.holder || null,
-      liquidity: data.data.liquidity || null,
+      price: data.data.price ?? null,
+      priceChange24h: data.data.priceChange24hPercent ?? null,
+      marketCap: data.data.mc ?? null,
+      volume24h: data.data.v24hUSD ?? null,
+      holders: data.data.holder ?? null,
+      liquidity: data.data.liquidity ?? null,
       updatedAt: Date.now(),
     };
-
-    // Cache it for next time
-    try {
-      const redis = getRedisClient();
-      const key = prefixKey(`${REDIS_KEY_PREFIX}${address}`);
-      await redis.setex(key, 120, JSON.stringify(stats));
-    } catch {
-      // Ignore cache errors
-    }
-
-    return stats;
   } catch {
-    return emptyStats;
+    return null;
   }
+}
+
+/**
+ * Secondary fallback: Jupiter Lite Price API. Free, no key required.
+ * Covers price + priceChange24h + liquidity. The fancier Birdeye-only
+ * fields (marketCap, volume24h, holders) stay null — UI degrades to '-'.
+ * Used when Birdeye returns null (quota exhausted, key missing, account
+ * not yet activated, Jupiter-fallback-only deploy, etc.).
+ */
+async function fetchFromJupiter(address: string): Promise<TokenStats | null> {
+  try {
+    const response = await fetch(
+      `https://lite-api.jup.ag/price/v3?ids=${encodeURIComponent(address)}`,
+    );
+    if (!response.ok) return null;
+
+    const data = await response.json();
+    const entry = data?.[address];
+    if (!entry || typeof entry.usdPrice !== 'number') return null;
+
+    return {
+      address,
+      price: entry.usdPrice,
+      priceChange24h: typeof entry.priceChange24h === 'number' ? entry.priceChange24h : null,
+      marketCap: null,
+      volume24h: null,
+      holders: null,
+      liquidity: typeof entry.liquidity === 'number' ? entry.liquidity : null,
+      updatedAt: Date.now(),
+    };
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Try every external source in order until one returns usable data. Each
+ * source is responsible for returning null on any kind of failure (network,
+ * quota, malformed response). Caches the first successful result.
+ */
+async function fetchFromExternal(address: string): Promise<TokenStats> {
+  const stats = (await fetchFromBirdeye(address)) || (await fetchFromJupiter(address));
+  if (!stats) return emptyStats(address);
+  await writeCache(address, stats);
+  return stats;
 }
 
 export async function POST(request: NextRequest) {
@@ -209,7 +252,7 @@ export async function POST(request: NextRequest) {
       const fallbackLimit = Math.min(missingAddresses.length, 10);
 
       for (let i = 0; i < fallbackLimit; i++) {
-        const stats = await fetchFromBirdeyeFallback(missingAddresses[i]);
+        const stats = await fetchFromExternal(missingAddresses[i]);
         results.push(stats);
         // Rate limit
         if (i < fallbackLimit - 1) {
@@ -277,7 +320,7 @@ export async function GET(request: NextRequest) {
 
   // Fallback to Birdeye if not cached
   if (!stats) {
-    stats = await fetchFromBirdeyeFallback(address);
+    stats = await fetchFromExternal(address);
   }
 
   return NextResponse.json({
