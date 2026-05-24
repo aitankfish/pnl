@@ -168,14 +168,36 @@ const nextConfig = {
 
   // Headers for better caching
   async headers() {
+    // CORS allow-list. Browser cross-origin reads are only permitted from
+    // these origins; the matching Origin is echoed back. Native apps (Expo)
+    // and server-to-server callers send no Origin header and are unaffected
+    // — this only constrains browser JS on other sites.
+    const ALLOWED_ORIGIN =
+      '(?<origin>https://(www\\.)?pnl\\.market|https://docs\\.pnl\\.market|http://localhost:\\d+)';
     return [
       {
         source: '/api/:path*',
+        has: [{ type: 'header', key: 'origin', value: ALLOWED_ORIGIN }],
         headers: [
           { key: 'Access-Control-Allow-Credentials', value: 'true' },
-          { key: 'Access-Control-Allow-Origin', value: '*' },
+          { key: 'Access-Control-Allow-Origin', value: ':origin' },
           { key: 'Access-Control-Allow-Methods', value: 'GET,POST,PUT,DELETE,OPTIONS' },
-          { key: 'Access-Control-Allow-Headers', value: 'X-CSRF-Token, X-Requested-With, Accept, Accept-Version, Content-Length, Content-MD5, Content-Type, Date, X-Api-Version' },
+          { key: 'Access-Control-Allow-Headers', value: 'Authorization, X-CSRF-Token, X-Requested-With, Accept, Accept-Version, Content-Length, Content-MD5, Content-Type, Date, X-Api-Version' },
+          { key: 'Vary', value: 'Origin' },
+        ],
+      },
+      // Baseline security headers on every response. HSTS is ignored by
+      // browsers over plain HTTP (dev), so it only takes effect on the
+      // HTTPS prod deploy. Permissions-Policy keeps camera/mic enabled for
+      // same-origin (mediasoup voice needs getUserMedia) and disables geo.
+      {
+        source: '/:path*',
+        headers: [
+          { key: 'Strict-Transport-Security', value: 'max-age=63072000; includeSubDomains' },
+          { key: 'X-Content-Type-Options', value: 'nosniff' },
+          { key: 'X-Frame-Options', value: 'SAMEORIGIN' },
+          { key: 'Referrer-Policy', value: 'strict-origin-when-cross-origin' },
+          { key: 'Permissions-Policy', value: 'camera=(self), microphone=(self), geolocation=()' },
         ],
       },
       {
