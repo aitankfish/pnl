@@ -120,8 +120,12 @@ const nextConfig = {
       ...(anchorRoot && { '@coral-xyz/anchor': anchorRoot }),
     };
 
-    // Note: Do NOT alias 'react' or 'react-dom' — Next.js uses its own internal
-    // canary React with React.use() and React.cache() that standard React 18 lacks.
+    // Note: Do NOT alias 'react' or 'react-dom'. Next 15's client runtime
+    // expects to resolve its own React with internal hooks (React.use etc.);
+    // forcing an alias triggers "React.use is not a function". The R3F
+    // "ReactCurrentBatchConfig is undefined" crash that previously
+    // motivated aliasing here was the real fix: upgrade React 18 → 19 and
+    // R3F 8 → 9. With both aligned, no alias needed.
 
     // Production optimizations
     if (!dev) {
