@@ -8,6 +8,7 @@ import { ObjectId } from 'mongodb';
 import { connectToDatabase, getDatabase } from '@/lib/database/index';
 import { COLLECTIONS, ChatMessage, PredictionMarket, Project } from '@/lib/database/models';
 import { broadcastChatDeleted } from '@/services/socket/socket-server';
+import { verifyAuth } from '@/lib/auth/privy-server';
 
 // Disable Next.js caching for this route
 export const dynamic = 'force-dynamic';
@@ -22,8 +23,21 @@ export async function DELETE(
 ) {
   try {
     const { marketAddress, messageId } = await params;
-    const body = await request.json();
-    const { walletAddress } = body;
+
+    // Authenticate. The deleting wallet MUST come from a verified Privy
+    // JWT — never the request body. Before this gate, the route trusted
+    // a client-supplied `walletAddress`, so anyone could delete any
+    // message by passing the (publicly visible) author or founder
+    // address. Mirrors the verifyAuth pattern used by the sibling chat
+    // routes (POST / pin / react).
+    const authUser = await verifyAuth(request);
+    if (!authUser?.walletAddress) {
+      return NextResponse.json(
+        { success: false, error: 'Authentication required' },
+        { status: 401 }
+      );
+    }
+    const walletAddress = authUser.walletAddress;
 
     // Validation
     if (!marketAddress) {
@@ -36,13 +50,6 @@ export async function DELETE(
     if (!messageId) {
       return NextResponse.json(
         { success: false, error: 'Message ID is required' },
-        { status: 400 }
-      );
-    }
-
-    if (!walletAddress) {
-      return NextResponse.json(
-        { success: false, error: 'Wallet address is required' },
         { status: 400 }
       );
     }
