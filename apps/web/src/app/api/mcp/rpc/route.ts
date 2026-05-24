@@ -90,8 +90,8 @@ export async function POST(request: NextRequest) {
 
   const ip = request.headers.get('x-forwarded-for')?.split(',')[0]?.trim() || 'unknown';
   const limited = isWrite
-    ? checkRateLimit(`mcp-rpc-write:${ip}`, 10, 60_000)
-    : checkRateLimit(`mcp-rpc-read:${ip}`, 60, 60_000);
+    ? await checkRateLimit(`mcp-rpc-write:${ip}`, 10, 60_000)
+    : await checkRateLimit(`mcp-rpc-read:${ip}`, 60, 60_000);
   if (limited) return limited;
 
   // Forward the entire request (jsonrpc + id + method + params) so

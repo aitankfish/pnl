@@ -29,22 +29,20 @@ export function TokenStatsBar({ tokenMint }: TokenStatsBarProps) {
     const fetchTokenStats = async () => {
       setIsLoading(true);
       try {
-        const response = await fetch(`https://public-api.birdeye.so/defi/token_overview?address=${tokenMint}`, {
-          headers: {
-            'X-API-KEY': process.env.NEXT_PUBLIC_BIRDEYE_API_KEY || '',
-            'x-chain': 'solana',
-          },
-        });
+        // Proxy through our own /api/tokens/stats — keeps the Birdeye API
+        // key server-side (instead of baking NEXT_PUBLIC_BIRDEYE_API_KEY into
+        // the client bundle where anyone can grep it from DevTools).
+        const response = await fetch(`/api/tokens/stats?address=${encodeURIComponent(tokenMint)}`);
 
         if (response.ok) {
-          const data = await response.json();
-          if (data.success && data.data) {
+          const json = await response.json();
+          if (json.success && json.data) {
             setTokenStats({
-              priceUsd: data.data.price || null,
-              marketCap: data.data.mc || null,
-              volume24h: data.data.v24hUSD || null,
-              holders: data.data.holder || null,
-              priceChange24h: data.data.priceChange24hPercent || null,
+              priceUsd: json.data.price ?? null,
+              marketCap: json.data.marketCap ?? null,
+              volume24h: json.data.volume24h ?? null,
+              holders: json.data.holders ?? null,
+              priceChange24h: json.data.priceChange24h ?? null,
             });
           }
         }

@@ -36,7 +36,7 @@ export const POST = withAuth(async (request, authUser, { params }: any) => {
 
     // 3 versions per hour per (wallet, paper). Keeps fat-fingers from
     // flooding the archive while still allowing legitimate iteration.
-    const rateLimited = checkRateLimit(
+    const rateLimited = await checkRateLimit(
       `research:version:${authUser.walletAddress}:${id}`,
       3,
       60 * 60 * 1000,

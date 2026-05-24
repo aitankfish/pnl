@@ -28,7 +28,7 @@ export const POST = withAuth(async (request, authUser, { params }: any) => {
       );
     }
 
-    const rateLimited = checkRateLimit(
+    const rateLimited = await checkRateLimit(
       `research:react:${authUser.walletAddress}`,
       30,
       60_000,

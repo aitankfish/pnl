@@ -58,7 +58,7 @@ function parseNonceTimestamp(nonce: string): number | null {
 export async function POST(request: NextRequest) {
   try {
     const ip = request.headers.get('x-forwarded-for')?.split(',')[0]?.trim() || 'unknown';
-    const rateLimitResponse = checkRateLimit(`mcp-profile:${ip}`, 20, 60_000);
+    const rateLimitResponse = await checkRateLimit(`mcp-profile:${ip}`, 20, 60_000);
     if (rateLimitResponse) return rateLimitResponse;
 
     const body = (await request.json()) as ProfileClaimBody;

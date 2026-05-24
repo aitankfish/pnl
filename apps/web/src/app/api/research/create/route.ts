@@ -20,7 +20,7 @@ const ALLOWED_PDF_TYPES = ['application/pdf'];
 
 export const POST = withAuth(async (request, authUser) => {
   try {
-    const rateLimited = checkRateLimit(`research:create:${authUser.walletAddress}`, 3, 60_000);
+    const rateLimited = await checkRateLimit(`research:create:${authUser.walletAddress}`, 3, 60_000);
     if (rateLimited) return rateLimited;
 
     const contentType = request.headers.get('content-type') || '';

@@ -281,7 +281,7 @@ export const POST = withAuth(async (request, authUser) => {
   // Rate limit: 5 order attempts per minute per wallet. Order placement is
   // a state-mutating + cost-incurring operation; this stops scripted abuse
   // even before payment verification kicks in.
-  const rateLimited = checkRateLimit(`printify-orders:${authUser.walletAddress}`, 5, 60_000);
+  const rateLimited = await checkRateLimit(`printify-orders:${authUser.walletAddress}`, 5, 60_000);
   if (rateLimited) return rateLimited;
 
   const apiToken = process.env.PRINTIFY_API_TOKEN;

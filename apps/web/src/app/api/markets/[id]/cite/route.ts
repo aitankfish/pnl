@@ -45,7 +45,7 @@ export const POST = withAuth(async (request, authUser, { params }: any) => {
     //   2. Daily: 5 cross-author citations per 24h per wallet — tight,
     //      because spammy "cite my favorite paper to look legit" attacks
     //      are the main risk in the cross-author path.
-    const rateLimited = checkRateLimit(
+    const rateLimited = await checkRateLimit(
       `cite:${authUser.walletAddress}`,
       5,
       60_000,
@@ -106,7 +106,7 @@ export const POST = withAuth(async (request, authUser, { params }: any) => {
     // Daily cap on cross-author requests. Same-wallet citations skip this
     // because they auto-accept and aren't a spam risk.
     if (!sameWallet) {
-      const dailyLimited = checkRateLimit(
+      const dailyLimited = await checkRateLimit(
         `cite:cross:${authUser.walletAddress}`,
         5,
         24 * 60 * 60 * 1000,

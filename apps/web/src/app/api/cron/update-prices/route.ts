@@ -35,7 +35,9 @@ interface TokenStats {
  * Fetch stats for a single token from Birdeye
  */
 async function fetchSingleTokenStats(address: string): Promise<TokenStats> {
-  const birdeyeApiKey = process.env.NEXT_PUBLIC_BIRDEYE_API_KEY;
+  // Server-only env var — see note in /api/tokens/stats/route.ts. Legacy
+  // NEXT_PUBLIC_ name kept as fallback while the env var rename rolls out.
+  const birdeyeApiKey = process.env.BIRDEYE_API_KEY || process.env.NEXT_PUBLIC_BIRDEYE_API_KEY;
 
   const emptyStats: TokenStats = {
     address,
@@ -106,15 +108,16 @@ async function storeAllStats(statsMap: Map<string, TokenStats>): Promise<void> {
 export async function GET(request: NextRequest) {
   const startTime = Date.now();
 
-  // Verify cron secret (optional but recommended)
+  // Always require CRON_SECRET. The previous shape ("optional but
+  // recommended") let any unauthenticated caller hit this on a preview
+  // deploy or whenever the secret was unset — they could pollute the
+  // price cache without authenticating. Now: missing or wrong secret =
+  // 401, in every environment.
   const authHeader = request.headers.get('authorization');
   const cronSecret = process.env.CRON_SECRET;
 
-  if (cronSecret && authHeader !== `Bearer ${cronSecret}`) {
-    // Allow without auth in development
-    if (process.env.NODE_ENV === 'production') {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
+  if (!cronSecret || authHeader !== `Bearer ${cronSecret}`) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
   try {

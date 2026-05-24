@@ -262,7 +262,7 @@ export const POST = withAuth(async (request, authUser) => {
     // 5 analyses per minute per wallet. Grok-3 calls are expensive — this
     // bounds individual abuse without breaking legitimate "roast this market"
     // exploration. Tighten if costs spike.
-    const rateLimited = checkRateLimit(`grok:${authUser.walletAddress}`, 5, 60_000);
+    const rateLimited = await checkRateLimit(`grok:${authUser.walletAddress}`, 5, 60_000);
     if (rateLimited) return rateLimited;
 
     const body: GrokAnalysisRequest = await request.json();

@@ -37,7 +37,7 @@ function isMissing(payload: Record<string, unknown>, key: string): boolean {
 export async function POST(request: NextRequest) {
   try {
     const ip = request.headers.get('x-forwarded-for')?.split(',')[0]?.trim() || 'unknown';
-    const rateLimitResponse = checkRateLimit(`mcp-drafts:${ip}`, 60, 60_000);
+    const rateLimitResponse = await checkRateLimit(`mcp-drafts:${ip}`, 60, 60_000);
     if (rateLimitResponse) return rateLimitResponse;
 
     const body = (await request.json()) as DraftRequestBody;

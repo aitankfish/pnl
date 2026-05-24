@@ -19,7 +19,7 @@ const MAX_FILE_SIZE = 50 * 1024 * 1024; // 50MB
 export const POST = withAuth(async (request, authUser) => {
   try {
     // Rate limit
-    const rateLimited = checkRateLimit(`upload:${authUser.walletAddress}`, 5, 60_000);
+    const rateLimited = await checkRateLimit(`upload:${authUser.walletAddress}`, 5, 60_000);
     if (rateLimited) return rateLimited;
 
     if (!PINATA_JWT) {
@@ -98,7 +98,7 @@ export async function PUT(request: NextRequest) {
   // Reuse the auth from the import
   const handler = withAuth(async (req, authUser) => {
     try {
-      const rateLimited = checkRateLimit(`upload:${authUser.walletAddress}`, 5, 60_000);
+      const rateLimited = await checkRateLimit(`upload:${authUser.walletAddress}`, 5, 60_000);
       if (rateLimited) return rateLimited;
 
       if (!PINATA_JWT) {

@@ -135,7 +135,7 @@ async function verifyTxOnChain(
 export async function POST(request: NextRequest) {
   try {
     const ip = request.headers.get('x-forwarded-for')?.split(',')[0]?.trim() || 'unknown';
-    const limited = checkRateLimit(`mcp-complete-create:${ip}`, 10, 60_000);
+    const limited = await checkRateLimit(`mcp-complete-create:${ip}`, 10, 60_000);
     if (limited) return limited;
 
     const body = (await request.json()) as CompleteCreateBody;

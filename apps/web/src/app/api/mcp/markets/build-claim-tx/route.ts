@@ -27,7 +27,7 @@ interface BuildClaimBody {
 export async function POST(request: NextRequest) {
   try {
     const ip = request.headers.get('x-forwarded-for')?.split(',')[0]?.trim() || 'unknown';
-    const limited = checkRateLimit(`mcp-build-claim:${ip}`, 30, 60_000);
+    const limited = await checkRateLimit(`mcp-build-claim:${ip}`, 30, 60_000);
     if (limited) return limited;
 
     const body = (await request.json()) as BuildClaimBody;

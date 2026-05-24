@@ -103,7 +103,11 @@ async function getBatchCachedStats(addresses: string[]): Promise<Map<string, Tok
  * Fallback: Fetch from Birdeye for tokens not in cache
  */
 async function fetchFromBirdeyeFallback(address: string): Promise<TokenStats> {
-  const birdeyeApiKey = process.env.NEXT_PUBLIC_BIRDEYE_API_KEY;
+  // Server-only env var — must NOT have the NEXT_PUBLIC_ prefix, otherwise
+  // it gets baked into the client bundle and the whole point of the proxy
+  // is defeated. Legacy NEXT_PUBLIC_BIRDEYE_API_KEY is read as a fallback
+  // so an in-flight deploy doesn't break, but it should be removed.
+  const birdeyeApiKey = process.env.BIRDEYE_API_KEY || process.env.NEXT_PUBLIC_BIRDEYE_API_KEY;
 
   const emptyStats: TokenStats = {
     address,
@@ -166,7 +170,7 @@ export async function POST(request: NextRequest) {
     // misses fall back to Birdeye (paid). This bounds the cache-miss attack
     // surface where someone hammers random/invalid mints to drain Birdeye
     // quota.
-    const rateLimited = checkRateLimit(callerKey(request), 60, 60_000);
+    const rateLimited = await checkRateLimit(callerKey(request), 60, 60_000);
     if (rateLimited) return rateLimited;
 
     const { addresses } = await request.json();
@@ -255,7 +259,7 @@ export async function POST(request: NextRequest) {
 export async function GET(request: NextRequest) {
   // Same rate-limit bound as POST — cache-miss attack hits the same Birdeye
   // quota whether through batch POST or single GET.
-  const rateLimited = checkRateLimit(callerKey(request), 60, 60_000);
+  const rateLimited = await checkRateLimit(callerKey(request), 60, 60_000);
   if (rateLimited) return rateLimited;
 
   const { searchParams } = new URL(request.url);

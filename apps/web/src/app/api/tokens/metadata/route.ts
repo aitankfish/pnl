@@ -84,7 +84,7 @@ export async function POST(request: NextRequest) {
     // back to Helius DAS API (paid per RPC call). This bounds the cache-miss
     // attack where someone hammers random/invalid mints to drain Helius
     // quota.
-    const rateLimited = checkRateLimit(callerKey(request), 60, 60_000);
+    const rateLimited = await checkRateLimit(callerKey(request), 60, 60_000);
     if (rateLimited) return rateLimited;
 
     const body = await request.json();

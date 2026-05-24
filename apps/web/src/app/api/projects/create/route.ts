@@ -16,7 +16,7 @@ const logger = createClientLogger();
 export const POST = withAuth(async (request, authUser) => {
   try {
     // Rate limit: 3 project creations per minute per wallet
-    const rateLimited = checkRateLimit(`create:${authUser.walletAddress}`, 3, 60_000);
+    const rateLimited = await checkRateLimit(`create:${authUser.walletAddress}`, 3, 60_000);
     if (rateLimited) return rateLimited;
 
     logger.info('🚀 API: Starting project creation request');

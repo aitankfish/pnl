@@ -18,7 +18,7 @@ const logger = createClientLogger();
 export const POST = withWalletOwnership(async (request, authUser) => {
   try {
     // Rate limit: 10 vote preps per minute per wallet
-    const rateLimited = checkRateLimit(`vote:${authUser.walletAddress}`, 10, 60_000);
+    const rateLimited = await checkRateLimit(`vote:${authUser.walletAddress}`, 10, 60_000);
     if (rateLimited) return rateLimited;
 
     const body = await request.json();
