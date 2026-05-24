@@ -33,7 +33,15 @@ export function useSocket(config?: SocketConfig) {
     const url = config?.url || getSocketUrl();
     const path = config?.path || '/api/socket/io';
 
-    // Create socket connection
+    // Create socket connection.
+    //
+    // `auth` is a callback so socket.io re-fetches a fresh Privy token on
+    // every (re)connect — the server's handshake middleware verifies it
+    // and binds the wallet to the socket, which gates wallet-attributed
+    // events (subscribe:user, chat:typing). Logged-out users resolve to
+    // no token → connect unauthenticated → read-only features still work.
+    // The callback must ALWAYS call cb(), even on error, or the socket
+    // never connects.
     const socket = io(url, {
       path,
       transports: ['websocket', 'polling'],
@@ -41,6 +49,12 @@ export function useSocket(config?: SocketConfig) {
       reconnectionDelay: 1000,
       reconnectionDelayMax: 10000,
       reconnectionAttempts: 10,
+      auth: (cb: (data: Record<string, unknown>) => void) => {
+        import('../utils/authenticated-fetch')
+          .then((m) => m.getAccessToken())
+          .then((token) => cb(token ? { token } : {}))
+          .catch(() => cb({}));
+      },
     });
 
     socketRef.current = socket;
@@ -256,6 +270,7 @@ export function useAllMarketsSocket() {
  */
 export function useUserSocket(walletAddress: string | null) {
   const { socket, isConnected } = useSocket();
+  const authedWalletRef = useRef<string | null>(null);
   const [positions, setPositions] = useState<Map<string, any>>(new Map());
   const [notifications, setNotifications] = useState<any[]>([]);
   const [userStats, setUserStats] = useState<{ followerCount?: number; followingCount?: number }>({});
@@ -265,22 +280,32 @@ export function useUserSocket(walletAddress: string | null) {
   const [walletBalance, setWalletBalance] = useState<{ lamports: number; sol: number; slot: number } | null>(null);
   const isMountedRef = useRef(true);
 
+  // The socket's handshake `auth` callback runs at connect time. On first
+  // page load the socket frequently connects BEFORE Privy has a token
+  // ready, so it lands unauthenticated and the server can't bind a wallet
+  // — subscribe:user would then be rejected and notifications silently
+  // break. When the wallet first becomes available, force one reconnect so
+  // the handshake re-runs with the now-available token. Guarded by a ref
+  // so it fires once per wallet, not on every render.
+  useEffect(() => {
+    if (!socket || !walletAddress) return;
+    if (authedWalletRef.current === walletAddress) return;
+    authedWalletRef.current = walletAddress;
+    if (socket.connected) {
+      socket.disconnect().connect();
+    }
+  }, [socket, walletAddress]);
+
   useEffect(() => {
     isMountedRef.current = true;
     if (!socket || !isConnected || !walletAddress) return;
 
-    // Subscribe to user updates with access token for wallet verification
-    const subscribe = async () => {
-      let token: string | undefined;
-      try {
-        const { getAccessToken } = await import('../utils/authenticated-fetch');
-        const t = await getAccessToken();
-        if (t) token = t;
-      } catch {}
-      logger.info(`Subscribing to user: ${walletAddress}`);
-      socket.emit('subscribe:user', walletAddress, token);
-    };
-    subscribe();
+    // Subscribe to user updates. The socket is already authenticated via
+    // the handshake-auth `auth` callback (token verified + wallet bound
+    // server-side), so we just name the wallet — the server checks it
+    // matches the socket's verified wallet and rejects a mismatch.
+    logger.info(`Subscribing to user: ${walletAddress}`);
+    socket.emit('subscribe:user', walletAddress);
 
     // Listen for position updates
     const handlePositionUpdate = (data: any) => {

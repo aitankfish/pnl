@@ -11,6 +11,7 @@ import { withAuth } from '@/lib/auth/require-wallet';
 import { checkRateLimit } from '@/lib/auth/rate-limit';
 import { invalidateCache } from '@/lib/redis/invalidate';
 import { safeExternalUrl } from '@/lib/safe-url';
+import { looksLikeImage, looksLikeVideo, readMagic } from '@/lib/file-sniff';
 
 /**
  * Strip any socialLinks value that isn't a safe http(s) URL. Stored
@@ -71,6 +72,9 @@ export const POST = withAuth(async (request, authUser) => {
         if (!ALLOWED_IMAGE_TYPES.includes(imageFile.type)) {
           return NextResponse.json({ success: false, error: `Invalid image type: ${imageFile.type}. Allowed: ${ALLOWED_IMAGE_TYPES.join(', ')}` }, { status: 400 });
         }
+        if (!looksLikeImage(await readMagic(imageFile))) {
+          return NextResponse.json({ success: false, error: 'Image content does not match a supported image format (jpeg/png/gif/webp).' }, { status: 400 });
+        }
         body.projectImage = imageFile;
       }
 
@@ -84,6 +88,9 @@ export const POST = withAuth(async (request, authUser) => {
           }
           if (!ALLOWED_IMAGE_TYPES.includes(gf.type)) {
             return NextResponse.json({ success: false, error: `Invalid gallery image type: ${gf.type}` }, { status: 400 });
+          }
+          if (!looksLikeImage(await readMagic(gf))) {
+            return NextResponse.json({ success: false, error: `Gallery image ${i + 1} content does not match a supported image format.` }, { status: 400 });
           }
           galleryImageFiles.push(gf);
         }
@@ -101,6 +108,9 @@ export const POST = withAuth(async (request, authUser) => {
         }
         if (!ALLOWED_VIDEO_TYPES.includes(pitchVideoFile.type)) {
           return NextResponse.json({ success: false, error: `Invalid video type: ${pitchVideoFile.type}. Allowed: ${ALLOWED_VIDEO_TYPES.join(', ')}` }, { status: 400 });
+        }
+        if (!looksLikeVideo(await readMagic(pitchVideoFile))) {
+          return NextResponse.json({ success: false, error: 'Video content does not match a supported video format (mp4/mov/webm).' }, { status: 400 });
         }
         body.pitchVideo = pitchVideoFile;
       }

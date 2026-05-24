@@ -83,11 +83,54 @@ export class SocketServer {
       transports: ['websocket', 'polling'],
     });
 
+    this.setupAuthMiddleware();
     this.setupEventHandlers();
     this.setupRedisSubscription();
 
     console.log('✅ Socket.IO server initialized on path /api/socket/io');
     logger.info('✅ Socket.IO server initialized');
+  }
+
+  /**
+   * Connection-time auth. Verifies the Privy JWT passed in the socket
+   * handshake (socket.handshake.auth.token) ONCE per connection and binds
+   * the verified Solana wallet to socket.data.wallet. Wallet-attributed
+   * events (subscribe:user, chat:typing) then trust socket.data.wallet
+   * instead of client-supplied payload fields.
+   *
+   * Critically, we NEVER reject the connection — read-only features (the
+   * market feed, public chat viewing) must work for logged-out users.
+   * A missing/invalid token simply leaves socket.data.wallet unset, and
+   * the wallet-attributed handlers refuse to act for that socket.
+   */
+  private setupAuthMiddleware(): void {
+    if (!this.io) return;
+    this.io.use(async (socket, nextFn) => {
+      const token = (socket.handshake.auth as { token?: unknown } | undefined)?.token;
+      if (typeof token === 'string' && token.length > 0) {
+        try {
+          const { PrivyClient } = await import('@privy-io/server-auth');
+          const appId = process.env.NEXT_PUBLIC_PRIVY_APP_ID;
+          const appSecret = process.env.PRIVY_APP_SECRET;
+          if (appId && appSecret) {
+            const privy = new PrivyClient(appId, appSecret);
+            const claims = await privy.verifyAuthToken(token);
+            const user = await privy.getUser(claims.userId);
+            const linkedWallet = user.linkedAccounts?.find(
+              (a: any) => a.type === 'wallet' && a.chainType === 'solana',
+            ) as any;
+            const wallet = linkedWallet?.address || user.wallet?.address;
+            if (wallet) {
+              (socket.data as { wallet?: string }).wallet = wallet;
+            }
+          }
+        } catch {
+          // Invalid / expired token → connect as unauthenticated. Do not
+          // reject; the socket just can't perform wallet-attributed actions.
+        }
+      }
+      nextFn();
+    });
   }
 
   /**
@@ -165,33 +208,22 @@ export class SocketServer {
         socket.emit('subscribed', { room: 'all-markets' });
       });
 
-      // Handle user-specific subscriptions (for notifications)
-      // Accepts optional accessToken for wallet ownership verification
-      socket.on('subscribe:user', async (walletAddress: string, accessToken?: string) => {
-        // If token provided, verify wallet ownership via Privy
-        if (accessToken) {
-          try {
-            const { PrivyClient } = await import('@privy-io/server-auth');
-            const appId = process.env.NEXT_PUBLIC_PRIVY_APP_ID;
-            const appSecret = process.env.PRIVY_APP_SECRET;
-            if (appId && appSecret) {
-              const privy = new PrivyClient(appId, appSecret);
-              const claims = await privy.verifyAuthToken(accessToken);
-              const user = await privy.getUser(claims.userId);
-              const linkedWallet = user.linkedAccounts?.find(
-                (a: any) => a.type === 'wallet' && a.chainType === 'solana',
-              ) as any;
-              const verifiedWallet = linkedWallet?.address || user.wallet?.address;
-              if (verifiedWallet !== walletAddress) {
-                socket.emit('error', { message: 'Wallet mismatch' });
-                return;
-              }
-            }
-          } catch {
-            // Token verification failed — allow subscription anyway for backwards compat
-            // but mark as unverified
-            logger.warn(`Unverified user subscription: ${walletAddress.slice(0, 8)}...`);
-          }
+      // Handle user-specific subscriptions (for notifications).
+      //
+      // The user: room streams a wallet's private notifications (votes,
+      // claims, rewards). Joining it requires that the socket proved
+      // ownership of THIS wallet via the handshake-auth middleware. The
+      // old behavior verified an optional token and fell back to ALLOW on
+      // failure / when no token was sent — so anyone could subscribe to
+      // any wallet's notification stream. Now: no verified wallet on the
+      // socket, or a mismatch, is a hard reject.
+      socket.on('subscribe:user', async (walletAddress: string) => {
+        const verifiedWallet = (socket.data as { wallet?: string }).wallet;
+        if (!verifiedWallet || verifiedWallet !== walletAddress) {
+          socket.emit('error', {
+            message: 'Unauthorized: connect with a valid token for this wallet',
+          });
+          return;
         }
         socket.join(`user:${walletAddress}`);
         socket.emit('subscribed', { walletAddress });
@@ -263,12 +295,18 @@ export class SocketServer {
         this.io?.to(roomName).emit('chat:user_count', { count: roomSize, marketAddress: payload.marketAddress });
       });
 
-      // Handle typing indicator
-      socket.on('chat:typing', (payload: { marketAddress: string; walletAddress: string; displayName?: string }) => {
+      // Handle typing indicator. Use the wallet bound to this socket by
+      // the handshake-auth middleware — NOT the client-supplied
+      // payload.walletAddress, which an attacker could set to impersonate
+      // anyone. A socket with no verified wallet (logged-out viewer) can't
+      // broadcast a typing identity. displayName stays cosmetic; the
+      // identity that matters (wallet) is now server-verified.
+      socket.on('chat:typing', (payload: { marketAddress: string; displayName?: string }) => {
+        const verifiedWallet = (socket.data as { wallet?: string }).wallet;
+        if (!verifiedWallet || !payload?.marketAddress) return;
         const roomName = `chat:${payload.marketAddress}`;
-        // Broadcast to all other users in the room (except sender)
         socket.to(roomName).emit('chat:typing', {
-          walletAddress: payload.walletAddress,
+          walletAddress: verifiedWallet,
           displayName: payload.displayName,
           marketAddress: payload.marketAddress,
         });

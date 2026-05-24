@@ -9,6 +9,7 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { uploadToStream, deleteFromStream, isStreamUrl, extractStreamUid } from '@/lib/cloudflare-stream';
+import { looksLikeVideo, readMagic } from '@/lib/file-sniff';
 import { connectToDatabase, Project, PredictionMarket } from '@/lib/mongodb';
 import { verifyAuth } from '@/lib/auth/privy-server';
 
@@ -55,6 +56,30 @@ export async function POST(request: NextRequest, props: { params: Promise<{ id: 
     if (!videoFile || videoFile.size === 0) {
       return NextResponse.json(
         { success: false, error: 'pitchVideo file is required' },
+        { status: 400 },
+      );
+    }
+
+    // Size cap + magic-byte check before spending a Cloudflare Stream
+    // upload on the file. videoFile.type is client-supplied so we both
+    // allow-list it and sniff the actual container bytes.
+    const MAX_VIDEO_BYTES = 100 * 1024 * 1024; // 100MB
+    const ALLOWED_VIDEO_TYPES = ['video/mp4', 'video/quicktime', 'video/webm'];
+    if (videoFile.size > MAX_VIDEO_BYTES) {
+      return NextResponse.json(
+        { success: false, error: 'Video too large (max 100MB)' },
+        { status: 400 },
+      );
+    }
+    if (!ALLOWED_VIDEO_TYPES.includes(videoFile.type)) {
+      return NextResponse.json(
+        { success: false, error: `Invalid video type: ${videoFile.type}` },
+        { status: 400 },
+      );
+    }
+    if (!looksLikeVideo(await readMagic(videoFile))) {
+      return NextResponse.json(
+        { success: false, error: 'Video content is not a supported format (mp4/mov/webm).' },
         { status: 400 },
       );
     }
