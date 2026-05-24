@@ -1,10 +1,12 @@
 import { z } from 'zod';
-import { PublicKey } from '@solana/web3.js';
+import { PublicKey, LAMPORTS_PER_SOL } from '@solana/web3.js';
 import {
   requireUnlockedKeypair,
   loadConfig,
   getConnection,
   getBalanceSol,
+  reserveSpend,
+  releaseSpend,
 } from '../lib/wallet.js';
 import {
   signSerializedTx,
@@ -99,6 +101,20 @@ export async function callVoteNow(rawInput: unknown) {
     );
   }
 
+  // Daily ceiling — see wallet.ts `reserveSpend`. Per-tx cap alone is
+  // trivially bypassed by chaining N sub-cap calls; this enforces a
+  // rolling total. Reserved BEFORE sign so racing autosign calls can't
+  // each pass the check on a stale read. Rolled back on tx failure.
+  const requiredLamports = Math.floor(input.amountSol * LAMPORTS_PER_SOL);
+  reserveSpend(requiredLamports);
+  let spendReleased = false;
+  const releaseOnFailure = () => {
+    if (!spendReleased) {
+      try { releaseSpend(requiredLamports); } catch { /* best effort */ }
+      spendReleased = true;
+    }
+  };
+
   const keypair = requireUnlockedKeypair();
   const walletAddress = keypair.publicKey.toBase58();
   const base = getApiBase();
@@ -136,30 +152,39 @@ export async function callVoteNow(rawInput: unknown) {
     );
   }
 
-  // 1. build-vote-tx
-  const buildRes = await fetch(`${base}/api/mcp/markets/build-vote-tx`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
-    body: JSON.stringify({
-      walletAddress,
-      marketAddress,
-      voteType: input.vote,
-      amountSol: input.amountSol,
-    }),
-  });
-  const buildJson = (await buildRes.json()) as BuildResponse;
-  if (!buildRes.ok || !buildJson.success || !buildJson.data) {
-    throw new Error(
-      `build-vote-tx failed (${buildRes.status}): ${buildJson.error || 'unknown error'}`,
-    );
-  }
-  const built = buildJson.data;
+  let txSignature: string;
+  try {
+    // 1. build-vote-tx
+    const buildRes = await fetch(`${base}/api/mcp/markets/build-vote-tx`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+      body: JSON.stringify({
+        walletAddress,
+        marketAddress,
+        voteType: input.vote,
+        amountSol: input.amountSol,
+      }),
+    });
+    const buildJson = (await buildRes.json()) as BuildResponse;
+    if (!buildRes.ok || !buildJson.success || !buildJson.data) {
+      throw new Error(
+        `build-vote-tx failed (${buildRes.status}): ${buildJson.error || 'unknown error'}`,
+      );
+    }
+    const built = buildJson.data;
 
-  // 2. sign + send locally
-  const rawTx = signSerializedTx(built.tx, keypair);
-  const { signature: txSignature } = await sendAndConfirm(rawTx, getConnection(), {
-    confirmTimeoutMs: 90_000,
-  });
+    // 2. sign + send locally
+    const rawTx = signSerializedTx(built.tx, keypair);
+    const sent = await sendAndConfirm(rawTx, getConnection(), {
+      confirmTimeoutMs: 90_000,
+    });
+    txSignature = sent.signature;
+  } catch (err) {
+    // Build/sign/send failed → tx never landed → roll back the reservation
+    // so the user keeps their daily budget for the retry.
+    releaseOnFailure();
+    throw err;
+  }
 
   // 3. Build complete-vote body, hash it into the challenge, sign.
   //    The hash binds the sig to voteType + amountSol + marketId so an

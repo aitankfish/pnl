@@ -29,6 +29,7 @@ import { randomBytes, scryptSync, createCipheriv, createDecipheriv, timingSafeEq
 const PNL_DIR = join(homedir(), '.config', 'pnl');
 const WALLET_PATH = join(PNL_DIR, 'wallet.enc');
 const CONFIG_PATH = join(PNL_DIR, 'config.json');
+const SPENT_PATH = join(PNL_DIR, 'spent.json');
 const EXPORTS_DIR = join(PNL_DIR, 'exports');
 
 // Default RPC is the hosted MCP proxy on pnl.market, which forwards to
@@ -38,6 +39,12 @@ const EXPORTS_DIR = join(PNL_DIR, 'exports');
 // Power users override via PNL_RPC_URL.
 const DEFAULT_RPC = 'https://pnl.market/api/mcp/rpc';
 const DEFAULT_AUTOSIGN_CAP_SOL = 0.05;
+// Daily ceiling on top of the per-tx cap. The per-tx cap alone is
+// trivially bypassed by chaining N sub-cap signs (cap=0.05 × 100 calls =
+// 5 SOL drained in a tight loop). The daily cap puts a hard floor on
+// total damage from prompt-injection — to raise it the user has to edit
+// ~/.config/pnl/config.json directly, same as the per-tx cap.
+const DEFAULT_DAILY_AUTOSIGN_CAP_SOL = 0.5;
 
 /** True iff the currently active RPC URL is our hosted MCP proxy.
  *  Tools use this to decide whether to surface the BYO-Helius hint. */
@@ -74,6 +81,7 @@ let unlocked: UnlockedState | null = null;
 
 export interface PnlConfig {
   autosignCapSol: number;
+  dailyAutosignCapSol: number;
   rpcUrl: string;
 }
 
@@ -426,7 +434,11 @@ export function writeMnemonicToFile(mnemonic: string, address: string): { path: 
 export function loadConfig(): PnlConfig {
   ensureDir();
   if (!existsSync(CONFIG_PATH)) {
-    return { autosignCapSol: DEFAULT_AUTOSIGN_CAP_SOL, rpcUrl: DEFAULT_RPC };
+    return {
+      autosignCapSol: DEFAULT_AUTOSIGN_CAP_SOL,
+      dailyAutosignCapSol: DEFAULT_DAILY_AUTOSIGN_CAP_SOL,
+      rpcUrl: DEFAULT_RPC,
+    };
   }
   try {
     const parsed = JSON.parse(readFileSync(CONFIG_PATH, 'utf8')) as Partial<PnlConfig>;
@@ -435,14 +447,106 @@ export function loadConfig(): PnlConfig {
         typeof parsed.autosignCapSol === 'number' && parsed.autosignCapSol >= 0
           ? parsed.autosignCapSol
           : DEFAULT_AUTOSIGN_CAP_SOL,
+      dailyAutosignCapSol:
+        typeof parsed.dailyAutosignCapSol === 'number' && parsed.dailyAutosignCapSol >= 0
+          ? parsed.dailyAutosignCapSol
+          : DEFAULT_DAILY_AUTOSIGN_CAP_SOL,
       rpcUrl:
         typeof parsed.rpcUrl === 'string' && parsed.rpcUrl.length > 0
           ? parsed.rpcUrl
           : DEFAULT_RPC,
     };
   } catch {
-    return { autosignCapSol: DEFAULT_AUTOSIGN_CAP_SOL, rpcUrl: DEFAULT_RPC };
+    return {
+      autosignCapSol: DEFAULT_AUTOSIGN_CAP_SOL,
+      dailyAutosignCapSol: DEFAULT_DAILY_AUTOSIGN_CAP_SOL,
+      rpcUrl: DEFAULT_RPC,
+    };
   }
+}
+
+// ─── Daily autosign spend tracking ───────────────────────────────
+//
+// Stored at ~/.config/pnl/spent.json. Resets at UTC midnight (the date
+// in the file is compared to today's UTC date; mismatch = fresh day).
+// All operations are synchronous so within a single Node tick they are
+// atomic — no mutex needed, since the MCP runs as a single-process
+// stdio child.
+
+interface SpentState {
+  date: string;       // YYYY-MM-DD (UTC)
+  spentLamports: number;
+}
+
+function utcDateKey(): string {
+  const d = new Date();
+  const y = d.getUTCFullYear();
+  const m = String(d.getUTCMonth() + 1).padStart(2, '0');
+  const day = String(d.getUTCDate()).padStart(2, '0');
+  return `${y}-${m}-${day}`;
+}
+
+function readSpentTodaySync(): SpentState {
+  const today = utcDateKey();
+  if (!existsSync(SPENT_PATH)) return { date: today, spentLamports: 0 };
+  try {
+    const parsed = JSON.parse(readFileSync(SPENT_PATH, 'utf8')) as Partial<SpentState>;
+    if (parsed.date !== today) return { date: today, spentLamports: 0 };
+    const lamports = typeof parsed.spentLamports === 'number' && parsed.spentLamports >= 0
+      ? parsed.spentLamports
+      : 0;
+    return { date: today, spentLamports: lamports };
+  } catch {
+    return { date: today, spentLamports: 0 };
+  }
+}
+
+function writeSpentSync(state: SpentState): void {
+  ensureDir();
+  writeFileSync(SPENT_PATH, JSON.stringify(state, null, 2), { mode: 0o600 });
+  try {
+    chmodSync(SPENT_PATH, 0o600);
+  } catch {
+    /* non-fatal */
+  }
+}
+
+/** Returns lamports spent so far today (UTC). */
+export function getSpentTodayLamports(): number {
+  return readSpentTodaySync().spentLamports;
+}
+
+/**
+ * Reserve `lamports` against the daily autosign cap. Throws if the
+ * reservation would exceed the cap. On success, the spent counter is
+ * incremented immediately and persisted. Call `releaseSpend(lamports)`
+ * on tx failure to roll back.
+ *
+ * Synchronous + file-based → atomic within a Node tick. Safe under
+ * concurrent autosign calls from the same MCP process.
+ */
+export function reserveSpend(lamports: number): { totalAfterLamports: number; capLamports: number } {
+  const { dailyAutosignCapSol } = loadConfig();
+  const capLamports = Math.floor(dailyAutosignCapSol * LAMPORTS_PER_SOL);
+  const state = readSpentTodaySync();
+  const totalAfter = state.spentLamports + lamports;
+  if (totalAfter > capLamports) {
+    const remainingSol = Math.max(0, capLamports - state.spentLamports) / LAMPORTS_PER_SOL;
+    throw new Error(
+      `Daily autosign cap reached. ${(state.spentLamports / LAMPORTS_PER_SOL).toFixed(4)} SOL spent today out of ${dailyAutosignCapSol.toFixed(4)} SOL daily cap; only ${remainingSol.toFixed(4)} SOL remaining. ` +
+      `Use the browser deep-link flow (pnl_vote / pnl_pitch_idea) or raise dailyAutosignCapSol in ~/.config/pnl/config.json. Resets at UTC midnight.`,
+    );
+  }
+  writeSpentSync({ date: state.date, spentLamports: totalAfter });
+  return { totalAfterLamports: totalAfter, capLamports };
+}
+
+/** Roll back a previous reservation. Use on tx-send failure. Never
+ *  drops below 0. */
+export function releaseSpend(lamports: number): void {
+  const state = readSpentTodaySync();
+  const next = Math.max(0, state.spentLamports - lamports);
+  writeSpentSync({ date: state.date, spentLamports: next });
 }
 
 export function saveConfig(updates: Partial<PnlConfig>): PnlConfig {

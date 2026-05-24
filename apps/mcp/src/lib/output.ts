@@ -155,12 +155,33 @@ export function next(hint: string): string {
  * don't have to repeat the boilerplate. Joins parts with two
  * newlines so each section gets a paragraph break.
  */
+// ─── One-shot session banner ─────────────────────────────────────
+//
+// Used by update-check.ts to surface "new version available" notices
+// inside the FIRST tool reply of a session. After it fires once, the
+// banner is consumed and subsequent replies render normally — we
+// don't want to spam the user across every call.
+
+let pendingBanner: string | null = null;
+
+export function setPendingBanner(text: string): void {
+  pendingBanner = text;
+}
+
+function consumePendingBanner(): string | null {
+  const out = pendingBanner;
+  pendingBanner = null;
+  return out;
+}
+
 export function reply(...parts: Array<string | null | undefined | false>): {
   content: Array<{ type: 'text'; text: string }>;
 } {
-  const text = parts
+  const body = parts
     .filter((p): p is string => typeof p === 'string' && p.length > 0)
     .join('\n\n');
+  const banner = consumePendingBanner();
+  const text = banner ? `${banner}\n\n---\n\n${body}` : body;
   return { content: [{ type: 'text', text }] };
 }
 

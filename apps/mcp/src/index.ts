@@ -30,10 +30,11 @@ import { voteNowInputSchema, callVoteNow } from './tools/vote-now.js';
 import { claimInputSchema, callClaim } from './tools/claim.js';
 import { claimNowInputSchema, callClaimNow } from './tools/claim-now.js';
 import { notifyInputSchema, callNotify } from './tools/notify.js';
+import { startUpdateCheck } from './lib/update-check.js';
 import { runInstall } from './install.js';
 
 const SERVER_NAME = 'pnl-mcp-server';
-const SERVER_VERSION = '0.4.0';
+const SERVER_VERSION = '0.5.0';
 
 // CLI dispatch — when invoked as `pnl-mcp-server install`, run the
 // installer that wires this server into the user's agent configs and
@@ -179,6 +180,11 @@ async function main(): Promise<void> {
 
   const transport = new StdioServerTransport();
   await server.connect(transport);
+
+  // Fire-and-forget npm registry check. If a newer version is published,
+  // a banner gets attached to the first tool reply this session. Never
+  // blocks startup, never throws — see lib/update-check.ts.
+  startUpdateCheck(SERVER_VERSION);
 
   // Stdio transport keeps the process alive while the host (Claude Code /
   // Cursor / etc.) holds the pipe. No need to log anything to stdout —

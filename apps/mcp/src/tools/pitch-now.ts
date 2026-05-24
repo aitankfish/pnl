@@ -5,6 +5,8 @@ import {
   loadConfig,
   getConnection,
   getBalanceSol,
+  reserveSpend,
+  releaseSpend,
 } from '../lib/wallet.js';
 import {
   signSerializedTx,
@@ -162,11 +164,30 @@ export async function callPitchNow(rawInput: unknown) {
     );
   }
 
+  // Daily ceiling — see wallet.ts `reserveSpend`. Per-tx cap alone is
+  // bypassable by chaining sub-cap calls; this caps the rolling total.
+  // Reserved BEFORE sign; rolled back on send failure.
+  reserveSpend(built.creationFee);
+  let spendReleased = false;
+  const releaseOnFailure = () => {
+    if (!spendReleased) {
+      try { releaseSpend(built.creationFee); } catch { /* best effort */ }
+      spendReleased = true;
+    }
+  };
+
   // 4. Sign locally and send.
-  const rawTx = signSerializedTx(built.tx, keypair);
-  const { signature: txSignature } = await sendAndConfirm(rawTx, getConnection(), {
-    confirmTimeoutMs: 90_000,
-  });
+  let txSignature: string;
+  try {
+    const rawTx = signSerializedTx(built.tx, keypair);
+    const sent = await sendAndConfirm(rawTx, getConnection(), {
+      confirmTimeoutMs: 90_000,
+    });
+    txSignature = sent.signature;
+  } catch (err) {
+    releaseOnFailure();
+    throw err;
+  }
 
   // 5. Build the complete-create body first, then sign a challenge that
   //    folds in a SHA-256 of the body. The hash binds the sig to the

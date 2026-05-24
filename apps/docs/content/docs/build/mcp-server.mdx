@@ -119,15 +119,35 @@ to the process via `PNL_PASSPHRASE` env var (set in the MCP host config)
 or an OS-native dialog. The agent's chat transcript never sees the
 passphrase. Cached secrets time out automatically and on `pnl_lock`.
 
-### Autosign cap
+### Autosign caps
 
-- **Default**: 0.05 SOL ceiling, configurable in `~/.config/pnl/config.json`
-- **Per-call override**: `autosignCapSol` arg can only **lower** the
-  ceiling, never raise it
-- **Claim**: no cap (withdrawal of funds the program already owes the user)
+Two layers, both edited only via `~/.config/pnl/config.json`:
 
-To raise the ceiling the user edits the config file directly — this
-arg cannot bypass it.
+- **Per-transaction cap** — `autosignCapSol`. Default 0.05 SOL. The
+  per-call `autosignCapSol` arg can only **lower** this ceiling, never
+  raise it.
+- **Per-day cap** — `dailyAutosignCapSol`. Default 0.5 SOL. Rolling
+  total, persisted at `~/.config/pnl/spent.json`, resets at UTC
+  midnight. Added in v0.5.0 to block the "N sub-per-tx-cap calls in
+  a loop" drain pattern that the per-tx cap alone didn't prevent.
+- **Claim**: no cap (withdrawal of funds the program already owes
+  the user).
+
+Both caps fail-closed — exceeding either returns an error from the
+autosign tool with a hint to use the deep-link flow (`pnl_vote` /
+`pnl_pitch_idea`) instead.
+
+### Mnemonic + passphrase handling
+
+Both the wallet passphrase AND the BIP39 recovery phrase flow through
+OS-native dialogs (osascript / zenity), never tool arguments. The
+agent's chat transcript never sees either secret.
+
+`pnl_restore` (as of v0.5.0) takes no arguments — it pops the OS
+dialog and reads the phrase directly. If a wallet already exists, a
+second OS-native YES/NO dialog with both addresses must be clicked
+before overwrite — the agent cannot synthesize the click, so this
+gate is prompt-injection-proof.
 
 ### Sig-auth payload binding
 
@@ -180,6 +200,7 @@ a 5min freshness window plus 1min clock-skew tolerance.
 | `PNL_API_BASE_URL` | `https://pnl.market` | Pointing at devnet, staging, or a local Next.js dev server |
 | `PNL_RPC_URL` | `https://pnl.market/api/mcp/rpc` (hosted proxy) | BYO Helius key for heavier use — grab a free key at [helius.dev](https://helius.dev) |
 | `PNL_PASSPHRASE` | (prompt via OS dialog) | Skip OS unlock prompt for unattended agents — only set in MCP host config, not shell history |
+| `PNL_MNEMONIC` | (prompt via OS dialog) | One-shot fallback for `pnl_restore` when the OS dialog isn't usable (Windows, headless CI, container). Unset after restore. |
 
 The default RPC is the hosted proxy. Rate-limited 60 reads/min and 10
 sends/min per IP. Set `PNL_RPC_URL` to your own Helius endpoint to
