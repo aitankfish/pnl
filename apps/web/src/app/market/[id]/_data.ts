@@ -13,7 +13,11 @@
 import { cache } from 'react';
 
 const BASE_URL = process.env.NEXT_PUBLIC_APP_URL || 'https://pnl.market';
-const API_URL = process.env.NEXT_PUBLIC_API_URL || BASE_URL;
+// Strip a trailing `/api` so we don't double-stack it: the fetch path below
+// already appends `/api/markets/...`. Some envs set NEXT_PUBLIC_API_URL with a
+// trailing `/api` (e.g. http://localhost:3000/api), which would otherwise
+// produce `/api/api/markets/<id>` → 404.
+const API_URL = (process.env.NEXT_PUBLIC_API_URL || BASE_URL).replace(/\/api\/?$/, '');
 
 // Loose shape — the page uses a much richer client interface, but the
 // server side only needs what's safe to serialize and pre-render.
