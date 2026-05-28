@@ -33,6 +33,14 @@ function WalletProviderInner({ children }: WalletProviderProps) {
     console.warn('NEXT_PUBLIC_PRIVY_APP_ID is not set. Wallet functionality will be limited.');
   }
 
+  // Absolute origin for the /api/rpc proxy URL — createSolanaRpc requires an
+  // absolute URL. On the client we use the live origin so preview deploys hit
+  // their own proxy; during SSR we fall back to the configured app URL.
+  const appOrigin =
+    typeof window !== 'undefined'
+      ? window.location.origin
+      : process.env.NEXT_PUBLIC_APP_URL || 'https://pnl.market';
+
   const config: PrivyClientConfig = {
     // Appearance customization to match space theme
     appearance: {
@@ -66,31 +74,30 @@ function WalletProviderInner({ children }: WalletProviderProps) {
 
     // Solana network configuration - Required for embedded wallet UIs.
     //
-    // We intentionally use the public Solana RPC here (NOT our Helius RPC).
-    // Reason: Privy's SDK polls Helius's enhanced "wallettransfers" API in
-    // the background for every connected wallet (~0.3 RPS sustained per
-    // session) to power their "Recent Activity" tab and incoming-transfer
-    // notifications. With our Helius key, that pollers alone burns ~1M
-    // credits/month — and 99% of users never see those features because
-    // /wallet renders richer trade history from our own MongoDB anyway.
+    // HTTP rpc points at our own /api/rpc proxy (NOT the public Solana RPC,
+    // NOT our raw Helius URL). History:
+    //   - Raw Helius here let Privy's SDK background-poll Helius's enhanced
+    //     "wallettransfers" API, burning ~1M credits/month (commit 8ce2119).
+    //   - Switching to the public RPC stopped the burn but broke sends:
+    //     api.mainnet-beta.solana.com returns HTTP 403 on sendTransaction
+    //     (Solana error 8100002), so voting/claiming failed.
+    // The /api/rpc proxy forwards standard JSON-RPC to Helius with the
+    // SERVER-SIDE key and rejects the expensive enhanced/DAS methods, so
+    // sends are reliable AND the burn cannot recur. See the route for detail.
     //
-    // Trade-off: public RPC doesn't expose enhanced APIs, so the calls
-    // fail silently and Privy's in-wallet "Activity" tab shows empty.
-    // Standard RPC methods (getBalance, sendTransaction, accountSubscribe)
-    // work fine on the public endpoint — wallet balance, signing, and
-    // submission flows are unaffected.
-    //
-    // Our own server-side code keeps using HELIUS_API_KEY for the calls
-    // that need enhanced features and SLA (tx verification, sync manager).
+    // rpcSubscriptions (WS) is only used for tx-confirmation notifications,
+    // never for the enhanced polling that caused the burn, so it points
+    // straight at Helius WS (falling back to public WS if unset). The key in
+    // NEXT_PUBLIC_HELIUS_WS_* is already exposed via other client RPC usage.
     solana: {
       rpcs: {
         'solana:mainnet': {
-          rpc: createSolanaRpc('https://api.mainnet-beta.solana.com'),
-          rpcSubscriptions: createSolanaRpcSubscriptions('wss://api.mainnet-beta.solana.com'),
+          rpc: createSolanaRpc(`${appOrigin}/api/rpc?cluster=mainnet`),
+          rpcSubscriptions: createSolanaRpcSubscriptions(process.env.NEXT_PUBLIC_HELIUS_WS_MAINNET || 'wss://api.mainnet-beta.solana.com'),
         },
         'solana:devnet': {
-          rpc: createSolanaRpc('https://api.devnet.solana.com'),
-          rpcSubscriptions: createSolanaRpcSubscriptions('wss://api.devnet.solana.com'),
+          rpc: createSolanaRpc(`${appOrigin}/api/rpc?cluster=devnet`),
+          rpcSubscriptions: createSolanaRpcSubscriptions(process.env.NEXT_PUBLIC_HELIUS_WS_DEVNET || 'wss://api.devnet.solana.com'),
         },
       },
     },
