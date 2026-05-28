@@ -3,7 +3,7 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import useSWR from 'swr';
 import Link from 'next/link';
-import { Loader2, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Loader2, ChevronLeft, ChevronRight, CheckCircle2 } from 'lucide-react';
 import { useVoting } from '@/lib/hooks/useVoting';
 import { useAllMarketsSocket } from '@/lib/hooks/useSocket';
 import { FEES } from '@/config/solana';
@@ -362,6 +362,11 @@ export default function BrowsePage() {
     details?: string;
   }>({ open: false, title: '', message: '', details: undefined });
 
+  // Success toast after a quick-vote — mirrors the detail page's feedback so
+  // a browse-page vote isn't silent. Auto-dismisses after 3s.
+  const [showToast, setShowToast] = useState(false);
+  const [toastMessage, setToastMessage] = useState('');
+
   const QUICK_VOTE_AMOUNT = FEES.MINIMUM_INVESTMENT / 1_000_000_000;
   // useCallback so the prop reference stays stable across BrowsePage
   // re-renders. Without this, every socket event would defeat the
@@ -393,6 +398,10 @@ export default function BrowsePage() {
           message: parsedError.message,
           details: parsedError.details,
         });
+      } else {
+        setToastMessage(`✅ ${voteType.toUpperCase()} vote recorded! ${amount ?? QUICK_VOTE_AMOUNT} SOL`);
+        setShowToast(true);
+        setTimeout(() => setShowToast(false), 3000);
       }
     },
     [authenticated, showAuthModal, vote, QUICK_VOTE_AMOUNT],
@@ -870,6 +879,15 @@ export default function BrowsePage() {
           message={errorDialog.message}
           details={errorDialog.details}
         />
+
+        {showToast && (
+          <div className="fixed top-20 left-1/2 -translate-x-1/2 z-[100] animate-in fade-in slide-in-from-top-2 px-3 sm:px-0 w-[calc(100%-24px)] sm:w-auto max-w-md">
+            <div className="bg-gray-900 border border-white/20 text-white px-4 sm:px-6 py-2.5 sm:py-3 rounded-lg shadow-lg flex items-center space-x-2">
+              <CheckCircle2 className="w-4 h-4 sm:w-5 sm:h-5 text-green-400 flex-shrink-0" />
+              <span className="text-sm sm:text-base">{toastMessage}</span>
+            </div>
+          </div>
+        )}
 
         </>)}
       </div>
