@@ -38,6 +38,11 @@ export interface SendAndConfirmOptions extends SendOptions {
    *  Solana blockhashes expire after ~60-90s, so this is the
    *  hard-stop for "will the tx still land". */
   confirmTimeoutMs?: number;
+  /** How many times to poll getSignatureStatuses if confirmTransaction
+   *  rejects, before declaring the tx genuinely unlanded. Default 6. */
+  confirmFallbackAttempts?: number;
+  /** Delay between fallback signature-status polls, in ms. Default 2000. */
+  confirmFallbackIntervalMs?: number;
 }
 
 export interface SendResult {
@@ -46,14 +51,67 @@ export interface SendResult {
   slot?: number;
 }
 
+/** Authoritative "did this signature actually land?" check.
+ *
+ *  `confirmTransaction` rejecting (block-height exceeded, abort/timeout,
+ *  or a transient RPC hiccup) means web3.js *stopped watching* — it is
+ *  NOT proof the tx failed. The tx can be on-chain already. We poll
+ *  `getSignatureStatuses` (with history search, since the tx may have
+ *  rolled out of the recent-status cache) before declaring failure.
+ *
+ *  Returns the status when the signature is found on-chain (whether it
+ *  succeeded or carries an err), or null if it's still nowhere to be
+ *  seen after the grace window. */
+async function confirmViaSignatureStatus(
+  connection: Connection,
+  signature: TransactionSignature,
+  attempts = 6,
+  intervalMs = 2_000,
+): Promise<{ err: unknown; slot?: number } | null> {
+  for (let i = 0; i < attempts; i++) {
+    try {
+      const { value } = await connection.getSignatureStatuses([signature], {
+        searchTransactionHistory: true,
+      });
+      const st = value[0];
+      if (st) {
+        const landed =
+          st.err != null ||
+          st.confirmationStatus === 'confirmed' ||
+          st.confirmationStatus === 'finalized' ||
+          // `confirmations === null` means rooted/finalized.
+          st.confirmations === null;
+        if (landed) return { err: st.err, slot: st.slot };
+      }
+    } catch {
+      /* transient RPC error — retry */
+    }
+    if (i < attempts - 1) await new Promise((r) => setTimeout(r, intervalMs));
+  }
+  return null;
+}
+
 /** Send a raw (already-signed) transaction and wait for it to confirm.
- *  Throws if the tx fails on-chain or if confirmation times out. */
+ *  Throws if the tx fails on-chain or if confirmation times out.
+ *
+ *  Confirmation is two-tier: the fast path uses `confirmTransaction`
+ *  with a blockhash-expiry deadline; if that rejects (the common
+ *  "block height exceeded" on a laggy/rate-limited RPC) we fall back to
+ *  an authoritative signature-status poll. A rejection from
+ *  `confirmTransaction` is "I stopped watching", not "the tx failed", so
+ *  treating it as fatal previously stranded txs that had actually landed
+ *  (paid create_market on-chain, never persisted off-chain). */
 export async function sendAndConfirm(
   rawTx: Buffer | Uint8Array,
   connection: Connection = getConnection(),
   opts: SendAndConfirmOptions = {},
 ): Promise<SendResult> {
-  const { confirmTimeoutMs = 60_000, ...sendOpts } = opts;
+  const {
+    confirmTimeoutMs = 60_000,
+    confirmFallbackAttempts = 6,
+    confirmFallbackIntervalMs = 2_000,
+    ...sendOpts
+  } = opts;
   const signature = await connection.sendRawTransaction(rawTx, {
     skipPreflight: false,
     preflightCommitment: 'confirmed',
@@ -67,8 +125,15 @@ export async function sendAndConfirm(
   const latest = await connection.getLatestBlockhash('confirmed');
   const ctrl = new AbortController();
   const timer = setTimeout(() => ctrl.abort(), confirmTimeoutMs);
+
+  // Fast path. The try/catch wraps ONLY confirmTransaction: a *rejection*
+  // (block height exceeded / abort / RPC hiccup) means "stopped watching"
+  // and triggers the fallback poll. A *resolution* carrying an err is a
+  // definitive on-chain failure and must throw straight through, never
+  // get relabeled "could not be confirmed".
+  let result;
   try {
-    const result = await connection.confirmTransaction(
+    result = await connection.confirmTransaction(
       {
         signature,
         blockhash: latest.blockhash,
@@ -77,15 +142,43 @@ export async function sendAndConfirm(
       },
       'confirmed',
     );
-    if (result.value.err) {
-      throw new Error(`transaction failed on-chain: ${JSON.stringify(result.value.err)}`);
-    }
-  } finally {
+  } catch (err) {
     clearTimeout(timer);
+    // Ask the chain directly whether the signature landed before treating
+    // this as a failure — the guard against the "expired: block height
+    // exceeded" false negative that strands paid txs.
+    const onChain = await confirmViaSignatureStatus(
+      connection,
+      signature,
+      confirmFallbackAttempts,
+      confirmFallbackIntervalMs,
+    );
+    if (onChain) {
+      if (onChain.err != null) {
+        throw new Error(`transaction failed on-chain: ${JSON.stringify(onChain.err)}`);
+      }
+      // Landed despite the confirmation reject — return success so the
+      // caller proceeds to persistence (complete-create) instead of
+      // stranding a paid tx.
+      return { signature, slot: onChain.slot };
+    }
+    // Genuinely not on-chain after the grace window. Surface the
+    // signature and warn against a blind resend (create_market derives a
+    // fresh PDA per build, so resending would mint a *second* market).
+    const reason = err instanceof Error ? err.message : String(err);
+    throw new Error(
+      `Transaction ${signature} could not be confirmed (${reason}). ` +
+        `It may still land — check the signature on-chain before retrying. ` +
+        `Do NOT blindly resend a create_market: it would mint a second market and double-spend.`,
+    );
+  }
+  clearTimeout(timer);
+
+  if (result.value.err) {
+    throw new Error(`transaction failed on-chain: ${JSON.stringify(result.value.err)}`);
   }
 
-  // getSignatureStatuses for the landed slot — best-effort; never
-  // block the caller on this.
+  // Confirmed cleanly. Best-effort slot lookup.
   let slot: number | undefined;
   try {
     const status = await connection.getSignatureStatuses([signature]);
@@ -93,7 +186,6 @@ export async function sendAndConfirm(
   } catch {
     /* ignore */
   }
-
   return { signature, slot };
 }
 

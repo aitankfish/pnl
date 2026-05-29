@@ -242,10 +242,20 @@ export async function callPitchNow(rawInput: unknown) {
   });
   const completeJson = (await completeRes.json()) as CompleteResponse;
   if (!completeRes.ok || !completeJson.success || !completeJson.data) {
-    // Tx confirmed on-chain but persistence failed. Surface the tx so
-    // the user can manually replay / contact support, then throw.
+    // Tx confirmed on-chain but persistence failed. Surface the tx +
+    // marketAddress so the market can be recovered via a direct
+    // complete-create replay, then throw.
+    //
+    // Do NOT re-run pnl_pitch_now to recover: build-create-tx pins fresh
+    // IPFS metadata (new timestamps) on every call, which yields a new
+    // CID and therefore a new market PDA — a re-run mints a *second*
+    // market and double-spends. complete-create is idempotent on
+    // marketAddress, so recovery means replaying complete-create for THIS
+    // marketAddress (${built.marketPda}) with the same txSignature + cid.
     throw new Error(
-      `Tx confirmed on-chain (${txSignature}) but complete-create failed (${completeRes.status}): ${completeJson.error || 'unknown error'}. The market exists on Solana — re-running pnl_pitch_now with the same args will be safe (the endpoint is idempotent on marketAddress).`,
+      `Tx confirmed on-chain (${txSignature}) but complete-create failed (${completeRes.status}): ${completeJson.error || 'unknown error'}. ` +
+        `The market exists on Solana at ${built.marketPda} (cid ${built.ipfsCid}). ` +
+        `Recover by replaying complete-create for this marketAddress — do NOT re-run pnl_pitch_now (it would mint a second market).`,
     );
   }
   const done = completeJson.data;
