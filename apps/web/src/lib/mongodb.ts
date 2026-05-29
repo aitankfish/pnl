@@ -162,6 +162,16 @@ const ProjectSchema = new mongoose.Schema({
     codeSnippet: { type: String, maxlength: 4000 },
     timestamp: { type: String },           // ISO 8601 from the agent's clock
   },
+  // Which surface the idea was created from. Distinct from `provenance`
+  // (which records the *agent* and only exists when the user opted in):
+  // every market has a createdVia, so the detail page can always show
+  // "Created via Web" or "Created via Terminal". 'web' is the default for
+  // browser-signed creates; the MCP create paths set 'mcp'.
+  createdVia: {
+    type: String,
+    enum: ['web', 'mcp'],
+    default: 'web',
+  },
   status: {
     type: String,
     enum: ['pending', 'active', 'resolved', 'cancelled'],
@@ -392,8 +402,15 @@ const PredictionMarketSchema = new mongoose.Schema({
       required: true,
     },
     content: {
-      type: String, // The analysis text
+      type: String, // The analysis text (markdown prose, or a JSON string when format === 'json')
       required: true,
+    },
+    // How `content` is encoded. Legacy roasts are markdown prose parsed by regex
+    // on the client; new roasts are a JSON string matching the structured schema.
+    format: {
+      type: String,
+      enum: ['markdown', 'json'],
+      default: 'markdown',
     },
     generatedAt: {
       type: Date,

@@ -49,6 +49,9 @@ function stripMarkdown(text: string): string {
 interface GrokAnalysis {
   type: 'initial_roast' | 'resolution_analysis';
   content: string;
+  // 'json' = content is a JSON string matching the structured schema;
+  // 'markdown' / undefined = legacy prose parsed by regex below.
+  format?: 'markdown' | 'json';
   generatedAt: string;
   model: string;
   votingData?: {
@@ -73,9 +76,19 @@ interface GrokRoastProps {
 }
 
 /**
- * Parse initial roast content into sections
+ * Whether an analysis should be read as structured JSON rather than legacy prose.
+ * Trusts the explicit format flag, but also sniffs a leading `{` so a JSON roast
+ * still renders even if the flag is missing.
  */
-function parseInitialRoast(content: string): {
+function isJsonFormat(content: string, format?: string): boolean {
+  return format === 'json' || content.trimStart().startsWith('{');
+}
+
+/**
+ * Parse initial roast content into sections.
+ * Structured (JSON) roasts are read directly; legacy markdown falls back to regex.
+ */
+function parseInitialRoast(content: string, format?: string): {
   roast: string;
   redFlags: string[];
   positives: string[];
@@ -89,6 +102,21 @@ function parseInitialRoast(content: string): {
     legitScore: '',
     explanation: '',
   };
+
+  if (isJsonFormat(content, format)) {
+    try {
+      const j = JSON.parse(content);
+      return {
+        roast: typeof j.roast === 'string' ? j.roast : '',
+        redFlags: Array.isArray(j.redFlags) ? j.redFlags.map(String) : [],
+        positives: Array.isArray(j.positives) ? j.positives.map(String) : [],
+        legitScore: j.legitScore != null ? String(j.legitScore) : '',
+        explanation: typeof j.explanation === 'string' ? j.explanation : '',
+      };
+    } catch {
+      // Malformed JSON — fall through to the regex parser below.
+    }
+  }
 
   // Extract THE ROAST section - flexible pattern
   const roastMatch = content.match(/\*{0,2}[🔥]?\s*THE ROAST:?\s*\*{0,2}:?\s*([\s\S]*?)(?=\*{0,2}\s*RED FLAGS|$)/i);
@@ -130,9 +158,10 @@ function parseInitialRoast(content: string): {
 }
 
 /**
- * Parse resolution analysis content into sections
+ * Parse resolution analysis content into sections.
+ * Structured (JSON) analyses are read directly; legacy markdown falls back to regex.
  */
-function parseResolutionAnalysis(content: string): {
+function parseResolutionAnalysis(content: string, format?: string): {
   verdict: string;
   crowdAnalysis: string;
   crowdWisdomRating: string;
@@ -144,6 +173,20 @@ function parseResolutionAnalysis(content: string): {
     crowdWisdomRating: '',
     whatsNext: [] as string[],
   };
+
+  if (isJsonFormat(content, format)) {
+    try {
+      const j = JSON.parse(content);
+      return {
+        verdict: typeof j.verdict === 'string' ? j.verdict : '',
+        crowdAnalysis: typeof j.crowdAnalysis === 'string' ? j.crowdAnalysis : '',
+        crowdWisdomRating: j.crowdWisdomRating != null ? String(j.crowdWisdomRating) : '',
+        whatsNext: Array.isArray(j.whatsNext) ? j.whatsNext.map(String) : [],
+      };
+    } catch {
+      // Malformed JSON — fall through to the regex parser below.
+    }
+  }
 
   // Extract FINAL VERDICT - flexible pattern
   const verdictMatch = content.match(/\*{0,2}[🚀💀💸⚡]?\s*FINAL VERDICT:?\s*\*{0,2}:?\s*([\s\S]*?)(?=\*{0,2}\s*CROWD ANALYSIS|$)/i);
@@ -204,7 +247,7 @@ function getScoreColor(score: string): { text: string; bg: string; ring: string;
  * Initial Roast Card Component
  */
 function InitialRoastCard({ analysis }: { analysis: GrokAnalysis }) {
-  const parsed = parseInitialRoast(analysis.content);
+  const parsed = parseInitialRoast(analysis.content, analysis.format);
   const scoreColors = parsed.legitScore ? getScoreColor(parsed.legitScore) : null;
 
   return (
@@ -314,7 +357,7 @@ function InitialRoastCard({ analysis }: { analysis: GrokAnalysis }) {
  * Resolution Analysis Card Component
  */
 function ResolutionAnalysisCard({ analysis }: { analysis: GrokAnalysis }) {
-  const parsed = parseResolutionAnalysis(analysis.content);
+  const parsed = parseResolutionAnalysis(analysis.content, analysis.format);
   const outcome = analysis.votingData?.outcome;
   const scoreColors = parsed.crowdWisdomRating ? getScoreColor(parsed.crowdWisdomRating) : null;
 
@@ -425,13 +468,66 @@ function ResolutionAnalysisCard({ analysis }: { analysis: GrokAnalysis }) {
 }
 
 /**
+ * Active "generating" state shown while the first roast is being produced.
+ * The initial POST verifies external links and then calls Grok, which takes
+ * ~5-15s on a cold market — this cycles staged status text so the wait reads
+ * as work in progress rather than a hung screen.
+ */
+function GeneratingRoast() {
+  const stages = [
+    'Verifying website & links',
+    'Checking GitHub & socials',
+    'Consulting the AI analyst',
+    'Writing the roast',
+  ];
+  const [stage, setStage] = useState(0);
+
+  useEffect(() => {
+    const id = setInterval(() => {
+      // Advance toward the last stage and hold there until generation resolves.
+      setStage((s) => (s < stages.length - 1 ? s + 1 : s));
+    }, 2800);
+    return () => clearInterval(id);
+  }, [stages.length]);
+
+  return (
+    <div className="flex flex-col items-center justify-center py-8 space-y-4">
+      <div className="relative">
+        <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center shadow-lg shadow-purple-500/20">
+          <Sparkles className="w-6 h-6 text-white animate-pulse" />
+        </div>
+        <div className="absolute inset-0 blur-xl bg-purple-500/30 animate-pulse" />
+      </div>
+      <div className="flex items-center space-x-2 text-gray-300">
+        <Loader2 className="w-4 h-4 animate-spin text-purple-400" />
+        <span className="text-sm font-medium">{stages[stage]}…</span>
+      </div>
+      {/* Staged progress dots */}
+      <div className="flex items-center space-x-1.5">
+        {stages.map((_, i) => (
+          <span
+            key={i}
+            className={`h-1.5 rounded-full transition-all duration-500 ${
+              i <= stage ? 'w-6 bg-purple-400' : 'w-1.5 bg-gray-700'
+            }`}
+          />
+        ))}
+      </div>
+      <p className="text-gray-600 text-xs">This can take a few seconds on a fresh market</p>
+    </div>
+  );
+}
+
+/**
  * Main GrokRoast Component - Chat-like history of analyses
  */
 export default function GrokRoast({ marketId, resolution, votingData }: GrokRoastProps) {
   const [analyses, setAnalyses] = useState<GrokAnalysis[]>([]);
   const [loading, setLoading] = useState(true);
+  const [generatingInitial, setGeneratingInitial] = useState(false);
   const [generatingResolution, setGeneratingResolution] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [initialError, setInitialError] = useState<string | null>(null);
   const [hasTriggeredResolution, setHasTriggeredResolution] = useState(false);
   const [showInitialReview, setShowInitialReview] = useState(false);
   const [hasTriggeredInitial, setHasTriggeredInitial] = useState(false);
@@ -457,6 +553,8 @@ export default function GrokRoast({ marketId, resolution, votingData }: GrokRoas
           // If no initial roast exists and we haven't tried yet, generate one
           if (!data.data.hasInitialRoast && !hasTriggeredInitial) {
             setHasTriggeredInitial(true);
+            setInitialError(null);
+            setGeneratingInitial(true);
             try {
               // authFetch attaches the Privy Bearer token — the
               // /api/grok/roast POST is withAuth-gated, so a plain
@@ -469,11 +567,17 @@ export default function GrokRoast({ marketId, resolution, votingData }: GrokRoas
               const postData = await postResponse.json();
               if (isMounted && postData.success) {
                 setAnalyses(postData.data.allAnalyses);
-              } else if (!postData.success) {
+              } else if (isMounted && !postData.success) {
                 console.warn('Failed to generate initial roast:', postData.error);
+                setInitialError(postData.error || 'Failed to generate analysis');
               }
             } catch (genErr) {
               console.warn('Failed to generate initial roast:', genErr);
+              if (isMounted) {
+                setInitialError(genErr instanceof Error ? genErr.message : 'Failed to generate analysis');
+              }
+            } finally {
+              if (isMounted) setGeneratingInitial(false);
             }
           }
         } else if (!data.success) {
@@ -545,7 +649,19 @@ export default function GrokRoast({ marketId, resolution, votingData }: GrokRoas
     }
   }, [marketId, resolution, votingData, analyses, loading, hasTriggeredResolution]);
 
+  // Re-trigger initial generation after a failure. Clearing hasTriggeredInitial
+  // re-runs the fetch effect, which GETs (still empty) and POSTs again.
+  const retryInitial = () => {
+    setInitialError(null);
+    setHasTriggeredInitial(false);
+  };
+
   if (loading) {
+    // While the first roast is actually being generated, show the staged
+    // progress state instead of a generic spinner.
+    if (generatingInitial) {
+      return <GeneratingRoast />;
+    }
     return (
       <div className="flex flex-col items-center justify-center py-8 space-y-3">
         <div className="relative">
@@ -573,6 +689,32 @@ export default function GrokRoast({ marketId, resolution, votingData }: GrokRoas
   }
 
   if (analyses.length === 0) {
+    // Still generating (e.g. GET resolved but POST in flight).
+    if (generatingInitial) {
+      return <GeneratingRoast />;
+    }
+
+    // Generation failed — offer a retry instead of a silent dead end.
+    if (initialError) {
+      return (
+        <div className="flex flex-col items-center justify-center py-8 space-y-3">
+          <div className="w-10 h-10 rounded-xl bg-red-500/10 border border-red-500/30 flex items-center justify-center">
+            <AlertTriangle className="w-5 h-5 text-red-400" />
+          </div>
+          <div className="text-center">
+            <p className="text-gray-300 text-sm">Couldn&apos;t generate the analysis</p>
+            <p className="text-gray-600 text-xs mt-1">{initialError}</p>
+          </div>
+          <button
+            onClick={retryInitial}
+            className="px-4 py-2 rounded-xl bg-purple-500/20 hover:bg-purple-500/30 border border-purple-500/40 text-purple-300 text-sm font-medium transition-all"
+          >
+            Try again
+          </button>
+        </div>
+      );
+    }
+
     return (
       <div className="flex flex-col items-center justify-center py-8 space-y-3">
         <div className="w-10 h-10 rounded-xl bg-gray-800/50 border border-gray-700/50 flex items-center justify-center">

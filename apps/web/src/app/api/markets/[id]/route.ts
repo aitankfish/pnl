@@ -431,6 +431,10 @@ export async function GET(
       // every browser-created market and on agent markets where the
       // user opted out.
       provenance: (project as { provenance?: unknown })?.provenance ?? null,
+
+      // Creation surface: 'mcp' for terminal-born markets, 'web' otherwise.
+      // Used to render a "Terminal" tag on the detail page.
+      createdVia: (project as { createdVia?: string })?.createdVia ?? 'web',
     };
 
     logger.info('Fetched market details', { marketId: id });
