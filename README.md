@@ -192,7 +192,7 @@ Privileged (admin-only): `set_admin`, `withdraw_fees`, `init_treasury`, `emergen
 
 > ⚠ **Note on IDL:** the file at `apps/web/src/lib/idl/errors.json` is a stub with non-canonical discriminators. Do not feed it to `anchor.Program.fetchIdl()`. Either read the Rust source directly or copy the instruction-building pattern from `anchor-program.ts`. A proper Anchor-generated IDL is on the post-hackathon roadmap.
 
-### 4. MCP server — `@pnlmarket/mcp-server` v0.4.3
+### 4. MCP server — `@pnlmarket/mcp-server` v0.5.1
 
 Drop-in Model Context Protocol server for Claude Code, Cursor, Cline, Codex, and any MCP-compatible agent. Read live markets, pitch ideas, vote, claim — without leaving the terminal.
 

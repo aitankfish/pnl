@@ -4,6 +4,38 @@ All notable changes to the published npm package are listed here.
 Version line corresponds to the version on
 [npm](https://www.npmjs.com/package/@pnlmarket/mcp-server).
 
+## 0.5.1 — 2026-05-29
+
+**Reliability fix. Recommended for anyone who uses `pnl_pitch_now`
+autosign.**
+
+```bash
+npx -y @pnlmarket/mcp-server@latest install --write
+```
+
+### Fixed
+
+- **Autosign could strand a paid market when the RPC was slow.** On a
+  laggy or rate-limited RPC, web3.js `confirmTransaction` rejected with
+  `Signature <sig> has expired: block height exceeded` even though the
+  transaction had actually landed on-chain. `pnl_pitch_now` treated that
+  rejection as fatal and bailed before persisting the market — so the
+  `create_market` fee was spent on-chain but the market never showed up
+  in `pnl_browse_markets`. Now, after any confirmation timeout, the MCP
+  polls the signature status directly before giving up: a transaction
+  that actually landed proceeds to persistence, and only a genuinely
+  unlanded one errors. That error now also warns against a blind resend —
+  re-running `pnl_pitch_now` re-pins fresh metadata, which derives a new
+  market address and would mint a **second** market (double-spend).
+
+### Added (for maintainers)
+
+- `scripts/recover-stranded-market.ts` — one-shot recovery for a market
+  that landed on-chain but was never persisted (the failure above, if it
+  was hit on an older version). Replays the idempotent `complete-create`
+  for the existing market address, signs locally with the wallet, and
+  makes no new on-chain transaction and no new spend.
+
 ## 0.5.0 — 2026-05-24
 
 **Security release. All users on 0.4.x should upgrade.**
