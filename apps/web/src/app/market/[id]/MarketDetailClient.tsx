@@ -26,6 +26,7 @@ import MarketImage from '@/components/MarketImage';
 import ProvenanceBlock from '@/components/ProvenanceBlock';
 import { parseError } from '@/lib/utils/errorParser';
 import { useWallet } from '@/hooks/useWallet';
+import { useAuthModal } from '@/contexts/AuthModalContext';
 import useSWR from 'swr';
 import ErrorDialog from '@/components/ErrorDialog';
 import SuccessDialog from '@/components/SuccessDialog';
@@ -296,7 +297,8 @@ export default function MarketDetailClient({
   // route segment is guaranteed present.
   const params = useParams<{ id: string }>()!;
   const router = useRouter();
-  const { primaryWallet } = useWallet();
+  const { primaryWallet, authenticated } = useWallet();
+  const { showAuthModal } = useAuthModal();
   const { network } = useNetwork(); // Get current network from wallet
   const [market, setMarket] = useState<MarketDetails | null>(initialMarket);
   // Skip the loading shell when the server already provided market data.
@@ -882,6 +884,12 @@ export default function MarketDetailClient({
 
   const handleVote = async (voteType: 'yes' | 'no') => {
     if (!market) return;
+
+    // Not signed in — open the sign-in modal instead of failing the tx.
+    if (!authenticated || !primaryWallet) {
+      showAuthModal();
+      return;
+    }
 
     // Check if market is expired
     if (isMarketExpired()) {
@@ -1810,10 +1818,14 @@ export default function MarketDetailClient({
                 {market.description}
               </p>
 
-              {/* Provenance — rendered only for agent-drafted markets
-                  whose founder chose to share the originating context.
-                  Renders nothing for browser-created markets. */}
-              <ProvenanceBlock provenance={(market as { provenance?: unknown })?.provenance as never} />
+              {/* Provenance — the rich "Born in <agent>" card for agent-drafted
+                  markets whose founder shared the originating context, or a
+                  minimal "Born in the terminal" chip for any other MCP-created
+                  market. Renders nothing for web/mobile creates. */}
+              <ProvenanceBlock
+                provenance={(market as { provenance?: unknown })?.provenance as never}
+                createdVia={(market as { createdVia?: string })?.createdVia}
+              />
 
               {/* Linked research papers — if the founder cited any, surface
                   the thesis prominently and any foundations below. */}

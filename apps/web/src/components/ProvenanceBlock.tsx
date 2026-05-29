@@ -39,17 +39,14 @@ function formatTimestamp(iso?: string): string | null {
   return d.toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
 }
 
-export default function ProvenanceBlock({ provenance }: { provenance?: Provenance | null }) {
+export default function ProvenanceBlock({
+  provenance,
+  createdVia,
+}: {
+  provenance?: Provenance | null;
+  createdVia?: string;
+}) {
   const [expanded, setExpanded] = useState(false);
-
-  if (!provenance || (!provenance.excerpt && !provenance.codeSnippet)) {
-    return null;
-  }
-
-  const sourceLabel = provenance.source ? (SOURCE_LABEL[provenance.source] ?? provenance.source) : 'an agent';
-  const dateLabel = formatTimestamp(provenance.timestamp);
-  const hasExtra = (provenance.excerpt && provenance.excerpt.length > 140) || provenance.codeSnippet;
-  const shouldExpand = expanded || !hasExtra;
 
   // Cosmic-plant palette pulled from the broader app
   const AMBER = '#e89660';
@@ -57,7 +54,40 @@ export default function ProvenanceBlock({ provenance }: { provenance?: Provenanc
   const MUTED = '#c8bdb0';
   const HAIR = 'rgba(232,150,96,0.22)';
 
-  const fullExcerpt = (provenance.excerpt || '').trim();
+  const hasNarrative = !!provenance && (!!provenance.excerpt || !!provenance.codeSnippet);
+
+  // No shared conversation/code context. Still surface a minimal origin chip
+  // for terminal-born markets so every MCP-created idea shows where it came
+  // from; web/mobile markets render nothing.
+  if (!hasNarrative) {
+    if (createdVia === 'mcp') {
+      return (
+        <div
+          className="mono uppercase my-4 inline-flex items-center"
+          style={{
+            color: AMBER,
+            fontSize: '0.6rem',
+            letterSpacing: '0.22em',
+            background: 'linear-gradient(135deg, rgba(232,150,96,0.06) 0%, rgba(232,150,96,0.02) 100%)',
+            border: `1px solid ${HAIR}`,
+            borderLeft: `3px solid ${AMBER}`,
+            padding: '0.4rem 0.7rem',
+          }}
+          aria-label="Origin of this idea"
+        >
+          Born in the terminal
+        </div>
+      );
+    }
+    return null;
+  }
+
+  const sourceLabel = provenance!.source ? (SOURCE_LABEL[provenance!.source] ?? provenance!.source) : 'an agent';
+  const dateLabel = formatTimestamp(provenance!.timestamp);
+  const hasExtra = (provenance!.excerpt && provenance!.excerpt.length > 140) || provenance!.codeSnippet;
+  const shouldExpand = expanded || !hasExtra;
+
+  const fullExcerpt = (provenance!.excerpt || '').trim();
   const preview = fullExcerpt.length > 140 ? fullExcerpt.slice(0, 140).trim() + '…' : fullExcerpt;
 
   return (
@@ -96,7 +126,7 @@ export default function ProvenanceBlock({ provenance }: { provenance?: Provenanc
         </blockquote>
       )}
 
-      {shouldExpand && provenance.codeSnippet && (
+      {shouldExpand && provenance!.codeSnippet && (
         <pre
           className="mono mt-3 overflow-x-auto"
           style={{
@@ -109,7 +139,7 @@ export default function ProvenanceBlock({ provenance }: { provenance?: Provenanc
             margin: 0,
           }}
         >
-          <code>{provenance.codeSnippet.trim()}</code>
+          <code>{provenance!.codeSnippet!.trim()}</code>
         </pre>
       )}
 

@@ -232,6 +232,7 @@ export async function POST(request: NextRequest) {
       pitchVideoUrl: p.pitchVideoUrl,
       documentUrls: [],
       provenance: body.provenance,
+      createdVia: 'mcp', // autosigned straight from the terminal
       status: 'active',
       createdAt: new Date(),
       updatedAt: new Date(),

@@ -22,7 +22,6 @@ const HAIR = 'rgba(244,238,228,0.08)';
 const HAIR_STRONG = 'rgba(244,238,228,0.16)';
 const AMBER = '#e89660';
 const FOREST = '#3f7a42';
-const EARTH = '#d67347';
 
 const PAPER_BG = '#fbfaf6';
 const INK = '#0d0d0d';
@@ -237,20 +236,19 @@ function ThesisCard({ citation }: { citation: Citation }) {
         className="flex items-center justify-between pt-3"
         style={{ borderTop: `1px solid rgba(13,13,13,0.08)` }}
       >
-        <div className="flex items-center gap-4">
-          <span className="inline-flex items-center gap-1.5" style={{ color: FOREST }}>
-            ✓
-            <span className="mono text-[0.7rem]" style={{ fontFeatureSettings: '"tnum"' }}>
-              {paper.likeCount}
-            </span>
+        {/* Read-only reception stat. Was previously styled like ✓/✗ vote
+            buttons, but liking/disliking happens on the paper page — here it's
+            just a quiet count. Hidden entirely when there's no reception yet. */}
+        {paper.likeCount > 0 || paper.dislikeCount > 0 ? (
+          <span
+            className="mono uppercase tracking-[0.22em] text-[0.55rem]"
+            style={{ color: INK_FAINT, fontFeatureSettings: '"tnum"' }}
+          >
+            {paper.likeCount} endorsed · {paper.dislikeCount} disputed
           </span>
-          <span className="inline-flex items-center gap-1.5" style={{ color: EARTH }}>
-            ✗
-            <span className="mono text-[0.7rem]" style={{ fontFeatureSettings: '"tnum"' }}>
-              {paper.dislikeCount}
-            </span>
-          </span>
-        </div>
+        ) : (
+          <span />
+        )}
         <span
           className="mono uppercase tracking-[0.24em] text-[0.6rem] inline-flex items-center gap-1.5"
           style={{ color: FOREST }}

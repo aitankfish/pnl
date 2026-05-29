@@ -16,7 +16,46 @@ const logger = createClientLogger();
 
 // Grok API configuration
 const GROK_API_URL = 'https://api.x.ai/v1/chat/completions';
+// NOTE: xAI resolves the "grok-3" alias to its current grok-4.x model server-side.
 const GROK_MODEL = 'grok-3';
+
+// Structured-output schemas. We force Grok to emit JSON matching these shapes via
+// `response_format: json_schema`, so the client renders typed fields instead of
+// regex-scraping prose (the old markdown-header approach silently dropped sections
+// whenever the model deviated from the exact format). strict mode supports a limited
+// keyword set — keep these to type/required/additionalProperties + simple items.
+const INITIAL_ROAST_SCHEMA = {
+  name: 'initial_roast',
+  schema: {
+    type: 'object',
+    additionalProperties: false,
+    required: ['roast', 'redFlags', 'positives', 'legitScore', 'explanation'],
+    properties: {
+      roast: { type: 'string' },
+      redFlags: { type: 'array', items: { type: 'string' } },
+      positives: { type: 'array', items: { type: 'string' } },
+      legitScore: { type: 'integer' },
+      explanation: { type: 'string' },
+    },
+  },
+} as const;
+
+const RESOLUTION_SCHEMA = {
+  name: 'resolution_analysis',
+  schema: {
+    type: 'object',
+    additionalProperties: false,
+    required: ['verdict', 'crowdAnalysis', 'crowdWisdomRating', 'whatsNext'],
+    properties: {
+      verdict: { type: 'string' },
+      crowdAnalysis: { type: 'string' },
+      crowdWisdomRating: { type: 'integer' },
+      whatsNext: { type: 'array', items: { type: 'string' } },
+    },
+  },
+} as const;
+
+type JsonSchemaSpec = { name: string; schema: Record<string, unknown> };
 
 interface GrokAnalysisRequest {
   marketId: string;
@@ -64,9 +103,10 @@ function generateInitialRoastPrompt(project: ProjectData, externalData?: Externa
         .join('\n')
     : 'None provided';
 
+  const verificationPerformed = !!externalData;
   const externalVerification = externalData
     ? formatExternalDataForPrompt(externalData)
-    : 'External verification not performed';
+    : 'External verification was NOT performed for this project — no link data is available.';
 
   const documentUrlsText = project.documentUrls && project.documentUrls.length > 0
     ? project.documentUrls.join('\n')
@@ -102,44 +142,33 @@ ${documentUrlsText}
 ${externalVerification}
 === END VERIFICATION ===
 
-YOUR TASK:
-1. Give a witty, entertaining roast of this project (2-3 sentences - be creative and reference specifics from their pitch!)
-2. Identify 3-4 potential red flags or concerns - USE THE VERIFICATION DATA! If their website is down, GitHub is empty, or socials are fake, these are MAJOR red flags
-3. Identify 2-3 potential positives (if any exist - verified working links, active GitHub, solid team claims, interesting tech)
-4. Give a "Legit Score" from 1-10 (1 = obvious scam, 10 = actually promising)
+SCORING — start at 5/10, then adjust using this rubric. Clamp the final result to an integer between 1 and 10:
+- Website doesn't exist or is a template: -2
+- GitHub repo doesn't exist or has <10 commits: -2
+- GitHub repo is a fork with no original work: -3
+- No activity on GitHub in 90+ days: -1
+- Social links are fake/non-existent: -2
+- Vague or buzzword-heavy pitch with no specifics: -1
+- All links verified and active: +2
+- Active GitHub with multiple contributors: +2
+- Clear, specific value proposition: +1
+- Experienced team (if verifiable): +1
 
-SCORING GUIDELINES:
-- Website doesn't exist or is a template: -2 points
-- GitHub repo doesn't exist or has <10 commits: -2 points
-- GitHub repo is a fork with no original work: -3 points
-- No activity on GitHub in 90+ days: -1 point
-- Social links are fake/non-existent: -2 points
-- Vague or buzzword-heavy pitch with no specifics: -1 point
-- All links verified and active: +2 points
-- Active GitHub with multiple contributors: +2 points
-- Clear, specific value proposition: +1 point
-- Experienced team (if verifiable): +1 point
+GROUNDING RULES (important):
+- Only reference facts present in the data above. Do NOT invent commits, partnerships, audits, team history, or links that aren't shown.
+- ${verificationPerformed
+    ? 'External verification WAS performed — use it. If a website is down, a GitHub is empty, or socials are fake, call it out harshly as a red flag.'
+    : 'External verification was NOT performed, so you have NO link data. Do NOT penalize the project for "missing" or "broken" links — you simply have no information on them. Base your red flags only on the pitch content itself, and note that link verification was unavailable.'}
+- positives must be genuine. If there are none, return an empty array — do not manufacture upside.
 
-FORMAT YOUR RESPONSE EXACTLY LIKE THIS:
+Return ONLY a JSON object with these fields:
+- roast: string — a witty, entertaining 2-3 sentence roast that references specifics from their pitch. Make it memorable.
+- redFlags: string[] — 3-4 concise, specific concerns (fewer is fine if the pitch is clean and verification was unavailable).
+- positives: string[] — 2-3 genuine positives, or [] if none exist.
+- legitScore: integer 1-10 (1 = obvious scam, 10 = actually promising).
+- explanation: string — 2-3 sentences summarizing why you gave this score.
 
-**THE ROAST:**
-[Your witty roast here - reference their pitch and verification findings! Make it memorable.]
-
-**RED FLAGS:**
-- [Flag 1 - be specific about verification failures or concerning claims]
-- [Flag 2]
-- [Flag 3]
-- [Flag 4 if applicable]
-
-**POTENTIAL UPSIDE:**
-- [Positive 1 - mention verified strengths or genuinely interesting aspects]
-- [Positive 2]
-- [Positive 3 if applicable]
-
-**LEGIT SCORE: X/10**
-[2-3 sentence explanation summarizing why you gave this score, referencing key verification findings and pitch analysis]
-
-Be entertaining but genuinely helpful. Analyze their pitch critically - vague promises and buzzwords should be called out. If the verification data shows problems, be BRUTAL about it. Scammers hate being exposed!`;
+Be entertaining but genuinely helpful. Call out vague promises and buzzwords. When verification data shows real problems, be brutal about them.`;
 }
 
 /**
@@ -175,45 +204,61 @@ ${initialRoast ? `=== YOUR INITIAL ANALYSIS (for reference) ===
 ${initialRoast}
 === END INITIAL ANALYSIS ===` : ''}
 
-YOUR TASK:
-Provide a resolution summary that:
-1. Announces the outcome dramatically (be theatrical!)
-2. Analyzes what the crowd's decision means
-3. Gives a "Crowd Wisdom Rating" - was this a smart collective decision?
-4. If YES won: What should token holders watch for?
-5. If NO won: Was the crowd right to reject this?
-6. If REFUND: Why didn't this gain traction?
+GROUNDING RULES: base your analysis only on the outcome and voting data above. Do not invent post-resolution events, price action, or news.
 
-FORMAT YOUR RESPONSE EXACTLY LIKE THIS:
-
-**${outcomeEmoji} FINAL VERDICT:**
-[Dramatic 1-2 sentence announcement of the outcome]
-
-**CROWD ANALYSIS:**
-[2-3 sentences analyzing what the voting pattern reveals about community sentiment]
-
-**CROWD WISDOM RATING: X/10**
-[Was this a smart collective decision? Explain briefly]
-
-**WHAT'S NEXT:**
-${votingData.outcome === 'YesWins'
-  ? '- [What token holders should watch for]\n- [Potential risks going forward]'
-  : votingData.outcome === 'NoWins'
-    ? '- [Why the crowd rejected this]\n- [What the project could have done better]'
-    : '- [Why this failed to gain traction]\n- [What this says about market appetite]'}
+Return ONLY a JSON object with these fields:
+- verdict: string — a dramatic, theatrical 1-2 sentence announcement of the outcome.
+- crowdAnalysis: string — 2-3 sentences on what the voting pattern reveals about community sentiment.
+- crowdWisdomRating: integer 1-10 — was this a smart collective decision?
+- whatsNext: string[] — 2-3 forward-looking bullets. ${votingData.outcome === 'YesWins'
+    ? 'What should token holders watch for, and what are the risks going forward?'
+    : votingData.outcome === 'NoWins'
+      ? 'Why did the crowd reject this, and what could the project have done better?'
+      : 'Why did this fail to gain traction, and what does it say about market appetite?'}
 
 Be entertaining but insightful. This is the final chapter of this project's prediction market story!`;
 }
 
 /**
- * Call Grok API to generate analysis
+ * Call Grok API to generate analysis.
+ *
+ * When `jsonSchema` is provided, Grok is constrained to emit a JSON object
+ * matching that schema (returned as a raw JSON string). Otherwise it returns
+ * free-form text.
  */
-async function callGrokAPI(prompt: string, systemPrompt?: string): Promise<string> {
+async function callGrokAPI(
+  prompt: string,
+  systemPrompt?: string,
+  jsonSchema?: JsonSchemaSpec
+): Promise<string> {
   const apiKey = process.env.GROK_API_KEY;
 
   if (!apiKey) {
     logger.error('GROK_API_KEY environment variable is not configured');
     throw new Error('AI analysis service is not configured. Please contact support.');
+  }
+
+  const requestBody: Record<string, unknown> = {
+    model: GROK_MODEL,
+    messages: [
+      {
+        role: 'system',
+        content: systemPrompt || 'You are a witty crypto analyst who provides entertaining but insightful analysis.',
+      },
+      {
+        role: 'user',
+        content: prompt,
+      },
+    ],
+    temperature: 0.8,
+    max_tokens: 2500,
+  };
+
+  if (jsonSchema) {
+    requestBody.response_format = {
+      type: 'json_schema',
+      json_schema: { name: jsonSchema.name, schema: jsonSchema.schema, strict: true },
+    };
   }
 
   const response = await fetch(GROK_API_URL, {
@@ -222,21 +267,7 @@ async function callGrokAPI(prompt: string, systemPrompt?: string): Promise<strin
       'Content-Type': 'application/json',
       'Authorization': `Bearer ${apiKey}`,
     },
-    body: JSON.stringify({
-      model: GROK_MODEL,
-      messages: [
-        {
-          role: 'system',
-          content: systemPrompt || 'You are a witty crypto analyst who provides entertaining but insightful analysis.',
-        },
-        {
-          role: 'user',
-          content: prompt,
-        },
-      ],
-      temperature: 0.8,
-      max_tokens: 2500,
-    }),
+    body: JSON.stringify(requestBody),
   });
 
   if (!response.ok) {
@@ -246,7 +277,7 @@ async function callGrokAPI(prompt: string, systemPrompt?: string): Promise<strin
   }
 
   const data = await response.json();
-  return data.choices[0]?.message?.content || 'No analysis generated';
+  return data.choices[0]?.message?.content || (jsonSchema ? '{}' : 'No analysis generated');
 }
 
 /**
@@ -309,6 +340,7 @@ export const POST = withAuth(async (request, authUser) => {
       const migratedAnalysis = {
         type: 'initial_roast',
         content: market.grokRoast.content,
+        format: 'markdown' as const, // legacy roasts are markdown prose
         generatedAt: market.grokRoast.generatedAt || new Date(),
         model: market.grokRoast.model || GROK_MODEL,
       };
@@ -394,7 +426,11 @@ export const POST = withAuth(async (request, authUser) => {
 
       prompt = generateInitialRoastPrompt(projectData, externalData);
       logger.info('Generating initial roast', { marketId, projectName: project.name });
-      analysisContent = await callGrokAPI(prompt, 'You are a witty crypto analyst who roasts projects with humor while providing genuine insights. You have access to external verification data and should use it to expose fake or suspicious projects.');
+      analysisContent = await callGrokAPI(
+        prompt,
+        'You are a witty crypto analyst who roasts projects with humor while providing genuine insights. You have access to external verification data and should use it to expose fake or suspicious projects. Respond only with the requested JSON object.',
+        INITIAL_ROAST_SCHEMA
+      );
     } else if (type === 'resolution_analysis') {
       if (!votingData) {
         return NextResponse.json(
@@ -409,7 +445,11 @@ export const POST = withAuth(async (request, authUser) => {
 
       prompt = generateResolutionPrompt(projectData, votingData, initialRoast ?? undefined);
       logger.info('Generating resolution analysis', { marketId, outcome: votingData.outcome });
-      analysisContent = await callGrokAPI(prompt, 'You are a witty crypto analyst providing post-mortem analysis of prediction markets. Be theatrical but insightful.');
+      analysisContent = await callGrokAPI(
+        prompt,
+        'You are a witty crypto analyst providing post-mortem analysis of prediction markets. Be theatrical but insightful. Respond only with the requested JSON object.',
+        RESOLUTION_SCHEMA
+      );
     } else {
       return NextResponse.json(
         { success: false, error: 'Invalid analysis type' },
@@ -417,10 +457,13 @@ export const POST = withAuth(async (request, authUser) => {
       );
     }
 
-    // Create new analysis object
+    // Create new analysis object. `format: 'json'` tells the client that
+    // `content` is a JSON string matching the structured schema rather than
+    // legacy markdown prose.
     const newAnalysis = {
       type,
       content: analysisContent,
+      format: 'json' as const,
       generatedAt: new Date(),
       model: GROK_MODEL,
       ...(type === 'resolution_analysis' && votingData ? { votingData } : {}),
@@ -534,6 +577,7 @@ export async function GET(request: NextRequest) {
       analyses = [{
         type: 'initial_roast',
         content: market.grokRoast.content,
+        format: 'markdown', // legacy roasts are markdown prose
         generatedAt: market.grokRoast.generatedAt || new Date(),
         model: market.grokRoast.model || GROK_MODEL,
       }];

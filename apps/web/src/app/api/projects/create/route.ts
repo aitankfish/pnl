@@ -273,6 +273,12 @@ export const POST = withAuth(async (request, authUser) => {
       }
     }
 
+    // Creation surface. The /create page sends 'mcp' when the form was
+    // pre-filled from an MCP draft (terminal-born idea, signed in the
+    // browser); everything else is a plain web/mobile create. Anything
+    // unrecognized falls back to the schema default ('web').
+    const createdVia = body.createdVia === 'mcp' ? 'mcp' : 'web';
+
     // Create project document matching the MongoDB schema
     logger.info('📊 API: Creating project document');
     const projectDoc = new Project({
@@ -291,6 +297,7 @@ export const POST = withAuth(async (request, authUser) => {
       pitchVideoUrl: pitchVideoUri,
       documentUrls: documentUri ? [documentUri] : [],
       provenance,
+      createdVia,
       status: 'active',
       createdAt: new Date(),
       updatedAt: new Date(),

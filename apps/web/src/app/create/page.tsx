@@ -17,6 +17,7 @@ import {
 import { getSolanaConnection } from '@/lib/solana';
 import bs58 from 'bs58';
 import { useToast } from '@/lib/hooks/useToast';
+import { useAuthModal } from '@/contexts/AuthModalContext';
 import { isDevnet } from '@/lib/environment';
 import { SOLANA_NETWORK } from '@/config/solana';
 import {
@@ -247,6 +248,7 @@ export default function CreatePage() {
   } | null>(null);
 
   const { primaryWallet, user, authenticated } = useWallet();
+  const { showAuthModal } = useAuthModal();
   const { wallets } = useWallets();
   const { wallets: standardWallets } = useStandardWallets();
   const { signAndSendTransaction } = useSignAndSendTransaction();
@@ -403,12 +405,9 @@ export default function CreatePage() {
   // /api/projects/create → /api/markets/prepare-transaction → Privy sign+send
   // → /api/markets/complete)
   const handlePlant = async () => {
-    if (!primaryWallet) {
-      showToast({
-        type: 'error',
-        title: 'Wallet not connected',
-        message: 'Connect your wallet to plant.',
-      });
+    // Not signed in — open the sign-in modal instead of failing with a toast.
+    if (!authenticated || !primaryWallet) {
+      showAuthModal();
       return;
     }
     const requiredSOL = 0.02;
@@ -444,6 +443,12 @@ export default function CreatePage() {
       // Project doc and shows up on the market detail page.
       if (draftProvenance) {
         apiFormData.append('provenance', JSON.stringify(draftProvenance));
+      }
+      // A loaded draft only ever comes from an MCP pitch (the web form never
+      // creates drafts), so mark this market as terminal-born even though the
+      // signature happens in the browser. Surfaces as a "Terminal" tag.
+      if (draftId) {
+        apiFormData.append('createdVia', 'mcp');
       }
       if (formData.projectImage) apiFormData.append('projectImage', formData.projectImage);
       if (formData.projectDocument) apiFormData.append('projectDocument', formData.projectDocument);
@@ -1833,7 +1838,7 @@ function ReviewStep({
             fontFamily: 'var(--font-fraunces, serif)',
           }}
         >
-          Connect a wallet from the top nav before planting.
+          Not signed in yet — press Plant it and we&apos;ll get you connected.
         </p>
       )}
 
