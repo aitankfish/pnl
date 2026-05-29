@@ -2,6 +2,7 @@
 
 import React, { useEffect, useState } from 'react';
 import { Loader2, Sparkles, AlertTriangle, TrendingUp, Target, Trophy, Users, ChevronDown, ChevronUp } from 'lucide-react';
+import { authFetch } from '@/lib/auth/fetch-with-auth';
 
 /**
  * Strip markdown formatting from text - super aggressive version
@@ -457,7 +458,10 @@ export default function GrokRoast({ marketId, resolution, votingData }: GrokRoas
           if (!data.data.hasInitialRoast && !hasTriggeredInitial) {
             setHasTriggeredInitial(true);
             try {
-              const postResponse = await fetch('/api/grok/roast', {
+              // authFetch attaches the Privy Bearer token — the
+              // /api/grok/roast POST is withAuth-gated, so a plain
+              // fetch() always 401s and the on-view roast never generates.
+              const postResponse = await authFetch('/api/grok/roast', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ marketId, type: 'initial_roast' }),
@@ -511,7 +515,7 @@ export default function GrokRoast({ marketId, resolution, votingData }: GrokRoas
       try {
         setGeneratingResolution(true);
 
-        const response = await fetch('/api/grok/roast', {
+        const response = await authFetch('/api/grok/roast', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
