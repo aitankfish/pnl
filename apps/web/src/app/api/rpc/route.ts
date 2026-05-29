@@ -70,6 +70,34 @@ const DENIED_METHODS = new Set([
 
 const WRITE_METHODS = new Set(['sendTransaction']);
 
+// Lower-cased mirrors so the method filter can't be bypassed by case (e.g.
+// "getassetsbyowner"). Solana RPC method names are case-sensitive upstream,
+// but we don't want to rely on Helius rejecting a near-miss spelling.
+const DENIED_LOWER = new Set([...DENIED_METHODS].map((m) => m.toLowerCase()));
+const WRITE_LOWER = new Set([...WRITE_METHODS].map((m) => m.toLowerCase()));
+
+/**
+ * Same-origin guard. /api/rpc is only ever called by Privy's SDK from the
+ * app's own browser context, which always sends an `Origin` header on POST.
+ * We require that Origin's host to match the request Host, so the relay can't
+ * be driven by a plain script/curl (no Origin) or another site (cross-origin)
+ * to burn our paid Helius credits. Works across envs (localhost, preview,
+ * prod) since it compares against the request's own host rather than a
+ * hard-coded domain. This is defense-in-depth; the primary control is a
+ * Cloudflare rate-limit rule on /api/rpc*. Origin can be spoofed by a
+ * determined attacker, but this removes the trivial open-relay path.
+ */
+function isSameOrigin(request: NextRequest): boolean {
+  const origin = request.headers.get('origin');
+  const host = request.headers.get('host');
+  if (!origin || !host) return false;
+  try {
+    return new URL(origin).host === host;
+  } catch {
+    return false;
+  }
+}
+
 function resolveHeliusUrl(cluster: 'mainnet' | 'devnet'): string | null {
   // Prefer an explicit server-side URL if configured, else build one from
   // the bare API key. These are SERVER env vars (no NEXT_PUBLIC_) so the key
@@ -89,6 +117,13 @@ function resolveHeliusUrl(cluster: 'mainnet' | 'devnet'): string | null {
 }
 
 export async function POST(request: NextRequest) {
+  if (!isSameOrigin(request)) {
+    return NextResponse.json(
+      { jsonrpc: '2.0', id: null, error: { code: -32600, message: 'cross-origin requests are not allowed' } },
+      { status: 403 },
+    );
+  }
+
   const clusterParam = request.nextUrl.searchParams.get('cluster');
   const cluster: 'mainnet' | 'devnet' = clusterParam === 'devnet' ? 'devnet' : 'mainnet';
 
@@ -118,18 +153,19 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  if (DENIED_METHODS.has(method)) {
+  const methodLower = method.toLowerCase();
+  if (DENIED_LOWER.has(methodLower)) {
     return NextResponse.json(
       { jsonrpc: '2.0', id: body.id ?? null, error: { code: -32601, message: `method '${method}' not allowed on this proxy` } },
       { status: 400 },
     );
   }
 
-  const isWrite = WRITE_METHODS.has(method);
+  const isWrite = WRITE_LOWER.has(methodLower);
   const ip = request.headers.get('x-forwarded-for')?.split(',')[0]?.trim() || 'unknown';
   const limited = isWrite
     ? await checkRateLimit(`web-rpc-write:${ip}`, 20, 60_000)
-    : await checkRateLimit(`web-rpc-read:${ip}`, 200, 60_000);
+    : await checkRateLimit(`web-rpc-read:${ip}`, 120, 60_000);
   if (limited) return limited;
 
   // Forward the request verbatim (jsonrpc + id + method + params) so Helius
