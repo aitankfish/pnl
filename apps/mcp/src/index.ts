@@ -34,7 +34,7 @@ import { startUpdateCheck } from './lib/update-check.js';
 import { runInstall } from './install.js';
 
 const SERVER_NAME = 'pnl-mcp-server';
-const SERVER_VERSION = '0.5.0';
+const SERVER_VERSION = '0.5.1';
 
 // CLI dispatch — when invoked as `pnl-mcp-server install`, run the
 // installer that wires this server into the user's agent configs and
