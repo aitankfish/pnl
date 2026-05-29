@@ -18,7 +18,7 @@ market.
 
 ## Status
 
-**v0.3.0 — autosign live.** 13 tools across read, identity, wallet,
+**v0.5.1 — autosign live.** 17 tools across read, identity, wallet,
 and market actions.
 
 ### Read tools (no auth)
@@ -28,6 +28,7 @@ and market actions.
 | `pnl_help` | Discovery menu — every tool, current wallet state, next step |
 | `pnl_browse_markets` | List live (or historical) conviction markets, filter by status, paginate |
 | `pnl_get_market` | Fetch a single market's full state by id or on-chain address |
+| `pnl_notify` | Recent notifications for the local wallet — votes on your markets, resolutions, claim-ready alerts (stateful last-seen tracking) |
 
 ### Wallet tools (local, encrypted at rest)
 
@@ -59,6 +60,8 @@ Two flows for each write action:
 | `pnl_pitch_now` | Autosign | Pin metadata, build + sign the `create_market` tx locally, persist via sig-auth. One shot, no browser |
 | `pnl_vote` | Deep-link | Return `pnl.market/market/<id>?vote=&amount=` deep-link for the user to sign in browser |
 | `pnl_vote_now` | Autosign | Build + sign the `buy_yes` / `buy_no` tx locally for stakes under the cap |
+| `pnl_claim` | Deep-link | Return a claim deep-link for a resolved market for the user to sign in browser |
+| `pnl_claim_now` | Autosign | Build + sign the `claim_rewards` tx locally (no cap — a claim is a withdrawal, not a spend) |
 
 ### Trust model
 
