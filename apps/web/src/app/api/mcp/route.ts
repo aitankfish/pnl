@@ -95,18 +95,20 @@ interface MarketSummary {
   description?: string;
 }
 
+// Units (confirmed against the live API): totalYesStake/totalNoStake are SOL
+// and only present on resolved markets; poolBalance is lamports (string) and
+// present on every market. Sum the stakes as-is; divide poolBalance by 1e9.
 function poolSol(m: MarketSummary): string {
   const yes = m.totalYesStake ?? m.yesPool ?? null;
   const no = m.totalNoStake ?? m.noPool ?? null;
-  let total: number | null = null;
+  let sol: number | null = null;
   if (yes != null || no != null) {
-    total = (yes ?? 0) + (no ?? 0);
+    sol = (yes ?? 0) + (no ?? 0); // already SOL
   } else if (m.poolBalance != null) {
     const n = typeof m.poolBalance === 'string' ? Number(m.poolBalance) : m.poolBalance;
-    if (Number.isFinite(n)) total = n;
+    if (Number.isFinite(n)) sol = n / 1e9; // lamports -> SOL
   }
-  if (total == null) return '—';
-  const sol = total / 1e9;
+  if (sol == null) return '—';
   if (sol < 0.001) return '< 0.001 SOL';
   return `${sol < 1 ? sol.toFixed(3) : sol.toFixed(2)} SOL`;
 }
