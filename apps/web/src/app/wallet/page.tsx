@@ -1627,15 +1627,32 @@ export default function WalletPage() {
               Create an account or sign in to access your wallet and start trading.
             </p>
           </div>
-          <button
-            onClick={showAuthModal}
-            className="w-full mono uppercase tracking-[0.18em] text-[0.7rem] py-3 transition-colors"
-            style={{ background: '#e89660', color: '#0a0814', border: 'none' }}
-            onMouseEnter={(e) => (e.currentTarget.style.background = '#ecb48a')}
-            onMouseLeave={(e) => (e.currentTarget.style.background = '#e89660')}
-          >
-            Sign in
-          </button>
+          <div className="space-y-3">
+            <button
+              onClick={showAuthModal}
+              className="w-full mono uppercase tracking-[0.18em] text-[0.7rem] py-3 transition-colors"
+              style={{ background: '#e89660', color: '#0a0814', border: 'none' }}
+              onMouseEnter={(e) => (e.currentTarget.style.background = '#ecb48a')}
+              onMouseLeave={(e) => (e.currentTarget.style.background = '#e89660')}
+            >
+              Create account
+            </button>
+            <button
+              onClick={showAuthModal}
+              className="w-full mono uppercase tracking-[0.18em] text-[0.62rem] py-2.5 transition-colors"
+              style={{ background: 'transparent', color: 'rgba(244,238,228,0.65)', border: '1px solid rgba(244,238,228,0.16)' }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.color = '#f4eee4';
+                e.currentTarget.style.borderColor = 'rgba(232,150,96,0.4)';
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.color = 'rgba(244,238,228,0.65)';
+                e.currentTarget.style.borderColor = 'rgba(244,238,228,0.16)';
+              }}
+            >
+              I already have an account
+            </button>
+          </div>
         </div>
       </div>
     );
