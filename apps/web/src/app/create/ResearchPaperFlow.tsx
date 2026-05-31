@@ -68,6 +68,11 @@ export function ResearchPaperFlow({ onBack }: { onBack: () => void }) {
   const [data, setData] = useState<PaperFormData>(initialData);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
+  // After a successful publish we hand the page to a short celebration
+  // (parity with the plant flow's PlantingCelebration) rather than silently
+  // bouncing to the paper page. From there the author can read the paper or
+  // turn it straight into a market.
+  const [published, setPublished] = useState<{ paperId: string; title: string } | null>(null);
 
   const setField = (field: keyof PaperFormData, value: any) => {
     setData((prev) => ({ ...prev, [field]: value }));
@@ -145,7 +150,7 @@ export function ResearchPaperFlow({ onBack }: { onBack: () => void }) {
       const json = await res.json();
       if (!json.success) throw new Error(json.error || 'Failed to publish paper');
 
-      router.push(`/research/${json.data.paperId}`);
+      setPublished({ paperId: json.data.paperId, title: data.title.trim() });
     } catch (err) {
       logger.error('[research/create] failed', err as any);
       const msg = err instanceof Error ? err.message : 'Unknown error';
@@ -159,6 +164,17 @@ export function ResearchPaperFlow({ onBack }: { onBack: () => void }) {
       setIsSubmitting(false);
     }
   };
+
+  if (published) {
+    return (
+      <PaperPublishedCelebration
+        paperId={published.paperId}
+        title={published.title}
+        onRead={() => router.push(`/research/${published.paperId}`)}
+        onPlant={() => router.push(`/create?linkedPaper=${published.paperId}`)}
+      />
+    );
+  }
 
   return (
     <div className="px-4 sm:px-6 pb-20" style={{ color: CREAM }}>
@@ -536,5 +552,210 @@ function PdfDrop({
         </div>
       )}
     </label>
+  );
+}
+
+// ─── Publish celebration ───
+// A short, paper-themed echo of the plant flow's PlantingCelebration: a page
+// unfurls, the title settles in, then two CTAs — read it, or plant a market
+// from it. Self-contained (palette + keyframes local) so it travels with the
+// flow file.
+function PaperPublishedCelebration({
+  paperId,
+  title,
+  onRead,
+  onPlant,
+}: {
+  paperId: string;
+  title: string;
+  onRead: () => void;
+  onPlant: () => void;
+}) {
+  return (
+    <div
+      className="fixed inset-0 z-50 flex flex-col items-center justify-center px-6"
+      style={{ background: BG }}
+    >
+      {/* Ambient glow */}
+      <div
+        className="absolute inset-0 pointer-events-none"
+        style={{
+          background:
+            'radial-gradient(circle at 50% 42%, rgba(232,150,96,0.12), transparent 60%)',
+        }}
+      />
+
+      <div className="relative flex flex-col items-center text-center max-w-md">
+        {/* Unfurling page */}
+        <svg
+          width="120"
+          height="120"
+          viewBox="0 0 120 120"
+          fill="none"
+          aria-hidden
+          className="mb-8"
+        >
+          <rect
+            className="paper-sheet"
+            x="34"
+            y="26"
+            width="52"
+            height="68"
+            rx="2"
+            fill="rgba(244,238,228,0.06)"
+            stroke={AMBER}
+            strokeWidth="1.5"
+          />
+          {[40, 48, 56, 64, 72].map((y, i) => (
+            <line
+              key={y}
+              className="paper-line"
+              x1="44"
+              y1={y}
+              x2={i === 4 ? 66 : 76}
+              y2={y}
+              stroke={CREAM_FAINT}
+              strokeWidth="1.5"
+              style={{ animationDelay: `${0.5 + i * 0.12}s` }}
+            />
+          ))}
+          <circle
+            className="paper-halo"
+            cx="60"
+            cy="60"
+            r="44"
+            fill="none"
+            stroke={AMBER}
+            strokeWidth="1"
+            opacity="0"
+          />
+        </svg>
+
+        <p
+          className="paper-fade mono uppercase tracking-[0.32em] text-[0.6rem] mb-3"
+          style={{ color: AMBER, animationDelay: '0.9s' }}
+        >
+          Published.
+        </p>
+        <h1
+          className="paper-fade leading-[1.08] mb-3"
+          style={{
+            color: CREAM,
+            fontFamily: 'var(--font-fraunces, serif)',
+            fontWeight: 350,
+            fontSize: 'clamp(1.6rem, 4vw, 2.4rem)',
+            animationDelay: '1.15s',
+          }}
+        >
+          {title}
+        </h1>
+        <p
+          className="paper-fade italic mb-9"
+          style={{
+            color: CREAM_DIM,
+            fontFamily: 'var(--font-fraunces, serif)',
+            fontStyle: 'italic',
+            fontSize: '1rem',
+            animationDelay: '1.4s',
+          }}
+        >
+          The grove can read it now. Want to plant a market on whether it lands?
+        </p>
+
+        <div className="paper-fade flex flex-col sm:flex-row gap-3" style={{ animationDelay: '1.65s' }}>
+          <button
+            type="button"
+            onClick={onPlant}
+            className="mono uppercase tracking-[0.24em] text-[0.65rem] px-6 py-3 transition-colors"
+            style={{ background: AMBER, color: BG }}
+            onMouseEnter={(e) => (e.currentTarget.style.background = PEACH)}
+            onMouseLeave={(e) => (e.currentTarget.style.background = AMBER)}
+          >
+            Plant a market from this
+          </button>
+          <button
+            type="button"
+            onClick={onRead}
+            className="mono uppercase tracking-[0.24em] text-[0.62rem] px-6 py-3 transition-colors"
+            style={{ color: CREAM_DIM, border: `1px solid ${HAIR_STRONG}` }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.color = CREAM;
+              e.currentTarget.style.borderColor = `${AMBER}66`;
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.color = CREAM_DIM;
+              e.currentTarget.style.borderColor = HAIR_STRONG;
+            }}
+          >
+            Read the paper →
+          </button>
+        </div>
+
+        <p
+          className="paper-fade mono uppercase tracking-[0.2em] text-[0.5rem] mt-8"
+          style={{ color: CREAM_FAINT, animationDelay: '1.9s' }}
+        >
+          paper · {paperId.slice(0, 8)}…{paperId.slice(-4)}
+        </p>
+      </div>
+
+      <style jsx>{`
+        .paper-sheet {
+          transform-origin: 60px 60px;
+          animation: sheetIn 0.7s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+        }
+        .paper-line {
+          opacity: 0;
+          animation: lineIn 0.4s ease forwards;
+        }
+        .paper-halo {
+          animation: haloPulse 1.4s ease-out 0.8s forwards;
+        }
+        .paper-fade {
+          opacity: 0;
+          animation: fadeUp 0.6s ease forwards;
+        }
+        @keyframes sheetIn {
+          0% {
+            transform: scale(0.7) rotate(-4deg);
+            opacity: 0;
+          }
+          100% {
+            transform: scale(1) rotate(0deg);
+            opacity: 1;
+          }
+        }
+        @keyframes lineIn {
+          from {
+            opacity: 0;
+            transform: translateX(-4px);
+          }
+          to {
+            opacity: 1;
+            transform: translateX(0);
+          }
+        }
+        @keyframes haloPulse {
+          0% {
+            opacity: 0.5;
+            transform: scale(0.85);
+          }
+          100% {
+            opacity: 0;
+            transform: scale(1.25);
+          }
+        }
+        @keyframes fadeUp {
+          from {
+            opacity: 0;
+            transform: translateY(10px);
+          }
+          to {
+            opacity: 1;
+            transform: translateY(0);
+          }
+        }
+      `}</style>
+    </div>
   );
 }
