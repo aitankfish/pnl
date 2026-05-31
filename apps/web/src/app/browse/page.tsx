@@ -14,6 +14,7 @@ import { getVoteButtonStates, getMarketDisplayStatus } from '@/lib/api-utils';
 import { useWallet } from '@/hooks/useWallet';
 import { useAuthModal } from '@/contexts/AuthModalContext';
 import { Dropdown, DropdownOption } from '@/components/Dropdown';
+import { CATEGORY_GROUPS, formatCategoryLabel } from '@/lib/categories';
 import {
   SeedIcon,
   TreeIcon,
@@ -130,30 +131,6 @@ const STATUS_TABS: Array<{ value: string; label: string; sub: string }> = [
   { value: 'noWins', label: 'Withered', sub: 'rejected' },
   { value: 'expired', label: 'Closed', sub: 'pool not met' },
   { value: 'refund', label: 'Returned', sub: 'refunded' },
-];
-
-const CATEGORY_OPTIONS: DropdownOption[] = [
-  { value: 'All', label: 'All categories' },
-  { value: 'DeFi', label: 'DeFi' },
-  { value: 'Gaming', label: 'Gaming' },
-  { value: 'NFT', label: 'NFT' },
-  { value: 'AI/ML', label: 'AI/ML' },
-  { value: 'Social', label: 'Social' },
-  { value: 'Infrastructure', label: 'Infrastructure' },
-  { value: 'DAO', label: 'DAO' },
-  { value: 'Meme', label: 'Meme' },
-  { value: 'Creator', label: 'Creator' },
-  { value: 'Healthcare', label: 'Healthcare' },
-  { value: 'Science', label: 'Science' },
-  { value: 'Education', label: 'Education' },
-  { value: 'Finance', label: 'Finance' },
-  { value: 'Commerce', label: 'Commerce' },
-  { value: 'Real Estate', label: 'Real Estate' },
-  { value: 'Energy', label: 'Energy' },
-  { value: 'Media', label: 'Media' },
-  { value: 'Manufacturing', label: 'Manufacturing' },
-  { value: 'Mobility', label: 'Mobility' },
-  { value: 'Other', label: 'Other' },
 ];
 
 const PER_PAGE_OPTIONS: DropdownOption[] = ITEMS_PER_PAGE_OPTIONS.map((n) => ({
@@ -438,14 +415,10 @@ export default function BrowsePage() {
       );
     }
     if (selectedCategory !== 'All') {
-      filtered = filtered.filter((m) => {
-        const categoryLower = m.category.toLowerCase();
-        const selectedLower = selectedCategory.toLowerCase();
-        return (
-          categoryLower === selectedLower ||
-          (selectedCategory === 'AI/ML' && (categoryLower === 'ai/ml' || categoryLower === 'ai'))
-        );
-      });
+      // Both the filter value and the stored category are now canonical slugs.
+      filtered = filtered.filter(
+        (m) => (m.category || '').toLowerCase() === selectedCategory.toLowerCase(),
+      );
     }
     if (selectedStatus === 'active') {
       filtered = [...filtered].sort((a, b) => {
@@ -675,7 +648,8 @@ export default function BrowsePage() {
                   setSelectedCategory(v);
                   setPage(1);
                 }}
-                options={CATEGORY_OPTIONS}
+                options={[{ value: 'All', label: 'All categories' }]}
+                groups={CATEGORY_GROUPS}
                 placeholder="All categories"
                 compact
               />
@@ -1177,7 +1151,7 @@ const MarketCard = React.memo(function MarketCard({
               <span style={{ marginRight: '0.2em' }}>✎</span> Thesis
             </Tag>
           )}
-          <Tag color={CREAM_DIM}>{formatLabel(market.category)}</Tag>
+          <Tag color={CREAM_DIM}>{formatCategoryLabel(market.category)}</Tag>
           <Tag color={CREAM_DIM}>{formatLabel(market.stage)}</Tag>
           <span className="ml-auto" />
           <Tag color={statusColor(market)} subtle>

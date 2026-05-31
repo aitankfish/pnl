@@ -28,7 +28,8 @@ import {
   TreeIcon,
   LeafIcon,
 } from '@/components/PlantIcons';
-import { Dropdown, DropdownOption, DropdownGroup } from '@/components/Dropdown';
+import { Dropdown, DropdownOption } from '@/components/Dropdown';
+import { CATEGORY_GROUPS } from '@/lib/categories';
 import { ResearchPaperFlow } from './ResearchPaperFlow';
 import { KindTabs } from './KindTabs';
 import {
@@ -82,6 +83,10 @@ interface ProjectFormData {
   additionalNotes: string;
   linkedPapers: LinkedPaper[];
 }
+
+// Local autosave key for the project form. Bumped (v1→v2…) if the shape of
+// ProjectFormData changes in a way that would break a restored draft.
+const DRAFT_KEY = 'pnl:create-draft:v1';
 
 const initialFormData: ProjectFormData = {
   name: '',
@@ -146,42 +151,6 @@ const STEPS: Array<{
   },
 ];
 
-const CATEGORY_GROUPS: DropdownGroup[] = [
-  {
-    label: 'Web3 & Crypto',
-    options: [
-      { value: 'defi', label: 'DeFi' },
-      { value: 'nft', label: 'NFT' },
-      { value: 'gaming', label: 'Gaming' },
-      { value: 'dao', label: 'DAO' },
-      { value: 'ai', label: 'AI/ML' },
-      { value: 'infrastructure', label: 'Infrastructure' },
-      { value: 'social', label: 'Social' },
-      { value: 'meme', label: 'Meme' },
-      { value: 'creator', label: 'Creator' },
-    ],
-  },
-  {
-    label: 'Traditional',
-    options: [
-      { value: 'healthcare', label: 'Healthcare' },
-      { value: 'science', label: 'Science' },
-      { value: 'education', label: 'Education' },
-      { value: 'finance', label: 'Finance' },
-      { value: 'commerce', label: 'Commerce' },
-      { value: 'realestate', label: 'Real Estate' },
-      { value: 'energy', label: 'Energy' },
-      { value: 'media', label: 'Media' },
-      { value: 'manufacturing', label: 'Manufacturing' },
-      { value: 'mobility', label: 'Mobility' },
-    ],
-  },
-  {
-    label: 'Etc',
-    options: [{ value: 'other', label: 'Other' }],
-  },
-];
-
 const PROJECT_TYPES: DropdownOption[] = [
   { value: 'protocol', label: 'Protocol', hint: 'rails for others' },
   { value: 'application', label: 'Application', hint: 'used directly' },
@@ -219,6 +188,9 @@ export default function CreatePage() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const draftId = searchParams?.get('draft') ?? null;
+  // ?linkedPaper=<id> arrives from the "Plant a market from this paper" CTA
+  // (paper detail page / publish celebration). We pre-attach it as the thesis.
+  const linkedPaperId = searchParams?.get('linkedPaper') ?? null;
   const { showToast } = useToast();
   const [kind, setKind] = useState<'project' | 'research'>('project');
   const [formData, setFormData] = useState<ProjectFormData>(initialFormData);
@@ -316,6 +288,126 @@ export default function CreatePage() {
       cancelled = true;
     };
   }, [draftId, draftLoaded]);
+
+  // ─── Linked-paper pre-fill ───────────────────────────────────
+  // When the user arrives at /create?linkedPaper=<id> from a paper, fetch the
+  // paper and seed it into linkedPapers (as the thesis) so the citation step is
+  // already wired up. Runs once; skips if that paper is already linked.
+  useEffect(() => {
+    if (!linkedPaperId) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await fetch(`/api/research/${encodeURIComponent(linkedPaperId)}`);
+        if (!res.ok) return;
+        const json = await res.json();
+        if (!json.success || cancelled) return;
+        const p = json.data;
+        const paper: PaperSearchResult = {
+          id: p.id,
+          title: p.title,
+          authorName: p.authorName,
+          authorWallet: p.authorWallet,
+          authorXHandle: p.authorXHandle ?? null,
+          summary: p.summary ?? null,
+          paperUrl: p.paperUrl,
+          currentVersion: p.currentVersion ?? 1,
+          createdAt: p.createdAt,
+          updatedAt: p.updatedAt ?? p.createdAt,
+        };
+        setFormData((prev) => {
+          if (prev.linkedPapers.some((l) => l.paper.id === paper.id)) return prev;
+          return {
+            ...prev,
+            linkedPapers: [
+              ...prev.linkedPapers,
+              { paper, role: 'thesis' as CitationRole, citationNote: '' },
+            ],
+          };
+        });
+      } catch {
+        // Non-fatal — the user can still link the paper by hand on step 4.
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [linkedPaperId]);
+
+  // ─── Local draft autosave ────────────────────────────────────
+  // The web create form previously kept nothing if you navigated away mid-fill
+  // (the ?draft= path is MCP-only). We now mirror the text fields to
+  // localStorage so a half-written pitch survives a tab close or accidental
+  // back-nav. Files (image/doc/video) can't be serialized, so only text comes
+  // back and the restore banner tells the user to re-attach uploads.
+  const [draftRestored, setDraftRestored] = useState(false);
+  const autosaveReady = useRef(false);
+
+  // Restore once on mount. Skipped when an MCP ?draft or a ?linkedPaper prefill
+  // is in play — a deliberate deep-link should win over stale local text.
+  useEffect(() => {
+    if (!isMounted || autosaveReady.current) return;
+    if (draftId || linkedPaperId) {
+      autosaveReady.current = true;
+      return;
+    }
+    try {
+      const raw = localStorage.getItem(DRAFT_KEY);
+      if (raw) {
+        const saved = JSON.parse(raw);
+        if (saved && typeof saved.formData === 'object') {
+          setFormData((prev) => ({ ...prev, ...saved.formData }));
+          if (saved.currentStep) setCurrentStep(saved.currentStep);
+          if (saved.furthestStep) setFurthestStep(saved.furthestStep);
+          setDraftRestored(true);
+        }
+      }
+    } catch {
+      // Corrupt/blocked storage — start clean.
+    }
+    autosaveReady.current = true;
+  }, [isMounted, draftId, linkedPaperId]);
+
+  // Debounced write. Only persists once there's real content, and never
+  // deletes — clearing is explicit (successful plant, or "start fresh") so the
+  // setFormData restore above can't race a removeItem on the first commit.
+  useEffect(() => {
+    if (!autosaveReady.current || kind !== 'project') return;
+    const hasContent =
+      !!formData.name.trim() ||
+      !!formData.description.trim() ||
+      formData.linkedPapers.length > 0;
+    if (!hasContent) return;
+    const t = setTimeout(() => {
+      try {
+        const { projectImage, projectDocument, pitchVideo, ...serializable } = formData;
+        localStorage.setItem(
+          DRAFT_KEY,
+          JSON.stringify({ formData: serializable, currentStep, furthestStep, savedAt: Date.now() }),
+        );
+      } catch {
+        // Quota or serialization failure — non-fatal.
+      }
+    }, 600);
+    return () => clearTimeout(t);
+  }, [formData, currentStep, furthestStep, kind]);
+
+  const clearDraft = () => {
+    try {
+      localStorage.removeItem(DRAFT_KEY);
+    } catch {
+      /* ignore */
+    }
+  };
+
+  const startFresh = () => {
+    clearDraft();
+    setFormData(initialFormData);
+    setCurrentStep(1);
+    setFurthestStep(1);
+    setErrors({});
+    setDraftRestored(false);
+  };
 
   // Wallet balance via the shared SWR hook — same source of truth as navbar,
   // sidebar, and /wallet. null preserves the prior "haven't fetched yet" semantic
@@ -574,6 +666,9 @@ export default function CreatePage() {
         );
       }
 
+      // Planted for real — the local draft has served its purpose.
+      clearDraft();
+
       // Don't toast — the celebration speaks for itself.
       setPlanted({
         marketId: completeResult.data.marketId,
@@ -625,6 +720,36 @@ export default function CreatePage() {
     <div className="px-4 sm:px-6 pb-20" style={{ color: CREAM }}>
       <div className="max-w-2xl mx-auto pt-8 sm:pt-12">
         <KindTabs kind={kind} onChange={setKind} />
+
+        {draftRestored && (
+          <div
+            className="mb-6 flex items-center justify-between gap-3 px-4 py-2.5"
+            style={{ border: `1px solid ${AMBER}44`, background: `${AMBER}0f` }}
+          >
+            <p
+              className="mono uppercase tracking-[0.18em] text-[0.55rem]"
+              style={{ color: AMBER }}
+            >
+              Draft restored · re-attach any files
+            </p>
+            <button
+              type="button"
+              onClick={startFresh}
+              className="mono uppercase tracking-[0.18em] text-[0.55rem] px-3 py-1 transition-colors flex-shrink-0"
+              style={{ color: CREAM_DIM, border: `1px solid ${HAIR_STRONG}` }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.color = CREAM;
+                e.currentTarget.style.borderColor = `${AMBER}66`;
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.color = CREAM_DIM;
+                e.currentTarget.style.borderColor = HAIR_STRONG;
+              }}
+            >
+              start fresh
+            </button>
+          </div>
+        )}
 
         {/* ─── Editorial step header ─── */}
         <header className="text-center mb-8 sm:mb-10">

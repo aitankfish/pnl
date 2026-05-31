@@ -7,7 +7,7 @@ import { useRouter } from 'next/navigation';
 import parse from 'html-react-parser';
 import {
   Check, X, ArrowLeft, ExternalLink, Loader2, Github, Sun,
-  History, Pencil, ChevronDown,
+  History, Pencil, ChevronDown, Sprout,
 } from 'lucide-react';
 import { PaperUnderpins } from '@/components/research/PaperUnderpins';
 import { PaperActivityFeed } from '@/components/research/PaperActivityFeed';
@@ -51,6 +51,7 @@ const CREAM_DIM = 'rgba(244,238,228,0.65)';
 const CREAM_FAINT = 'rgba(244,238,228,0.4)';
 const HAIR_STRONG = 'rgba(244,238,228,0.16)';
 const AMBER = '#e89660';
+const PEACH = '#ecb48a';
 const FOREST = '#3f7a42';
 const EARTH = '#d67347';
 
@@ -294,6 +295,17 @@ export function ResearchPaperClient({ paper }: { paper: Paper }) {
             open pdf
             <ExternalLink className="w-3.5 h-3.5" />
           </a>
+          {/* Funnel: turn this paper into a market, pre-linked as the thesis. */}
+          <Link
+            href={`/create?linkedPaper=${paper.id}`}
+            className="inline-flex items-center gap-2 mono uppercase tracking-[0.22em] text-[0.6rem] px-3 py-1.5 transition-colors"
+            style={{ color: BG, background: AMBER }}
+            onMouseEnter={(e) => (e.currentTarget.style.background = PEACH)}
+            onMouseLeave={(e) => (e.currentTarget.style.background = AMBER)}
+          >
+            <Sprout className="w-3.5 h-3.5" />
+            plant a market
+          </Link>
         </div>
       </div>
 

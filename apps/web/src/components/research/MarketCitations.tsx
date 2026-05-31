@@ -10,10 +10,12 @@
  * scaffolding at all.
  */
 
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import Link from 'next/link';
-import { ArrowRight, ScrollText } from 'lucide-react';
+import { ArrowRight, ScrollText, Plus, X, Loader2 } from 'lucide-react';
 import { SkelBlock, SkelLine } from './Skeleton';
+import { authFetch } from '@/lib/auth/fetch-with-auth';
+import { PaperSearchAutocomplete, type PaperSearchResult } from './PaperSearchAutocomplete';
 
 const CREAM = '#f4eee4';
 const CREAM_DIM = 'rgba(244,238,228,0.65)';
@@ -51,11 +53,25 @@ interface Citation {
 
 export function MarketCitations({
   marketIdOrAddress,
+  isFounder = false,
 }: {
   marketIdOrAddress: string;
+  // When the viewer is the project's founder we surface an inline control to
+  // link more papers to the market — the cite endpoint already accepts
+  // post-launch citations from the founder, this is just the missing UI.
+  isFounder?: boolean;
 }) {
   const [citations, setCitations] = useState<Citation[] | null>(null);
   const [loading, setLoading] = useState(true);
+
+  // Re-fetch after a founder links a new paper (no cancellation needed — it's
+  // a deliberate user action, not a mount-time race).
+  const reload = useCallback(() => {
+    fetch(`/api/markets/${marketIdOrAddress}/cite`)
+      .then((r) => r.json())
+      .then((json) => setCitations(json?.success ? json.data?.citations || [] : []))
+      .catch(() => {});
+  }, [marketIdOrAddress]);
 
   useEffect(() => {
     let cancelled = false;
@@ -96,7 +112,28 @@ export function MarketCitations({
     );
   }
 
-  if (!citations || citations.length === 0) return null;
+  if (!citations || citations.length === 0) {
+    // No citations: a visitor sees nothing; the founder sees an invitation to
+    // link the research behind the project.
+    if (!isFounder) return null;
+    return (
+      <section className="mb-8">
+        <p
+          className="mono uppercase tracking-[0.32em] text-[0.6rem] mb-3 inline-flex items-center gap-2"
+          style={{ color: AMBER }}
+        >
+          <ScrollText className="w-3.5 h-3.5" />
+          Built on the paper
+        </p>
+        <AddPaperPanel
+          marketIdOrAddress={marketIdOrAddress}
+          existingIds={[]}
+          hasThesis={false}
+          onAdded={reload}
+        />
+      </section>
+    );
+  }
 
   const thesis = citations.find((c) => c.role === 'thesis');
   const foundations = citations.filter((c) => c.role === 'foundation');
@@ -148,7 +185,162 @@ export function MarketCitations({
           )}
         </div>
       )}
+
+      {isFounder && (
+        <div className="mt-4">
+          <AddPaperPanel
+            marketIdOrAddress={marketIdOrAddress}
+            existingIds={citations.map((c) => c.paperId)}
+            hasThesis={!!thesis}
+            onAdded={reload}
+          />
+        </div>
+      )}
     </section>
+  );
+}
+
+const ROLE_OPTIONS: Array<{ value: 'thesis' | 'foundation' | 'reference'; label: string }> = [
+  { value: 'thesis', label: 'Thesis' },
+  { value: 'foundation', label: 'Foundation' },
+  { value: 'reference', label: 'Reference' },
+];
+
+// Founder-only inline control to link a paper to a live market. Posts to the
+// existing founder-gated cite endpoint (own paper → auto-accepts; another
+// author's paper → enters 'pending' until they accept) and reloads on success.
+function AddPaperPanel({
+  marketIdOrAddress,
+  existingIds,
+  hasThesis,
+  onAdded,
+}: {
+  marketIdOrAddress: string;
+  existingIds: string[];
+  hasThesis: boolean;
+  onAdded: () => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const [role, setRole] = useState<'thesis' | 'foundation' | 'reference'>(
+    hasThesis ? 'foundation' : 'thesis',
+  );
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const submit = async (paper: PaperSearchResult) => {
+    setSubmitting(true);
+    setError(null);
+    try {
+      const res = await authFetch(`/api/markets/${marketIdOrAddress}/cite`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ paperId: paper.id, role }),
+      });
+      const json = await res.json();
+      if (!json?.success) throw new Error(json?.error || 'Failed to link paper');
+      setOpen(false);
+      onAdded();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Failed to link paper');
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  if (!open) {
+    return (
+      <button
+        type="button"
+        onClick={() => setOpen(true)}
+        className="mono uppercase tracking-[0.22em] text-[0.55rem] inline-flex items-center gap-2 px-3 py-2 transition-colors"
+        style={{ color: CREAM_DIM, border: `1px dashed ${HAIR_STRONG}` }}
+        onMouseEnter={(e) => {
+          e.currentTarget.style.color = CREAM;
+          e.currentTarget.style.borderColor = `${AMBER}66`;
+        }}
+        onMouseLeave={(e) => {
+          e.currentTarget.style.color = CREAM_DIM;
+          e.currentTarget.style.borderColor = HAIR_STRONG;
+        }}
+      >
+        <Plus className="w-3.5 h-3.5" />
+        Link a paper
+      </button>
+    );
+  }
+
+  return (
+    <div
+      className="p-4"
+      style={{ background: 'rgba(244,238,228,0.025)', border: `1px solid ${HAIR_STRONG}` }}
+    >
+      <div className="flex items-center justify-between mb-3">
+        <p className="mono uppercase tracking-[0.22em] text-[0.55rem]" style={{ color: CREAM_DIM }}>
+          Link a paper to this market
+        </p>
+        <button
+          type="button"
+          onClick={() => {
+            setOpen(false);
+            setError(null);
+          }}
+          className="transition-colors"
+          style={{ color: CREAM_FAINT }}
+          onMouseEnter={(e) => (e.currentTarget.style.color = CREAM)}
+          onMouseLeave={(e) => (e.currentTarget.style.color = CREAM_FAINT)}
+          aria-label="Cancel"
+        >
+          <X className="w-4 h-4" />
+        </button>
+      </div>
+
+      {/* Role picker — thesis disabled once one exists (a market has one thesis). */}
+      <div className="inline-flex mb-3" style={{ border: `1px solid ${HAIR_STRONG}`, padding: 2 }}>
+        {ROLE_OPTIONS.map((r) => {
+          const disabled = r.value === 'thesis' && hasThesis;
+          const active = r.value === role;
+          return (
+            <button
+              key={r.value}
+              type="button"
+              disabled={disabled}
+              onClick={() => setRole(r.value)}
+              className="mono uppercase tracking-[0.18em] text-[0.55rem] px-3 py-1.5 transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+              style={{
+                background: active ? AMBER : 'transparent',
+                color: active ? '#0a0814' : CREAM_DIM,
+              }}
+            >
+              {r.label}
+            </button>
+          );
+        })}
+      </div>
+
+      <div style={{ opacity: submitting ? 0.5 : 1, pointerEvents: submitting ? 'none' : 'auto' }}>
+        <PaperSearchAutocomplete
+          excludeIds={existingIds}
+          onSelect={submit}
+          placeholder="Search papers by title or author…"
+          emptyHint="No matching papers. Publish one from the Research tab first."
+        />
+      </div>
+
+      {submitting && (
+        <p
+          className="mono uppercase tracking-[0.2em] text-[0.5rem] mt-2 inline-flex items-center gap-1.5"
+          style={{ color: CREAM_FAINT }}
+        >
+          <Loader2 className="w-3 h-3 animate-spin" />
+          Linking…
+        </p>
+      )}
+      {error && (
+        <p className="text-sm mt-2" style={{ color: '#d67347', fontFamily: 'var(--font-fraunces, serif)' }}>
+          {error}
+        </p>
+      )}
+    </div>
   );
 }
 

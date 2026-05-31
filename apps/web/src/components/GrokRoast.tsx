@@ -304,7 +304,7 @@ function InitialRoastCard({ analysis }: { analysis: GrokAnalysis }) {
                   <span className="w-5 h-5 rounded-full bg-red-500/20 flex items-center justify-center flex-shrink-0 mt-0.5">
                     <span className="text-red-400 text-xs">✕</span>
                   </span>
-                  <span className="leading-relaxed">{flag}</span>
+                  <span className="leading-relaxed min-w-0 break-words">{flag}</span>
                 </li>
               ))}
             </ul>
@@ -327,7 +327,7 @@ function InitialRoastCard({ analysis }: { analysis: GrokAnalysis }) {
                   <span className="w-5 h-5 rounded-full bg-green-500/20 flex items-center justify-center flex-shrink-0 mt-0.5">
                     <span className="text-green-400 text-xs">✓</span>
                   </span>
-                  <span className="leading-relaxed">{positive}</span>
+                  <span className="leading-relaxed min-w-0 break-words">{positive}</span>
                 </li>
               ))}
             </ul>
@@ -457,7 +457,7 @@ function ResolutionAnalysisCard({ analysis }: { analysis: GrokAnalysis }) {
                 <span className="w-5 h-5 rounded-full bg-purple-500/20 flex items-center justify-center flex-shrink-0 mt-0.5">
                   <span className="text-purple-400 text-xs">{i + 1}</span>
                 </span>
-                <span className="leading-relaxed">{item}</span>
+                <span className="leading-relaxed min-w-0 break-words">{item}</span>
               </li>
             ))}
           </ul>
