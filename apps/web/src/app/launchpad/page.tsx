@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation';
 import { useAllMarketsSocket } from '@/lib/hooks/useSocket';
 import { useWallet } from '@/hooks/useWallet';
 import { useUserProfile } from '@/hooks/useUserProfile';
+import { formatCategoryLabel } from '@/lib/categories';
 import {
   SeedIcon,
   TreeIcon,
@@ -65,23 +66,6 @@ interface LaunchedToken {
   noVotes: number;
   yesPercentage: number;
   launchPool: string;
-}
-
-function formatLabel(value: string): string {
-  const upper: { [k: string]: string } = {
-    dao: 'DAO',
-    nft: 'NFT',
-    ai: 'AI/ML',
-    defi: 'DeFi',
-    mvp: 'MVP',
-    realestate: 'Real Estate',
-    'real estate': 'Real Estate',
-  };
-  if (upper[value.toLowerCase()]) return upper[value.toLowerCase()];
-  return value
-    .split(' ')
-    .map((w) => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase())
-    .join(' ');
 }
 
 // "3d 4h" / "12h 23m" / "5m" — compact countdown derived from expiryTime.
@@ -1114,7 +1098,7 @@ function ClosingHeroCard({ market }: { market: Market }) {
           className="mono text-[0.55rem] uppercase tracking-[0.22em] px-1.5 py-0.5"
           style={{ color: CREAM_DIM, border: `1px solid ${HAIR_STRONG}` }}
         >
-          {formatLabel(market.category)}
+          {formatCategoryLabel(market.category)}
         </span>
         <div className="flex items-center gap-2.5">
           <TimeArc fraction={remainingFrac} urgent={urgent} />
@@ -1140,23 +1124,44 @@ function ClosingHeroCard({ market }: { market: Market }) {
         </div>
       </div>
 
-      <h3
-        className="mb-1 line-clamp-2"
-        style={{
-          color: CREAM,
-          fontFamily: 'var(--font-fraunces, serif)',
-          fontWeight: 400,
-          fontSize: '1.4rem',
-          lineHeight: 1.1,
-          letterSpacing: '-0.01em',
-          fontVariationSettings: '"SOFT" 30, "opsz" 60',
-        }}
-      >
-        {market.name}
-      </h3>
-      <p className="text-sm line-clamp-2 mb-4" style={{ color: CREAM_DIM }}>
-        {market.description}
-      </p>
+      <div className="flex items-start gap-3 mb-4">
+        <div
+          className="w-14 h-14 flex-shrink-0 flex items-center justify-center overflow-hidden"
+          style={{
+            background: 'rgba(232,150,96,0.1)',
+            border: `1px solid ${AMBER}44`,
+          }}
+        >
+          {market.projectImageUrl ? (
+            <img
+              src={market.projectImageUrl}
+              alt={market.name}
+              className="w-full h-full object-cover"
+            />
+          ) : (
+            <SeedIcon className="w-6 h-6" />
+          )}
+        </div>
+        <div className="min-w-0 flex-1">
+          <h3
+            className="mb-1 line-clamp-2"
+            style={{
+              color: CREAM,
+              fontFamily: 'var(--font-fraunces, serif)',
+              fontWeight: 400,
+              fontSize: '1.4rem',
+              lineHeight: 1.1,
+              letterSpacing: '-0.01em',
+              fontVariationSettings: '"SOFT" 30, "opsz" 60',
+            }}
+          >
+            {market.name}
+          </h3>
+          <p className="text-sm line-clamp-2" style={{ color: CREAM_DIM }}>
+            {market.description}
+          </p>
+        </div>
+      </div>
 
       {/* YES / NO split bar — single bar, two colors meeting at the boundary */}
       <div className="space-y-1.5">
@@ -1242,18 +1247,37 @@ function ClosingMiniCard({ market }: { market: Market }) {
       }}
     >
       <div className="flex items-start justify-between gap-3 mb-2.5">
-        <h4
-          className="line-clamp-1 flex-1"
-          style={{
-            color: CREAM,
-            fontFamily: 'var(--font-fraunces, serif)',
-            fontWeight: 400,
-            fontSize: '0.98rem',
-            letterSpacing: '-0.005em',
-          }}
-        >
-          {market.name}
-        </h4>
+        <div className="flex items-center gap-2.5 min-w-0 flex-1">
+          <div
+            className="w-9 h-9 flex-shrink-0 flex items-center justify-center overflow-hidden"
+            style={{
+              background: 'rgba(232,150,96,0.1)',
+              border: `1px solid ${HAIR_STRONG}`,
+            }}
+          >
+            {market.projectImageUrl ? (
+              <img
+                src={market.projectImageUrl}
+                alt={market.name}
+                className="w-full h-full object-cover"
+              />
+            ) : (
+              <SeedIcon className="w-4 h-4" />
+            )}
+          </div>
+          <h4
+            className="line-clamp-1 flex-1"
+            style={{
+              color: CREAM,
+              fontFamily: 'var(--font-fraunces, serif)',
+              fontWeight: 400,
+              fontSize: '0.98rem',
+              letterSpacing: '-0.005em',
+            }}
+          >
+            {market.name}
+          </h4>
+        </div>
         <span
           className="mono text-[0.58rem] uppercase tracking-[0.18em] flex-shrink-0"
           style={{
