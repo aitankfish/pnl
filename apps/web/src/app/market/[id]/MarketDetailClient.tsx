@@ -26,6 +26,8 @@ import MarketImage from '@/components/MarketImage';
 import ProvenanceBlock from '@/components/ProvenanceBlock';
 import { parseError } from '@/lib/utils/errorParser';
 import { useWallet } from '@/hooks/useWallet';
+import { useSolBalance } from '@/lib/hooks/useSolBalance';
+import { formatCategoryLabel } from '@/lib/categories';
 import { useAuthModal } from '@/contexts/AuthModalContext';
 import useSWR from 'swr';
 import ErrorDialog from '@/components/ErrorDialog';
@@ -298,6 +300,7 @@ export default function MarketDetailClient({
   const params = useParams<{ id: string }>()!;
   const router = useRouter();
   const { primaryWallet, authenticated } = useWallet();
+  const { solBalance, isLoading: balanceLoading } = useSolBalance(primaryWallet?.address);
   const { showAuthModal } = useAuthModal();
   const { network } = useNetwork(); // Get current network from wallet
   const [market, setMarket] = useState<MarketDetails | null>(initialMarket);
@@ -914,6 +917,25 @@ export default function MarketDetailClient({
       setToastMessage(`❌ Minimum vote: ${QUICK_VOTE_AMOUNT} SOL`);
       setShowToast(true);
       setTimeout(() => setShowToast(false), 3000);
+      return;
+    }
+
+    // Balance pre-check — catch the "I have ~0.01 SOL but the stake also needs
+    // a 1.5% fee + rent for a fresh position account" case here, with a clear
+    // message, instead of letting it die in preflight as a raw "-32002" dump.
+    // Only enforce once the balance has actually loaded; while it's still
+    // fetching we let the tx through (errorParser is the backstop) so we never
+    // falsely block on the hook's `?? 0` cold-start value.
+    const FEE_RATE = 0.015;        // 1.5% platform fee (matches the order summary)
+    const RENT_BUFFER = 0.0021;    // rent-exemption for the new position account
+    const NETWORK_FEE = 0.00001;   // base tx fee, generously rounded
+    const requiredSol = voteAmount * (1 + FEE_RATE) + RENT_BUFFER + NETWORK_FEE;
+    if (!balanceLoading && solBalance < requiredSol) {
+      setToastMessage(
+        `❌ Insufficient balance — you have ${solBalance.toFixed(4)} SOL but need ~${requiredSol.toFixed(4)} SOL (stake + 1.5% fee + account rent). Add more SOL to your wallet.`,
+      );
+      setShowToast(true);
+      setTimeout(() => setShowToast(false), 6000);
       return;
     }
 
@@ -1830,7 +1852,13 @@ export default function MarketDetailClient({
               {/* Linked research papers — if the founder cited any, surface
                   the thesis prominently and any foundations below. */}
               {market.marketAddress && (
-                <MarketCitations marketIdOrAddress={market.marketAddress} />
+                <MarketCitations
+                  marketIdOrAddress={market.marketAddress}
+                  isFounder={
+                    !!primaryWallet?.address &&
+                    market.founderWallet === primaryWallet.address
+                  }
+                />
               )}
 
               {/* Meta chips */}
@@ -1847,7 +1875,7 @@ export default function MarketDetailClient({
                   className="mono uppercase tracking-[0.22em] text-[0.55rem] px-2 py-1"
                   style={{ color: CREAM_DIM, border: `1px solid ${HAIR_STRONG}` }}
                 >
-                  {formatLabel(market.category)}
+                  {formatCategoryLabel(market.category)}
                 </span>
                 <span
                   className="mono uppercase tracking-[0.22em] text-[0.55rem] px-2 py-1"
@@ -2034,8 +2062,11 @@ export default function MarketDetailClient({
             />
           </article>
 
-          {/* Right Column - Trading (when not launched) + Market Status (always) + Video/Offers (when launched) */}
-          <div className="space-y-4">
+          {/* Right Column - Trading (when not launched) + Market Status (always) + Video/Offers (when launched).
+              Sticky + self-start so it doesn't stretch to the (often much taller) roast cell and instead
+              pins in view as you scroll the analysis — turning the old empty void into a persistent CTA.
+              top-20 clears the fixed navbar. */}
+          <div className="space-y-4 lg:sticky lg:top-20 lg:self-start">
           {/* Trading Section — cosmic-plant ─────────────────────────── */}
           {!isTokenLaunched && (
           <section

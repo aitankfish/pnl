@@ -103,6 +103,21 @@ export function parseError(error: unknown): ParsedError {
     return { title: 'Insufficient Funds', message: 'You don\'t have enough SOL in your wallet for this transaction (amount + network fees). Please add more SOL and try again.', details: 'Transaction simulation failed' };
   }
 
+  // Solana error #-32002 = SERVER_ERROR_SEND_TRANSACTION_PREFLIGHT_FAILURE.
+  // The newer @solana/errors stack (used via Privy) surfaces this as
+  // "Solana error #-32002" plus a base64 decode hint, which previously fell
+  // through to the default branch and dumped that raw blob into the toast.
+  // Any genuine program error (6003 etc.) is matched earlier by Error Number /
+  // custom program error, so reaching here means a bare preflight failure —
+  // overwhelmingly insufficient lamports for the stake + fees + account rent.
+  if (errorString.includes('#-32002') || errorString.includes('-32002') || errorString.toLowerCase().includes('preflight')) {
+    return {
+      title: 'Insufficient Balance',
+      message: 'Not enough SOL to cover the stake, the 1.5% fee, and the small rent for your position account. Add a little more SOL and try again.',
+      details: 'Transaction failed preflight simulation (Solana error -32002)',
+    };
+  }
+
   if (errorString.includes('insufficient lamports')) {
     const needMatch = errorString.match(/need\s+([\d,]+)/);
     const needSol = needMatch ? (parseInt(needMatch[1].replace(/,/g, '')) / 1e9).toFixed(4) : null;
