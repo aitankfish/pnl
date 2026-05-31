@@ -57,6 +57,7 @@ import { useAllTokenBalances } from '@/lib/hooks/useAllTokenBalances';
 import { useCreatorFees } from '@/lib/hooks/useCreatorFees';
 import { SeedIcon, TreeIcon, BloomIcon, LeafIcon, BasketIcon } from '@/components/PlantIcons';
 import { LiveNumber } from '@/components/LiveNumber';
+import AiKeySettings from '@/components/settings/AiKeySettings';
 
 const fetcher = (url: string) => fetch(url).then((res) => res.json());
 
@@ -1213,6 +1214,13 @@ export default function WalletPage() {
   // Portfolio section tab state
   const [portfolioTab, setPortfolioTab] = useState<'predictions' | 'projects' | 'watchlist'>('predictions');
 
+  // Wallet sidebar section (Colosseum-style left nav). Deep-linkable via ?section=.
+  const [section, setSection] = useState<'overview' | 'portfolio' | 'ai'>('overview');
+  useEffect(() => {
+    const p = new URLSearchParams(window.location.search).get('section');
+    if (p === 'overview' || p === 'portfolio' || p === 'ai') setSection(p);
+  }, []);
+
   // Fetch user profile
   const { data: profileData, mutate: mutateProfile } = useSWR(
     primaryWallet?.address ? `/api/profile/${primaryWallet.address}` : null,
@@ -1695,6 +1703,38 @@ export default function WalletPage() {
           What you&rsquo;ve planted · what&rsquo;s growing · what has bloomed
         </p>
       </div>
+
+      {/* ─── Colosseum-style sidebar: vertical sections + AI Keys ─── */}
+      <div className="max-w-5xl mx-auto flex flex-col md:flex-row gap-6 md:gap-8">
+        <aside className="md:w-48 shrink-0">
+          <nav className="flex md:flex-col gap-1 overflow-x-auto md:overflow-visible pb-1 md:pb-0">
+            {([
+              { id: 'overview', label: 'Overview', Icon: Wallet },
+              { id: 'portfolio', label: 'Portfolio', Icon: TrendingUp },
+              { id: 'ai', label: 'AI Keys', Icon: Sparkles },
+            ] as const).map(({ id, label, Icon }) => {
+              const active = section === id;
+              return (
+                <button
+                  key={id}
+                  onClick={() => setSection(id)}
+                  className="flex items-center gap-2.5 rounded-lg px-3 py-2 text-sm whitespace-nowrap transition-colors"
+                  style={{
+                    background: active ? 'rgba(232,150,96,0.12)' : 'transparent',
+                    color: active ? '#e89660' : 'rgba(244,238,228,0.65)',
+                  }}
+                >
+                  <Icon className="w-4 h-4" />
+                  {label}
+                </button>
+              );
+            })}
+          </nav>
+        </aside>
+
+        <div className="flex-1 min-w-0">
+          {/* Overview section */}
+          <div style={{ display: section === 'overview' ? undefined : 'none' }}>
 
       {/* ─── Dashboard Hero — cosmic editorial styling matching the landing ─── */}
       <div className="max-w-5xl mx-auto mb-8 sm:mb-12">
@@ -2417,6 +2457,9 @@ export default function WalletPage() {
           </div>
         </div>
       )}
+          </div>
+          {/* Portfolio section */}
+          <div style={{ display: section === 'portfolio' ? undefined : 'none' }}>
 
       {/* ─── Portfolio — Growing / Bloomed / Watching ─── */}
       <div className="max-w-4xl mx-auto space-y-6 mt-12">
@@ -2851,6 +2894,15 @@ export default function WalletPage() {
           )}
         </div>
         )}
+      </div>
+          </div>
+          {/* AI Keys section */}
+          {section === 'ai' && (
+            <div className="py-2">
+              <AiKeySettings />
+            </div>
+          )}
+        </div>
       </div>
 
       {/* Modals */}

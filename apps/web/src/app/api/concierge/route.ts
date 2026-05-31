@@ -6,12 +6,16 @@
 // any action (vote / pitch / claim) — it never signs, never holds keys, never
 // moves SOL. See docs/plans/HOUSE_AGENT_CONCIERGE.md.
 //
-// Model routing goes through the Vercel AI Gateway (CONCIERGE_MODEL, default
-// Sonnet). Needs AI_GATEWAY_API_KEY in the environment (Vercel provides this
-// automatically on deploy; set it locally to test the LLM loop).
+// BYOK (bring-your-own-key): the model + key come from the user's browser, sent
+// per-request in headers. PNL funds nothing and stores nothing — the key is used
+// for this one request and never persisted or logged. The user picks any
+// supported provider (OpenRouter / Anthropic / OpenAI / Google) in Settings.
 
-import { gateway } from 'ai';
-import { streamText, tool, convertToModelMessages, stepCountIs, type UIMessage } from 'ai';
+import { streamText, tool, convertToModelMessages, stepCountIs, type UIMessage, type LanguageModel } from 'ai';
+import { createAnthropic } from '@ai-sdk/anthropic';
+import { createOpenAI } from '@ai-sdk/openai';
+import { createGoogleGenerativeAI } from '@ai-sdk/google';
+import { createOpenRouter } from '@openrouter/ai-sdk-provider';
 import { z } from 'zod';
 import { checkRateLimit } from '@/lib/auth/rate-limit';
 import { createClientLogger } from '@/lib/logger';
@@ -23,6 +27,12 @@ import {
   actionLink,
   MARKET_STATUSES,
 } from '@/lib/agent/pnl-read';
+import {
+  BYOK_PROVIDER_HEADER,
+  BYOK_KEY_HEADER,
+  BYOK_MODEL_HEADER,
+  providerMeta,
+} from '@/lib/agent/byok-shared';
 
 export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
@@ -30,7 +40,24 @@ export const maxDuration = 30;
 
 const logger = createClientLogger();
 
-const MODEL_ID = process.env.CONCIERGE_MODEL || 'anthropic/claude-sonnet-4-6';
+// Build a model instance from the user-supplied provider + key. The key never
+// leaves this request scope. Throws on unknown provider.
+function buildModel(provider: string, apiKey: string, model?: string): LanguageModel {
+  const id = model?.trim() || providerMeta(provider)?.defaultModel;
+  if (!id) throw new Error(`unknown provider: ${provider}`);
+  switch (provider) {
+    case 'anthropic':
+      return createAnthropic({ apiKey })(id);
+    case 'openai':
+      return createOpenAI({ apiKey })(id);
+    case 'google':
+      return createGoogleGenerativeAI({ apiKey })(id);
+    case 'openrouter':
+      return createOpenRouter({ apiKey })(id);
+    default:
+      throw new Error(`unsupported provider: ${provider}`);
+  }
+}
 
 const SYSTEM = `You are the PNL House Agent — the concierge for PNL (Predict and Launch), a coordination market for ideas on Solana.
 
@@ -40,6 +67,7 @@ YOUR JOB: help people navigate live markets, understand the mechanics, and find 
 
 RULES:
 - Use the tools to ground EVERY factual claim about markets. Never invent market names, percentages, pools, or counts. If a tool returns nothing, say so.
+- The UI renders rich, interactive market cards directly from your browse/search/get_market tool results (the user can favorite, vote, and claim right on the card). So do NOT repeat the markets as a numbered list, table, or links in your text. Instead give a short, useful intro or insight (1-3 sentences) — e.g. which look most active, what's ending soon, or a follow-up question. Refer to markets by name, not by pasting URLs.
 - Cite live numbers when you have them (e.g. "73% YES, 0.4 SOL pooled, closes in 2 days").
 - You are NOT a financial advisor. Never tell someone to stake YES or NO or that an idea is a good or bad investment. You may lay out the bull and bear framing neutrally and state the on-chain facts.
 - You CANNOT execute anything. To act, call make_action_link and give the user the URL to open and sign in their own wallet. Make clear they sign in their browser wallet — you never hold keys.
@@ -109,6 +137,27 @@ export async function POST(req: Request) {
   const limited = await checkRateLimit(`concierge:${ip}`, 20, 60_000);
   if (limited) return limited;
 
+  // BYOK: provider + key (+ optional model) arrive per-request from the browser.
+  const provider = req.headers.get(BYOK_PROVIDER_HEADER)?.trim() || '';
+  const apiKey = req.headers.get(BYOK_KEY_HEADER)?.trim() || '';
+  const model = req.headers.get(BYOK_MODEL_HEADER)?.trim() || undefined;
+  if (!provider || !apiKey) {
+    return Response.json(
+      { error: 'no_key', message: 'Add your own AI provider key in Settings to use the concierge.' },
+      { status: 400 },
+    );
+  }
+
+  let languageModel: LanguageModel;
+  try {
+    languageModel = buildModel(provider, apiKey, model);
+  } catch (e) {
+    return Response.json(
+      { error: 'bad_provider', message: e instanceof Error ? e.message : 'invalid provider' },
+      { status: 400 },
+    );
+  }
+
   let messages: UIMessage[];
   try {
     const body = (await req.json()) as { messages?: UIMessage[] };
@@ -122,7 +171,7 @@ export async function POST(req: Request) {
 
   try {
     const result = streamText({
-      model: gateway(MODEL_ID),
+      model: languageModel,
       system: SYSTEM,
       messages: await convertToModelMessages(messages),
       tools,

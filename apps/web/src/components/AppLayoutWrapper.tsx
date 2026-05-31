@@ -24,6 +24,8 @@ export default function AppLayoutWrapper({ children, footer }: AppLayoutWrapperP
     if (pathname === '/browse') return 'markets';
     if (pathname.startsWith('/market/')) return 'markets';
     if (pathname === '/launched') return 'launched';
+    if (pathname === '/ask') return 'ask';
+    if (pathname === '/settings') return 'settings';
     if (pathname === '/notifications') return 'notifications';
     if (pathname === '/wallet') return 'wallet';
     if (pathname === '/merch') return 'merch';
