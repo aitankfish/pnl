@@ -14,6 +14,8 @@ import { updateMarketVoteCounts } from '@/lib/vote-counts';
 import { broadcastMarketUpdate } from '@/services/socket/socket-server';
 import { getSolanaConnection } from '@/lib/solana';
 import { getProgramIdForNetwork } from '@/lib/anchor-program';
+import { PublicKey } from '@solana/web3.js';
+import { parseMarketAccount, calculateDerivedFields } from '@/services/blockchain-sync/account-parser';
 import { SOLANA_NETWORK } from '@/config/solana';
 import { withWalletOwnership } from '@/lib/auth/require-wallet';
 import { invalidateCache } from '@/lib/redis/invalidate';
@@ -291,6 +293,67 @@ export const POST = withWalletOwnership(async (request, authUser) => {
         error: error instanceof Error ? error.message : String(error)
       });
       // Don't fail the request if vote count update fails
+    }
+
+    // ── Pool refresh ─────────────────────────────────────────────────────
+    // The pool total (poolBalance + AMM share fields) is normally written by
+    // the Helius WS sync (event-processor). If that push is missed — e.g. a
+    // Redis/infra outage drops the subscription — the pool FREEZES until the
+    // next server restart re-runs the initial sync, because there is no
+    // periodic reconcile loop. Restoring Redis alone does NOT self-heal it.
+    // Since we just verified this vote on-chain, fetch the market account now
+    // and write the fresh pool state directly, so the pool updates
+    // deterministically on every vote regardless of WS reliability. This only
+    // READS the shared on-chain parser (parseMarketAccount) — it does not
+    // touch program/IDL/PDA/discriminator logic.
+    try {
+      const connection = await getSolanaConnection(SOLANA_NETWORK);
+      const accountInfo = await connection.getAccountInfo(new PublicKey(market.marketAddress));
+      if (accountInfo?.data) {
+        const marketData = parseMarketAccount(accountInfo.data.toString('base64'));
+        const derived = calculateDerivedFields(marketData);
+
+        await PredictionMarket.updateOne(
+          { _id: market._id },
+          {
+            $set: {
+              poolBalance: marketData.poolBalance,
+              distributionPool: marketData.distributionPool,
+              yesPool: marketData.yesPool,
+              noPool: marketData.noPool,
+              totalYesShares: marketData.totalYesShares,
+              totalNoShares: marketData.totalNoShares,
+              poolProgressPercentage: derived.poolProgressPercentage,
+              yesPercentage: derived.yesPercentage,
+              sharesYesPercentage: derived.sharesYesPercentage,
+              totalYesStake: derived.totalYesStake,
+              totalNoStake: derived.totalNoStake,
+              availableActions: derived.availableActions,
+              lastSyncedAt: new Date(),
+              syncStatus: 'synced',
+            },
+          },
+        );
+
+        // Broadcast only the always-visible pool fields. yes/no split stays
+        // out of the payload to honor the unresolved-market masking.
+        broadcastMarketUpdate(market.marketAddress, {
+          poolBalance: marketData.poolBalance,
+          poolProgressPercentage: derived.poolProgressPercentage,
+          availableActions: derived.availableActions,
+        });
+
+        logger.info('✅ [POOL] Refreshed pool from chain after vote', {
+          marketAddress: market.marketAddress.slice(0, 8) + '...',
+          poolBalanceSol: Number(marketData.poolBalance) / 1e9,
+          poolProgressPercentage: derived.poolProgressPercentage,
+        });
+      }
+    } catch (error) {
+      logger.error('Failed to refresh pool from chain after vote (non-fatal)', {
+        error: error instanceof Error ? error.message : String(error),
+      });
+      // Non-fatal: WS sync / next restart will eventually reconcile.
     }
 
     // Without these invalidations, a fresh-load of /market/[id] (or /wallet)
