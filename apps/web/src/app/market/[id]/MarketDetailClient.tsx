@@ -35,6 +35,7 @@ import ErrorDialog from '@/components/ErrorDialog';
 import SuccessDialog from '@/components/SuccessDialog';
 import { useMarketSocket, useUserSocket } from '@/lib/hooks/useSocket';
 import { MarketCitations } from '@/components/research/MarketCitations';
+import { ProjectPulse } from '@/components/research/ProjectPulse';
 import { TokenLaunchAnimation } from '@/components/TokenLaunchAnimation';
 import { getVoteButtonStates, getMarketDisplayStatus } from '@/lib/api-utils';
 import {
@@ -1885,6 +1886,13 @@ export default function MarketDetailClient({
                     market.founderWallet === primaryWallet.address
                   }
                 />
+              )}
+
+              {/* Project pulse — live git activity (last-active, open PRs/issues,
+                  recent commits) resolved through the thesis citation's repo.
+                  Renders nothing when there's no linked repo. */}
+              {market.marketAddress && (
+                <ProjectPulse marketIdOrAddress={market.marketAddress} />
               )}
 
               {/* Meta chips */}
