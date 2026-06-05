@@ -16,6 +16,7 @@ import {
   ResearchPaper,
 } from '@/lib/mongodb';
 import { convertToGatewayUrl } from '@/lib/api-utils';
+import { ResearchPaperCard } from '@/components/research/ResearchPaperCard';
 
 export const dynamic = 'force-dynamic';
 
@@ -30,12 +31,6 @@ const HAIR_STRONG = 'rgba(244,238,228,0.16)';
 const AMBER = '#e89660';
 const FOREST = '#3f7a42';
 const EARTH = '#d67347';
-
-// Paper-card palette (used inside each card).
-const PAPER_BG = '#fbfaf6';
-const INK = '#0d0d0d';
-const INK_DIM = 'rgba(13,13,13,0.62)';
-const INK_FAINT = 'rgba(13,13,13,0.35)';
 
 interface PageProps {
   params: Promise<{ wallet: string }>;
@@ -230,7 +225,17 @@ export default async function AuthorPage({ params }: PageProps) {
           </p>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             {papers.map((p) => (
-              <PaperCard key={String(p._id)} paper={p} />
+              <ResearchPaperCard
+                key={String(p._id)}
+                paper={{
+                  id: String(p._id),
+                  title: p.title,
+                  summary: p.summary,
+                  likeCount: p.likeCount,
+                  dislikeCount: p.dislikeCount,
+                  createdAt: p.createdAt,
+                }}
+              />
             ))}
           </div>
 
@@ -332,72 +337,3 @@ function Stat({
   );
 }
 
-function PaperCard({ paper }: { paper: any }) {
-  const dateLabel = new Date(paper.createdAt).toLocaleDateString(undefined, {
-    year: 'numeric',
-    month: 'short',
-    day: 'numeric',
-  });
-  return (
-    <Link
-      href={`/research/${String(paper._id)}`}
-      prefetch
-      className="block transition-transform"
-      style={{
-        background: PAPER_BG,
-        color: INK,
-        borderLeft: `2px solid ${INK}`,
-        padding: '1.25rem 1.25rem 1rem',
-        minHeight: 200,
-      }}
-    >
-      <p
-        className="mono uppercase tracking-[0.28em] text-[0.55rem] mb-3"
-        style={{ color: INK_FAINT }}
-      >
-        Research · {dateLabel}
-      </p>
-      <h3
-        className="line-clamp-3 mb-2"
-        style={{
-          fontFamily: 'var(--font-fraunces, serif)',
-          fontSize: '1.2rem',
-          fontWeight: 400,
-          lineHeight: 1.2,
-          letterSpacing: '-0.005em',
-        }}
-      >
-        {paper.title}
-      </h3>
-      {paper.summary && (
-        <p
-          className="text-sm line-clamp-2 mb-4"
-          style={{
-            fontFamily: 'var(--font-fraunces, serif)',
-            color: INK_DIM,
-            lineHeight: 1.4,
-          }}
-        >
-          {paper.summary}
-        </p>
-      )}
-      <div
-        className="flex items-center gap-4 mt-auto pt-3"
-        style={{ borderTop: `1px solid rgba(13,13,13,0.08)` }}
-      >
-        <span className="inline-flex items-center gap-1.5" style={{ color: FOREST }}>
-          ✓
-          <span className="mono text-[0.7rem]" style={{ fontFeatureSettings: '"tnum"' }}>
-            {paper.likeCount || 0}
-          </span>
-        </span>
-        <span className="inline-flex items-center gap-1.5" style={{ color: EARTH }}>
-          ✗
-          <span className="mono text-[0.7rem]" style={{ fontFeatureSettings: '"tnum"' }}>
-            {paper.dislikeCount || 0}
-          </span>
-        </span>
-      </div>
-    </Link>
-  );
-}

@@ -38,7 +38,8 @@ import {
   ArrowRight,
   Gift,
   Coins,
-  Loader2
+  Loader2,
+  FileText
 } from 'lucide-react';
 import { PublicKey, LAMPORTS_PER_SOL, SystemProgram, VersionedTransaction, TransactionMessage } from '@solana/web3.js';
 import { getAssociatedTokenAddressSync, createTransferInstruction, createAssociatedTokenAccountInstruction, TOKEN_PROGRAM_ID, TOKEN_2022_PROGRAM_ID } from '@solana/spl-token';
@@ -58,6 +59,7 @@ import { useCreatorFees } from '@/lib/hooks/useCreatorFees';
 import { SeedIcon, TreeIcon, BloomIcon, LeafIcon, BasketIcon } from '@/components/PlantIcons';
 import { LiveNumber } from '@/components/LiveNumber';
 import AiKeySettings from '@/components/settings/AiKeySettings';
+import { ResearchPaperCard } from '@/components/research/ResearchPaperCard';
 import { useToast } from '@/lib/hooks/useToast';
 
 const fetcher = (url: string) => fetch(url).then((res) => res.json());
@@ -1213,7 +1215,7 @@ export default function WalletPage() {
   const [isLoadingTokenStats, setIsLoadingTokenStats] = useState(false);
 
   // Portfolio section tab state
-  const [portfolioTab, setPortfolioTab] = useState<'predictions' | 'projects' | 'watchlist'>('predictions');
+  const [portfolioTab, setPortfolioTab] = useState<'predictions' | 'projects' | 'watchlist' | 'papers'>('predictions');
 
   // Wallet sidebar section (Colosseum-style left nav). Deep-linkable via ?section=.
   const [section, setSection] = useState<'overview' | 'portfolio' | 'profile' | 'ai'>('overview');
@@ -1245,6 +1247,16 @@ export default function WalletPage() {
     fetcher,
     { refreshInterval: 0 }
   );
+
+  // Research papers authored by this wallet (Portfolio "Papers" tab).
+  // The author endpoint returns 404 with { success:false } when the wallet has
+  // no papers — we treat that as an empty state, not an error.
+  const { data: papersData } = useSWR(
+    primaryWallet?.address ? `/api/research/author/${primaryWallet.address}` : null,
+    fetcher,
+    { refreshInterval: 0 }
+  );
+  const authoredPapers = papersData?.success ? (papersData.data?.papers ?? []) : [];
 
   // Fetch user positions
   // When the socket is connected we don't need aggressive polling — socket events
@@ -1982,15 +1994,25 @@ export default function WalletPage() {
         </div>
         {/* funds: quick actions (Overview only) */}
         <div style={{ display: section === 'overview' ? undefined : 'none' }}>
-        {/* Primary action — plant a new idea (the core create flow) */}
-        <a
-          href="/create"
-          className="group mx-auto mb-5 flex w-fit items-center gap-2.5 px-7 py-3 transition-transform hover:scale-[1.03]"
-          style={{ background: '#e89660', color: '#0a0814', border: '1px solid #e89660' }}
-        >
-          <SeedIcon className="w-4 h-4" />
-          <span className="mono text-[0.72rem] uppercase tracking-[0.28em]">Plant an idea</span>
-        </a>
+        {/* Primary actions — plant a new idea (core create flow) + publish research */}
+        <div className="mx-auto mb-5 flex w-fit flex-wrap items-center justify-center gap-2.5">
+          <a
+            href="/create"
+            className="group flex items-center gap-2.5 px-7 py-3 transition-transform hover:scale-[1.03]"
+            style={{ background: '#e89660', color: '#0a0814', border: '1px solid #e89660' }}
+          >
+            <SeedIcon className="w-4 h-4" />
+            <span className="mono text-[0.72rem] uppercase tracking-[0.28em]">Plant an idea</span>
+          </a>
+          <a
+            href="/create?kind=research"
+            className="group flex items-center gap-2.5 px-7 py-3 transition-transform hover:scale-[1.03]"
+            style={{ background: 'transparent', color: '#e89660', border: '1px solid rgba(232,150,96,0.4)' }}
+          >
+            <FileText className="w-4 h-4" />
+            <span className="mono text-[0.72rem] uppercase tracking-[0.28em]">Publish research</span>
+          </a>
+        </div>
         {/* Action buttons — flat mono tiles matching landing */}
         <div className="flex flex-wrap items-center justify-center gap-2 mt-6">
           {[
@@ -2530,6 +2552,7 @@ export default function WalletPage() {
             { value: 'predictions' as const, label: 'Growing', Icon: TreeIcon, count: positionsData?.data?.all?.length || 0 },
             { value: 'projects' as const, label: 'Bloomed', Icon: BloomIcon, count: projectsData?.data?.projects?.length || 0 },
             { value: 'watchlist' as const, label: 'Watching', Icon: LeafIcon, count: profileData?.data?.favoriteMarkets?.length || 0 },
+            { value: 'papers' as const, label: 'Papers', Icon: FileText, count: authoredPapers.length },
           ].map((tab) => {
             const Icon = tab.Icon;
             const isActive = portfolioTab === tab.value;
@@ -2951,6 +2974,55 @@ export default function WalletPage() {
               <p className="italic" style={{ color: 'rgba(244,238,228,0.4)', fontFamily: 'var(--font-fraunces, serif)', fontStyle: 'italic', fontSize: '0.82rem' }}>
                 Click the heart icon on any market to add it to your watchlist.
               </p>
+            </div>
+          )}
+        </div>
+        )}
+
+        {portfolioTab === 'papers' && (
+        <div className="space-y-4">
+          {authoredPapers.length > 0 ? (
+            <>
+              <div className="flex items-center justify-end">
+                <a
+                  href="/create?kind=research"
+                  className="mono uppercase tracking-[0.22em] text-[0.58rem] transition-colors"
+                  style={{ color: '#e89660' }}
+                >
+                  + Publish research
+                </a>
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                {authoredPapers.map((p: any) => (
+                  <ResearchPaperCard
+                    key={p.id}
+                    paper={{
+                      id: p.id,
+                      title: p.title,
+                      summary: p.summary,
+                      likeCount: p.likeCount,
+                      dislikeCount: p.dislikeCount,
+                      createdAt: p.createdAt,
+                    }}
+                  />
+                ))}
+              </div>
+            </>
+          ) : (
+            <div className="p-6 text-center py-12" style={{ background: 'rgba(244,238,228,0.02)', border: '1px solid rgba(244,238,228,0.08)' }}>
+              <FileText className="w-7 h-7 mx-auto mb-3" style={{ color: 'rgba(244,238,228,0.4)' }} />
+              <p className="mono uppercase tracking-[0.24em] text-[0.6rem] mb-2" style={{ color: 'rgba(244,238,228,0.65)' }}>No papers yet</p>
+              <p className="italic mb-5" style={{ color: 'rgba(244,238,228,0.4)', fontFamily: 'var(--font-fraunces, serif)', fontStyle: 'italic', fontSize: '0.82rem' }}>
+                Publish research to ground your ideas in evidence.
+              </p>
+              <a
+                href="/create?kind=research"
+                className="inline-flex items-center gap-2 px-5 py-2.5 mono text-[0.62rem] uppercase tracking-[0.26em] transition-colors"
+                style={{ background: 'rgba(232,150,96,0.14)', color: '#e89660', border: '1px solid rgba(232,150,96,0.4)' }}
+              >
+                <FileText className="w-3.5 h-3.5" />
+                Publish research
+              </a>
             </div>
           )}
         </div>
