@@ -8,7 +8,7 @@ import { useUserProfile } from '@/hooks/useUserProfile';
 import { useNotifications } from '@/hooks/useNotifications';
 import { useSolBalance } from '@/lib/hooks/useSolBalance';
 import { useAuthModal } from '@/contexts/AuthModalContext';
-import { User, Loader2 } from 'lucide-react';
+import { User, Loader2, Sparkles } from 'lucide-react';
 import UserInfo from './UserInfo';
 import GlobalSearch from './GlobalSearch';
 import NotificationDropdown from './NotificationDropdown';
@@ -35,6 +35,7 @@ const navItems: NavItem[] = [
   { id: 'create', label: 'Plant', href: '/create', Icon: SeedIcon, badge: 'new' },
   { id: 'markets', label: 'Browse', href: '/browse', Icon: TreeIcon },
   { id: 'launched', label: 'Orchard', href: '/launched', Icon: BloomIcon },
+  { id: 'ask', label: 'Ask', href: '/ask', Icon: Sparkles, badge: 'new' },
 ];
 
 function Sidebar({ currentPage }: SidebarProps) {

@@ -38,7 +38,8 @@ import {
   ArrowRight,
   Gift,
   Coins,
-  Loader2
+  Loader2,
+  FileText
 } from 'lucide-react';
 import { PublicKey, LAMPORTS_PER_SOL, SystemProgram, VersionedTransaction, TransactionMessage } from '@solana/web3.js';
 import { getAssociatedTokenAddressSync, createTransferInstruction, createAssociatedTokenAccountInstruction, TOKEN_PROGRAM_ID, TOKEN_2022_PROGRAM_ID } from '@solana/spl-token';
@@ -57,6 +58,9 @@ import { useAllTokenBalances } from '@/lib/hooks/useAllTokenBalances';
 import { useCreatorFees } from '@/lib/hooks/useCreatorFees';
 import { SeedIcon, TreeIcon, BloomIcon, LeafIcon, BasketIcon } from '@/components/PlantIcons';
 import { LiveNumber } from '@/components/LiveNumber';
+import AiKeySettings from '@/components/settings/AiKeySettings';
+import { ResearchPaperCard } from '@/components/research/ResearchPaperCard';
+import { useToast } from '@/lib/hooks/useToast';
 
 const fetcher = (url: string) => fetch(url).then((res) => res.json());
 
@@ -1211,7 +1215,31 @@ export default function WalletPage() {
   const [isLoadingTokenStats, setIsLoadingTokenStats] = useState(false);
 
   // Portfolio section tab state
-  const [portfolioTab, setPortfolioTab] = useState<'predictions' | 'projects' | 'watchlist'>('predictions');
+  const [portfolioTab, setPortfolioTab] = useState<'predictions' | 'projects' | 'watchlist' | 'papers'>('predictions');
+
+  // Wallet sidebar section (Colosseum-style left nav). Deep-linkable via ?section=.
+  const [section, setSection] = useState<'overview' | 'portfolio' | 'profile' | 'ai'>('overview');
+  useEffect(() => {
+    const p = new URLSearchParams(window.location.search).get('section');
+    if (p === 'overview' || p === 'portfolio' || p === 'profile' || p === 'ai') setSection(p);
+  }, []);
+  const { showToast } = useToast();
+  // Explicit save handlers for the profile editor — give a visible confirmation
+  // (the inputs also autosave on blur, but a Save button + toast is clearer).
+  const [savingName, setSavingName] = useState(false);
+  const [savingBio, setSavingBio] = useState(false);
+  const saveName = async () => {
+    setSavingName(true);
+    await handleUsernameChange(username);
+    setSavingName(false);
+    showToast({ type: 'success', title: 'Saved', message: 'Username updated' });
+  };
+  const saveBio = async () => {
+    setSavingBio(true);
+    await handleBioChange(bio);
+    setSavingBio(false);
+    showToast({ type: 'success', title: 'Saved', message: 'Bio updated' });
+  };
 
   // Fetch user profile
   const { data: profileData, mutate: mutateProfile } = useSWR(
@@ -1219,6 +1247,16 @@ export default function WalletPage() {
     fetcher,
     { refreshInterval: 0 }
   );
+
+  // Research papers authored by this wallet (Portfolio "Papers" tab).
+  // The author endpoint returns 404 with { success:false } when the wallet has
+  // no papers — we treat that as an empty state, not an error.
+  const { data: papersData } = useSWR(
+    primaryWallet?.address ? `/api/research/author/${primaryWallet.address}` : null,
+    fetcher,
+    { refreshInterval: 0 }
+  );
+  const authoredPapers = papersData?.success ? (papersData.data?.papers ?? []) : [];
 
   // Fetch user positions
   // When the socket is connected we don't need aggressive polling — socket events
@@ -1667,37 +1705,76 @@ export default function WalletPage() {
 
   return (
     <div className="min-h-screen pt-3 sm:pt-4 px-4 sm:px-6 pb-4 sm:pb-6 animate-fade-in">
-      {/* ─── Garden page title ─── */}
-      <div className="max-w-5xl mx-auto mb-6 sm:mb-8 text-center">
-        <h1
-          className="serif leading-[0.98] tracking-[-0.02em] mb-2"
-          style={{
-            fontSize: 'clamp(1.8rem, 3.5vw, 2.75rem)',
-            fontWeight: 400,
-            fontVariationSettings: "'SOFT' 50, 'WONK' 0, 'opsz' 72",
-            color: '#f4eee4',
-          }}
-        >
-          Your{' '}
-          <em
-            style={{
-              fontVariationSettings: "'SOFT' 100, 'WONK' 0, 'opsz' 72",
-              color: 'transparent',
-              backgroundImage: 'linear-gradient(178deg, #fff2d8 0%, #ecb48a 35%, #d99875 70%, #d67347 100%)',
-              WebkitBackgroundClip: 'text',
-              backgroundClip: 'text',
-            }}
-          >
-            garden.
-          </em>
-        </h1>
-        <p className="mono text-[0.56rem] uppercase tracking-[0.3em]" style={{ color: '#8a7f72' }}>
-          What you&rsquo;ve planted · what&rsquo;s growing · what has bloomed
-        </p>
-      </div>
+      {/* ─── Colosseum-style sidebar: vertical sections + AI Keys ─── */}
+      <div className="max-w-5xl mx-auto flex flex-col md:flex-row gap-6 md:gap-8">
+        <aside className="md:w-48 shrink-0">
+          <nav className="flex md:flex-col gap-1 overflow-x-auto md:overflow-visible pb-1 md:pb-0">
+            {([
+              { id: 'profile', label: 'Profile', Icon: User },
+              { id: 'overview', label: 'Overview', Icon: Wallet },
+              { id: 'portfolio', label: 'Portfolio', Icon: TrendingUp },
+              { id: 'ai', label: 'AI Keys', Icon: Sparkles },
+            ] as const).map(({ id, label, Icon }) => {
+              const active = section === id;
+              return (
+                <React.Fragment key={id}>
+                  {/* settings divider — AI Keys is configuration, not a funds/identity view */}
+                  {id === 'ai' && (
+                    <span className="my-1.5 hidden h-px w-full md:block" style={{ background: 'rgba(244,238,228,0.10)' }} />
+                  )}
+                  <button
+                    onClick={() => setSection(id)}
+                    className="flex items-center gap-2.5 rounded-lg px-3 py-2 text-sm whitespace-nowrap transition-colors"
+                    style={{
+                      background: active ? 'rgba(232,150,96,0.12)' : 'transparent',
+                      color: active ? '#e89660' : 'rgba(244,238,228,0.65)',
+                    }}
+                  >
+                    <Icon className="w-4 h-4" />
+                    {label}
+                  </button>
+                </React.Fragment>
+              );
+            })}
+          </nav>
+        </aside>
+
+        <div className="flex-1 min-w-0">
+          {/* Overview + Profile share the hero block; funds vs identity sub-blocks toggle by section */}
+          <div style={{ display: section === 'overview' || section === 'profile' ? undefined : 'none' }}>
 
       {/* ─── Dashboard Hero — cosmic editorial styling matching the landing ─── */}
       <div className="max-w-5xl mx-auto mb-8 sm:mb-12">
+        {/* funds: balance + reserves (Overview only) */}
+        <div style={{ display: section === 'overview' ? undefined : 'none' }}>
+        {/* compact profile summary — full editor lives in the Profile tab */}
+        <button
+          onClick={() => setSection('profile')}
+          className="group mx-auto w-fit mb-8 flex items-center gap-3 px-3 py-2 transition-colors"
+          style={{ background: 'rgba(244,238,228,0.03)', border: '1px solid rgba(244,238,228,0.10)' }}
+          onMouseEnter={(e) => (e.currentTarget.style.borderColor = 'rgba(232,150,96,0.4)')}
+          onMouseLeave={(e) => (e.currentTarget.style.borderColor = 'rgba(244,238,228,0.10)')}
+          title="Edit profile"
+        >
+          <div
+            className="w-9 h-9 flex items-center justify-center overflow-hidden flex-shrink-0"
+            style={{ background: 'rgba(244,238,228,0.04)', border: '1px solid rgba(232,150,96,0.35)' }}
+          >
+            {profilePhotoUrl ? (
+              <img src={profilePhotoUrl} alt="" className="w-full h-full object-cover" />
+            ) : (
+              <User className="w-4 h-4" style={{ color: '#e89660' }} />
+            )}
+          </div>
+          <div className="text-left leading-tight">
+            <div className="mono text-[0.72rem]" style={{ color: '#f4eee4' }}>{username || 'Set username'}</div>
+            <div className="mono text-[0.52rem] uppercase tracking-[0.2em] mt-0.5" style={{ color: '#8a7f72' }}>
+              {realtimeUserStats?.followerCount ?? profileData?.data?.followerCount ?? 0} followers ·{' '}
+              {realtimeUserStats?.followingCount ?? profileData?.data?.followingCount ?? 0} following
+            </div>
+          </div>
+          <Settings className="w-3.5 h-3.5 ml-1 transition-opacity opacity-40 group-hover:opacity-90" style={{ color: '#e89660' }} />
+        </button>
         {/* Top label */}
         <div className="mono text-[0.62rem] uppercase tracking-[0.3em] mb-5 flex items-center justify-center gap-3"
           style={{ color: '#e89660' }}>
@@ -1786,6 +1863,9 @@ export default function WalletPage() {
           </div>
         </div>
 
+        </div>
+        {/* identity: avatar, username, bio, handle (Profile only) */}
+        <div style={{ display: section === 'profile' ? undefined : 'none' }}>
         {/* Profile row */}
         <div className="flex flex-col items-center gap-4 max-w-2xl mx-auto w-full px-4 mt-8">
           <div className="flex items-center gap-3">
@@ -1829,7 +1909,34 @@ export default function WalletPage() {
               }}
               placeholder="username"
             />
+            <button
+              onClick={saveName}
+              disabled={savingName}
+              className="mono text-[0.58rem] uppercase tracking-[0.18em] h-10 px-3 transition-colors disabled:opacity-50"
+              style={{ background: 'rgba(232,150,96,0.14)', color: '#e89660', border: '1px solid rgba(232,150,96,0.4)' }}
+            >
+              {savingName ? '…' : 'Save'}
+            </button>
           </div>
+
+          {/* Followers / following — profile header */}
+          {profileData?.success && (
+            <div className="flex items-center justify-center gap-8">
+              <a href={`/profile/${primaryWallet.address}/followers`} className="text-center transition-opacity hover:opacity-70">
+                <div className="serif text-[1.4rem] leading-none" style={{ color: '#f4eee4', fontVariationSettings: "'SOFT' 50, 'opsz' 48" }}>
+                  {realtimeUserStats?.followerCount ?? profileData.data.followerCount ?? 0}
+                </div>
+                <div className="mono text-[0.56rem] uppercase tracking-[0.28em] mt-1" style={{ color: '#8a7f72' }}>Followers</div>
+              </a>
+              <span className="w-px h-8" style={{ background: 'rgba(244,238,228,0.08)' }} />
+              <a href={`/profile/${primaryWallet.address}/following`} className="text-center transition-opacity hover:opacity-70">
+                <div className="serif text-[1.4rem] leading-none" style={{ color: '#f4eee4', fontVariationSettings: "'SOFT' 50, 'opsz' 48" }}>
+                  {realtimeUserStats?.followingCount ?? profileData.data.followingCount ?? 0}
+                </div>
+                <div className="mono text-[0.56rem] uppercase tracking-[0.28em] mt-1" style={{ color: '#8a7f72' }}>Following</div>
+              </a>
+            </div>
+          )}
 
           {/* Bio */}
           <div className="w-full max-w-md">
@@ -1848,9 +1955,19 @@ export default function WalletPage() {
               placeholder="Write a short bio…"
               maxLength={150}
             />
-            <p className="mono text-[0.54rem] uppercase tracking-[0.26em] mt-1 text-right" style={{ color: '#6a6058' }}>
-              {bio.length} / 150
-            </p>
+            <div className="flex items-center justify-between mt-1">
+              <p className="mono text-[0.54rem] uppercase tracking-[0.26em]" style={{ color: '#6a6058' }}>
+                {bio.length} / 150
+              </p>
+              <button
+                onClick={saveBio}
+                disabled={savingBio}
+                className="mono text-[0.58rem] uppercase tracking-[0.18em] px-3 py-1 transition-colors disabled:opacity-50"
+                style={{ background: 'rgba(232,150,96,0.14)', color: '#e89660', border: '1px solid rgba(232,150,96,0.4)' }}
+              >
+                {savingBio ? '…' : 'Save'}
+              </button>
+            </div>
           </div>
 
           {/* Twitter */}
@@ -1874,6 +1991,28 @@ export default function WalletPage() {
           </div>
         </div>
 
+        </div>
+        {/* funds: quick actions (Overview only) */}
+        <div style={{ display: section === 'overview' ? undefined : 'none' }}>
+        {/* Primary actions — plant a new idea (core create flow) + publish research */}
+        <div className="mx-auto mb-5 flex w-fit flex-wrap items-center justify-center gap-2.5">
+          <a
+            href="/create"
+            className="group flex items-center gap-2.5 px-7 py-3 transition-transform hover:scale-[1.03]"
+            style={{ background: '#e89660', color: '#0a0814', border: '1px solid #e89660' }}
+          >
+            <SeedIcon className="w-4 h-4" />
+            <span className="mono text-[0.72rem] uppercase tracking-[0.28em]">Plant an idea</span>
+          </a>
+          <a
+            href="/create?kind=research"
+            className="group flex items-center gap-2.5 px-7 py-3 transition-transform hover:scale-[1.03]"
+            style={{ background: 'transparent', color: '#e89660', border: '1px solid rgba(232,150,96,0.4)' }}
+          >
+            <FileText className="w-4 h-4" />
+            <span className="mono text-[0.72rem] uppercase tracking-[0.28em]">Publish research</span>
+          </a>
+        </div>
         {/* Action buttons — flat mono tiles matching landing */}
         <div className="flex flex-wrap items-center justify-center gap-2 mt-6">
           {[
@@ -1918,28 +2057,11 @@ export default function WalletPage() {
           })}
         </div>
 
-        {/* Follower/Following — socket-pushed counts override profileData when available */}
-        {profileData?.success && (
-          <div className="flex items-center justify-center gap-8 mt-6">
-            <a href={`/profile/${primaryWallet.address}/followers`} className="text-center transition-opacity hover:opacity-70">
-              <div className="serif text-[1.4rem] leading-none"
-                style={{ color: '#f4eee4', fontVariationSettings: "'SOFT' 50, 'opsz' 48" }}>
-                {realtimeUserStats?.followerCount ?? profileData.data.followerCount ?? 0}
-              </div>
-              <div className="mono text-[0.56rem] uppercase tracking-[0.28em] mt-1" style={{ color: '#8a7f72' }}>Followers</div>
-            </a>
-            <span className="w-px h-8" style={{ background: 'rgba(244,238,228,0.08)' }} />
-            <a href={`/profile/${primaryWallet.address}/following`} className="text-center transition-opacity hover:opacity-70">
-              <div className="serif text-[1.4rem] leading-none"
-                style={{ color: '#f4eee4', fontVariationSettings: "'SOFT' 50, 'opsz' 48" }}>
-                {realtimeUserStats?.followingCount ?? profileData.data.followingCount ?? 0}
-              </div>
-              <div className="mono text-[0.56rem] uppercase tracking-[0.28em] mt-1" style={{ color: '#8a7f72' }}>Following</div>
-            </a>
-          </div>
-        )}
+        </div>
       </div>
 
+        {/* funds: balance-dependent content + holdings + harvest (Overview only) */}
+        <div style={{ display: section === 'overview' ? undefined : 'none' }}>
       {/* First-time user onboarding banner - shows when balance is 0 */}
       {solBalance === 0 && usdcBalance === 0 && !balanceLoading && (
         <FirstTimeUserBanner
@@ -2417,6 +2539,10 @@ export default function WalletPage() {
           </div>
         </div>
       )}
+        </div>
+          </div>
+          {/* Portfolio section */}
+          <div style={{ display: section === 'portfolio' ? undefined : 'none' }}>
 
       {/* ─── Portfolio — Growing / Bloomed / Watching ─── */}
       <div className="max-w-4xl mx-auto space-y-6 mt-12">
@@ -2426,6 +2552,7 @@ export default function WalletPage() {
             { value: 'predictions' as const, label: 'Growing', Icon: TreeIcon, count: positionsData?.data?.all?.length || 0 },
             { value: 'projects' as const, label: 'Bloomed', Icon: BloomIcon, count: projectsData?.data?.projects?.length || 0 },
             { value: 'watchlist' as const, label: 'Watching', Icon: LeafIcon, count: profileData?.data?.favoriteMarkets?.length || 0 },
+            { value: 'papers' as const, label: 'Papers', Icon: FileText, count: authoredPapers.length },
           ].map((tab) => {
             const Icon = tab.Icon;
             const isActive = portfolioTab === tab.value;
@@ -2851,6 +2978,64 @@ export default function WalletPage() {
           )}
         </div>
         )}
+
+        {portfolioTab === 'papers' && (
+        <div className="space-y-4">
+          {authoredPapers.length > 0 ? (
+            <>
+              <div className="flex items-center justify-end">
+                <a
+                  href="/create?kind=research"
+                  className="mono uppercase tracking-[0.22em] text-[0.58rem] transition-colors"
+                  style={{ color: '#e89660' }}
+                >
+                  + Publish research
+                </a>
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                {authoredPapers.map((p: any) => (
+                  <ResearchPaperCard
+                    key={p.id}
+                    paper={{
+                      id: p.id,
+                      title: p.title,
+                      summary: p.summary,
+                      likeCount: p.likeCount,
+                      dislikeCount: p.dislikeCount,
+                      createdAt: p.createdAt,
+                    }}
+                  />
+                ))}
+              </div>
+            </>
+          ) : (
+            <div className="p-6 text-center py-12" style={{ background: 'rgba(244,238,228,0.02)', border: '1px solid rgba(244,238,228,0.08)' }}>
+              <FileText className="w-7 h-7 mx-auto mb-3" style={{ color: 'rgba(244,238,228,0.4)' }} />
+              <p className="mono uppercase tracking-[0.24em] text-[0.6rem] mb-2" style={{ color: 'rgba(244,238,228,0.65)' }}>No papers yet</p>
+              <p className="italic mb-5" style={{ color: 'rgba(244,238,228,0.4)', fontFamily: 'var(--font-fraunces, serif)', fontStyle: 'italic', fontSize: '0.82rem' }}>
+                Publish research to ground your ideas in evidence.
+              </p>
+              <a
+                href="/create?kind=research"
+                className="inline-flex items-center gap-2 px-5 py-2.5 mono text-[0.62rem] uppercase tracking-[0.26em] transition-colors"
+                style={{ background: 'rgba(232,150,96,0.14)', color: '#e89660', border: '1px solid rgba(232,150,96,0.4)' }}
+              >
+                <FileText className="w-3.5 h-3.5" />
+                Publish research
+              </a>
+            </div>
+          )}
+        </div>
+        )}
+      </div>
+          </div>
+          {/* AI Keys section */}
+          {section === 'ai' && (
+            <div className="py-2">
+              <AiKeySettings />
+            </div>
+          )}
+        </div>
       </div>
 
       {/* Modals */}

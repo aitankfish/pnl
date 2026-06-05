@@ -8,7 +8,8 @@ import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { CheckCircle, XCircle, Loader2, ArrowLeft, ExternalLink, Users, Target, MapPin, Globe, Github, MessageCircle, Share2, Heart, FileText, Copy, Check, Sparkles, X, BarChart3 } from 'lucide-react';
+import { CheckCircle, XCircle, Loader2, ArrowLeft, ExternalLink, Users, Target, MapPin, Globe, Github, MessageCircle, Share2, Heart, FileText, Copy, Check, Sparkles, X, BarChart3, Pencil } from 'lucide-react';
+import { MarketMediaEditModal } from '@/components/market/MarketMediaEditModal';
 import Link from 'next/link';
 import { FEES, SOLANA_NETWORK } from '@/config/solana';
 import { useVoting } from '@/lib/hooks/useVoting';
@@ -596,6 +597,17 @@ export default function MarketDetailClient({
     const hasToken = !!(market as any).tokenMint || !!(market as any).pumpFunTokenAddress;
     const isResolved = (market as any).resolution === 'YesWins';
     return isFounder && hasToken && isResolved;
+  }, [market, primaryWallet?.address]);
+
+  // Founder can (re-)upload media until the market resolves. Server enforces
+  // the real ownership + resolution gate; this just controls the button.
+  const [showMediaEdit, setShowMediaEdit] = useState(false);
+  const canEditMedia = useMemo(() => {
+    if (!market || !primaryWallet?.address) return false;
+    const isFounder = market.founderWallet === primaryWallet.address;
+    const resolution = (market as any).resolution;
+    const notResolved = !resolution || resolution === 'Unresolved';
+    return isFounder && notResolved && market.status === 'active';
   }, [market, primaryWallet?.address]);
 
   // Fetch vesting data only when needed (founders only, after token launch)
@@ -1718,6 +1730,20 @@ export default function MarketDetailClient({
                           </span>
                         )}
                       </button>
+                      {/* Founder-only: edit media before resolution */}
+                      {canEditMedia && (
+                        <button
+                          onClick={() => setShowMediaEdit(true)}
+                          className="mono uppercase tracking-[0.18em] text-[0.55rem] px-2 py-1 inline-flex items-center gap-1.5 transition-colors"
+                          style={{ color: AMBER, border: `1px solid ${AMBER}55`, background: `${AMBER}0d` }}
+                          onMouseEnter={(e) => (e.currentTarget.style.background = `${AMBER}1f`)}
+                          onMouseLeave={(e) => (e.currentTarget.style.background = `${AMBER}0d`)}
+                          title="Edit media (founder only)"
+                        >
+                          <Pencil className="w-2.5 h-2.5" />
+                          <span style={{ textTransform: 'none', letterSpacing: 'normal' }}>Edit media</span>
+                        </button>
+                      )}
                       {/* Copyable Contract Address — only when token is minted */}
                       {mergedOnchainData?.success && mergedOnchainData.data.tokenMint && (
                         <button
@@ -3770,6 +3796,20 @@ export default function MarketDetailClient({
         isVisible={isResolving}
         tokenSymbol={market?.tokenSymbol}
       />
+
+      {/* Founder-only media editor (pre-resolution) */}
+      {showMediaEdit && market && (
+        <MarketMediaEditModal
+          marketId={params.id as string}
+          current={{
+            projectImageUrl: market.projectImageUrl,
+            pitchVideoUrl: (market as any).pitchVideoUrl,
+            documentUrls: market.documentUrls,
+          }}
+          onClose={() => setShowMediaEdit(false)}
+          onUpdated={() => fetchMarketDetails(params.id as string)}
+        />
+      )}
     </>
   );
 }

@@ -192,7 +192,10 @@ export default function CreatePage() {
   // (paper detail page / publish celebration). We pre-attach it as the thesis.
   const linkedPaperId = searchParams?.get('linkedPaper') ?? null;
   const { showToast } = useToast();
-  const [kind, setKind] = useState<'project' | 'research'>('project');
+  // ?kind=research deep-links straight to the research-paper form (from the
+  // "Publish research" CTAs on the wallet/profile). Defaults to 'project'.
+  const initialKind = searchParams?.get('kind') === 'research' ? 'research' : 'project';
+  const [kind, setKind] = useState<'project' | 'research'>(initialKind);
   const [formData, setFormData] = useState<ProjectFormData>(initialFormData);
   // Draft prefill state — set once on mount when ?draft=<id> is present.
   // Lets us show a small "pre-filled from agent draft" badge in the UI

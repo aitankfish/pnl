@@ -19,10 +19,12 @@ import {
   TrendingUp,
   Trophy,
   XCircle,
+  FileText,
 } from 'lucide-react';
 import useSWR from 'swr';
 import Link from 'next/link';
 import { useUserSocket } from '@/lib/hooks/useSocket';
+import { ResearchPaperCard } from '@/components/research/ResearchPaperCard';
 
 const fetcher = (url: string) => fetch(url).then((res) => res.json());
 
@@ -62,6 +64,15 @@ export default function PublicProfilePage() {
     fetcher,
     { refreshInterval: 30000 }
   );
+
+  // Research papers authored by this wallet. The author endpoint 404s with
+  // { success:false } when there are none — rendered as "no section" below.
+  const { data: papersData } = useSWR(
+    profileWallet ? `/api/research/author/${profileWallet}` : null,
+    fetcher,
+    { refreshInterval: 0 }
+  );
+  const authoredPapers = papersData?.success ? (papersData.data?.papers ?? []) : [];
 
   // Fetch follow status
   const { data: followStatusData, mutate: mutateFollowStatus } = useSWR(
@@ -641,6 +652,32 @@ export default function PublicProfilePage() {
             </Card>
           )}
         </div>
+
+        {/* Research Section — only shown when this wallet has published papers */}
+        {authoredPapers.length > 0 && (
+          <div className="space-y-4 mt-8">
+            <div className="flex items-center space-x-2 px-2 sm:px-0">
+              <FileText className="w-5 h-5 text-amber-400" />
+              <h3 className="text-lg sm:text-xl font-semibold text-white">Research</h3>
+              <span className="text-sm text-gray-400">({authoredPapers.length})</span>
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {authoredPapers.map((p: any) => (
+                <ResearchPaperCard
+                  key={p.id}
+                  paper={{
+                    id: p.id,
+                    title: p.title,
+                    summary: p.summary,
+                    likeCount: p.likeCount,
+                    dislikeCount: p.dislikeCount,
+                    createdAt: p.createdAt,
+                  }}
+                />
+              ))}
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );
