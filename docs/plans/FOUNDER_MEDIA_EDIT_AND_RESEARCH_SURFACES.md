@@ -1,6 +1,14 @@
 # Founder Media Edit + Research Surfaces — Build Plan
 
-Branch: `feat/remote-mcp` · Status: planned (2026-06-04)
+Branch: `feat/remote-mcp` · Status: SHIPPED (2026-06-04)
+
+- Feature B — research surfaces: commit `f2b3e62`.
+- Feature A — founder media edit: commit `2340c1b`.
+- Pool-not-updating fix (precursor): commit `bbc7127`.
+
+Both type-check clean (`tsc --noEmit`). Not yet smoke-tested against a live
+dev:unified server — verify the founder edit flow + Papers tab end-to-end
+before merging to `2026`.
 
 Two self-contained, off-chain features. No `plp_program/` / IDL / PDA / fee
 changes. Both read/write MongoDB + IPFS/Cloudflare only.
