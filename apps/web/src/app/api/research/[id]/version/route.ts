@@ -21,6 +21,8 @@ import { connectToDatabase, ResearchPaper } from '@/lib/mongodb';
 import { withAuth } from '@/lib/auth/require-wallet';
 import { checkRateLimit } from '@/lib/auth/rate-limit';
 import { createClientLogger } from '@/lib/logger';
+import { normalizeDoi } from '@/lib/doi';
+import { safeExternalUrl } from '@/lib/safe-url';
 
 const logger = createClientLogger();
 
@@ -53,18 +55,22 @@ export const POST = withAuth(async (request, authUser, { params }: any) => {
     const titleRaw = (formData.get('title') as string | null)?.trim();
     const summaryRaw = (formData.get('summary') as string | null)?.trim();
     const githubUrlRaw = (formData.get('githubUrl') as string | null)?.trim();
+    const doiRaw = (formData.get('doi') as string | null)?.trim();
+    const externalUrlRaw = (formData.get('externalUrl') as string | null)?.trim();
     const changelog = (formData.get('changelog') as string | null)?.trim() || '';
 
     if (!changelog) return badRequest('A short changelog message is required');
     if (changelog.length > 500) return badRequest('Changelog is too long (max 500)');
-    if (!paperFile || paperFile.size === 0) {
-      return badRequest('A PDF is required');
-    }
-    if (paperFile.size > MAX_PDF_SIZE) {
-      return badRequest(`PDF too large (max ${MAX_PDF_SIZE / 1024 / 1024}MB)`);
-    }
-    if (!ALLOWED_PDF_TYPES.includes(paperFile.type)) {
-      return badRequest('Only PDF files are accepted');
+    // PDF is now optional — a DOI-first paper revises without re-uploading. If a
+    // file IS attached, it still has to be a valid PDF within the size cap.
+    const hasPdf = !!paperFile && paperFile.size > 0;
+    if (hasPdf) {
+      if (paperFile!.size > MAX_PDF_SIZE) {
+        return badRequest(`PDF too large (max ${MAX_PDF_SIZE / 1024 / 1024}MB)`);
+      }
+      if (!ALLOWED_PDF_TYPES.includes(paperFile!.type)) {
+        return badRequest('Only PDF files are accepted');
+      }
     }
 
     let githubUrl: string | undefined;
@@ -92,13 +98,39 @@ export const POST = withAuth(async (request, authUser, { params }: any) => {
       );
     }
 
-    logger.info('[research/version] uploading new version PDF', {
-      paperId: id,
-      filename: paperFile.name,
-      size: paperFile.size,
-    });
+    // Published-paper provenance. Omitted field → preserve current; explicit
+    // empty string → clear; value → set (DOI normalized, link sanitized).
+    let doi: string | undefined = paper.doi || undefined;
+    if (doiRaw === '') {
+      doi = undefined;
+    } else if (doiRaw) {
+      const normalized = normalizeDoi(doiRaw);
+      if (!normalized) return badRequest('That DOI doesn’t look valid');
+      doi = normalized.doi;
+    }
+    let externalUrl: string | undefined = paper.externalUrl || undefined;
+    if (externalUrlRaw === '') {
+      externalUrl = undefined;
+    } else if (externalUrlRaw) {
+      const safe = safeExternalUrl(externalUrlRaw);
+      if (!safe) return badRequest('Published link must be a valid http(s) URL');
+      externalUrl = safe;
+    }
 
-    const newPaperUrl = await ipfsUtils.uploadDocument(paperFile);
+    // Keep the prior PDF if no new one is attached (DOI-first papers revise
+    // metadata without re-uploading). A revision must still leave a body behind.
+    let newPaperUrl: string | undefined = paper.paperUrl || undefined;
+    if (hasPdf) {
+      logger.info('[research/version] uploading new version PDF', {
+        paperId: id,
+        filename: paperFile!.name,
+        size: paperFile!.size,
+      });
+      newPaperUrl = await ipfsUtils.uploadDocument(paperFile!);
+    }
+    if (!newPaperUrl && !doi && !externalUrl) {
+      return badRequest('A revision needs a PDF or a DOI / published link');
+    }
 
     const nextVersion = (paper.currentVersion || 1) + 1;
     const now = new Date();
@@ -122,6 +154,8 @@ export const POST = withAuth(async (request, authUser, { params }: any) => {
         title: paper.title,
         summary: paper.summary,
         githubUrl: paper.githubUrl,
+        doi: paper.doi,
+        externalUrl: paper.externalUrl,
         changelog: 'First published',
         createdAt: paper.createdAt || now,
       } as any);
@@ -133,6 +167,8 @@ export const POST = withAuth(async (request, authUser, { params }: any) => {
       title,
       summary,
       githubUrl,
+      doi,
+      externalUrl,
       changelog,
       createdAt: now,
     } as any);
@@ -140,6 +176,8 @@ export const POST = withAuth(async (request, authUser, { params }: any) => {
     paper.title = title;
     paper.summary = summary;
     paper.githubUrl = githubUrl;
+    paper.doi = doi;
+    paper.externalUrl = externalUrl;
     paper.paperUrl = newPaperUrl;
     paper.updatedAt = now;
     await paper.save();

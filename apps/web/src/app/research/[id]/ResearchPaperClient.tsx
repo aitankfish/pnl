@@ -20,10 +20,12 @@ const logger = createClientLogger();
 
 interface PaperVersion {
   version: number;
-  paperUrl: string;
+  paperUrl: string | null;
   title: string;
   summary: string | null;
   githubUrl: string | null;
+  doi: string | null;
+  externalUrl: string | null;
   changelog: string | null;
   createdAt: string;
 }
@@ -34,9 +36,11 @@ interface Paper {
   authorName: string;
   authorXHandle: string | null;
   authorWallet: string;
-  paperUrl: string;
+  paperUrl: string | null;
   summary: string | null;
   githubUrl: string | null;
+  doi: string | null;
+  externalUrl: string | null;
   likeCount: number;
   dislikeCount: number;
   createdAt: string;
@@ -95,6 +99,12 @@ export function ResearchPaperClient({ paper }: { paper: Paper }) {
     null;
   const isCurrent = viewedVersion === paper.currentVersion;
   const displayPaperUrl = activeVersion?.paperUrl || paper.paperUrl;
+  // Published-paper provenance for the active version (falls back to the
+  // paper's current values). When there's no embeddable PDF, these drive a
+  // link-out card so a DOI-first paper still reads as a real document.
+  const displayDoi = activeVersion?.doi || paper.doi;
+  const displayExternalUrl = activeVersion?.externalUrl || paper.externalUrl;
+  const hasEmbed = !!displayPaperUrl;
 
   // Focus-mode state. We portal four frosted "tiles" to document.body that
   // surround the paper's bounding rect, leaving a paper-shaped hole. Doing
@@ -283,18 +293,49 @@ export function ResearchPaperClient({ paper }: { paper: Paper }) {
               code
             </Link>
           )}
-          <a
-            href={paper.paperUrl}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="inline-flex items-center gap-2 mono uppercase tracking-[0.22em] text-[0.6rem] transition-colors"
-            style={{ color: CREAM_DIM }}
-            onMouseEnter={(e) => (e.currentTarget.style.color = CREAM)}
-            onMouseLeave={(e) => (e.currentTarget.style.color = CREAM_DIM)}
-          >
-            open pdf
-            <ExternalLink className="w-3.5 h-3.5" />
-          </a>
+          {displayDoi && (
+            <a
+              href={`https://doi.org/${displayDoi}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-2 mono uppercase tracking-[0.22em] text-[0.6rem] transition-colors"
+              style={{ color: CREAM_DIM }}
+              onMouseEnter={(e) => (e.currentTarget.style.color = CREAM)}
+              onMouseLeave={(e) => (e.currentTarget.style.color = CREAM_DIM)}
+              title={`DOI ${displayDoi}`}
+            >
+              doi
+              <ExternalLink className="w-3.5 h-3.5" />
+            </a>
+          )}
+          {displayExternalUrl && !displayDoi && (
+            <a
+              href={displayExternalUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-2 mono uppercase tracking-[0.22em] text-[0.6rem] transition-colors"
+              style={{ color: CREAM_DIM }}
+              onMouseEnter={(e) => (e.currentTarget.style.color = CREAM)}
+              onMouseLeave={(e) => (e.currentTarget.style.color = CREAM_DIM)}
+            >
+              published
+              <ExternalLink className="w-3.5 h-3.5" />
+            </a>
+          )}
+          {displayPaperUrl && (
+            <a
+              href={displayPaperUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-2 mono uppercase tracking-[0.22em] text-[0.6rem] transition-colors"
+              style={{ color: CREAM_DIM }}
+              onMouseEnter={(e) => (e.currentTarget.style.color = CREAM)}
+              onMouseLeave={(e) => (e.currentTarget.style.color = CREAM_DIM)}
+            >
+              open pdf
+              <ExternalLink className="w-3.5 h-3.5" />
+            </a>
+          )}
           {/* Funnel: turn this paper into a market, pre-linked as the thesis. */}
           <Link
             href={`/create?linkedPaper=${paper.id}`}
@@ -350,40 +391,48 @@ export function ResearchPaperClient({ paper }: { paper: Paper }) {
         {/* PDF embed — the paper itself. Mouse enter/leave drives focus mode:
             a frosted overlay drops over the page and the paper lifts above it
             so only the document is in focus. */}
-        <div
-          ref={paperRef}
-          className="w-full pnl-paper"
-          onMouseEnter={() => setReading(true)}
-          onMouseLeave={() => setReading(false)}
-          style={{
-            background: '#fff',
-            height: 'min(85vh, 1100px)',
-            position: 'relative',
-            transform: reading ? 'scale(1.015)' : 'scale(1)',
-            boxShadow: reading
-              ? '0 40px 100px rgba(0,0,0,0.75), 0 0 0 1px rgba(244,238,228,0.08)'
-              : '0 18px 40px rgba(0,0,0,0.35)',
-            transition:
-              'transform 750ms cubic-bezier(0.4, 0, 0.2, 1), box-shadow 750ms cubic-bezier(0.4, 0, 0.2, 1)',
-          }}
-        >
-          <iframe
-            src={`${displayPaperUrl}#view=FitH&zoom=page-width&toolbar=1&navpanes=0`}
-            title={paper.title}
-            className="w-full h-full block"
-            style={{
-              border: 'none',
-              filter: iframeFilter,
-              transition: 'filter 200ms ease',
-            }}
-          />
-        </div>
-        <p
-          className="mt-3 mono uppercase tracking-[0.22em] text-[0.55rem] pnl-fade"
-          style={{ color: CREAM_FAINT }}
-        >
-          If the paper doesn’t render here, click <em style={{ fontStyle: 'italic' }}>open pdf</em> above.
-        </p>
+        {hasEmbed ? (
+          <>
+            <div
+              ref={paperRef}
+              className="w-full pnl-paper"
+              onMouseEnter={() => setReading(true)}
+              onMouseLeave={() => setReading(false)}
+              style={{
+                background: '#fff',
+                height: 'min(85vh, 1100px)',
+                position: 'relative',
+                transform: reading ? 'scale(1.015)' : 'scale(1)',
+                boxShadow: reading
+                  ? '0 40px 100px rgba(0,0,0,0.75), 0 0 0 1px rgba(244,238,228,0.08)'
+                  : '0 18px 40px rgba(0,0,0,0.35)',
+                transition:
+                  'transform 750ms cubic-bezier(0.4, 0, 0.2, 1), box-shadow 750ms cubic-bezier(0.4, 0, 0.2, 1)',
+              }}
+            >
+              <iframe
+                src={`${displayPaperUrl}#view=FitH&zoom=page-width&toolbar=1&navpanes=0`}
+                title={paper.title}
+                className="w-full h-full block"
+                style={{
+                  border: 'none',
+                  filter: iframeFilter,
+                  transition: 'filter 200ms ease',
+                }}
+              />
+            </div>
+            <p
+              className="mt-3 mono uppercase tracking-[0.22em] text-[0.55rem] pnl-fade"
+              style={{ color: CREAM_FAINT }}
+            >
+              If the paper doesn’t render here, click <em style={{ fontStyle: 'italic' }}>open pdf</em> above.
+            </p>
+          </>
+        ) : (
+          /* DOI-first paper with no embeddable PDF — a card that links to the
+             canonical published version instead of an empty frame. */
+          <PublishedSourceCard doi={displayDoi} externalUrl={displayExternalUrl} />
+        )}
 
         {/* Byline + reactions + summary, below the paper */}
         <header className="mt-12 sm:mt-16 pnl-fade">
@@ -493,6 +542,9 @@ export function ResearchPaperClient({ paper }: { paper: Paper }) {
           currentTitle={paper.title}
           currentSummary={paper.summary}
           currentGithubUrl={paper.githubUrl}
+          currentDoi={paper.doi}
+          currentExternalUrl={paper.externalUrl}
+          pdfRequired={!paper.doi && !paper.externalUrl}
           onClose={() => setEditSheetOpen(false)}
           onPublished={() => {
             setEditSheetOpen(false);
@@ -802,11 +854,71 @@ function VersionPanel({
   );
 }
 
+// A DOI-first paper has no embeddable PDF. Instead of a blank frame, show a
+// card that sends the reader to the canonical published version.
+function PublishedSourceCard({
+  doi,
+  externalUrl,
+}: {
+  doi: string | null;
+  externalUrl: string | null;
+}) {
+  const href = doi ? `https://doi.org/${doi}` : externalUrl || '#';
+  return (
+    <a
+      href={href}
+      target="_blank"
+      rel="noopener noreferrer"
+      className="block w-full pnl-fade transition-colors"
+      style={{
+        border: `1px solid ${HAIR_STRONG}`,
+        background: 'rgba(244,238,228,0.025)',
+        padding: '2.5rem 2rem',
+        textAlign: 'center',
+      }}
+      onMouseEnter={(e) => (e.currentTarget.style.borderColor = `${AMBER}66`)}
+      onMouseLeave={(e) => (e.currentTarget.style.borderColor = HAIR_STRONG)}
+    >
+      <p
+        className="mono uppercase tracking-[0.28em] text-[0.55rem] mb-3"
+        style={{ color: AMBER }}
+      >
+        Published source
+      </p>
+      <p
+        className="mb-1"
+        style={{
+          color: CREAM,
+          fontFamily: 'var(--font-fraunces, serif)',
+          fontSize: '1.25rem',
+        }}
+      >
+        Read the paper at its published home
+      </p>
+      {doi && (
+        <p className="mono text-[0.7rem] mb-4" style={{ color: CREAM_DIM }}>
+          DOI {doi}
+        </p>
+      )}
+      <span
+        className="inline-flex items-center gap-2 mono uppercase tracking-[0.24em] text-[0.6rem] px-5 py-2.5 mt-2"
+        style={{ background: AMBER, color: BG }}
+      >
+        Open published version
+        <ExternalLink className="w-3.5 h-3.5" />
+      </span>
+    </a>
+  );
+}
+
 function EditPaperSheet({
   paperId,
   currentTitle,
   currentSummary,
   currentGithubUrl,
+  currentDoi,
+  currentExternalUrl,
+  pdfRequired,
   onClose,
   onPublished,
 }: {
@@ -814,12 +926,17 @@ function EditPaperSheet({
   currentTitle: string;
   currentSummary: string | null;
   currentGithubUrl: string | null;
+  currentDoi: string | null;
+  currentExternalUrl: string | null;
+  pdfRequired: boolean;
   onClose: () => void;
   onPublished: () => void;
 }) {
   const [title, setTitle] = useState(currentTitle);
   const [summary, setSummary] = useState(currentSummary || '');
   const [githubUrl, setGithubUrl] = useState(currentGithubUrl || '');
+  const [doi, setDoi] = useState(currentDoi || '');
+  const [externalUrl, setExternalUrl] = useState(currentExternalUrl || '');
   const [paper, setPaper] = useState<File | null>(null);
   const [changelog, setChangelog] = useState('');
   const [submitting, setSubmitting] = useState(false);
@@ -827,15 +944,18 @@ function EditPaperSheet({
 
   const submit = async () => {
     setError(null);
-    if (!paper) {
-      setError('Drop the new PDF.');
+    // A PDF is only required when the paper has no published-source link to
+    // stand in for it. With a DOI/external URL, revising metadata is enough.
+    const willHaveSource = !!doi.trim() || !!externalUrl.trim();
+    if (!paper && pdfRequired && !willHaveSource) {
+      setError('Drop the new PDF, or add a DOI / published link.');
       return;
     }
-    if (paper.type !== 'application/pdf') {
+    if (paper && paper.type !== 'application/pdf') {
       setError('Only PDF files are accepted.');
       return;
     }
-    if (paper.size > 25 * 1024 * 1024) {
+    if (paper && paper.size > 25 * 1024 * 1024) {
       setError('PDF must be 25MB or smaller.');
       return;
     }
@@ -851,11 +971,14 @@ function EditPaperSheet({
     setSubmitting(true);
     try {
       const fd = new FormData();
-      fd.append('paper', paper);
+      if (paper) fd.append('paper', paper);
       fd.append('changelog', changelog.trim());
       if (title.trim() && title.trim() !== currentTitle) fd.append('title', title.trim());
       if (summary.trim() !== (currentSummary || '')) fd.append('summary', summary.trim());
       if (githubUrl.trim() !== (currentGithubUrl || '')) fd.append('githubUrl', githubUrl.trim());
+      // Always send doi/externalUrl so the route preserves vs clears explicitly.
+      fd.append('doi', doi.trim());
+      fd.append('externalUrl', externalUrl.trim());
 
       const res = await authFetch(`/api/research/${paperId}/version`, {
         method: 'POST',
@@ -927,8 +1050,38 @@ function EditPaperSheet({
               </p>
             </SheetField>
 
-            <SheetField label="New PDF" required>
+            <SheetField label={pdfRequired ? 'New PDF' : 'New PDF (optional)'} required={pdfRequired}>
               <SheetPdfDrop file={paper} onFile={setPaper} />
+              {!pdfRequired && (
+                <p
+                  className="mt-1 mono uppercase tracking-[0.2em] text-[0.5rem]"
+                  style={{ color: CREAM_FAINT }}
+                >
+                  This paper is published-source-first — leave blank to keep it that way.
+                </p>
+              )}
+            </SheetField>
+
+            <SheetField label="DOI">
+              <input
+                type="text"
+                value={doi}
+                onChange={(e) => setDoi(e.target.value)}
+                placeholder="10.5281/zenodo.… (or leave blank to clear)"
+                className="w-full px-3 py-2.5"
+                style={sheetInputStyle}
+              />
+            </SheetField>
+
+            <SheetField label="Published URL">
+              <input
+                type="text"
+                value={externalUrl}
+                onChange={(e) => setExternalUrl(e.target.value)}
+                placeholder="https://zenodo.org/records/… (or leave blank to clear)"
+                className="w-full px-3 py-2.5"
+                style={sheetInputStyle}
+              />
             </SheetField>
 
             <SheetField label="Title">

@@ -58,6 +58,8 @@ export default async function ResearchPaperPage({ params }: PageProps) {
             title: paper.title,
             summary: paper.summary,
             githubUrl: paper.githubUrl,
+            doi: paper.doi,
+            externalUrl: paper.externalUrl,
             changelog: 'First published',
             createdAt: paper.createdAt,
           },
@@ -70,9 +72,11 @@ export default async function ResearchPaperPage({ params }: PageProps) {
         authorName: paper.authorName,
         authorXHandle: paper.authorXHandle || null,
         authorWallet: paper.authorWallet,
-        paperUrl,
+        paperUrl: paper.paperUrl ? paperUrl : null,
         summary: paper.summary || null,
         githubUrl: paper.githubUrl || null,
+        doi: paper.doi || null,
+        externalUrl: paper.externalUrl || null,
         likeCount: paper.likeCount || 0,
         dislikeCount: paper.dislikeCount || 0,
         createdAt:
@@ -82,10 +86,12 @@ export default async function ResearchPaperPage({ params }: PageProps) {
         currentVersion: paper.currentVersion || 1,
         versions: versions.map((v: any) => ({
           version: v.version,
-          paperUrl: convertToGatewayUrl(v.paperUrl) || v.paperUrl,
+          paperUrl: v.paperUrl ? convertToGatewayUrl(v.paperUrl) || v.paperUrl : null,
           title: v.title,
           summary: v.summary || null,
           githubUrl: v.githubUrl || null,
+          doi: v.doi || null,
+          externalUrl: v.externalUrl || null,
           changelog: v.changelog || null,
           createdAt:
             v.createdAt instanceof Date

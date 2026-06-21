@@ -764,10 +764,15 @@ MessageReactionSchema.index({ messageId: 1, walletAddress: 1, emoji: 1 }, { uniq
 const ResearchPaperVersionSchema = new mongoose.Schema(
   {
     version: { type: Number, required: true },
-    paperUrl: { type: String, required: true },
+    // Optional once a paper can be published DOI-first (canonical PDF lives on
+    // the publisher, e.g. Zenodo) rather than uploaded to IPFS.
+    paperUrl: { type: String },
     title: { type: String, required: true, maxlength: 255 },
     summary: { type: String, maxlength: 500 },
     githubUrl: { type: String, maxlength: 500 },
+    // Published-paper provenance: bare DOI + canonical landing/published URL.
+    doi: { type: String, maxlength: 200 },
+    externalUrl: { type: String, maxlength: 500 },
     changelog: { type: String, maxlength: 500 },
     createdAt: { type: Date, default: Date.now },
   },
@@ -795,15 +800,25 @@ const ResearchPaperSchema = new mongoose.Schema({
     type: String,
     maxlength: 30,
   },
+  // Optional: a paper can be published DOI-first with no uploaded PDF.
   paperUrl: {
     type: String,
-    required: true,
   },
   summary: {
     type: String,
     maxlength: 500,
   },
   githubUrl: {
+    type: String,
+    maxlength: 500,
+  },
+  // Published-paper provenance (e.g. a Zenodo/DataCite/Crossref DOI). `doi` is
+  // the bare identifier; `externalUrl` is the canonical landing/published page.
+  doi: {
+    type: String,
+    maxlength: 200,
+  },
+  externalUrl: {
     type: String,
     maxlength: 500,
   },
@@ -1108,10 +1123,12 @@ export interface IMessageReaction {
 
 export interface IResearchPaperVersion {
   version: number;
-  paperUrl: string;
+  paperUrl?: string;
   title: string;
   summary?: string;
   githubUrl?: string;
+  doi?: string;
+  externalUrl?: string;
   changelog?: string;
   createdAt: Date;
 }
@@ -1122,9 +1139,11 @@ export interface IResearchPaper {
   title: string;
   authorName: string;
   authorXHandle?: string;
-  paperUrl: string;
+  paperUrl?: string;
   summary?: string;
   githubUrl?: string;
+  doi?: string;
+  externalUrl?: string;
   versions: IResearchPaperVersion[];
   currentVersion: number;
   likeCount: number;
