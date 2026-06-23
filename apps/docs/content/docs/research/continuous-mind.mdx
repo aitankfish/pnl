@@ -1,0 +1,45 @@
+---
+title: "The Continuous Mind"
+description: "A personal AI that keeps its own recurrent state as memory instead of rebuilding from scratch — preliminary single-GPU evidence and a reproducible probe suite."
+---
+
+**Inference-Paradigm Selection by Operator Slack Profile** · Bishwanath Bastola, Independent Researcher · Preprint, June 2026 · CC-BY 4.0
+
+[**Read on Zenodo (DOI: 10.5281/zenodo.20806280)**](https://doi.org/10.5281/zenodo.20806280) · [Download PDF](/research/continuous-mind-bastola-2026.pdf)
+
+---
+
+Most LLMs today are *stateless*: every request spins the model up cold and rebuilds
+its "memory" from scratch. This preprint argues that's an **assumption, not a law** —
+and that for a personal, always-on AI you can do better by keeping the model resident
+and letting its own internal state *be* the memory.
+
+The core is a simple selection principle: every way of running a model only *moves*
+its cost somewhere, so the right design is the one whose leftover cost lands where you
+already have slack — and a personal machine that's on anyway has idle compute to spare.
+
+## What the experiments show (single consumer GPU, ≤1.5B)
+
+- **Memory for almost free.** A recurrent model's fixed ~8&nbsp;MB state recalls a fact
+  buried thousands of tokens back about as well as a full-context Transformer — with
+  **no statistically significant recall difference** (n=10, 95% CI) — at **13–26× less
+  memory than even a quantized KV cache**, a gap that grows with context. A same-size
+  sliding window, by contrast, forgets entirely once the context outgrows it.
+
+![Recall vs resume-memory: the recurrent state matches full-context recall at 13–26× less memory than quantized KV; equal-footprint windows collapse to amnesia.](/research/continuous-mind-pareto.png)
+
+- **A real but finite memory.** The state holds strongly to ~4k tokens and fades by 8k —
+  a genuine *lossy long-range* memory, not unbounded; we say so plainly.
+
+- **Thinking while idle works — with guardrails.** Idle gradient steps move a new fact
+  into the model's weights (closing ~78% of the gap to having it in context), but naive
+  fine-tuning then catastrophically forgets — which is exactly why the right approach
+  uses low-rank updates, a low learning rate, an eval-gate, and rehearsal.
+
+## What it is, honestly
+
+This is an early-stage **position paper with preliminary evidence**, not a finished
+system. It states what it does and does not prove, distinguishes itself from concurrent
+work, and ships the full probe suite and data so anyone can reproduce or refute it.
+
+[Read the full paper →](https://doi.org/10.5281/zenodo.20806280)
