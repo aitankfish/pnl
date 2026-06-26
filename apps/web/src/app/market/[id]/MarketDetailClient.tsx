@@ -1471,7 +1471,7 @@ export default function MarketDetailClient({
       )}
 
       <div
-        className="pt-0.5 px-3 pb-3 sm:p-4 max-w-[1600px] mx-auto"
+        className="pt-0.5 px-3 pb-24 sm:px-4 sm:pt-4 lg:pb-4 max-w-[1600px] mx-auto"
         onTouchStart={onTouchStart}
         onTouchMove={onTouchMove}
         onTouchEnd={onTouchEnd}
@@ -2188,7 +2188,7 @@ export default function MarketDetailClient({
 
         {/* Conviction rail — vote + on-chain. Sticky on desktop (30% column);
             stacks full-width on mobile so voting is never hidden. */}
-        <div className="w-full lg:w-[30%] lg:min-w-[320px] lg:max-w-[400px]">
+        <div id="conviction-rail" className="w-full lg:w-[30%] lg:min-w-[320px] lg:max-w-[400px] scroll-mt-24">
           <div className="space-y-4 lg:sticky lg:top-20 lg:self-start">
           {/* Trading Section — cosmic-plant ─────────────────────────── */}
           {!isTokenLaunched && (
@@ -3811,6 +3811,56 @@ export default function MarketDetailClient({
           onClose={() => setShowMediaEdit(false)}
           onUpdated={() => fetchMarketDetails(params.id as string)}
         />
+      )}
+
+      {/* Mobile sticky vote bar — the conviction rail stacks at the bottom on
+          mobile, so this keeps a one-tap path to it. It does NOT duplicate the
+          trade logic: it pre-selects a side and smooth-scrolls to the panel
+          where the user confirms the amount and signs. lg:hidden = desktop uses
+          the always-visible sticky rail instead. */}
+      {!isTokenLaunched && mergedOnchainData?.data?.resolution === 'Unresolved' && (
+        <div
+          className="lg:hidden fixed bottom-0 left-0 right-0 z-40 px-3 py-2.5 flex items-center gap-2"
+          style={{
+            background: 'rgba(10,8,20,0.92)',
+            backdropFilter: 'blur(12px)',
+            borderTop: `1px solid ${HAIR_STRONG}`,
+          }}
+        >
+          <div className="flex flex-col leading-tight mr-1 shrink-0">
+            <span
+              className="mono uppercase tracking-[0.2em] text-[0.45rem]"
+              style={{ color: CREAM_FAINT }}
+            >
+              Conviction
+            </span>
+            <span className="mono text-[0.72rem] tabular-nums" style={{ color: CREAM }}>
+              {yesPercentage}% YES
+            </span>
+          </div>
+          <button
+            type="button"
+            onClick={() => {
+              setSelectedSide('yes');
+              document.getElementById('conviction-rail')?.scrollIntoView({ behavior: 'smooth' });
+            }}
+            className="flex-1 mono uppercase tracking-[0.22em] text-[0.6rem] py-2.5"
+            style={{ background: FOREST, color: CREAM }}
+          >
+            Vote YES
+          </button>
+          <button
+            type="button"
+            onClick={() => {
+              setSelectedSide('no');
+              document.getElementById('conviction-rail')?.scrollIntoView({ behavior: 'smooth' });
+            }}
+            className="flex-1 mono uppercase tracking-[0.22em] text-[0.6rem] py-2.5"
+            style={{ background: EARTH, color: CREAM }}
+          >
+            Vote NO
+          </button>
+        </div>
       )}
     </>
   );
