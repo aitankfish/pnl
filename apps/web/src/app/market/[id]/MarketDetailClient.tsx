@@ -2056,8 +2056,8 @@ export default function MarketDetailClient({
           </div>
         )}
 
-        {/* Grok Analysis and Voting — side by side */}
-        <div className="grid gap-4 md:grid-cols-2">
+        {/* AI reading — full width now that conviction moved to the rail */}
+        <div className="space-y-4">
           {/* Deep Space Analysis */}
           <article
             className="p-4 sm:p-5"
@@ -2095,11 +2095,100 @@ export default function MarketDetailClient({
               }}
             />
           </article>
+        </div>
+        {/* End AI reading — conviction panel now lives in the right rail */}
 
-          {/* Right Column - Trading (when not launched) + Market Status (always) + Video/Offers (when launched).
-              Sticky + self-start so it doesn't stretch to the (often much taller) roast cell and instead
-              pins in view as you scroll the analysis — turning the old empty void into a persistent CTA.
-              top-20 clears the fixed navbar. */}
+        {/* Full Description — only when richer than the intro */}
+        {market.metadata?.description && market.metadata.description !== market.description && (
+          <article
+            className="p-5 sm:p-6"
+            style={{
+              background: 'rgba(244,238,228,0.025)',
+              border: `1px solid ${HAIR_STRONG}`,
+            }}
+          >
+            <p
+              className="mono uppercase tracking-[0.32em] text-[0.55rem] mb-3"
+              style={{ color: AMBER }}
+            >
+              ¶ The full story
+            </p>
+            <p
+              className="whitespace-pre-wrap leading-relaxed"
+              style={{
+                color: CREAM,
+                fontFamily: 'var(--font-fraunces, serif)',
+                fontSize: 'clamp(1rem, 1.4vw, 1.1rem)',
+                lineHeight: 1.6,
+              }}
+            >
+              {market.metadata.description}
+            </p>
+          </article>
+        )}
+
+        {/* Market Holders and Activity - Only show for resolved markets */}
+        {mergedOnchainData?.data?.resolution !== 'Unresolved' ? (
+          <div className="grid gap-3 sm:gap-4 md:grid-cols-2">
+            <LiveActivityFeed
+              trades={historyData?.data?.recentTrades || []}
+              className="w-full"
+            />
+            {holdersData?.success && (
+              <MarketHolders
+                yesHolders={holdersData.data.yesHolders || []}
+                noHolders={holdersData.data.noHolders || []}
+                totalYesStake={holdersData.data.totalYesStake || 0}
+                totalNoStake={holdersData.data.totalNoStake || 0}
+                uniqueHolders={holdersData.data.uniqueHolders || 0}
+                yesPercentage={market.yesPercentage ?? undefined}
+                noPercentage={market.noPercentage ?? undefined}
+                currentUserWallet={primaryWallet?.address}
+                className="w-full"
+              />
+            )}
+          </div>
+        ) : (
+          <article
+            className="py-12 px-6 text-center"
+            style={{
+              background: 'rgba(244,238,228,0.02)',
+              border: `1px solid ${HAIR}`,
+            }}
+          >
+            <SeedIcon className="w-9 h-9 mx-auto mb-4" />
+            <h3
+              className="mb-2"
+              style={{
+                color: CREAM,
+                fontFamily: 'var(--font-fraunces, serif)',
+                fontSize: '1.25rem',
+                fontWeight: 350,
+              }}
+            >
+              Voting in progress.
+            </h3>
+            <p
+              className="mx-auto max-w-md italic"
+              style={{
+                color: CREAM_DIM,
+                fontFamily: 'var(--font-fraunces, serif)',
+                fontStyle: 'italic',
+                fontSize: '0.9rem',
+              }}
+            >
+              Holder positions and activity stay hidden until close — to keep the
+              vote unbiased.
+            </p>
+          </article>
+        )}
+
+        </div>
+        {/* End Left Content Area */}
+
+        {/* Conviction rail — vote + on-chain. Sticky on desktop (30% column);
+            stacks full-width on mobile so voting is never hidden. */}
+        <div className="w-full lg:w-[30%] lg:min-w-[320px] lg:max-w-[400px]">
           <div className="space-y-4 lg:sticky lg:top-20 lg:self-start">
           {/* Trading Section — cosmic-plant ─────────────────────────── */}
           {!isTokenLaunched && (
@@ -3666,101 +3755,6 @@ export default function MarketDetailClient({
             </>
           )}
         </div>
-        {/* End Right Column */}
-        </div>
-        {/* End Grok Analysis grid */}
-
-        {/* Full Description — only when richer than the intro */}
-        {market.metadata?.description && market.metadata.description !== market.description && (
-          <article
-            className="p-5 sm:p-6"
-            style={{
-              background: 'rgba(244,238,228,0.025)',
-              border: `1px solid ${HAIR_STRONG}`,
-            }}
-          >
-            <p
-              className="mono uppercase tracking-[0.32em] text-[0.55rem] mb-3"
-              style={{ color: AMBER }}
-            >
-              ¶ The full story
-            </p>
-            <p
-              className="whitespace-pre-wrap leading-relaxed"
-              style={{
-                color: CREAM,
-                fontFamily: 'var(--font-fraunces, serif)',
-                fontSize: 'clamp(1rem, 1.4vw, 1.1rem)',
-                lineHeight: 1.6,
-              }}
-            >
-              {market.metadata.description}
-            </p>
-          </article>
-        )}
-
-        {/* Market Holders and Activity - Only show for resolved markets */}
-        {mergedOnchainData?.data?.resolution !== 'Unresolved' ? (
-          <div className="grid gap-3 sm:gap-4 md:grid-cols-2">
-            <LiveActivityFeed
-              trades={historyData?.data?.recentTrades || []}
-              className="w-full"
-            />
-            {holdersData?.success && (
-              <MarketHolders
-                yesHolders={holdersData.data.yesHolders || []}
-                noHolders={holdersData.data.noHolders || []}
-                totalYesStake={holdersData.data.totalYesStake || 0}
-                totalNoStake={holdersData.data.totalNoStake || 0}
-                uniqueHolders={holdersData.data.uniqueHolders || 0}
-                yesPercentage={market.yesPercentage ?? undefined}
-                noPercentage={market.noPercentage ?? undefined}
-                currentUserWallet={primaryWallet?.address}
-                className="w-full"
-              />
-            )}
-          </div>
-        ) : (
-          <article
-            className="py-12 px-6 text-center"
-            style={{
-              background: 'rgba(244,238,228,0.02)',
-              border: `1px solid ${HAIR}`,
-            }}
-          >
-            <SeedIcon className="w-9 h-9 mx-auto mb-4" />
-            <h3
-              className="mb-2"
-              style={{
-                color: CREAM,
-                fontFamily: 'var(--font-fraunces, serif)',
-                fontSize: '1.25rem',
-                fontWeight: 350,
-              }}
-            >
-              Voting in progress.
-            </h3>
-            <p
-              className="mx-auto max-w-md italic"
-              style={{
-                color: CREAM_DIM,
-                fontFamily: 'var(--font-fraunces, serif)',
-                fontStyle: 'italic',
-                fontSize: '0.9rem',
-              }}
-            >
-              Holder positions and activity stay hidden until close — to keep the
-              vote unbiased.
-            </p>
-          </article>
-        )}
-
-        </div>
-        {/* End Left Content Area */}
-
-        {/* Right Sidebar - Community Hub (Desktop) - Fixed position floats in place while scrolling */}
-        <div className="hidden lg:block lg:w-[30%] lg:min-w-[320px] lg:max-w-[400px]">
-          {/* Placeholder to maintain layout spacing */}
         </div>
 
         {/* CommunityHub is now rendered by FloatingVoicePanel in layout */}
