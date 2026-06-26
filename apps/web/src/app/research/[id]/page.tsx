@@ -88,6 +88,8 @@ export default async function ResearchPaperPage({ params }: PageProps) {
         summary: paper.summary || null,
         githubUrl: paper.githubUrl || null,
         program,
+        programId: paper.programId ? String(paper.programId) : null,
+        parentPaperId: paper.parentPaperId ? String(paper.parentPaperId) : null,
         doi: paper.doi || null,
         externalUrl: paper.externalUrl || null,
         likeCount: paper.likeCount || 0,
