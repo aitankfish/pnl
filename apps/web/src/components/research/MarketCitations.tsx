@@ -44,7 +44,9 @@ interface Citation {
     authorWallet: string;
     authorXHandle: string | null;
     summary: string | null;
-    paperUrl: string;
+    paperUrl: string | null;
+    doi: string | null;
+    externalUrl: string | null;
     currentVersion: number;
     likeCount: number;
     dislikeCount: number;
@@ -399,6 +401,19 @@ function ThesisCard({ citation }: { citation: Citation }) {
           <span style={{ color: FOREST }}> · @{paper.authorXHandle}</span>
         )}
       </p>
+      {paper.doi && (
+        <a
+          href={`https://doi.org/${paper.doi}`}
+          target="_blank"
+          rel="noopener noreferrer"
+          onClick={(e) => e.stopPropagation()}
+          className="mono uppercase tracking-[0.18em] text-[0.5rem] inline-block mb-3 underline-offset-2 hover:underline"
+          style={{ color: FOREST }}
+          title={`Published · DOI ${paper.doi}`}
+        >
+          DOI {paper.doi}
+        </a>
+      )}
       {paper.summary && (
         <p
           className="text-sm line-clamp-3 mb-4"

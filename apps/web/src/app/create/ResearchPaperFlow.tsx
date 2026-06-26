@@ -40,6 +40,8 @@ interface PaperFormData {
   authorXHandle: string;
   summary: string;
   githubUrl: string;
+  doi: string;
+  externalUrl: string;
   paper?: File;
 }
 
@@ -49,6 +51,8 @@ const initialData: PaperFormData = {
   authorXHandle: '',
   summary: '',
   githubUrl: '',
+  doi: '',
+  externalUrl: '',
 };
 
 function looksLikeGithubRepoUrl(input: string): boolean {
@@ -68,6 +72,12 @@ export function ResearchPaperFlow({ onBack }: { onBack: () => void }) {
   const [data, setData] = useState<PaperFormData>(initialData);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
+  // Paste-a-DOI autofill: pull title/author/abstract from the DOI registry so a
+  // researcher who already published (Zenodo, arXiv, a journal) barely types.
+  const [doiInput, setDoiInput] = useState('');
+  const [resolvingDoi, setResolvingDoi] = useState(false);
+  const [doiError, setDoiError] = useState<string | null>(null);
+  const [doiSource, setDoiSource] = useState<string | null>(null);
   // After a successful publish we hand the page to a short celebration
   // (parity with the plant flow's PlantingCelebration) rather than silently
   // bouncing to the paper page. From there the author can read the paper or
@@ -108,13 +118,60 @@ export function ResearchPaperFlow({ onBack }: { onBack: () => void }) {
       e.githubUrl = 'Should look like github.com/owner/repo.';
     }
 
-    if (!data.paper) e.paper = 'Attach the PDF to publish.';
-    else if (data.paper.type !== 'application/pdf') e.paper = 'Only PDF files are accepted.';
-    else if (data.paper.size > MAX_PDF_MB * 1024 * 1024) {
-      e.paper = `PDF must be ${MAX_PDF_MB}MB or smaller.`;
+    // A paper needs a body: either an uploaded PDF or a published-source link
+    // (DOI / external URL). With a DOI attached, the PDF is optional.
+    const hasPublishedSource = !!data.doi.trim() || !!data.externalUrl.trim();
+    if (data.paper) {
+      if (data.paper.type !== 'application/pdf') e.paper = 'Only PDF files are accepted.';
+      else if (data.paper.size > MAX_PDF_MB * 1024 * 1024) {
+        e.paper = `PDF must be ${MAX_PDF_MB}MB or smaller.`;
+      }
+    } else if (!hasPublishedSource) {
+      e.paper = 'Attach a PDF, or paste a DOI above to publish.';
     }
 
     return e;
+  };
+
+  const resolveDoi = async () => {
+    const input = doiInput.trim();
+    if (!input) return;
+    setResolvingDoi(true);
+    setDoiError(null);
+    setDoiSource(null);
+    try {
+      const res = await fetch('/api/research/resolve-doi', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ input }),
+      });
+      const json = await res.json();
+      if (!json.success) throw new Error(json.error || 'Could not resolve that DOI.');
+      const d = json.data;
+      setData((prev) => ({
+        ...prev,
+        doi: d.doi || '',
+        externalUrl: d.externalUrl || '',
+        // Fill metadata from the registry; the author can still edit below.
+        title: d.title || prev.title,
+        authorName: d.authorName || prev.authorName,
+        summary: (d.summary || prev.summary || '').slice(0, MAX_SUMMARY_CHARS),
+      }));
+      setDoiSource(d.source || d.doi || 'the DOI registry');
+      // Clear any stale field errors the autofill just satisfied.
+      setErrors({});
+    } catch (err) {
+      setDoiError(err instanceof Error ? err.message : 'Could not resolve that DOI.');
+    } finally {
+      setResolvingDoi(false);
+    }
+  };
+
+  const clearDoi = () => {
+    setDoiInput('');
+    setDoiSource(null);
+    setDoiError(null);
+    setData((prev) => ({ ...prev, doi: '', externalUrl: '' }));
   };
 
   const handlePublish = async () => {
@@ -141,6 +198,8 @@ export function ResearchPaperFlow({ onBack }: { onBack: () => void }) {
       if (data.authorXHandle.trim()) fd.append('authorXHandle', data.authorXHandle.trim());
       if (data.summary.trim()) fd.append('summary', data.summary.trim());
       if (data.githubUrl.trim()) fd.append('githubUrl', data.githubUrl.trim());
+      if (data.doi.trim()) fd.append('doi', data.doi.trim());
+      if (data.externalUrl.trim()) fd.append('externalUrl', data.externalUrl.trim());
       if (data.paper) fd.append('paper', data.paper);
 
       const res = await authFetch('/api/research/create', {
@@ -208,11 +267,86 @@ export function ResearchPaperFlow({ onBack }: { onBack: () => void }) {
               fontSize: 'clamp(0.95rem, 1.5vw, 1.1rem)',
             }}
           >
-            Drop the PDF. Tell us who wrote it. Let the grove read.
+            Paste a DOI to autofill, or drop the PDF. Either way, the grove reads.
           </p>
         </header>
 
         <div className="space-y-6">
+          {/* Already-published fast path: paste a DOI / Zenodo link, autofill. */}
+          <div
+            style={{
+              border: `1px solid ${doiSource ? `${FOREST}66` : HAIR_STRONG}`,
+              background: doiSource ? 'rgba(63,122,66,0.06)' : 'rgba(244,238,228,0.025)',
+              padding: '1.1rem 1.15rem',
+            }}
+          >
+            <FieldLabel>Already published? Paste a DOI or link</FieldLabel>
+            <div className="flex items-stretch gap-2">
+              <input
+                type="text"
+                placeholder="DOI · doi.org link · arXiv · Zenodo · journal URL"
+                value={doiInput}
+                onChange={(e) => {
+                  setDoiInput(e.target.value);
+                  if (doiError) setDoiError(null);
+                }}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') {
+                    e.preventDefault();
+                    resolveDoi();
+                  }
+                }}
+                onFocus={focusOn}
+                onBlur={focusOff}
+                disabled={resolvingDoi}
+                style={{
+                  ...inputBase,
+                  borderColor: doiError ? `${EARTH}88` : HAIR_STRONG,
+                  fontFamily: 'var(--font-fraunces, serif)',
+                }}
+              />
+              <button
+                type="button"
+                onClick={resolveDoi}
+                disabled={resolvingDoi || !doiInput.trim()}
+                className="mono uppercase tracking-[0.2em] text-[0.6rem] px-4 transition-colors inline-flex items-center gap-2 disabled:opacity-40 disabled:cursor-not-allowed shrink-0"
+                style={{ background: AMBER, color: BG }}
+                onMouseEnter={(e) => {
+                  if (!resolvingDoi && doiInput.trim()) e.currentTarget.style.background = PEACH;
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.background = AMBER;
+                }}
+              >
+                {resolvingDoi ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : 'Autofill'}
+              </button>
+            </div>
+            {doiSource ? (
+              <p
+                className="mono uppercase tracking-[0.2em] text-[0.55rem] mt-2 inline-flex items-center gap-1.5"
+                style={{ color: FOREST }}
+              >
+                <Check className="w-3 h-3" />
+                Imported {data.doi ? `· ${data.doi}` : ''} from {doiSource}.
+                <button
+                  type="button"
+                  onClick={clearDoi}
+                  className="underline underline-offset-2 ml-1"
+                  style={{ color: CREAM_FAINT }}
+                >
+                  clear
+                </button>
+              </p>
+            ) : (
+              <FieldHint>
+                Optional. Works with any DOI — arXiv, Zenodo, or a journal. Pulls the
+                title, authors, and abstract from the registry; the published source stays
+                the source of truth, and the PDF becomes optional.
+              </FieldHint>
+            )}
+            <FieldError>{doiError}</FieldError>
+          </div>
+
           <div>
             <FieldLabel required>Title</FieldLabel>
             <input
@@ -325,13 +459,17 @@ export function ResearchPaperFlow({ onBack }: { onBack: () => void }) {
           </div>
 
           <div>
-            <FieldLabel required>Paper (PDF)</FieldLabel>
+            <FieldLabel required={!data.doi && !data.externalUrl}>Paper (PDF)</FieldLabel>
             <PdfDrop
               file={data.paper}
               onFile={(f) => setField('paper', f)}
               error={!!errors.paper}
             />
-            <FieldHint>PDF only. Up to {MAX_PDF_MB}MB.</FieldHint>
+            <FieldHint>
+              {data.doi || data.externalUrl
+                ? `Optional — readers can open the published version. Attach a PDF to also embed it here. Up to ${MAX_PDF_MB}MB.`
+                : `PDF only. Up to ${MAX_PDF_MB}MB.`}
+            </FieldHint>
             <FieldError>{errors.paper}</FieldError>
           </div>
         </div>

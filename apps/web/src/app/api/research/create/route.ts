@@ -12,6 +12,8 @@ import { createClientLogger } from '@/lib/logger';
 import { connectToDatabase, ResearchPaper } from '@/lib/mongodb';
 import { withAuth } from '@/lib/auth/require-wallet';
 import { checkRateLimit } from '@/lib/auth/rate-limit';
+import { normalizeDoi } from '@/lib/doi';
+import { safeExternalUrl } from '@/lib/safe-url';
 
 const logger = createClientLogger();
 
@@ -38,6 +40,8 @@ export const POST = withAuth(async (request, authUser) => {
     const authorXHandleRaw = (formData.get('authorXHandle') as string | null)?.trim() || '';
     const summary = (formData.get('summary') as string | null)?.trim() || '';
     const githubUrlRaw = (formData.get('githubUrl') as string | null)?.trim() || '';
+    const doiRaw = (formData.get('doi') as string | null)?.trim() || '';
+    const externalUrlRaw = (formData.get('externalUrl') as string | null)?.trim() || '';
     const paperFile = formData.get('paper') as File | null;
 
     if (!title) return badRequest('Title is required');
@@ -60,23 +64,47 @@ export const POST = withAuth(async (request, authUser) => {
       githubUrl = `https://github.com/${parsed.owner}/${parsed.repo}`;
     }
 
-    if (!paperFile || paperFile.size === 0) {
-      return badRequest('A PDF is required');
+    // Published-paper provenance. A DOI (or doi.org / Zenodo link) is normalized
+    // to a bare DOI; externalUrl is the canonical landing page (sanitized).
+    let doi: string | undefined;
+    if (doiRaw) {
+      const normalized = normalizeDoi(doiRaw);
+      if (!normalized) return badRequest('That DOI doesn’t look valid');
+      doi = normalized.doi;
     }
-    if (paperFile.size > MAX_PDF_SIZE) {
-      return badRequest(`PDF too large (max ${MAX_PDF_SIZE / 1024 / 1024}MB)`);
-    }
-    if (!ALLOWED_PDF_TYPES.includes(paperFile.type)) {
-      return badRequest('Only PDF files are accepted');
+    let externalUrl: string | undefined;
+    if (externalUrlRaw) {
+      const safe = safeExternalUrl(externalUrlRaw);
+      if (!safe) return badRequest('Published link must be a valid http(s) URL');
+      externalUrl = safe;
+    } else if (doi) {
+      // A DOI with no explicit landing page still resolves via doi.org.
+      externalUrl = `https://doi.org/${doi}`;
     }
 
-    logger.info('[research/create] uploading PDF to IPFS', {
-      wallet: authUser.walletAddress,
-      filename: paperFile.name,
-      size: paperFile.size,
-    });
+    // A paper needs a body: either an uploaded PDF or a published-source link.
+    const hasPdf = !!paperFile && paperFile.size > 0;
+    if (!hasPdf && !doi && !externalUrl) {
+      return badRequest('Attach a PDF or paste a DOI / published link');
+    }
 
-    const paperUrl = await ipfsUtils.uploadDocument(paperFile);
+    let paperUrl: string | undefined;
+    if (hasPdf) {
+      if (paperFile!.size > MAX_PDF_SIZE) {
+        return badRequest(`PDF too large (max ${MAX_PDF_SIZE / 1024 / 1024}MB)`);
+      }
+      if (!ALLOWED_PDF_TYPES.includes(paperFile!.type)) {
+        return badRequest('Only PDF files are accepted');
+      }
+
+      logger.info('[research/create] uploading PDF to IPFS', {
+        wallet: authUser.walletAddress,
+        filename: paperFile!.name,
+        size: paperFile!.size,
+      });
+
+      paperUrl = await ipfsUtils.uploadDocument(paperFile!);
+    }
 
     await connectToDatabase();
 
@@ -89,6 +117,8 @@ export const POST = withAuth(async (request, authUser) => {
       paperUrl,
       summary: summary || undefined,
       githubUrl,
+      doi,
+      externalUrl,
       // First version recorded for the archive — every subsequent edit
       // appends a new entry, never replaces.
       versions: [
@@ -98,6 +128,8 @@ export const POST = withAuth(async (request, authUser) => {
           title,
           summary: summary || undefined,
           githubUrl,
+          doi,
+          externalUrl,
           createdAt: now,
         },
       ],
