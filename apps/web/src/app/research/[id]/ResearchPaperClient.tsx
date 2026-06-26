@@ -10,6 +10,7 @@ import {
   History, Pencil, ChevronDown, Sprout,
 } from 'lucide-react';
 import { PaperUnderpins } from '@/components/research/PaperUnderpins';
+import { PaperProgramControl } from '@/components/research/PaperProgramControl';
 import { PaperActivityFeed } from '@/components/research/PaperActivityFeed';
 import { authFetch } from '@/lib/auth/fetch-with-auth';
 import { useWallet } from '@/hooks/useWallet';
@@ -42,6 +43,8 @@ interface Paper {
   doi: string | null;
   externalUrl: string | null;
   program: { slug: string; title: string } | null;
+  programId: string | null;
+  parentPaperId: string | null;
   likeCount: number;
   dislikeCount: number;
   createdAt: string;
@@ -522,6 +525,16 @@ export function ResearchPaperClient({ paper }: { paper: Paper }) {
             </p>
           )}
         </header>
+
+        {/* Author-only: group this paper into a program + set its lineage. */}
+        {isAuthor && (
+          <PaperProgramControl
+            paperId={paper.id}
+            ownerWallet={paper.authorWallet}
+            initialProgramId={paper.programId}
+            initialParentPaperId={paper.parentPaperId}
+          />
+        )}
 
         {/* Projects citing this paper — silent if none, paper-flavored
             cards in cosmic chrome when present. */}
