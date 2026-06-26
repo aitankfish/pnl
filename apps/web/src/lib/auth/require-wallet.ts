@@ -14,10 +14,9 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { verifyAuth, type AuthenticatedUser } from './privy-server';
+import { PLATFORM_ADMIN_WALLETS } from '@/lib/admin';
 
-const TREASURY_ADMIN_WALLETS = [
-  '7iyZKvd28ZcfVKUxeezwSkvdoQ9sN1D7pEGe42w8yTkZ', // Main admin
-];
+const TREASURY_ADMIN_WALLETS = PLATFORM_ADMIN_WALLETS;
 
 type AuthHandler = (
   request: NextRequest,

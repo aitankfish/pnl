@@ -80,9 +80,12 @@ export function ResearchPaperFlow({ onBack }: { onBack: () => void }) {
   const [doiSource, setDoiSource] = useState<string | null>(null);
   // Optional research-program grouping. The author can drop this paper into one
   // of their existing programs, or name a new one inline.
-  const [programs, setPrograms] = useState<Array<{ id: string; title: string }>>([]);
+  const [programs, setPrograms] = useState<Array<{ id: string; slug: string; title: string }>>([]);
   const [programChoice, setProgramChoice] = useState<string>(''); // '' | program id | '__new__'
   const [newProgramTitle, setNewProgramTitle] = useState('');
+  // Lineage: which existing paper in the chosen program this one builds on.
+  const [parentChoice, setParentChoice] = useState<string>('');
+  const [siblingPapers, setSiblingPapers] = useState<Array<{ id: string; title: string }>>([]);
   // After a successful publish we hand the page to a short celebration
   // (parity with the plant flow's PlantingCelebration) rather than silently
   // bouncing to the paper page. From there the author can read the paper or
@@ -190,7 +193,7 @@ export function ResearchPaperFlow({ onBack }: { onBack: () => void }) {
         const json = await res.json();
         if (!cancelled && json?.success) {
           setPrograms(
-            (json.data.programs || []).map((p: any) => ({ id: p.id, title: p.title })),
+            (json.data.programs || []).map((p: any) => ({ id: p.id, slug: p.slug, title: p.title })),
           );
         }
       } catch {
@@ -201,6 +204,32 @@ export function ResearchPaperFlow({ onBack }: { onBack: () => void }) {
       cancelled = true;
     };
   }, [authenticated, primaryWallet?.address]);
+
+  // When an existing program is chosen, load its papers so the author can say
+  // which one this paper builds on. A brand-new program has no siblings yet.
+  useEffect(() => {
+    setParentChoice('');
+    const prog = programs.find((p) => p.id === programChoice);
+    if (!prog) {
+      setSiblingPapers([]);
+      return;
+    }
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await fetch(`/api/research/programs/${prog.slug}`);
+        const json = await res.json();
+        if (!cancelled && json?.success) {
+          setSiblingPapers((json.data.papers || []).map((p: any) => ({ id: p.id, title: p.title })));
+        }
+      } catch {
+        setSiblingPapers([]);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [programChoice, programs]);
 
   // Resolve the chosen program to an id, creating a new program if the author
   // named one inline. Returns undefined when no program is selected.
@@ -251,6 +280,8 @@ export function ResearchPaperFlow({ onBack }: { onBack: () => void }) {
       if (data.doi.trim()) fd.append('doi', data.doi.trim());
       if (data.externalUrl.trim()) fd.append('externalUrl', data.externalUrl.trim());
       if (programId) fd.append('programId', programId);
+      // Lineage only applies when joining an existing program with siblings.
+      if (programId && parentChoice) fd.append('parentPaperId', parentChoice);
       if (data.paper) fd.append('paper', data.paper);
 
       const res = await authFetch('/api/research/create', {
@@ -551,6 +582,36 @@ export function ResearchPaperFlow({ onBack }: { onBack: () => void }) {
                   fontFamily: 'var(--font-fraunces, serif)',
                 }}
               />
+            )}
+            {siblingPapers.length > 0 && (
+              <div className="mt-3">
+                <FieldLabel>Builds on</FieldLabel>
+                <select
+                  value={parentChoice}
+                  onChange={(e) => setParentChoice(e.target.value)}
+                  onFocus={focusOn}
+                  onBlur={focusOff}
+                  style={{
+                    ...inputBase,
+                    borderColor: HAIR_STRONG,
+                    fontFamily: 'var(--font-fraunces, serif)',
+                    appearance: 'none',
+                  }}
+                >
+                  <option value="" style={{ background: BG }}>
+                    Nothing — this starts the line
+                  </option>
+                  {siblingPapers.map((s) => (
+                    <option key={s.id} value={s.id} style={{ background: BG }}>
+                      {s.title.length > 60 ? `${s.title.slice(0, 60)}…` : s.title}
+                    </option>
+                  ))}
+                </select>
+                <FieldHint>
+                  Optional. If this paper grew out of an earlier one in the program,
+                  pick it — the lineage shows on the program page and the shelf.
+                </FieldHint>
+              </div>
             )}
             <FieldHint>
               Optional. Group this paper into a body of work — readers land on the

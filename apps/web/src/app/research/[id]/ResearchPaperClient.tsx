@@ -11,6 +11,7 @@ import {
 } from 'lucide-react';
 import { PaperUnderpins } from '@/components/research/PaperUnderpins';
 import { PaperProgramControl } from '@/components/research/PaperProgramControl';
+import { isPlatformAdmin } from '@/lib/admin';
 import { PaperActivityFeed } from '@/components/research/PaperActivityFeed';
 import { authFetch } from '@/lib/auth/fetch-with-auth';
 import { useWallet } from '@/hooks/useWallet';
@@ -97,6 +98,33 @@ export function ResearchPaperClient({ paper }: { paper: Paper }) {
     !!authenticated &&
     !!primaryWallet?.address &&
     primaryWallet.address === paper.authorWallet;
+  const isAdmin = isPlatformAdmin(primaryWallet?.address);
+  const [hiding, setHiding] = useState(false);
+
+  const hidePaper = async () => {
+    if (!window.confirm('Hide this paper from the shelf? It’s reversible but removes it from public view.')) {
+      return;
+    }
+    setHiding(true);
+    try {
+      const res = await authFetch(`/api/admin/research/${paper.id}/hide`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ hidden: true }),
+      });
+      const json = await res.json();
+      if (!json.success) throw new Error(json.error || 'Failed to hide');
+      showToast({ type: 'success', title: 'Paper hidden', message: 'Removed from the shelf.' });
+      router.push('/browse');
+    } catch (err) {
+      showToast({
+        type: 'error',
+        title: 'Couldn’t hide the paper',
+        message: err instanceof Error ? err.message : 'Unknown error',
+      });
+      setHiding(false);
+    }
+  };
   const activeVersion =
     paper.versions.find((v) => v.version === viewedVersion) ||
     paper.versions[paper.versions.length - 1] ||
@@ -282,6 +310,21 @@ export function ResearchPaperClient({ paper }: { paper: Paper }) {
             >
               <Pencil className="w-3.5 h-3.5" />
               revise
+            </button>
+          )}
+          {isAdmin && (
+            <button
+              type="button"
+              onClick={hidePaper}
+              disabled={hiding}
+              className="inline-flex items-center gap-2 mono uppercase tracking-[0.22em] text-[0.6rem] transition-colors disabled:opacity-40"
+              style={{ color: EARTH }}
+              onMouseEnter={(e) => (e.currentTarget.style.color = '#f08a5a')}
+              onMouseLeave={(e) => (e.currentTarget.style.color = EARTH)}
+              title="Admin: hide this paper from the shelf"
+            >
+              <X className="w-3.5 h-3.5" />
+              {hiding ? 'hiding' : 'hide'}
             </button>
           )}
           {paper.githubUrl && (

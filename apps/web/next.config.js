@@ -162,6 +162,18 @@ const nextConfig = {
         destination: '/presentation/index.html',
         permanent: false,
       },
+      // The shareable researcher-invite link. The static page lives at
+      // /research-invite/index.html; without these, the clean URLs 404.
+      {
+        source: '/research-invite',
+        destination: '/research-invite/index.html',
+        permanent: false,
+      },
+      {
+        source: '/research-invite/',
+        destination: '/research-invite/index.html',
+        permanent: false,
+      },
       ...docsRedirects,
     ];
   },
