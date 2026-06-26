@@ -80,16 +80,26 @@ function trimDoi(doi: string): string {
 /**
  * Strip JATS/HTML tags and decode the handful of entities that show up in
  * Crossref/DataCite abstracts, so an autofilled summary reads as plain text.
+ *
+ * Entities are decoded in a SINGLE pass (one regex + lookup) rather than a
+ * chain of `.replace()` calls. Sequential replaces can double-unescape — e.g.
+ * decoding `&amp;` after `&lt;` turns the literal text `&amp;lt;` into `<`
+ * instead of the intended `&lt;`. One pass replaces each entity exactly once,
+ * left to right, never re-scanning its own output.
  */
+const HTML_ENTITIES: Record<string, string> = {
+  '&lt;': '<',
+  '&gt;': '>',
+  '&amp;': '&',
+  '&quot;': '"',
+  '&#39;': "'",
+};
+
 export function stripAbstract(html: string | undefined | null): string {
   if (!html) return '';
   return html
     .replace(/<[^>]+>/g, ' ')
-    .replace(/&lt;/g, '<')
-    .replace(/&gt;/g, '>')
-    .replace(/&amp;/g, '&')
-    .replace(/&quot;/g, '"')
-    .replace(/&#39;/g, "'")
+    .replace(/&(?:lt|gt|amp|quot|#39);/g, (m) => HTML_ENTITIES[m] ?? m)
     .replace(/\s+/g, ' ')
     .trim();
 }
