@@ -822,6 +822,16 @@ const ResearchPaperSchema = new mongoose.Schema({
     type: String,
     maxlength: 500,
   },
+  // Research-program grouping: a paper can belong to one program (e.g. Nakshatra)
+  // and optionally name the paper it builds on, forming a lineage within the
+  // program. Paper-level (not per-version) — these don't change between revisions.
+  programId: {
+    type: String,
+    index: true,
+  },
+  parentPaperId: {
+    type: String,
+  },
   // Versioning — append-only history. v1 is written at first publish.
   versions: {
     type: [ResearchPaperVersionSchema],
@@ -861,6 +871,54 @@ ResearchPaperSchema.index({ status: 1, createdAt: -1 });
 ResearchPaperSchema.index({ status: 1, updatedAt: -1 });
 // Text-ish index for the search autocomplete (title is the dominant match).
 ResearchPaperSchema.index({ authorWallet: 1, title: 1 });
+
+// ========================================
+// Research Programs — a body of work that accumulates papers over time.
+// ========================================
+//
+// A program (e.g. "Nakshatra") groups multiple papers with lineage, so an
+// outside researcher lands on a living body of work instead of scattered posts.
+// Thin and off-chain on purpose: owner + slug + copy. Membership lives on the
+// paper (`programId`); aggregate conviction is READ from the markets that cite
+// the program's papers, never written here.
+const ResearchProgramSchema = new mongoose.Schema({
+  ownerWallet: {
+    type: String,
+    required: true,
+    index: true,
+  },
+  // URL-safe handle used at /research/program/[slug]. Unique, lowercase.
+  slug: {
+    type: String,
+    required: true,
+    unique: true,
+    maxlength: 64,
+  },
+  title: {
+    type: String,
+    required: true,
+    maxlength: 120,
+  },
+  summary: {
+    type: String,
+    maxlength: 500,
+  },
+  status: {
+    type: String,
+    enum: ['active', 'hidden'],
+    default: 'active',
+    index: true,
+  },
+  createdAt: {
+    type: Date,
+    default: Date.now,
+    index: true,
+  },
+  updatedAt: {
+    type: Date,
+    default: Date.now,
+  },
+});
 
 const PaperReactionSchema = new mongoose.Schema({
   paperId: {
@@ -987,6 +1045,9 @@ if (mongoose.models.PaperReaction) {
 if (mongoose.models.PaperCitation) {
   delete mongoose.models.PaperCitation;
 }
+if (mongoose.models.ResearchProgram) {
+  delete mongoose.models.ResearchProgram;
+}
 
 // ─── MarketDraft ─────────────────────────────────────────────────
 //
@@ -1034,6 +1095,7 @@ export const MessageReaction = mongoose.model('MessageReaction', MessageReaction
 export const ResearchPaper = mongoose.model('ResearchPaper', ResearchPaperSchema, 'research_papers');
 export const PaperReaction = mongoose.model('PaperReaction', PaperReactionSchema, 'paper_reactions');
 export const PaperCitation = mongoose.model('PaperCitation', PaperCitationSchema, 'paper_citations');
+export const ResearchProgram = mongoose.model('ResearchProgram', ResearchProgramSchema, 'research_programs');
 
 // Type definitions
 export interface IProject {
@@ -1144,10 +1206,23 @@ export interface IResearchPaper {
   githubUrl?: string;
   doi?: string;
   externalUrl?: string;
+  programId?: string;
+  parentPaperId?: string;
   versions: IResearchPaperVersion[];
   currentVersion: number;
   likeCount: number;
   dislikeCount: number;
+  status: 'active' | 'hidden';
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+export interface IResearchProgram {
+  _id: string;
+  ownerWallet: string;
+  slug: string;
+  title: string;
+  summary?: string;
   status: 'active' | 'hidden';
   createdAt: Date;
   updatedAt: Date;

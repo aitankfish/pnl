@@ -41,6 +41,7 @@ interface Paper {
   githubUrl: string | null;
   doi: string | null;
   externalUrl: string | null;
+  program: { slug: string; title: string } | null;
   likeCount: number;
   dislikeCount: number;
   createdAt: string;
@@ -494,6 +495,16 @@ export function ResearchPaperClient({ paper }: { paper: Paper }) {
               )}
             </div>
           </div>
+
+          {paper.program && (
+            <Link
+              href={`/research/program/${paper.program.slug}`}
+              className="inline-flex items-center gap-2 mono uppercase tracking-[0.2em] text-[0.55rem] mb-5 px-3 py-1.5 transition-colors"
+              style={{ color: AMBER, border: `1px solid ${AMBER}44` }}
+            >
+              part of {paper.program.title} →
+            </Link>
+          )}
 
           {paper.summary && (
             <p

@@ -78,6 +78,11 @@ export function ResearchPaperFlow({ onBack }: { onBack: () => void }) {
   const [resolvingDoi, setResolvingDoi] = useState(false);
   const [doiError, setDoiError] = useState<string | null>(null);
   const [doiSource, setDoiSource] = useState<string | null>(null);
+  // Optional research-program grouping. The author can drop this paper into one
+  // of their existing programs, or name a new one inline.
+  const [programs, setPrograms] = useState<Array<{ id: string; title: string }>>([]);
+  const [programChoice, setProgramChoice] = useState<string>(''); // '' | program id | '__new__'
+  const [newProgramTitle, setNewProgramTitle] = useState('');
   // After a successful publish we hand the page to a short celebration
   // (parity with the plant flow's PlantingCelebration) rather than silently
   // bouncing to the paper page. From there the author can read the paper or
@@ -174,6 +179,47 @@ export function ResearchPaperFlow({ onBack }: { onBack: () => void }) {
     setData((prev) => ({ ...prev, doi: '', externalUrl: '' }));
   };
 
+  // Load the author's existing programs so they can drop this paper into one.
+  useEffect(() => {
+    const wallet = primaryWallet?.address;
+    if (!authenticated || !wallet) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await fetch(`/api/research/programs?owner=${encodeURIComponent(wallet)}`);
+        const json = await res.json();
+        if (!cancelled && json?.success) {
+          setPrograms(
+            (json.data.programs || []).map((p: any) => ({ id: p.id, title: p.title })),
+          );
+        }
+      } catch {
+        /* non-fatal — the program picker just stays empty */
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [authenticated, primaryWallet?.address]);
+
+  // Resolve the chosen program to an id, creating a new program if the author
+  // named one inline. Returns undefined when no program is selected.
+  const resolveProgramId = async (): Promise<string | undefined> => {
+    if (programChoice === '__new__') {
+      const title = newProgramTitle.trim();
+      if (!title) return undefined;
+      const res = await authFetch('/api/research/programs', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ title }),
+      });
+      const json = await res.json();
+      if (!json.success) throw new Error(json.error || 'Failed to create program');
+      return json.data.id as string;
+    }
+    return programChoice || undefined;
+  };
+
   const handlePublish = async () => {
     if (!authenticated || !primaryWallet) {
       showToast({
@@ -192,6 +238,10 @@ export function ResearchPaperFlow({ onBack }: { onBack: () => void }) {
 
     setIsSubmitting(true);
     try {
+      // Create / resolve the program first so a failure here doesn't leave an
+      // orphan paper publish behind.
+      const programId = await resolveProgramId();
+
       const fd = new FormData();
       fd.append('title', data.title.trim());
       fd.append('authorName', data.authorName.trim());
@@ -200,6 +250,7 @@ export function ResearchPaperFlow({ onBack }: { onBack: () => void }) {
       if (data.githubUrl.trim()) fd.append('githubUrl', data.githubUrl.trim());
       if (data.doi.trim()) fd.append('doi', data.doi.trim());
       if (data.externalUrl.trim()) fd.append('externalUrl', data.externalUrl.trim());
+      if (programId) fd.append('programId', programId);
       if (data.paper) fd.append('paper', data.paper);
 
       const res = await authFetch('/api/research/create', {
@@ -456,6 +507,55 @@ export function ResearchPaperFlow({ onBack }: { onBack: () => void }) {
             />
             <FieldHint>Optional. If your paper has accompanying code, link the repo and we’ll show the README on the paper page.</FieldHint>
             <FieldError>{errors.githubUrl}</FieldError>
+          </div>
+
+          <div>
+            <FieldLabel>Research program</FieldLabel>
+            <select
+              value={programChoice}
+              onChange={(e) => setProgramChoice(e.target.value)}
+              onFocus={focusOn}
+              onBlur={focusOff}
+              style={{
+                ...inputBase,
+                borderColor: HAIR_STRONG,
+                fontFamily: 'var(--font-fraunces, serif)',
+                appearance: 'none',
+              }}
+            >
+              <option value="" style={{ background: BG }}>
+                None — standalone paper
+              </option>
+              {programs.map((p) => (
+                <option key={p.id} value={p.id} style={{ background: BG }}>
+                  {p.title}
+                </option>
+              ))}
+              <option value="__new__" style={{ background: BG }}>
+                + New program…
+              </option>
+            </select>
+            {programChoice === '__new__' && (
+              <input
+                type="text"
+                placeholder="Program name (e.g. Nakshatra)"
+                value={newProgramTitle}
+                onChange={(e) => setNewProgramTitle(e.target.value)}
+                onFocus={focusOn}
+                onBlur={focusOff}
+                maxLength={120}
+                style={{
+                  ...inputBase,
+                  marginTop: '0.5rem',
+                  borderColor: HAIR_STRONG,
+                  fontFamily: 'var(--font-fraunces, serif)',
+                }}
+              />
+            )}
+            <FieldHint>
+              Optional. Group this paper into a body of work — readers land on the
+              program and see the lineage + conviction behind it.
+            </FieldHint>
           </div>
 
           <div>
