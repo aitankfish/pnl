@@ -6,7 +6,7 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
-import { connectToDatabase, ResearchPaper } from '@/lib/mongodb';
+import { connectToDatabase, ResearchPaper, ResearchProgram } from '@/lib/mongodb';
 import { convertToGatewayUrl } from '@/lib/api-utils';
 import { createClientLogger } from '@/lib/logger';
 
@@ -29,21 +29,47 @@ export async function GET(request: NextRequest) {
       ResearchPaper.countDocuments({ status: 'active' }),
     ]);
 
+    // Resolve program membership + lineage parent titles in two batch queries so
+    // the shelf can show "part of <program>" and "builds on <paper>".
+    const programIds = [...new Set(papers.map((p: any) => p.programId).filter(Boolean).map(String))];
+    const parentIds = [...new Set(papers.map((p: any) => p.parentPaperId).filter(Boolean).map(String))];
+
+    const [programs, parents] = await Promise.all([
+      programIds.length
+        ? ResearchProgram.find({ _id: { $in: programIds }, status: 'active' })
+            .select('slug title')
+            .lean<any[]>()
+        : Promise.resolve([]),
+      parentIds.length
+        ? ResearchPaper.find({ _id: { $in: parentIds }, status: 'active' })
+            .select('title')
+            .lean<any[]>()
+        : Promise.resolve([]),
+    ]);
+    const programById = new Map(programs.map((g) => [String(g._id), { slug: g.slug, title: g.title }]));
+    const parentTitleById = new Map(parents.map((p) => [String(p._id), p.title]));
+
     return NextResponse.json({
       success: true,
       data: {
-        papers: papers.map((p: any) => ({
-          id: String(p._id),
-          title: p.title,
-          authorName: p.authorName,
-          authorXHandle: p.authorXHandle || null,
-          paperUrl: convertToGatewayUrl(p.paperUrl) || p.paperUrl,
-          summary: p.summary || null,
-          githubUrl: p.githubUrl || null,
-          likeCount: p.likeCount || 0,
-          dislikeCount: p.dislikeCount || 0,
-          createdAt: p.createdAt,
-        })),
+        papers: papers.map((p: any) => {
+          const program = p.programId ? programById.get(String(p.programId)) || null : null;
+          const parentTitle = p.parentPaperId ? parentTitleById.get(String(p.parentPaperId)) || null : null;
+          return {
+            id: String(p._id),
+            title: p.title,
+            authorName: p.authorName,
+            authorXHandle: p.authorXHandle || null,
+            paperUrl: convertToGatewayUrl(p.paperUrl) || p.paperUrl,
+            summary: p.summary || null,
+            githubUrl: p.githubUrl || null,
+            program, // { slug, title } | null
+            parentTitle, // title of the paper this builds on | null
+            likeCount: p.likeCount || 0,
+            dislikeCount: p.dislikeCount || 0,
+            createdAt: p.createdAt,
+          };
+        }),
         total,
         limit,
         skip,

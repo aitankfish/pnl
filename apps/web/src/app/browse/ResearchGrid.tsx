@@ -38,6 +38,8 @@ interface PaperCard {
   paperUrl: string;
   summary: string | null;
   githubUrl: string | null;
+  program: { slug: string; title: string } | null;
+  parentTitle: string | null;
   likeCount: number;
   dislikeCount: number;
   createdAt: string;
@@ -275,6 +277,15 @@ function PaperCardItem({
               🐙 code
             </span>
           )}
+          {paper.program && (
+            <span
+              className="mono uppercase tracking-[0.18em] text-[0.5rem] px-1.5 py-0.5 inline-flex items-center gap-1 max-w-[140px] truncate"
+              style={{ color: '#0d0d0d', background: 'rgba(232,150,96,0.32)' }}
+              title={`Part of the ${paper.program.title} research program`}
+            >
+              ◆ {paper.program.title}
+            </span>
+          )}
           {isCited && (
             <span
               className="mono uppercase tracking-[0.18em] text-[0.5rem] px-1.5 py-0.5"
@@ -315,6 +326,15 @@ function PaperCardItem({
           </>
         )}
       </p>
+      {paper.parentTitle && (
+        <p
+          className="mono uppercase tracking-[0.16em] text-[0.5rem] mb-3 truncate"
+          style={{ color: '#a35a20' }}
+          title={`Builds on ${paper.parentTitle}`}
+        >
+          ↳ builds on {paper.parentTitle}
+        </p>
+      )}
       {paper.summary && (
         <p
           className="text-sm line-clamp-2 mb-4"
