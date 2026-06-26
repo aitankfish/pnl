@@ -9,7 +9,8 @@
 import { NextResponse } from 'next/server';
 import { ipfsUtils } from '@/lib/ipfs';
 import { createClientLogger } from '@/lib/logger';
-import { connectToDatabase, ResearchPaper } from '@/lib/mongodb';
+import { connectToDatabase, ResearchPaper, ResearchProgram } from '@/lib/mongodb';
+import { Types } from 'mongoose';
 import { withAuth } from '@/lib/auth/require-wallet';
 import { checkRateLimit } from '@/lib/auth/rate-limit';
 import { normalizeDoi } from '@/lib/doi';
@@ -42,6 +43,8 @@ export const POST = withAuth(async (request, authUser) => {
     const githubUrlRaw = (formData.get('githubUrl') as string | null)?.trim() || '';
     const doiRaw = (formData.get('doi') as string | null)?.trim() || '';
     const externalUrlRaw = (formData.get('externalUrl') as string | null)?.trim() || '';
+    const programIdRaw = (formData.get('programId') as string | null)?.trim() || '';
+    const parentPaperIdRaw = (formData.get('parentPaperId') as string | null)?.trim() || '';
     const paperFile = formData.get('paper') as File | null;
 
     if (!title) return badRequest('Title is required');
@@ -108,6 +111,28 @@ export const POST = withAuth(async (request, authUser) => {
 
     await connectToDatabase();
 
+    // Optional research-program grouping. You can only attach your own paper to
+    // your own program (v1 — cross-author programs await identity/consent).
+    let programId: string | undefined;
+    if (programIdRaw) {
+      if (!Types.ObjectId.isValid(programIdRaw)) return badRequest('Invalid programId');
+      const program = await ResearchProgram.findById(programIdRaw).lean<any>();
+      if (!program || program.status !== 'active') return badRequest('Program not found');
+      if (program.ownerWallet !== authUser.walletAddress) {
+        return badRequest('You can only add papers to a program you own');
+      }
+      programId = programIdRaw;
+    }
+
+    // Optional lineage pointer to the paper this one builds on.
+    let parentPaperId: string | undefined;
+    if (parentPaperIdRaw) {
+      if (!Types.ObjectId.isValid(parentPaperIdRaw)) return badRequest('Invalid parentPaperId');
+      const parent = await ResearchPaper.findById(parentPaperIdRaw).select('_id status').lean<any>();
+      if (!parent || parent.status !== 'active') return badRequest('Parent paper not found');
+      parentPaperId = parentPaperIdRaw;
+    }
+
     const now = new Date();
     const doc = await ResearchPaper.create({
       authorWallet: authUser.walletAddress,
@@ -119,6 +144,8 @@ export const POST = withAuth(async (request, authUser) => {
       githubUrl,
       doi,
       externalUrl,
+      programId,
+      parentPaperId,
       // First version recorded for the archive — every subsequent edit
       // appends a new entry, never replaces.
       versions: [

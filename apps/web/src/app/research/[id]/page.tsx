@@ -9,7 +9,7 @@
 import { notFound } from 'next/navigation';
 import { Types } from 'mongoose';
 import Link from 'next/link';
-import { connectToDatabase, ResearchPaper } from '@/lib/mongodb';
+import { connectToDatabase, ResearchPaper, ResearchProgram } from '@/lib/mongodb';
 import { convertToGatewayUrl } from '@/lib/api-utils';
 import { ResearchPaperClient } from './ResearchPaperClient';
 
@@ -45,6 +45,18 @@ export default async function ResearchPaperPage({ params }: PageProps) {
 
   const paperUrl = convertToGatewayUrl(paper.paperUrl) || paper.paperUrl;
 
+  // If this paper belongs to a research program, resolve its slug/title so the
+  // page can link back to the program (the body-of-work it's part of).
+  let program: { slug: string; title: string } | null = null;
+  if (paper.programId) {
+    const prog = await ResearchProgram.findById(paper.programId)
+      .select('slug title status')
+      .lean<any>();
+    if (prog && prog.status === 'active') {
+      program = { slug: prog.slug, title: prog.title };
+    }
+  }
+
   // Same lazy v1 synthesis as in /api/research/[id]/route.ts so the UI
   // always has at least one entry to render in the version panel.
   const rawVersions = Array.isArray(paper.versions) ? paper.versions : [];
@@ -75,6 +87,7 @@ export default async function ResearchPaperPage({ params }: PageProps) {
         paperUrl: paper.paperUrl ? paperUrl : null,
         summary: paper.summary || null,
         githubUrl: paper.githubUrl || null,
+        program,
         doi: paper.doi || null,
         externalUrl: paper.externalUrl || null,
         likeCount: paper.likeCount || 0,
