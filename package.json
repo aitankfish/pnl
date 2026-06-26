@@ -20,16 +20,21 @@
   "pnpm": {
     "overrides": {
       "@privy-io/react-auth": "3.14.1",
-      "axios": "^1.15.2",
+      "axios": "^1.16.0",
       "sanitize-html": "^2.17.4",
       "react": "19.2.6",
       "react-dom": "19.2.6",
       "bn.js": "^5.2.3",
       "brace-expansion": "^5.0.6",
+      "esbuild": "^0.28.1",
+      "form-data": "^4.0.6",
       "glob": "^10.5.0",
-      "hono": "^4.12.18",
+      "hono": "^4.12.25",
       "js-cookie": "^3.0.7",
       "postcss": "^8.5.10",
+      "shell-quote": "^1.8.4",
+      "tar": "^7.5.16",
+      "undici": "^6.27.0",
       "ws": "^8.20.1",
       "uuid": "^11.1.1"
     }
