@@ -36,6 +36,7 @@ import SuccessDialog from '@/components/SuccessDialog';
 import { useMarketSocket, useUserSocket } from '@/lib/hooks/useSocket';
 import { MarketCitations } from '@/components/research/MarketCitations';
 import { ProjectUpdates } from '@/components/market/ProjectUpdates';
+import { MilestoneRoadmap } from '@/components/market/MilestoneRoadmap';
 import { TokenLaunchAnimation } from '@/components/TokenLaunchAnimation';
 import { getVoteButtonStates, getMarketDisplayStatus } from '@/lib/api-utils';
 import {
@@ -3802,6 +3803,10 @@ export default function MarketDetailClient({
               )}
             </>
           )}
+
+          {/* Roadmap — founder-declared, git-settled milestones. The
+              back-the-builder resolution surface; sits with the stake. */}
+          <MilestoneRoadmap marketId={params.id as string} founderWallet={market.founderWallet || null} />
           </div>
 
           {/* Community pane — the chat/voice that used to float over this column,

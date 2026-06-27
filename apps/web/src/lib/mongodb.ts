@@ -1027,6 +1027,93 @@ const PostReplySchema = new mongoose.Schema({
 });
 PostReplySchema.index({ postId: 1, status: 1, createdAt: 1 });
 
+// ── Milestone ────────────────────────────────────────────────────
+//
+// A founder-declared, git-settled checkpoint on a market: "I will ship X by
+// <date>". OFF-CHAIN status only — settling a milestone flips this display
+// record, it does NOT settle the on-chain stake (that's the audit-gated,
+// chain-adjacent step deferred per the agentic-github design doc).
+//
+// Settlement is honest-by-construction: PNL does not judge whether the work is
+// good — it reads an objective git signal the founder controls (a release/tag
+// they cut). The public + the market judge whether that release actually
+// delivers. Once a milestone goes 'shipped' or 'missed' it is frozen; only
+// 'open' milestones can be edited or removed, so a founder can't erase a miss.
+const MilestoneSchema = new mongoose.Schema({
+  marketAddress: {
+    type: String,
+    required: true,
+    index: true,
+  },
+  projectId: {
+    type: String,
+    index: true,
+  },
+  founderWallet: {
+    type: String,
+    required: true,
+  },
+  title: {
+    type: String,
+    required: true,
+    maxlength: 140,
+  },
+  detail: {
+    type: String,
+    maxlength: 500,
+  },
+  // The deadline. Absence of the git signal by this date settles the
+  // milestone 'missed'.
+  targetDate: {
+    type: Date,
+    required: true,
+  },
+  // How the milestone settles YES:
+  //   'release' — a GitHub Release whose tag or name matches `triggerMatch`
+  //   'tag'     — a git tag matching `triggerMatch`
+  //   'manual'  — the founder marks it shipped (with an evidence link)
+  triggerType: {
+    type: String,
+    enum: ['release', 'tag', 'manual'],
+    default: 'manual',
+  },
+  // Tag / release name to match (exact, case-insensitive). Required for
+  // 'release' / 'tag' triggers; ignored for 'manual'.
+  triggerMatch: {
+    type: String,
+    maxlength: 120,
+  },
+  status: {
+    type: String,
+    enum: ['open', 'shipped', 'missed'],
+    default: 'open',
+    index: true,
+  },
+  // Link to the proof — the release/tag URL for a git trigger, or a
+  // founder-provided URL for a manual settle.
+  evidenceUrl: {
+    type: String,
+    maxlength: 500,
+  },
+  shippedAt: {
+    type: Date,
+  },
+  // Display order within a project's roadmap.
+  order: {
+    type: Number,
+    default: 0,
+  },
+  createdAt: {
+    type: Date,
+    default: Date.now,
+  },
+  updatedAt: {
+    type: Date,
+    default: Date.now,
+  },
+});
+MilestoneSchema.index({ marketAddress: 1, order: 1, targetDate: 1 });
+
 const PaperReactionSchema = new mongoose.Schema({
   paperId: {
     type: mongoose.Schema.Types.ObjectId,
@@ -1161,6 +1248,9 @@ if (mongoose.models.ProjectPost) {
 if (mongoose.models.PostReply) {
   delete mongoose.models.PostReply;
 }
+if (mongoose.models.Milestone) {
+  delete mongoose.models.Milestone;
+}
 
 // ─── MarketDraft ─────────────────────────────────────────────────
 //
@@ -1211,6 +1301,7 @@ export const PaperCitation = mongoose.model('PaperCitation', PaperCitationSchema
 export const ResearchProgram = mongoose.model('ResearchProgram', ResearchProgramSchema, 'research_programs');
 export const ProjectPost = mongoose.model('ProjectPost', ProjectPostSchema, 'project_posts');
 export const PostReply = mongoose.model('PostReply', PostReplySchema, 'post_replies');
+export const Milestone = mongoose.model('Milestone', MilestoneSchema, 'milestones');
 
 // Type definitions
 export interface IProject {
@@ -1354,6 +1445,24 @@ export interface IProjectPost {
   pinned: boolean;
   editedAt?: Date;
   status: 'active' | 'hidden';
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+export interface IMilestone {
+  _id: string;
+  marketAddress: string;
+  projectId?: string;
+  founderWallet: string;
+  title: string;
+  detail?: string;
+  targetDate: Date;
+  triggerType: 'release' | 'tag' | 'manual';
+  triggerMatch?: string;
+  status: 'open' | 'shipped' | 'missed';
+  evidenceUrl?: string;
+  shippedAt?: Date;
+  order: number;
   createdAt: Date;
   updatedAt: Date;
 }
