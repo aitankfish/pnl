@@ -13,6 +13,7 @@ import { ipfsUtils } from '@/lib/ipfs';
 import { withAuth } from '@/lib/auth/require-wallet';
 import { checkRateLimit } from '@/lib/auth/rate-limit';
 import { convertToGatewayUrl } from '@/lib/api-utils';
+import { safeExternalUrl } from '@/lib/safe-url';
 import { createClientLogger } from '@/lib/logger';
 
 const logger = createClientLogger();
@@ -69,6 +70,15 @@ export const POST = withAuth(async (request: NextRequest, authUser, { params }: 
     const body = (formData.get('body') as string | null)?.trim() || '';
     if (body.length > MAX_BODY) return bad(`Post is too long (max ${MAX_BODY})`);
 
+    // Optional provenance link (e.g. the original X post this was crossposted from).
+    const sourceUrlRaw = (formData.get('sourceUrl') as string | null)?.trim() || '';
+    let sourceUrl: string | undefined;
+    if (sourceUrlRaw) {
+      const safe = safeExternalUrl(sourceUrlRaw);
+      if (!safe) return bad('Source link must be a valid http(s) URL');
+      sourceUrl = safe;
+    }
+
     const media: { url: string; kind: string }[] = [];
     for (let i = 0; i < MAX_IMAGES; i++) {
       const f = formData.get(`image${i}`) as File | null;
@@ -87,6 +97,7 @@ export const POST = withAuth(async (request: NextRequest, authUser, { params }: 
       authorWallet: authUser.walletAddress,
       body: body || undefined,
       media,
+      sourceUrl,
       status: 'active',
       createdAt: now,
       updatedAt: now,

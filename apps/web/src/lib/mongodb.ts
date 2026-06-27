@@ -986,6 +986,47 @@ const ProjectPostSchema = new mongoose.Schema({
 });
 ProjectPostSchema.index({ marketAddress: 1, status: 1, pinned: -1, createdAt: -1 });
 
+// Replies on a project post — the discussion layer. Durable (no TTL, unlike
+// ChatMessage). Anyone may reply; the reply author, the post's founder, or a
+// platform admin may hide one.
+const PostReplySchema = new mongoose.Schema({
+  postId: {
+    type: String,
+    required: true,
+    index: true,
+  },
+  marketAddress: {
+    type: String,
+    required: true,
+    index: true,
+  },
+  authorWallet: {
+    type: String,
+    required: true,
+  },
+  displayName: {
+    type: String,
+    maxlength: 60,
+  },
+  body: {
+    type: String,
+    required: true,
+    maxlength: 1000,
+  },
+  status: {
+    type: String,
+    enum: ['active', 'hidden'],
+    default: 'active',
+    index: true,
+  },
+  createdAt: {
+    type: Date,
+    default: Date.now,
+    index: true,
+  },
+});
+PostReplySchema.index({ postId: 1, status: 1, createdAt: 1 });
+
 const PaperReactionSchema = new mongoose.Schema({
   paperId: {
     type: mongoose.Schema.Types.ObjectId,
@@ -1117,6 +1158,9 @@ if (mongoose.models.ResearchProgram) {
 if (mongoose.models.ProjectPost) {
   delete mongoose.models.ProjectPost;
 }
+if (mongoose.models.PostReply) {
+  delete mongoose.models.PostReply;
+}
 
 // ─── MarketDraft ─────────────────────────────────────────────────
 //
@@ -1166,6 +1210,7 @@ export const PaperReaction = mongoose.model('PaperReaction', PaperReactionSchema
 export const PaperCitation = mongoose.model('PaperCitation', PaperCitationSchema, 'paper_citations');
 export const ResearchProgram = mongoose.model('ResearchProgram', ResearchProgramSchema, 'research_programs');
 export const ProjectPost = mongoose.model('ProjectPost', ProjectPostSchema, 'project_posts');
+export const PostReply = mongoose.model('PostReply', PostReplySchema, 'post_replies');
 
 // Type definitions
 export interface IProject {
@@ -1285,6 +1330,17 @@ export interface IResearchPaper {
   status: 'active' | 'hidden';
   createdAt: Date;
   updatedAt: Date;
+}
+
+export interface IPostReply {
+  _id: string;
+  postId: string;
+  marketAddress: string;
+  authorWallet: string;
+  displayName?: string;
+  body: string;
+  status: 'active' | 'hidden';
+  createdAt: Date;
 }
 
 export interface IProjectPost {
