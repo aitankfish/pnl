@@ -8,12 +8,13 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { Types } from 'mongoose';
-import { connectToDatabase, PredictionMarket, Project, ProjectPost, UserProfile } from '@/lib/mongodb';
+import { connectToDatabase, PredictionMarket, Project, ProjectPost, PostReaction, UserProfile } from '@/lib/mongodb';
 import { ipfsUtils } from '@/lib/ipfs';
 import { withAuth } from '@/lib/auth/require-wallet';
 import { checkRateLimit } from '@/lib/auth/rate-limit';
 import { convertToGatewayUrl } from '@/lib/api-utils';
 import { safeExternalUrl } from '@/lib/safe-url';
+import { notifyProjectUpdate } from '@/lib/services/notification-service';
 import { createClientLogger } from '@/lib/logger';
 
 const logger = createClientLogger();
@@ -37,7 +38,12 @@ async function nameFor(wallet: string): Promise<string | null> {
   return p?.username || null;
 }
 
-function serialize(p: any, authorName?: string | null) {
+function serialize(
+  p: any,
+  authorName?: string | null,
+  reactions: Record<string, number> = {},
+  mine: string[] = [],
+) {
   return {
     id: String(p._id),
     authorWallet: p.authorWallet,
@@ -51,6 +57,8 @@ function serialize(p: any, authorName?: string | null) {
     pinned: !!p.pinned,
     editedAt: p.editedAt || null,
     createdAt: p.createdAt,
+    reactions,
+    mine,
   };
 }
 
@@ -113,6 +121,15 @@ export const POST = withAuth(async (request: NextRequest, authUser, { params }: 
     });
 
     logger.info('[project-post] created', { marketAddress: market.marketAddress, postId: post._id });
+
+    // Pull the backers back to read + reply. Best-effort; the helper swallows its
+    // own errors so a notification hiccup never fails the post.
+    try {
+      await notifyProjectUpdate(market.marketAddress, body);
+    } catch (notifyErr) {
+      logger.error('[project-post] notify failed', notifyErr as any);
+    }
+
     return NextResponse.json({ success: true, data: serialize(post.toObject(), await nameFor(authUser.walletAddress)) });
   } catch (error) {
     logger.error('[project-post] create failed', error as any);
@@ -140,12 +157,36 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
       : [];
     const nameBy = new Map(profiles.filter((p) => p.username).map((p) => [p.walletAddress, p.username]));
 
+    // Fold in emoji reaction counts (+ the viewer's own reactions, if passed).
+    const viewer = new URL(request.url).searchParams.get('viewer') || '';
+    const postIds = posts.map((p) => String(p._id));
+    const reactionRows = postIds.length
+      ? await PostReaction.find({ targetType: 'post', targetId: { $in: postIds } })
+          .select('targetId emoji walletAddress')
+          .lean<any[]>()
+      : [];
+    const countsBy = new Map<string, Record<string, number>>();
+    const mineBy = new Map<string, string[]>();
+    for (const r of reactionRows) {
+      const c = countsBy.get(r.targetId) || {};
+      c[r.emoji] = (c[r.emoji] || 0) + 1;
+      countsBy.set(r.targetId, c);
+      if (viewer && r.walletAddress === viewer) {
+        mineBy.set(r.targetId, [...(mineBy.get(r.targetId) || []), r.emoji]);
+      }
+    }
+
     // Resolve the founder the same way create-auth does (project first), so the
     // composer is shown to the real founder even when market.founderWallet diverges.
     const founderWallet = project?.founderWallet || market.founderWallet || null;
     return NextResponse.json({
       success: true,
-      data: { posts: posts.map((p) => serialize(p, nameBy.get(p.authorWallet))), founderWallet },
+      data: {
+        posts: posts.map((p) =>
+          serialize(p, nameBy.get(p.authorWallet), countsBy.get(String(p._id)) || {}, mineBy.get(String(p._id)) || []),
+        ),
+        founderWallet,
+      },
     });
   } catch (error) {
     logger.error('[project-post] list failed', error as any);

@@ -1027,7 +1027,7 @@ const PostReplySchema = new mongoose.Schema({
 });
 PostReplySchema.index({ postId: 1, status: 1, createdAt: 1 });
 
-// ── Milestone ────────────────────────────────────────────────────
+// ── Milestone ─────────────────────────────────────
 //
 // A founder-declared, git-settled checkpoint on a market: "I will ship X by
 // <date>". OFF-CHAIN status only — settling a milestone flips this display
@@ -1113,6 +1113,43 @@ const MilestoneSchema = new mongoose.Schema({
   },
 });
 MilestoneSchema.index({ marketAddress: 1, order: 1, targetDate: 1 });
+
+// Lightweight emoji reactions on a project post or one of its replies. One row
+// per (target, wallet, emoji); toggling a reaction inserts/removes a row.
+const PostReactionSchema = new mongoose.Schema({
+  // 'post' | 'reply' — which kind of thing this reaction is attached to.
+  targetType: {
+    type: String,
+    enum: ['post', 'reply'],
+    required: true,
+  },
+  // ProjectPost._id or PostReply._id (stored as string for stable lookup).
+  targetId: {
+    type: String,
+    required: true,
+    index: true,
+  },
+  marketAddress: {
+    type: String,
+    required: true,
+    index: true,
+  },
+  walletAddress: {
+    type: String,
+    required: true,
+  },
+  emoji: {
+    type: String,
+    required: true,
+    maxlength: 8,
+  },
+  createdAt: {
+    type: Date,
+    default: Date.now,
+  },
+});
+// One reaction per user per target per emoji.
+PostReactionSchema.index({ targetType: 1, targetId: 1, walletAddress: 1, emoji: 1 }, { unique: true });
 
 const PaperReactionSchema = new mongoose.Schema({
   paperId: {
@@ -1251,6 +1288,9 @@ if (mongoose.models.PostReply) {
 if (mongoose.models.Milestone) {
   delete mongoose.models.Milestone;
 }
+if (mongoose.models.PostReaction) {
+  delete mongoose.models.PostReaction;
+}
 
 // ─── MarketDraft ─────────────────────────────────────────────────
 //
@@ -1302,6 +1342,7 @@ export const ResearchProgram = mongoose.model('ResearchProgram', ResearchProgram
 export const ProjectPost = mongoose.model('ProjectPost', ProjectPostSchema, 'project_posts');
 export const PostReply = mongoose.model('PostReply', PostReplySchema, 'post_replies');
 export const Milestone = mongoose.model('Milestone', MilestoneSchema, 'milestones');
+export const PostReaction = mongoose.model('PostReaction', PostReactionSchema, 'post_reactions');
 
 // Type definitions
 export interface IProject {
@@ -1465,6 +1506,16 @@ export interface IMilestone {
   order: number;
   createdAt: Date;
   updatedAt: Date;
+}
+
+export interface IPostReaction {
+  _id: string;
+  targetType: 'post' | 'reply';
+  targetId: string;
+  marketAddress: string;
+  walletAddress: string;
+  emoji: string;
+  createdAt: Date;
 }
 
 export interface IResearchProgram {

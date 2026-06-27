@@ -7,7 +7,7 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { Types } from 'mongoose';
-import { connectToDatabase, ProjectPost, PostReply, UserProfile } from '@/lib/mongodb';
+import { connectToDatabase, ProjectPost, PostReply, PostReaction, UserProfile } from '@/lib/mongodb';
 import { withAuth } from '@/lib/auth/require-wallet';
 import { checkRateLimit } from '@/lib/auth/rate-limit';
 import { createClientLogger } from '@/lib/logger';
@@ -15,13 +15,20 @@ import { createClientLogger } from '@/lib/logger';
 const logger = createClientLogger();
 const MAX_BODY = 1000;
 
-function serialize(r: any, name?: string | null) {
+function serialize(
+  r: any,
+  name?: string | null,
+  reactions: Record<string, number> = {},
+  mine: string[] = [],
+) {
   return {
     id: String(r._id),
     authorWallet: r.authorWallet,
     displayName: name ?? r.displayName ?? null,
     body: r.body,
     createdAt: r.createdAt,
+    reactions,
+    mine,
   };
 }
 
@@ -36,7 +43,7 @@ async function resolveNames(wallets: string[]): Promise<Map<string, string>> {
   return new Map(profiles.filter((p) => p.username).map((p) => [p.walletAddress, p.username]));
 }
 
-export async function GET(_request: NextRequest, { params }: { params: Promise<{ postId: string }> }) {
+export async function GET(request: NextRequest, { params }: { params: Promise<{ postId: string }> }) {
   try {
     const { postId } = await params;
     if (!Types.ObjectId.isValid(postId)) return bad('Invalid post id');
@@ -46,9 +53,33 @@ export async function GET(_request: NextRequest, { params }: { params: Promise<{
       .limit(200)
       .lean<any[]>();
     const names = await resolveNames(replies.map((r) => r.authorWallet));
+
+    // Fold in emoji reaction counts (+ the viewer's own, if passed).
+    const viewer = new URL(request.url).searchParams.get('viewer') || '';
+    const replyIds = replies.map((r) => String(r._id));
+    const reactionRows = replyIds.length
+      ? await PostReaction.find({ targetType: 'reply', targetId: { $in: replyIds } })
+          .select('targetId emoji walletAddress')
+          .lean<any[]>()
+      : [];
+    const countsBy = new Map<string, Record<string, number>>();
+    const mineBy = new Map<string, string[]>();
+    for (const r of reactionRows) {
+      const c = countsBy.get(r.targetId) || {};
+      c[r.emoji] = (c[r.emoji] || 0) + 1;
+      countsBy.set(r.targetId, c);
+      if (viewer && r.walletAddress === viewer) {
+        mineBy.set(r.targetId, [...(mineBy.get(r.targetId) || []), r.emoji]);
+      }
+    }
+
     return NextResponse.json({
       success: true,
-      data: { replies: replies.map((r) => serialize(r, names.get(r.authorWallet))) },
+      data: {
+        replies: replies.map((r) =>
+          serialize(r, names.get(r.authorWallet), countsBy.get(String(r._id)) || {}, mineBy.get(String(r._id)) || []),
+        ),
+      },
     });
   } catch (error) {
     logger.error('[post-reply] list failed', error as any);
