@@ -89,7 +89,12 @@ const GrokRoast = dynamic(() => import('@/components/GrokRoast'), {
   ssr: false,
 });
 
-// CommunityHub is now rendered by FloatingVoicePanel in layout
+// CommunityHub (chat + voice) now lives in the conviction rail's "Community"
+// tab, so the desktop FloatingVoicePanel overlay is suppressed on market pages.
+const CommunityHub = dynamic(() => import('@/components/chat/CommunityHub'), {
+  loading: () => skel('24rem'),
+  ssr: false,
+});
 
 const VideoEmbed = dynamic(() => import('@/components/VideoEmbed'), {
   loading: () => skel('16rem'),
@@ -310,6 +315,8 @@ export default function MarketDetailClient({
   const [loading, setLoading] = useState(!initialMarket);
   const [error, setError] = useState<string | null>(null);
   const [selectedSide, setSelectedSide] = useState<'yes' | 'no'>('yes');
+  // Right-rail tab: conviction (vote + on-chain) vs community (chat/voice).
+  const [railTab, setRailTab] = useState<'conviction' | 'community'>('conviction');
   const [isProcessingVote, setIsProcessingVote] = useState(false);
   const { vote } = useVoting();
   const { claim, isClaiming } = useClaiming();
@@ -1481,7 +1488,7 @@ export default function MarketDetailClient({
         }}
       >
       {/* Main Layout: Content + Sidebar */}
-      <div className="flex flex-col lg:flex-row gap-4">
+      <div className="flex flex-col lg:flex-row lg:items-start gap-4">
         {/* Left Content Area (70% on desktop) */}
         <div className="flex-1 lg:w-[70%] space-y-3 sm:space-y-4">
           {/* Trading Terminal - Show FIRST when token IS launched */}
@@ -2189,7 +2196,30 @@ export default function MarketDetailClient({
         {/* Conviction rail — vote + on-chain. Sticky on desktop (30% column);
             stacks full-width on mobile so voting is never hidden. */}
         <div id="conviction-rail" className="w-full lg:w-[30%] lg:min-w-[320px] lg:max-w-[400px] scroll-mt-24">
-          <div className="space-y-4 lg:sticky lg:top-20 lg:self-start">
+          <div className="space-y-4">
+          {/* Rail tabs: Conviction (vote + on-chain) | Community (chat + voice).
+              Replaces the old fixed Chat/Voice overlay that floated over this column. */}
+          <div className="flex items-stretch" style={{ border: `1px solid ${HAIR_STRONG}` }}>
+            {(['conviction', 'community'] as const).map((t) => (
+              <button
+                key={t}
+                type="button"
+                onClick={() => setRailTab(t)}
+                className="flex-1 mono uppercase tracking-[0.22em] text-[0.55rem] py-2.5 transition-colors"
+                style={{
+                  background: railTab === t ? 'rgba(232,150,96,0.14)' : 'transparent',
+                  color: railTab === t ? AMBER : CREAM_FAINT,
+                  borderBottom: `2px solid ${railTab === t ? AMBER : 'transparent'}`,
+                }}
+              >
+                {t === 'conviction' ? 'Conviction' : 'Community'}
+              </button>
+            ))}
+          </div>
+
+          {/* Conviction pane — kept mounted (hidden) when on Community so vote
+              state (side, amount) survives a tab switch. */}
+          <div className={railTab === 'conviction' ? 'space-y-4' : 'hidden'}>
           {/* Trading Section — cosmic-plant ─────────────────────────── */}
           {!isTokenLaunched && (
           <section
@@ -3754,10 +3784,26 @@ export default function MarketDetailClient({
               )}
             </>
           )}
+          </div>
+
+          {/* Community pane — the chat/voice that used to float over this column,
+              now an in-flow tab so it never overlaps the conviction panel. */}
+          <div className={railTab === 'community' ? '' : 'hidden'}>
+            <CommunityHub
+              marketId={params.id as string}
+              marketAddress={market?.marketAddress || (params.id as string)}
+              marketName={(market as any)?.name || (market as any)?.title || ''}
+              walletAddress={primaryWallet?.address ?? null}
+              founderWallet={market?.founderWallet || null}
+              hasPosition={true}
+              socialLinks={market?.metadata?.socialLinks as any}
+              className="h-[calc(100vh-11rem)]"
+            />
+          </div>
         </div>
         </div>
 
-        {/* CommunityHub is now rendered by FloatingVoicePanel in layout */}
+        {/* Chat/voice now lives in the rail's Community tab (above) */}
 
       </div>
       {/* End Main Layout */}
