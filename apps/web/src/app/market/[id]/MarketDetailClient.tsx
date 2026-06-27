@@ -36,6 +36,8 @@ import SuccessDialog from '@/components/SuccessDialog';
 import { useMarketSocket, useUserSocket } from '@/lib/hooks/useSocket';
 import { MarketCitations } from '@/components/research/MarketCitations';
 import { ProjectUpdates } from '@/components/market/ProjectUpdates';
+import { MilestoneRoadmap } from '@/components/market/MilestoneRoadmap';
+import { GitDigest } from '@/components/market/GitDigest';
 import { TokenLaunchAnimation } from '@/components/TokenLaunchAnimation';
 import { getVoteButtonStates, getMarketDisplayStatus } from '@/lib/api-utils';
 import {
@@ -320,6 +322,9 @@ export default function MarketDetailClient({
   // Main-column tab: the build-in-public Updates feed (default) vs everything
   // else (analysis, video, holders) under Details.
   const [mainTab, setMainTab] = useState<'updates' | 'ai' | 'details'>('updates');
+  // Bumped when an AI git-digest is posted, to remount the Updates feed so the
+  // new post shows without a full page reload.
+  const [updatesReloadToken, setUpdatesReloadToken] = useState(0);
   const [isProcessingVote, setIsProcessingVote] = useState(false);
   const { vote } = useVoting();
   const { claim, isClaiming } = useClaiming();
@@ -1917,7 +1922,12 @@ export default function MarketDetailClient({
 
         {/* Updates pane — the founder's build-in-public feed (the default) */}
         <div className={mainTab === 'updates' ? '' : 'hidden'}>
-          <ProjectUpdates marketId={params.id as string} founderWallet={market.founderWallet || null} />
+          <GitDigest
+            marketId={params.id as string}
+            founderWallet={market.founderWallet || null}
+            onPosted={() => setUpdatesReloadToken((t) => t + 1)}
+          />
+          <ProjectUpdates key={updatesReloadToken} marketId={params.id as string} founderWallet={market.founderWallet || null} />
         </div>
 
         {/* AI review pane — the structured Grok reading (legit score, red flags,
@@ -3802,6 +3812,10 @@ export default function MarketDetailClient({
               )}
             </>
           )}
+
+          {/* Roadmap — founder-declared, git-settled milestones. The
+              back-the-builder resolution surface; sits with the stake. */}
+          <MilestoneRoadmap marketId={params.id as string} founderWallet={market.founderWallet || null} />
           </div>
 
           {/* Community pane — the chat/voice that used to float over this column,
