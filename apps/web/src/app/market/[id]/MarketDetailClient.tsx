@@ -35,6 +35,7 @@ import ErrorDialog from '@/components/ErrorDialog';
 import SuccessDialog from '@/components/SuccessDialog';
 import { useMarketSocket, useUserSocket } from '@/lib/hooks/useSocket';
 import { MarketCitations } from '@/components/research/MarketCitations';
+import { ProjectUpdates } from '@/components/market/ProjectUpdates';
 import { ProjectPulse } from '@/components/research/ProjectPulse';
 import { TokenLaunchAnimation } from '@/components/TokenLaunchAnimation';
 import { getVoteButtonStates, getMarketDisplayStatus } from '@/lib/api-utils';
@@ -89,7 +90,12 @@ const GrokRoast = dynamic(() => import('@/components/GrokRoast'), {
   ssr: false,
 });
 
-// CommunityHub is now rendered by FloatingVoicePanel in layout
+// CommunityHub (chat + voice) now lives in the conviction rail's "Community"
+// tab, so the desktop FloatingVoicePanel overlay is suppressed on market pages.
+const CommunityHub = dynamic(() => import('@/components/chat/CommunityHub'), {
+  loading: () => skel('24rem'),
+  ssr: false,
+});
 
 const VideoEmbed = dynamic(() => import('@/components/VideoEmbed'), {
   loading: () => skel('16rem'),
@@ -310,6 +316,11 @@ export default function MarketDetailClient({
   const [loading, setLoading] = useState(!initialMarket);
   const [error, setError] = useState<string | null>(null);
   const [selectedSide, setSelectedSide] = useState<'yes' | 'no'>('yes');
+  // Right-rail tab: conviction (vote + on-chain) vs community (chat/voice).
+  const [railTab, setRailTab] = useState<'conviction' | 'community'>('conviction');
+  // Main-column tab: the build-in-public Updates feed (default) vs everything
+  // else (analysis, video, holders) under Details.
+  const [mainTab, setMainTab] = useState<'updates' | 'ai' | 'details'>('updates');
   const [isProcessingVote, setIsProcessingVote] = useState(false);
   const { vote } = useVoting();
   const { claim, isClaiming } = useClaiming();
@@ -1471,7 +1482,7 @@ export default function MarketDetailClient({
       )}
 
       <div
-        className="pt-0.5 px-3 pb-3 sm:p-4 max-w-[1600px] mx-auto"
+        className="pt-0.5 px-3 pb-24 sm:px-4 sm:pt-4 lg:pb-4 max-w-[1600px] mx-auto"
         onTouchStart={onTouchStart}
         onTouchMove={onTouchMove}
         onTouchEnd={onTouchEnd}
@@ -1481,7 +1492,7 @@ export default function MarketDetailClient({
         }}
       >
       {/* Main Layout: Content + Sidebar */}
-      <div className="flex flex-col lg:flex-row gap-4">
+      <div className="flex flex-col lg:flex-row lg:items-start gap-4">
         {/* Left Content Area (70% on desktop) */}
         <div className="flex-1 lg:w-[70%] space-y-3 sm:space-y-4">
           {/* Trading Terminal - Show FIRST when token IS launched */}
@@ -2013,6 +2024,67 @@ export default function MarketDetailClient({
             </div>
           </article>
 
+        {/* Main-column tabs: Updates (build-in-public feed) | AI review (Grok) | Details */}
+        <div className="flex items-stretch" style={{ borderBottom: `1px solid ${HAIR_STRONG}` }}>
+          {(['updates', 'ai', 'details'] as const).map((t) => (
+            <button
+              key={t}
+              type="button"
+              onClick={() => setMainTab(t)}
+              className="mono uppercase tracking-[0.24em] text-[0.6rem] px-5 py-3 transition-colors"
+              style={{
+                color: mainTab === t ? AMBER : CREAM_FAINT,
+                borderBottom: `2px solid ${mainTab === t ? AMBER : 'transparent'}`,
+                marginBottom: '-1px',
+              }}
+            >
+              {t === 'updates' ? 'Updates' : t === 'ai' ? 'AI review' : 'Details'}
+            </button>
+          ))}
+        </div>
+
+        {/* Updates pane — the founder's build-in-public feed (the default) */}
+        <div className={mainTab === 'updates' ? '' : 'hidden'}>
+          <ProjectUpdates marketId={params.id as string} founderWallet={market.founderWallet || null} />
+        </div>
+
+        {/* AI review pane — the structured Grok reading (legit score, red flags,
+            positives, verdict), lifted out of Details into its own tab. */}
+        <div className={mainTab === 'ai' ? '' : 'hidden'}>
+          <article
+            className="p-4 sm:p-5"
+            style={{ background: 'rgba(244,238,228,0.025)', border: `1px solid ${HAIR_STRONG}` }}
+          >
+            <p
+              className="mono uppercase tracking-[0.32em] text-[0.55rem] mb-1.5 inline-flex items-center gap-2"
+              style={{ color: AMBER }}
+            >
+              <Sparkles className="w-3 h-3" />
+              The reading
+            </p>
+            <h3
+              className="leading-tight mb-3"
+              style={{ color: CREAM, fontFamily: 'var(--font-fraunces, serif)', fontWeight: 350, fontSize: '1.15rem' }}
+            >
+              What the data says
+            </h3>
+            <GrokRoast
+              marketId={market.id}
+              resolution={mergedOnchainData?.data?.resolution}
+              votingData={{
+                totalYesVotes: market.yesVotes || 0,
+                totalNoVotes: market.noVotes || 0,
+                yesPercentage: yesPercentage || 0,
+                totalParticipants: market.totalParticipants || 0,
+              }}
+            />
+          </article>
+        </div>
+
+        {/* Details pane — analysis, video, holders. Kept mounted (hidden) so
+            heavy children don't remount on every tab switch. */}
+        <div className={mainTab === 'details' ? 'space-y-3 sm:space-y-4' : 'hidden'}>
+
         {/* Voice + Video — only when token NOT launched */}
         {!isTokenLaunched && (market.metadata?.videoUrl || market.metadata?.additionalNotes) && (
           <div className={`grid gap-4 ${market.metadata?.videoUrl && market.metadata?.additionalNotes ? 'md:grid-cols-2' : ''}`}>
@@ -2056,51 +2128,126 @@ export default function MarketDetailClient({
           </div>
         )}
 
-        {/* Grok Analysis and Voting — side by side */}
-        <div className="grid gap-4 md:grid-cols-2">
-          {/* Deep Space Analysis */}
+        {/* AI reading now lives in the "AI review" tab above. */}
+        {/* End AI reading — conviction panel now lives in the right rail */}
+
+        {/* Full Description — only when richer than the intro */}
+        {market.metadata?.description && market.metadata.description !== market.description && (
           <article
-            className="p-4 sm:p-5"
+            className="p-5 sm:p-6"
             style={{
               background: 'rgba(244,238,228,0.025)',
               border: `1px solid ${HAIR_STRONG}`,
             }}
           >
             <p
-              className="mono uppercase tracking-[0.32em] text-[0.55rem] mb-1.5 inline-flex items-center gap-2"
+              className="mono uppercase tracking-[0.32em] text-[0.55rem] mb-3"
               style={{ color: AMBER }}
             >
-              <Sparkles className="w-3 h-3" />
-              The reading
+              ¶ The full story
             </p>
-            <h3
-              className="leading-tight mb-3"
+            <p
+              className="whitespace-pre-wrap leading-relaxed"
               style={{
                 color: CREAM,
                 fontFamily: 'var(--font-fraunces, serif)',
-                fontWeight: 350,
-                fontSize: '1.15rem',
+                fontSize: 'clamp(1rem, 1.4vw, 1.1rem)',
+                lineHeight: 1.6,
               }}
             >
-              What the data says
-            </h3>
-            <GrokRoast
-              marketId={market.id}
-              resolution={mergedOnchainData?.data?.resolution}
-              votingData={{
-                totalYesVotes: market.yesVotes || 0,
-                totalNoVotes: market.noVotes || 0,
-                yesPercentage: yesPercentage || 0,
-                totalParticipants: market.totalParticipants || 0,
-              }}
-            />
+              {market.metadata.description}
+            </p>
           </article>
+        )}
 
-          {/* Right Column - Trading (when not launched) + Market Status (always) + Video/Offers (when launched).
-              Sticky + self-start so it doesn't stretch to the (often much taller) roast cell and instead
-              pins in view as you scroll the analysis — turning the old empty void into a persistent CTA.
-              top-20 clears the fixed navbar. */}
-          <div className="space-y-4 lg:sticky lg:top-20 lg:self-start">
+        {/* Market Holders and Activity - Only show for resolved markets */}
+        {mergedOnchainData?.data?.resolution !== 'Unresolved' ? (
+          <div className="grid gap-3 sm:gap-4 md:grid-cols-2">
+            <LiveActivityFeed
+              trades={historyData?.data?.recentTrades || []}
+              className="w-full"
+            />
+            {holdersData?.success && (
+              <MarketHolders
+                yesHolders={holdersData.data.yesHolders || []}
+                noHolders={holdersData.data.noHolders || []}
+                totalYesStake={holdersData.data.totalYesStake || 0}
+                totalNoStake={holdersData.data.totalNoStake || 0}
+                uniqueHolders={holdersData.data.uniqueHolders || 0}
+                yesPercentage={market.yesPercentage ?? undefined}
+                noPercentage={market.noPercentage ?? undefined}
+                currentUserWallet={primaryWallet?.address}
+                className="w-full"
+              />
+            )}
+          </div>
+        ) : (
+          <article
+            className="py-12 px-6 text-center"
+            style={{
+              background: 'rgba(244,238,228,0.02)',
+              border: `1px solid ${HAIR}`,
+            }}
+          >
+            <SeedIcon className="w-9 h-9 mx-auto mb-4" />
+            <h3
+              className="mb-2"
+              style={{
+                color: CREAM,
+                fontFamily: 'var(--font-fraunces, serif)',
+                fontSize: '1.25rem',
+                fontWeight: 350,
+              }}
+            >
+              Voting in progress.
+            </h3>
+            <p
+              className="mx-auto max-w-md italic"
+              style={{
+                color: CREAM_DIM,
+                fontFamily: 'var(--font-fraunces, serif)',
+                fontStyle: 'italic',
+                fontSize: '0.9rem',
+              }}
+            >
+              Holder positions and activity stay hidden until close — to keep the
+              vote unbiased.
+            </p>
+          </article>
+        )}
+        </div>
+        {/* End Details pane */}
+
+        </div>
+        {/* End Left Content Area */}
+
+        {/* Conviction rail — vote + on-chain. Sticky on desktop (30% column);
+            stacks full-width on mobile so voting is never hidden. */}
+        <div id="conviction-rail" className="w-full lg:w-[30%] lg:min-w-[320px] lg:max-w-[400px] scroll-mt-24">
+          <div className="space-y-4">
+          {/* Rail tabs: Conviction (vote + on-chain) | Community (chat + voice).
+              Replaces the old fixed Chat/Voice overlay that floated over this column. */}
+          <div className="flex items-stretch" style={{ border: `1px solid ${HAIR_STRONG}` }}>
+            {(['conviction', 'community'] as const).map((t) => (
+              <button
+                key={t}
+                type="button"
+                onClick={() => setRailTab(t)}
+                className="flex-1 mono uppercase tracking-[0.22em] text-[0.55rem] py-2.5 transition-colors"
+                style={{
+                  background: railTab === t ? 'rgba(232,150,96,0.14)' : 'transparent',
+                  color: railTab === t ? AMBER : CREAM_FAINT,
+                  borderBottom: `2px solid ${railTab === t ? AMBER : 'transparent'}`,
+                }}
+              >
+                {t === 'conviction' ? 'Conviction' : 'Community'}
+              </button>
+            ))}
+          </div>
+
+          {/* Conviction pane — kept mounted (hidden) when on Community so vote
+              state (side, amount) survives a tab switch. */}
+          <div className={railTab === 'conviction' ? 'space-y-4' : 'hidden'}>
           {/* Trading Section — cosmic-plant ─────────────────────────── */}
           {!isTokenLaunched && (
           <section
@@ -3665,105 +3812,26 @@ export default function MarketDetailClient({
               )}
             </>
           )}
-        </div>
-        {/* End Right Column */}
-        </div>
-        {/* End Grok Analysis grid */}
-
-        {/* Full Description — only when richer than the intro */}
-        {market.metadata?.description && market.metadata.description !== market.description && (
-          <article
-            className="p-5 sm:p-6"
-            style={{
-              background: 'rgba(244,238,228,0.025)',
-              border: `1px solid ${HAIR_STRONG}`,
-            }}
-          >
-            <p
-              className="mono uppercase tracking-[0.32em] text-[0.55rem] mb-3"
-              style={{ color: AMBER }}
-            >
-              ¶ The full story
-            </p>
-            <p
-              className="whitespace-pre-wrap leading-relaxed"
-              style={{
-                color: CREAM,
-                fontFamily: 'var(--font-fraunces, serif)',
-                fontSize: 'clamp(1rem, 1.4vw, 1.1rem)',
-                lineHeight: 1.6,
-              }}
-            >
-              {market.metadata.description}
-            </p>
-          </article>
-        )}
-
-        {/* Market Holders and Activity - Only show for resolved markets */}
-        {mergedOnchainData?.data?.resolution !== 'Unresolved' ? (
-          <div className="grid gap-3 sm:gap-4 md:grid-cols-2">
-            <LiveActivityFeed
-              trades={historyData?.data?.recentTrades || []}
-              className="w-full"
-            />
-            {holdersData?.success && (
-              <MarketHolders
-                yesHolders={holdersData.data.yesHolders || []}
-                noHolders={holdersData.data.noHolders || []}
-                totalYesStake={holdersData.data.totalYesStake || 0}
-                totalNoStake={holdersData.data.totalNoStake || 0}
-                uniqueHolders={holdersData.data.uniqueHolders || 0}
-                yesPercentage={market.yesPercentage ?? undefined}
-                noPercentage={market.noPercentage ?? undefined}
-                currentUserWallet={primaryWallet?.address}
-                className="w-full"
-              />
-            )}
           </div>
-        ) : (
-          <article
-            className="py-12 px-6 text-center"
-            style={{
-              background: 'rgba(244,238,228,0.02)',
-              border: `1px solid ${HAIR}`,
-            }}
-          >
-            <SeedIcon className="w-9 h-9 mx-auto mb-4" />
-            <h3
-              className="mb-2"
-              style={{
-                color: CREAM,
-                fontFamily: 'var(--font-fraunces, serif)',
-                fontSize: '1.25rem',
-                fontWeight: 350,
-              }}
-            >
-              Voting in progress.
-            </h3>
-            <p
-              className="mx-auto max-w-md italic"
-              style={{
-                color: CREAM_DIM,
-                fontFamily: 'var(--font-fraunces, serif)',
-                fontStyle: 'italic',
-                fontSize: '0.9rem',
-              }}
-            >
-              Holder positions and activity stay hidden until close — to keep the
-              vote unbiased.
-            </p>
-          </article>
-        )}
 
+          {/* Community pane — the chat/voice that used to float over this column,
+              now an in-flow tab so it never overlaps the conviction panel. */}
+          <div className={railTab === 'community' ? '' : 'hidden'}>
+            <CommunityHub
+              marketId={params.id as string}
+              marketAddress={market?.marketAddress || (params.id as string)}
+              marketName={(market as any)?.name || (market as any)?.title || ''}
+              walletAddress={primaryWallet?.address ?? null}
+              founderWallet={market?.founderWallet || null}
+              hasPosition={true}
+              socialLinks={market?.metadata?.socialLinks as any}
+              className="h-[calc(100vh-11rem)]"
+            />
+          </div>
         </div>
-        {/* End Left Content Area */}
-
-        {/* Right Sidebar - Community Hub (Desktop) - Fixed position floats in place while scrolling */}
-        <div className="hidden lg:block lg:w-[30%] lg:min-w-[320px] lg:max-w-[400px]">
-          {/* Placeholder to maintain layout spacing */}
         </div>
 
-        {/* CommunityHub is now rendered by FloatingVoicePanel in layout */}
+        {/* Chat/voice now lives in the rail's Community tab (above) */}
 
       </div>
       {/* End Main Layout */}
@@ -3817,6 +3885,58 @@ export default function MarketDetailClient({
           onClose={() => setShowMediaEdit(false)}
           onUpdated={() => fetchMarketDetails(params.id as string)}
         />
+      )}
+
+      {/* Mobile sticky vote bar — the conviction rail stacks at the bottom on
+          mobile, so this keeps a one-tap path to it. It does NOT duplicate the
+          trade logic: it switches the rail to the Conviction tab, pre-selects a
+          side, and smooth-scrolls to the panel where the user confirms + signs.
+          lg:hidden = desktop shows the rail inline (top-right column). */}
+      {!isTokenLaunched && mergedOnchainData?.data?.resolution === 'Unresolved' && (
+        <div
+          className="lg:hidden fixed bottom-0 left-0 right-0 z-40 px-3 py-2.5 flex items-center gap-2"
+          style={{
+            background: 'rgba(10,8,20,0.92)',
+            backdropFilter: 'blur(12px)',
+            borderTop: `1px solid ${HAIR_STRONG}`,
+          }}
+        >
+          <div className="flex flex-col leading-tight mr-1 shrink-0">
+            <span
+              className="mono uppercase tracking-[0.2em] text-[0.45rem]"
+              style={{ color: CREAM_FAINT }}
+            >
+              Conviction
+            </span>
+            <span className="mono text-[0.72rem] tabular-nums" style={{ color: CREAM }}>
+              {yesPercentage}% YES
+            </span>
+          </div>
+          <button
+            type="button"
+            onClick={() => {
+              setRailTab('conviction');
+              setSelectedSide('yes');
+              document.getElementById('conviction-rail')?.scrollIntoView({ behavior: 'smooth' });
+            }}
+            className="flex-1 mono uppercase tracking-[0.22em] text-[0.6rem] py-2.5"
+            style={{ background: FOREST, color: CREAM }}
+          >
+            Vote YES
+          </button>
+          <button
+            type="button"
+            onClick={() => {
+              setRailTab('conviction');
+              setSelectedSide('no');
+              document.getElementById('conviction-rail')?.scrollIntoView({ behavior: 'smooth' });
+            }}
+            className="flex-1 mono uppercase tracking-[0.22em] text-[0.6rem] py-2.5"
+            style={{ background: EARTH, color: CREAM }}
+          >
+            Vote NO
+          </button>
+        </div>
       )}
     </>
   );
