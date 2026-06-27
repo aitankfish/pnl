@@ -920,6 +920,72 @@ const ResearchProgramSchema = new mongoose.Schema({
   },
 });
 
+// ========================================
+// Project Posts — the founder's build-in-public update feed on a market.
+// ========================================
+//
+// Durable (unlike ChatMessage's 30-day TTL): the build log persists. Founder-
+// authored; readers reply via ChatMessage threads (later). Media is IPFS-hosted
+// images. `sourceUrl` records an imported X post for provenance (later phase).
+const ProjectPostSchema = new mongoose.Schema({
+  // Market the post belongs to — stored by on-chain address for stable lookup.
+  marketAddress: {
+    type: String,
+    required: true,
+    index: true,
+  },
+  projectId: {
+    type: String,
+    index: true,
+  },
+  authorWallet: {
+    type: String,
+    required: true,
+  },
+  body: {
+    type: String,
+    maxlength: 5000,
+  },
+  // IPFS-hosted images attached to the post.
+  media: {
+    type: [
+      new mongoose.Schema(
+        { url: { type: String, required: true }, kind: { type: String, default: 'image' } },
+        { _id: false },
+      ),
+    ],
+    default: [],
+  },
+  // Provenance for an imported X/social post (later phase).
+  sourceUrl: {
+    type: String,
+    maxlength: 500,
+  },
+  pinned: {
+    type: Boolean,
+    default: false,
+  },
+  editedAt: {
+    type: Date,
+  },
+  status: {
+    type: String,
+    enum: ['active', 'hidden'],
+    default: 'active',
+    index: true,
+  },
+  createdAt: {
+    type: Date,
+    default: Date.now,
+    index: true,
+  },
+  updatedAt: {
+    type: Date,
+    default: Date.now,
+  },
+});
+ProjectPostSchema.index({ marketAddress: 1, status: 1, pinned: -1, createdAt: -1 });
+
 const PaperReactionSchema = new mongoose.Schema({
   paperId: {
     type: mongoose.Schema.Types.ObjectId,
@@ -1048,6 +1114,9 @@ if (mongoose.models.PaperCitation) {
 if (mongoose.models.ResearchProgram) {
   delete mongoose.models.ResearchProgram;
 }
+if (mongoose.models.ProjectPost) {
+  delete mongoose.models.ProjectPost;
+}
 
 // ─── MarketDraft ─────────────────────────────────────────────────
 //
@@ -1096,6 +1165,7 @@ export const ResearchPaper = mongoose.model('ResearchPaper', ResearchPaperSchema
 export const PaperReaction = mongoose.model('PaperReaction', PaperReactionSchema, 'paper_reactions');
 export const PaperCitation = mongoose.model('PaperCitation', PaperCitationSchema, 'paper_citations');
 export const ResearchProgram = mongoose.model('ResearchProgram', ResearchProgramSchema, 'research_programs');
+export const ProjectPost = mongoose.model('ProjectPost', ProjectPostSchema, 'project_posts');
 
 // Type definitions
 export interface IProject {
@@ -1212,6 +1282,21 @@ export interface IResearchPaper {
   currentVersion: number;
   likeCount: number;
   dislikeCount: number;
+  status: 'active' | 'hidden';
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+export interface IProjectPost {
+  _id: string;
+  marketAddress: string;
+  projectId?: string;
+  authorWallet: string;
+  body?: string;
+  media: { url: string; kind?: string }[];
+  sourceUrl?: string;
+  pinned: boolean;
+  editedAt?: Date;
   status: 'active' | 'hidden';
   createdAt: Date;
   updatedAt: Date;

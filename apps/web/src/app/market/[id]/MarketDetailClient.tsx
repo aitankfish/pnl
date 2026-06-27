@@ -35,6 +35,7 @@ import ErrorDialog from '@/components/ErrorDialog';
 import SuccessDialog from '@/components/SuccessDialog';
 import { useMarketSocket, useUserSocket } from '@/lib/hooks/useSocket';
 import { MarketCitations } from '@/components/research/MarketCitations';
+import { ProjectUpdates } from '@/components/market/ProjectUpdates';
 import { ProjectPulse } from '@/components/research/ProjectPulse';
 import { TokenLaunchAnimation } from '@/components/TokenLaunchAnimation';
 import { getVoteButtonStates, getMarketDisplayStatus } from '@/lib/api-utils';
@@ -317,6 +318,9 @@ export default function MarketDetailClient({
   const [selectedSide, setSelectedSide] = useState<'yes' | 'no'>('yes');
   // Right-rail tab: conviction (vote + on-chain) vs community (chat/voice).
   const [railTab, setRailTab] = useState<'conviction' | 'community'>('conviction');
+  // Main-column tab: the build-in-public Updates feed (default) vs everything
+  // else (analysis, video, holders) under Details.
+  const [mainTab, setMainTab] = useState<'updates' | 'details'>('updates');
   const [isProcessingVote, setIsProcessingVote] = useState(false);
   const { vote } = useVoting();
   const { claim, isClaiming } = useClaiming();
@@ -2020,6 +2024,34 @@ export default function MarketDetailClient({
             </div>
           </article>
 
+        {/* Main-column tabs: Updates (build-in-public feed) | Details (analysis, video, holders) */}
+        <div className="flex items-stretch" style={{ borderBottom: `1px solid ${HAIR_STRONG}` }}>
+          {(['updates', 'details'] as const).map((t) => (
+            <button
+              key={t}
+              type="button"
+              onClick={() => setMainTab(t)}
+              className="mono uppercase tracking-[0.24em] text-[0.6rem] px-5 py-3 transition-colors"
+              style={{
+                color: mainTab === t ? AMBER : CREAM_FAINT,
+                borderBottom: `2px solid ${mainTab === t ? AMBER : 'transparent'}`,
+                marginBottom: '-1px',
+              }}
+            >
+              {t === 'updates' ? 'Updates' : 'Details'}
+            </button>
+          ))}
+        </div>
+
+        {/* Updates pane — the founder's build-in-public feed (the default) */}
+        <div className={mainTab === 'updates' ? '' : 'hidden'}>
+          <ProjectUpdates marketId={params.id as string} founderWallet={market.founderWallet || null} />
+        </div>
+
+        {/* Details pane — analysis, video, holders. Kept mounted (hidden) so
+            heavy children don't remount on every tab switch. */}
+        <div className={mainTab === 'details' ? 'space-y-3 sm:space-y-4' : 'hidden'}>
+
         {/* Voice + Video — only when token NOT launched */}
         {!isTokenLaunched && (market.metadata?.videoUrl || market.metadata?.additionalNotes) && (
           <div className={`grid gap-4 ${market.metadata?.videoUrl && market.metadata?.additionalNotes ? 'md:grid-cols-2' : ''}`}>
@@ -2189,6 +2221,8 @@ export default function MarketDetailClient({
             </p>
           </article>
         )}
+        </div>
+        {/* End Details pane */}
 
         </div>
         {/* End Left Content Area */}
