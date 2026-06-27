@@ -114,8 +114,18 @@ function Composer({ marketId, onPosted }: { marketId: string; onPosted: (p: Post
   const { showToast } = useToast();
   const [body, setBody] = useState('');
   const [images, setImages] = useState<File[]>([]);
+  const [previews, setPreviews] = useState<string[]>([]);
   const [posting, setPosting] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
+
+  // Manage preview object URLs in an effect (not in render) so each is revoked
+  // when the image set changes or the composer unmounts — no leak, and the
+  // blob URL never flows directly into JSX.
+  useEffect(() => {
+    const urls = images.map((f) => URL.createObjectURL(f));
+    setPreviews(urls);
+    return () => urls.forEach((u) => URL.revokeObjectURL(u));
+  }, [images]);
 
   const addImages = (files: FileList | null) => {
     if (!files) return;
@@ -168,10 +178,10 @@ function Composer({ marketId, onPosted }: { marketId: string; onPosted: (p: Post
       />
       {images.length > 0 && (
         <div className="flex flex-wrap gap-2 mt-2">
-          {images.map((f, i) => (
+          {images.map((_f, i) => (
             <div key={i} className="relative">
               {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src={URL.createObjectURL(f)} alt="" className="w-16 h-16 object-cover" style={{ border: `1px solid ${HAIR}` }} />
+              <img src={previews[i]} alt="" className="w-16 h-16 object-cover" style={{ border: `1px solid ${HAIR}` }} />
               <button
                 type="button"
                 onClick={() => setImages((prev) => prev.filter((_, j) => j !== i))}
