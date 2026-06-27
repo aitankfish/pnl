@@ -8,7 +8,7 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { Types } from 'mongoose';
-import { connectToDatabase, PredictionMarket, Project, ProjectPost } from '@/lib/mongodb';
+import { connectToDatabase, PredictionMarket, Project, ProjectPost, UserProfile } from '@/lib/mongodb';
 import { ipfsUtils } from '@/lib/ipfs';
 import { withAuth } from '@/lib/auth/require-wallet';
 import { checkRateLimit } from '@/lib/auth/rate-limit';
@@ -32,10 +32,16 @@ async function resolveMarketAndProject(id: string) {
   return { market, project };
 }
 
-function serialize(p: any) {
+async function nameFor(wallet: string): Promise<string | null> {
+  const p = await UserProfile.findOne({ walletAddress: wallet }).select('username').lean<any>();
+  return p?.username || null;
+}
+
+function serialize(p: any, authorName?: string | null) {
   return {
     id: String(p._id),
     authorWallet: p.authorWallet,
+    authorName: authorName ?? null,
     body: p.body || '',
     media: (p.media || []).map((m: any) => ({
       url: convertToGatewayUrl(m.url) || m.url,
@@ -107,7 +113,7 @@ export const POST = withAuth(async (request: NextRequest, authUser, { params }: 
     });
 
     logger.info('[project-post] created', { marketAddress: market.marketAddress, postId: post._id });
-    return NextResponse.json({ success: true, data: serialize(post.toObject()) });
+    return NextResponse.json({ success: true, data: serialize(post.toObject(), await nameFor(authUser.walletAddress)) });
   } catch (error) {
     logger.error('[project-post] create failed', error as any);
     return NextResponse.json({ success: false, error: 'Failed to publish update' }, { status: 500 });
@@ -127,12 +133,19 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
       .limit(limit)
       .lean<any[]>();
 
+    // Batch-resolve author display names (server-authoritative usernames).
+    const wallets = [...new Set(posts.map((p) => p.authorWallet))];
+    const profiles = wallets.length
+      ? await UserProfile.find({ walletAddress: { $in: wallets } }).select('walletAddress username').lean<any[]>()
+      : [];
+    const nameBy = new Map(profiles.filter((p) => p.username).map((p) => [p.walletAddress, p.username]));
+
     // Resolve the founder the same way create-auth does (project first), so the
     // composer is shown to the real founder even when market.founderWallet diverges.
     const founderWallet = project?.founderWallet || market.founderWallet || null;
     return NextResponse.json({
       success: true,
-      data: { posts: posts.map(serialize), founderWallet },
+      data: { posts: posts.map((p) => serialize(p, nameBy.get(p.authorWallet))), founderWallet },
     });
   } catch (error) {
     logger.error('[project-post] list failed', error as any);

@@ -2089,13 +2089,7 @@ export default function MarketDetailClient({
         {!isTokenLaunched && (market.metadata?.videoUrl || market.metadata?.additionalNotes) && (
           <div className={`grid gap-4 ${market.metadata?.videoUrl && market.metadata?.additionalNotes ? 'md:grid-cols-2' : ''}`}>
             {market.metadata?.additionalNotes && (
-              <article
-                className="p-4 sm:p-5 flex flex-col h-full"
-                style={{
-                  background: 'rgba(232,150,96,0.04)',
-                  border: `1px solid ${AMBER}33`,
-                }}
-              >
+              <article className="py-2 flex flex-col h-full">
                 <p
                   className="mono uppercase tracking-[0.32em] text-[0.55rem] mb-3 inline-flex items-center gap-2"
                   style={{ color: AMBER }}
@@ -2133,13 +2127,7 @@ export default function MarketDetailClient({
 
         {/* Full Description — only when richer than the intro */}
         {market.metadata?.description && market.metadata.description !== market.description && (
-          <article
-            className="p-5 sm:p-6"
-            style={{
-              background: 'rgba(244,238,228,0.025)',
-              border: `1px solid ${HAIR_STRONG}`,
-            }}
-          >
+          <article className="py-2">
             <p
               className="mono uppercase tracking-[0.32em] text-[0.55rem] mb-3"
               style={{ color: AMBER }}
@@ -3886,6 +3874,31 @@ export default function MarketDetailClient({
           onUpdated={() => fetchMarketDetails(params.id as string)}
         />
       )}
+
+      {/* Mobile community FAB — one-tap to the rail's Community (chat/voice) tab.
+          Sits above the vote bar when that's shown. Single affordance, no
+          double-mount of CommunityHub (it just switches the rail tab). */}
+      <button
+        type="button"
+        onClick={() => {
+          setRailTab('community');
+          document.getElementById('conviction-rail')?.scrollIntoView({ behavior: 'smooth' });
+        }}
+        className="lg:hidden fixed right-4 z-40 p-3 rounded-full transition-transform hover:scale-105"
+        style={{
+          bottom:
+            !isTokenLaunched && mergedOnchainData?.data?.resolution === 'Unresolved' ? '5.25rem' : '1.5rem',
+          background: 'rgba(10,8,20,0.92)',
+          border: `1px solid ${HAIR_STRONG}`,
+          color: AMBER,
+          backdropFilter: 'blur(8px)',
+          boxShadow: '0 10px 28px rgba(0,0,0,0.4)',
+        }}
+        aria-label="Community"
+        title="Community chat & voice"
+      >
+        <MessageCircle className="w-5 h-5" />
+      </button>
 
       {/* Mobile sticky vote bar — the conviction rail stacks at the bottom on
           mobile, so this keeps a one-tap path to it. It does NOT duplicate the
