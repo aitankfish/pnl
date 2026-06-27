@@ -10,6 +10,7 @@ import {
   History, Pencil, ChevronDown, Sprout,
 } from 'lucide-react';
 import { PaperUnderpins } from '@/components/research/PaperUnderpins';
+import { PaperStats } from '@/components/research/PaperStats';
 import { PaperProgramControl } from '@/components/research/PaperProgramControl';
 import { isPlatformAdmin } from '@/lib/admin';
 import { PaperActivityFeed } from '@/components/research/PaperActivityFeed';
@@ -484,6 +485,10 @@ export function ResearchPaperClient({ paper }: { paper: Paper }) {
               )}
             </div>
           </div>
+
+          {/* External reach — citations / downloads / views from the scholarly
+              graph (silent until a DOI's sources return numbers). */}
+          <PaperStats paperId={paper.id} />
 
           {paper.program && (
             <Link
