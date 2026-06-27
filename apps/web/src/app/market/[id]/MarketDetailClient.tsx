@@ -36,7 +36,6 @@ import SuccessDialog from '@/components/SuccessDialog';
 import { useMarketSocket, useUserSocket } from '@/lib/hooks/useSocket';
 import { MarketCitations } from '@/components/research/MarketCitations';
 import { ProjectUpdates } from '@/components/market/ProjectUpdates';
-import { ProjectPulse } from '@/components/research/ProjectPulse';
 import { TokenLaunchAnimation } from '@/components/TokenLaunchAnimation';
 import { getVoteButtonStates, getMarketDisplayStatus } from '@/lib/api-utils';
 import {
@@ -1953,15 +1952,17 @@ export default function MarketDetailClient({
             />
           </article>
 
-          {/* Verification plane — full research lineage + live git pulse, moved
-              here from the header so the page leads with the narrative. */}
+          {/* Verification plane — the founder-curated research lineage. The raw
+              git activity feed (ProjectPulse) is intentionally hidden: auto/bot
+              commits + CI churn read as a progress signal when they aren't. Git
+              returns as founder-declared milestones settled by a git event (the
+              component + /repo endpoints are kept for that). */}
           {market.marketAddress && (
-            <div className="mt-5 space-y-4">
+            <div className="mt-5">
               <MarketCitations
                 marketIdOrAddress={market.marketAddress}
                 isFounder={!!primaryWallet?.address && market.founderWallet === primaryWallet.address}
               />
-              <ProjectPulse marketIdOrAddress={market.marketAddress} />
             </div>
           )}
         </div>
