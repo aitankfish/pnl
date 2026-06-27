@@ -56,12 +56,16 @@ interface Citation {
 export function MarketCitations({
   marketIdOrAddress,
   isFounder = false,
+  variant = 'full',
 }: {
   marketIdOrAddress: string;
   // When the viewer is the project's founder we surface an inline control to
   // link more papers to the market — the cite endpoint already accepts
   // post-launch citations from the founder, this is just the missing UI.
   isFounder?: boolean;
+  // 'compact' renders just a one-line "Built on · <thesis> →" lineage link (for
+  // the header); 'full' renders the thesis + foundations cards (for a tab).
+  variant?: 'full' | 'compact';
 }) {
   const [citations, setCitations] = useState<Citation[] | null>(null);
   const [loading, setLoading] = useState(true);
@@ -98,6 +102,24 @@ export function MarketCitations({
       cancelled = true;
     };
   }, [marketIdOrAddress]);
+
+  // Compact lineage line for the header: just "Built on · <thesis> →". Renders
+  // nothing until loaded, and nothing if there's no thesis paper.
+  if (variant === 'compact') {
+    const t = citations?.find((c) => c.role === 'thesis');
+    if (!t) return null;
+    return (
+      <Link
+        href={`/research/${t.paper.id}`}
+        className="inline-flex items-center gap-2 mono uppercase tracking-[0.26em] text-[0.55rem] transition-colors max-w-full"
+        style={{ color: AMBER }}
+      >
+        <ScrollText className="w-3 h-3 shrink-0" />
+        <span className="truncate">Built on · {t.paper.title}</span>
+        <ArrowRight className="w-3 h-3 shrink-0" />
+      </Link>
+    );
+  }
 
   if (loading) {
     // Single thesis-shaped block as a soft placeholder. We don't render

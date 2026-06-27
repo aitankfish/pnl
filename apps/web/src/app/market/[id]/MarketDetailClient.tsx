@@ -1887,25 +1887,89 @@ export default function MarketDetailClient({
                 createdVia={(market as { createdVia?: string })?.createdVia}
               />
 
-              {/* Linked research papers — if the founder cited any, surface
-                  the thesis prominently and any foundations below. */}
+              {/* Compact lineage — a one-line "Built on · <thesis> →". The full
+                  citations + Project Pulse now live in the Review tab so the
+                  header stays tight and the Updates feed comes up high. */}
               {market.marketAddress && (
-                <MarketCitations
-                  marketIdOrAddress={market.marketAddress}
-                  isFounder={
-                    !!primaryWallet?.address &&
-                    market.founderWallet === primaryWallet.address
-                  }
-                />
+                <MarketCitations marketIdOrAddress={market.marketAddress} variant="compact" />
               )}
 
-              {/* Project pulse — live git activity (last-active, open PRs/issues,
-                  recent commits) resolved through the thesis citation's repo.
-                  Renders nothing when there's no linked repo. */}
-              {market.marketAddress && (
-                <ProjectPulse marketIdOrAddress={market.marketAddress} />
-              )}
+            </div>
+          </article>
 
+        {/* Main-column tabs: Updates (build-in-public feed) | AI review (Grok) | Details */}
+        <div className="flex items-stretch" style={{ borderBottom: `1px solid ${HAIR_STRONG}` }}>
+          {(['updates', 'ai', 'details'] as const).map((t) => (
+            <button
+              key={t}
+              type="button"
+              onClick={() => setMainTab(t)}
+              className="mono uppercase tracking-[0.24em] text-[0.6rem] px-5 py-3 transition-colors"
+              style={{
+                color: mainTab === t ? AMBER : CREAM_FAINT,
+                borderBottom: `2px solid ${mainTab === t ? AMBER : 'transparent'}`,
+                marginBottom: '-1px',
+              }}
+            >
+              {t === 'updates' ? 'Updates' : t === 'ai' ? 'Review' : 'Details'}
+            </button>
+          ))}
+        </div>
+
+        {/* Updates pane — the founder's build-in-public feed (the default) */}
+        <div className={mainTab === 'updates' ? '' : 'hidden'}>
+          <ProjectUpdates marketId={params.id as string} founderWallet={market.founderWallet || null} />
+        </div>
+
+        {/* AI review pane — the structured Grok reading (legit score, red flags,
+            positives, verdict), lifted out of Details into its own tab. */}
+        <div className={mainTab === 'ai' ? '' : 'hidden'}>
+          <article
+            className="p-4 sm:p-5"
+            style={{ background: 'rgba(244,238,228,0.025)', border: `1px solid ${HAIR_STRONG}` }}
+          >
+            <p
+              className="mono uppercase tracking-[0.32em] text-[0.55rem] mb-1.5 inline-flex items-center gap-2"
+              style={{ color: AMBER }}
+            >
+              <Sparkles className="w-3 h-3" />
+              The reading
+            </p>
+            <h3
+              className="leading-tight mb-3"
+              style={{ color: CREAM, fontFamily: 'var(--font-fraunces, serif)', fontWeight: 350, fontSize: '1.15rem' }}
+            >
+              What the data says
+            </h3>
+            <GrokRoast
+              marketId={market.id}
+              resolution={mergedOnchainData?.data?.resolution}
+              votingData={{
+                totalYesVotes: market.yesVotes || 0,
+                totalNoVotes: market.noVotes || 0,
+                yesPercentage: yesPercentage || 0,
+                totalParticipants: market.totalParticipants || 0,
+              }}
+            />
+          </article>
+
+          {/* Verification plane — full research lineage + live git pulse, moved
+              here from the header so the page leads with the narrative. */}
+          {market.marketAddress && (
+            <div className="mt-5 space-y-4">
+              <MarketCitations
+                marketIdOrAddress={market.marketAddress}
+                isFounder={!!primaryWallet?.address && market.founderWallet === primaryWallet.address}
+              />
+              <ProjectPulse marketIdOrAddress={market.marketAddress} />
+            </div>
+          )}
+        </div>
+
+        {/* Details pane — analysis, video, holders. Kept mounted (hidden) so
+            heavy children don't remount on every tab switch. */}
+        <div className={mainTab === 'details' ? 'space-y-3 sm:space-y-4' : 'hidden'}>
+        {/* Project meta — moved out of the header to keep it tight */}
               {/* Meta chips */}
               <div className="flex items-center flex-wrap gap-1.5">
                 <span
@@ -2021,69 +2085,6 @@ export default function MarketDetailClient({
                   </a>
                 )}
               </div>
-            </div>
-          </article>
-
-        {/* Main-column tabs: Updates (build-in-public feed) | AI review (Grok) | Details */}
-        <div className="flex items-stretch" style={{ borderBottom: `1px solid ${HAIR_STRONG}` }}>
-          {(['updates', 'ai', 'details'] as const).map((t) => (
-            <button
-              key={t}
-              type="button"
-              onClick={() => setMainTab(t)}
-              className="mono uppercase tracking-[0.24em] text-[0.6rem] px-5 py-3 transition-colors"
-              style={{
-                color: mainTab === t ? AMBER : CREAM_FAINT,
-                borderBottom: `2px solid ${mainTab === t ? AMBER : 'transparent'}`,
-                marginBottom: '-1px',
-              }}
-            >
-              {t === 'updates' ? 'Updates' : t === 'ai' ? 'AI review' : 'Details'}
-            </button>
-          ))}
-        </div>
-
-        {/* Updates pane — the founder's build-in-public feed (the default) */}
-        <div className={mainTab === 'updates' ? '' : 'hidden'}>
-          <ProjectUpdates marketId={params.id as string} founderWallet={market.founderWallet || null} />
-        </div>
-
-        {/* AI review pane — the structured Grok reading (legit score, red flags,
-            positives, verdict), lifted out of Details into its own tab. */}
-        <div className={mainTab === 'ai' ? '' : 'hidden'}>
-          <article
-            className="p-4 sm:p-5"
-            style={{ background: 'rgba(244,238,228,0.025)', border: `1px solid ${HAIR_STRONG}` }}
-          >
-            <p
-              className="mono uppercase tracking-[0.32em] text-[0.55rem] mb-1.5 inline-flex items-center gap-2"
-              style={{ color: AMBER }}
-            >
-              <Sparkles className="w-3 h-3" />
-              The reading
-            </p>
-            <h3
-              className="leading-tight mb-3"
-              style={{ color: CREAM, fontFamily: 'var(--font-fraunces, serif)', fontWeight: 350, fontSize: '1.15rem' }}
-            >
-              What the data says
-            </h3>
-            <GrokRoast
-              marketId={market.id}
-              resolution={mergedOnchainData?.data?.resolution}
-              votingData={{
-                totalYesVotes: market.yesVotes || 0,
-                totalNoVotes: market.noVotes || 0,
-                yesPercentage: yesPercentage || 0,
-                totalParticipants: market.totalParticipants || 0,
-              }}
-            />
-          </article>
-        </div>
-
-        {/* Details pane — analysis, video, holders. Kept mounted (hidden) so
-            heavy children don't remount on every tab switch. */}
-        <div className={mainTab === 'details' ? 'space-y-3 sm:space-y-4' : 'hidden'}>
 
         {/* Voice + Video — only when token NOT launched */}
         {!isTokenLaunched && (market.metadata?.videoUrl || market.metadata?.additionalNotes) && (
