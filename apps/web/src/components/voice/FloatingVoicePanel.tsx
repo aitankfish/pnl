@@ -7,7 +7,6 @@ import { useVoiceRoomContextSafe } from '@/lib/context/VoiceRoomContext';
 import { useWallet } from '@/hooks/useWallet';
 import Link from 'next/link';
 import dynamic from 'next/dynamic';
-import useSWR from 'swr';
 import { BellflowerIcon } from '@/components/PlantIcons';
 
 // ── Cosmic-plant palette ──
@@ -33,22 +32,6 @@ const CommunityHub = dynamic(() => import('@/components/chat/CommunityHub'), {
   ssr: false,
 });
 
-// Fetcher for SWR
-const fetcher = (url: string) => fetch(url).then(res => res.json());
-
-interface MarketData {
-  name?: string;
-  founderWallet?: string;
-  marketAddress?: string;
-  metadata?: {
-    socialLinks?: {
-      twitter?: string;
-      discord?: string;
-      telegram?: string;
-      linkedin?: string;
-    };
-  };
-}
 
 export default function FloatingVoicePanel() {
   const voiceRoom = useVoiceRoomContextSafe();
@@ -158,14 +141,6 @@ export default function FloatingVoicePanel() {
   const isOnMarketPage = pathname?.startsWith('/market/');
   const currentMarketId = params?.id as string | undefined;
 
-  // Fetch market data when on market page
-  const { data: marketResponse } = useSWR<{ success: boolean; data: MarketData }>(
-    isOnMarketPage && currentMarketId ? `/api/markets/${currentMarketId}` : null,
-    fetcher,
-    { revalidateOnFocus: false }
-  );
-  const marketData = marketResponse?.data;
-
   // Track desktop/mobile state
   useEffect(() => {
     const checkIsDesktop = () => setIsDesktop(window.innerWidth >= 1024);
@@ -199,11 +174,6 @@ export default function FloatingVoicePanel() {
 
   const totalParticipants = participants.length + 1;
   const walletAddress = primaryWallet?.address ?? voiceRoom?.walletAddress ?? null;
-
-  // Determine which market to show CommunityHub for
-  const displayMarketId = isOnMarketPage ? currentMarketId : voiceMarketId;
-  const displayMarketAddress = isOnMarketPage ? currentMarketId : voiceMarketAddress;
-  const displayMarketName = isOnMarketPage ? '' : voiceMarketName; // Will be fetched by CommunityHub
 
   // Chat/voice now lives in the market page's conviction rail "Community"
   // tab (see MarketDetailClient). Suppress the floating panel on market pages

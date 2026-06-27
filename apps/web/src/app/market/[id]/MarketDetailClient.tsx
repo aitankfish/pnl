@@ -1887,25 +1887,89 @@ export default function MarketDetailClient({
                 createdVia={(market as { createdVia?: string })?.createdVia}
               />
 
-              {/* Linked research papers — if the founder cited any, surface
-                  the thesis prominently and any foundations below. */}
+              {/* Compact lineage — a one-line "Built on · <thesis> →". The full
+                  citations + Project Pulse now live in the Review tab so the
+                  header stays tight and the Updates feed comes up high. */}
               {market.marketAddress && (
-                <MarketCitations
-                  marketIdOrAddress={market.marketAddress}
-                  isFounder={
-                    !!primaryWallet?.address &&
-                    market.founderWallet === primaryWallet.address
-                  }
-                />
+                <MarketCitations marketIdOrAddress={market.marketAddress} variant="compact" />
               )}
 
-              {/* Project pulse — live git activity (last-active, open PRs/issues,
-                  recent commits) resolved through the thesis citation's repo.
-                  Renders nothing when there's no linked repo. */}
-              {market.marketAddress && (
-                <ProjectPulse marketIdOrAddress={market.marketAddress} />
-              )}
+            </div>
+          </article>
 
+        {/* Main-column tabs: Updates (build-in-public feed) | AI review (Grok) | Details */}
+        <div className="flex items-stretch" style={{ borderBottom: `1px solid ${HAIR_STRONG}` }}>
+          {(['updates', 'ai', 'details'] as const).map((t) => (
+            <button
+              key={t}
+              type="button"
+              onClick={() => setMainTab(t)}
+              className="mono uppercase tracking-[0.24em] text-[0.6rem] px-5 py-3 transition-colors"
+              style={{
+                color: mainTab === t ? AMBER : CREAM_FAINT,
+                borderBottom: `2px solid ${mainTab === t ? AMBER : 'transparent'}`,
+                marginBottom: '-1px',
+              }}
+            >
+              {t === 'updates' ? 'Updates' : t === 'ai' ? 'Review' : 'Details'}
+            </button>
+          ))}
+        </div>
+
+        {/* Updates pane — the founder's build-in-public feed (the default) */}
+        <div className={mainTab === 'updates' ? '' : 'hidden'}>
+          <ProjectUpdates marketId={params.id as string} founderWallet={market.founderWallet || null} />
+        </div>
+
+        {/* AI review pane — the structured Grok reading (legit score, red flags,
+            positives, verdict), lifted out of Details into its own tab. */}
+        <div className={mainTab === 'ai' ? '' : 'hidden'}>
+          <article
+            className="p-4 sm:p-5"
+            style={{ background: 'rgba(244,238,228,0.025)', border: `1px solid ${HAIR_STRONG}` }}
+          >
+            <p
+              className="mono uppercase tracking-[0.32em] text-[0.55rem] mb-1.5 inline-flex items-center gap-2"
+              style={{ color: AMBER }}
+            >
+              <Sparkles className="w-3 h-3" />
+              The reading
+            </p>
+            <h3
+              className="leading-tight mb-3"
+              style={{ color: CREAM, fontFamily: 'var(--font-fraunces, serif)', fontWeight: 350, fontSize: '1.15rem' }}
+            >
+              What the data says
+            </h3>
+            <GrokRoast
+              marketId={market.id}
+              resolution={mergedOnchainData?.data?.resolution}
+              votingData={{
+                totalYesVotes: market.yesVotes || 0,
+                totalNoVotes: market.noVotes || 0,
+                yesPercentage: yesPercentage || 0,
+                totalParticipants: market.totalParticipants || 0,
+              }}
+            />
+          </article>
+
+          {/* Verification plane — full research lineage + live git pulse, moved
+              here from the header so the page leads with the narrative. */}
+          {market.marketAddress && (
+            <div className="mt-5 space-y-4">
+              <MarketCitations
+                marketIdOrAddress={market.marketAddress}
+                isFounder={!!primaryWallet?.address && market.founderWallet === primaryWallet.address}
+              />
+              <ProjectPulse marketIdOrAddress={market.marketAddress} />
+            </div>
+          )}
+        </div>
+
+        {/* Details pane — analysis, video, holders. Kept mounted (hidden) so
+            heavy children don't remount on every tab switch. */}
+        <div className={mainTab === 'details' ? 'space-y-3 sm:space-y-4' : 'hidden'}>
+        {/* Project meta — moved out of the header to keep it tight */}
               {/* Meta chips */}
               <div className="flex items-center flex-wrap gap-1.5">
                 <span
@@ -2021,81 +2085,12 @@ export default function MarketDetailClient({
                   </a>
                 )}
               </div>
-            </div>
-          </article>
-
-        {/* Main-column tabs: Updates (build-in-public feed) | AI review (Grok) | Details */}
-        <div className="flex items-stretch" style={{ borderBottom: `1px solid ${HAIR_STRONG}` }}>
-          {(['updates', 'ai', 'details'] as const).map((t) => (
-            <button
-              key={t}
-              type="button"
-              onClick={() => setMainTab(t)}
-              className="mono uppercase tracking-[0.24em] text-[0.6rem] px-5 py-3 transition-colors"
-              style={{
-                color: mainTab === t ? AMBER : CREAM_FAINT,
-                borderBottom: `2px solid ${mainTab === t ? AMBER : 'transparent'}`,
-                marginBottom: '-1px',
-              }}
-            >
-              {t === 'updates' ? 'Updates' : t === 'ai' ? 'AI review' : 'Details'}
-            </button>
-          ))}
-        </div>
-
-        {/* Updates pane — the founder's build-in-public feed (the default) */}
-        <div className={mainTab === 'updates' ? '' : 'hidden'}>
-          <ProjectUpdates marketId={params.id as string} founderWallet={market.founderWallet || null} />
-        </div>
-
-        {/* AI review pane — the structured Grok reading (legit score, red flags,
-            positives, verdict), lifted out of Details into its own tab. */}
-        <div className={mainTab === 'ai' ? '' : 'hidden'}>
-          <article
-            className="p-4 sm:p-5"
-            style={{ background: 'rgba(244,238,228,0.025)', border: `1px solid ${HAIR_STRONG}` }}
-          >
-            <p
-              className="mono uppercase tracking-[0.32em] text-[0.55rem] mb-1.5 inline-flex items-center gap-2"
-              style={{ color: AMBER }}
-            >
-              <Sparkles className="w-3 h-3" />
-              The reading
-            </p>
-            <h3
-              className="leading-tight mb-3"
-              style={{ color: CREAM, fontFamily: 'var(--font-fraunces, serif)', fontWeight: 350, fontSize: '1.15rem' }}
-            >
-              What the data says
-            </h3>
-            <GrokRoast
-              marketId={market.id}
-              resolution={mergedOnchainData?.data?.resolution}
-              votingData={{
-                totalYesVotes: market.yesVotes || 0,
-                totalNoVotes: market.noVotes || 0,
-                yesPercentage: yesPercentage || 0,
-                totalParticipants: market.totalParticipants || 0,
-              }}
-            />
-          </article>
-        </div>
-
-        {/* Details pane — analysis, video, holders. Kept mounted (hidden) so
-            heavy children don't remount on every tab switch. */}
-        <div className={mainTab === 'details' ? 'space-y-3 sm:space-y-4' : 'hidden'}>
 
         {/* Voice + Video — only when token NOT launched */}
         {!isTokenLaunched && (market.metadata?.videoUrl || market.metadata?.additionalNotes) && (
           <div className={`grid gap-4 ${market.metadata?.videoUrl && market.metadata?.additionalNotes ? 'md:grid-cols-2' : ''}`}>
             {market.metadata?.additionalNotes && (
-              <article
-                className="p-4 sm:p-5 flex flex-col h-full"
-                style={{
-                  background: 'rgba(232,150,96,0.04)',
-                  border: `1px solid ${AMBER}33`,
-                }}
-              >
+              <article className="py-2 flex flex-col h-full">
                 <p
                   className="mono uppercase tracking-[0.32em] text-[0.55rem] mb-3 inline-flex items-center gap-2"
                   style={{ color: AMBER }}
@@ -2133,13 +2128,7 @@ export default function MarketDetailClient({
 
         {/* Full Description — only when richer than the intro */}
         {market.metadata?.description && market.metadata.description !== market.description && (
-          <article
-            className="p-5 sm:p-6"
-            style={{
-              background: 'rgba(244,238,228,0.025)',
-              border: `1px solid ${HAIR_STRONG}`,
-            }}
-          >
+          <article className="py-2">
             <p
               className="mono uppercase tracking-[0.32em] text-[0.55rem] mb-3"
               style={{ color: AMBER }}
@@ -3886,6 +3875,31 @@ export default function MarketDetailClient({
           onUpdated={() => fetchMarketDetails(params.id as string)}
         />
       )}
+
+      {/* Mobile community FAB — one-tap to the rail's Community (chat/voice) tab.
+          Sits above the vote bar when that's shown. Single affordance, no
+          double-mount of CommunityHub (it just switches the rail tab). */}
+      <button
+        type="button"
+        onClick={() => {
+          setRailTab('community');
+          document.getElementById('conviction-rail')?.scrollIntoView({ behavior: 'smooth' });
+        }}
+        className="lg:hidden fixed right-4 z-40 p-3 rounded-full transition-transform hover:scale-105"
+        style={{
+          bottom:
+            !isTokenLaunched && mergedOnchainData?.data?.resolution === 'Unresolved' ? '5.25rem' : '1.5rem',
+          background: 'rgba(10,8,20,0.92)',
+          border: `1px solid ${HAIR_STRONG}`,
+          color: AMBER,
+          backdropFilter: 'blur(8px)',
+          boxShadow: '0 10px 28px rgba(0,0,0,0.4)',
+        }}
+        aria-label="Community"
+        title="Community chat & voice"
+      >
+        <MessageCircle className="w-5 h-5" />
+      </button>
 
       {/* Mobile sticky vote bar — the conviction rail stacks at the bottom on
           mobile, so this keeps a one-tap path to it. It does NOT duplicate the
