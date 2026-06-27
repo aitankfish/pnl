@@ -45,17 +45,23 @@ export function ProjectUpdates({ marketId, founderWallet }: { marketId: string; 
   const { primaryWallet, authenticated } = useWallet();
   const { showToast } = useToast();
   const wallet = primaryWallet?.address || null;
-  const isFounder = !!authenticated && !!wallet && wallet === founderWallet;
   const isAdmin = isPlatformAdmin(wallet);
 
   const [posts, setPosts] = useState<Post[]>([]);
   const [loading, setLoading] = useState(true);
+  // Founder resolved server-side (project-first, matching create-auth); falls
+  // back to the prop until the first fetch lands.
+  const [resolvedFounder, setResolvedFounder] = useState<string | null>(founderWallet);
+  const isFounder = !!authenticated && !!wallet && wallet === resolvedFounder;
 
   const load = async () => {
     try {
       const res = await fetch(`/api/markets/${marketId}/posts?limit=50`);
       const json = await res.json();
-      if (json.success) setPosts(json.data.posts || []);
+      if (json.success) {
+        setPosts(json.data.posts || []);
+        setResolvedFounder(json.data.founderWallet || founderWallet);
+      }
     } catch (e) {
       logger.error('[updates] load failed', e as any);
     } finally {

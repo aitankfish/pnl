@@ -85,6 +85,9 @@ export const POST = withAuth(async (request: NextRequest, authUser, { params }: 
       if (!f || f.size === 0) continue;
       if (f.size > MAX_IMAGE_SIZE) return bad(`Image ${i + 1} too large (max ${MAX_IMAGE_SIZE / 1024 / 1024}MB)`);
       if (!ALLOWED_IMAGE_TYPES.includes(f.type)) return bad(`Image ${i + 1} type not allowed`);
+      // Don't trust the client MIME — check the actual magic bytes before pinning.
+      const magic = new Uint8Array(await f.slice(0, 16).arrayBuffer());
+      if (!looksLikeImage(magic)) return bad(`Image ${i + 1} content is not a valid image`);
       media.push({ url: await ipfsUtils.uploadImage(f), kind: 'image' });
     }
 
@@ -115,7 +118,7 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
   try {
     const { id } = await params;
     await connectToDatabase();
-    const { market } = await resolveMarketAndProject(id);
+    const { market, project } = await resolveMarketAndProject(id);
     if (!market) return bad('Market not found', 404);
 
     const limit = Math.min(parseInt(new URL(request.url).searchParams.get('limit') || '30', 10), 100);
@@ -124,9 +127,12 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
       .limit(limit)
       .lean<any[]>();
 
+    // Resolve the founder the same way create-auth does (project first), so the
+    // composer is shown to the real founder even when market.founderWallet diverges.
+    const founderWallet = project?.founderWallet || market.founderWallet || null;
     return NextResponse.json({
       success: true,
-      data: { posts: posts.map(serialize), founderWallet: market.founderWallet || null },
+      data: { posts: posts.map(serialize), founderWallet },
     });
   } catch (error) {
     logger.error('[project-post] list failed', error as any);
@@ -136,4 +142,16 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
 
 function bad(error: string, status = 400) {
   return NextResponse.json({ success: false, error }, { status });
+}
+
+// Magic-byte sniff for the allowed image formats (JPEG/PNG/GIF/WEBP).
+function looksLikeImage(b: Uint8Array): boolean {
+  if (b[0] === 0xff && b[1] === 0xd8 && b[2] === 0xff) return true; // JPEG
+  if (b[0] === 0x89 && b[1] === 0x50 && b[2] === 0x4e && b[3] === 0x47) return true; // PNG
+  if (b[0] === 0x47 && b[1] === 0x49 && b[2] === 0x46 && b[3] === 0x38) return true; // GIF8
+  if (
+    b[0] === 0x52 && b[1] === 0x49 && b[2] === 0x46 && b[3] === 0x46 &&
+    b[8] === 0x57 && b[9] === 0x45 && b[10] === 0x42 && b[11] === 0x50
+  ) return true; // RIFF....WEBP
+  return false;
 }

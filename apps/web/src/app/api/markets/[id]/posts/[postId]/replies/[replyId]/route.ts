@@ -23,19 +23,24 @@ export const DELETE = withAuth(async (_request: NextRequest, authUser, { params 
     const reply = await PostReply.findById(replyId);
     if (!reply) return bad('Reply not found', 404);
 
-    const wallet = authUser.walletAddress;
-    let allowed = reply.authorWallet === wallet || isPlatformAdmin(wallet);
-
-    // The market's founder can moderate replies on their own posts.
-    if (!allowed) {
-      const market = await PredictionMarket.findOne(
-        Types.ObjectId.isValid(id) ? { _id: id } : { marketAddress: id },
-      ).lean<any>();
-      const founderWallet =
-        (market?.projectId ? (await Project.findById(market.projectId).lean<any>())?.founderWallet : null) ||
-        market?.founderWallet;
-      allowed = !!founderWallet && founderWallet === wallet;
+    // Resolve the market in the URL and confirm the reply actually belongs to
+    // it — otherwise a founder of market A could moderate replies on market B
+    // by hitting /api/markets/<A>/.../replies/<reply-from-B>.
+    const market = await PredictionMarket.findOne(
+      Types.ObjectId.isValid(id) ? { _id: id } : { marketAddress: id },
+    ).lean<any>();
+    if (!market || reply.marketAddress !== market.marketAddress) {
+      return bad('Reply not found', 404);
     }
+
+    const wallet = authUser.walletAddress;
+    const founderWallet =
+      (market.projectId ? (await Project.findById(market.projectId).lean<any>())?.founderWallet : null) ||
+      market.founderWallet;
+    const allowed =
+      reply.authorWallet === wallet ||
+      isPlatformAdmin(wallet) ||
+      (!!founderWallet && founderWallet === wallet);
 
     if (!allowed) return bad('Not allowed to remove this reply', 403);
 

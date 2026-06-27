@@ -3889,9 +3889,9 @@ export default function MarketDetailClient({
 
       {/* Mobile sticky vote bar — the conviction rail stacks at the bottom on
           mobile, so this keeps a one-tap path to it. It does NOT duplicate the
-          trade logic: it pre-selects a side and smooth-scrolls to the panel
-          where the user confirms the amount and signs. lg:hidden = desktop uses
-          the always-visible sticky rail instead. */}
+          trade logic: it switches the rail to the Conviction tab, pre-selects a
+          side, and smooth-scrolls to the panel where the user confirms + signs.
+          lg:hidden = desktop shows the rail inline (top-right column). */}
       {!isTokenLaunched && mergedOnchainData?.data?.resolution === 'Unresolved' && (
         <div
           className="lg:hidden fixed bottom-0 left-0 right-0 z-40 px-3 py-2.5 flex items-center gap-2"
@@ -3915,6 +3915,7 @@ export default function MarketDetailClient({
           <button
             type="button"
             onClick={() => {
+              setRailTab('conviction');
               setSelectedSide('yes');
               document.getElementById('conviction-rail')?.scrollIntoView({ behavior: 'smooth' });
             }}
@@ -3926,6 +3927,7 @@ export default function MarketDetailClient({
           <button
             type="button"
             onClick={() => {
+              setRailTab('conviction');
               setSelectedSide('no');
               document.getElementById('conviction-rail')?.scrollIntoView({ behavior: 'smooth' });
             }}

@@ -57,13 +57,14 @@ export const POST = withAuth(async (request: NextRequest, authUser, { params }: 
     const body = String(json?.body || '').trim();
     if (!body) return bad('Reply cannot be empty');
     if (body.length > MAX_BODY) return bad(`Reply is too long (max ${MAX_BODY})`);
-    const displayName = String(json?.displayName || '').trim().slice(0, 60) || undefined;
 
+    // displayName is intentionally NOT taken from the client — a caller could
+    // spoof another user's name. The UI renders the (verified) wallet; a
+    // server-resolved username can be added later from UserProfile.
     const reply = await PostReply.create({
       postId,
       marketAddress: post.marketAddress,
       authorWallet: authUser.walletAddress,
-      displayName,
       body,
       status: 'active',
       createdAt: new Date(),
