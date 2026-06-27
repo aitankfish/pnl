@@ -13,7 +13,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
-import { Loader2, ImagePlus, X, Trash2, Link2, Send, MessageSquare } from 'lucide-react';
+import { Loader2, ImagePlus, X, Trash2, Link2, Send, MessageSquare, Pin, Pencil, SmilePlus, Check } from 'lucide-react';
 import { authFetch } from '@/lib/auth/fetch-with-auth';
 import { useWallet } from '@/hooks/useWallet';
 import { useToast } from '@/lib/hooks/useToast';
@@ -31,6 +31,9 @@ const BG = '#0a0814';
 
 const MAX_IMAGES = 4;
 
+// Curated reaction palette — must mirror ALLOWED_EMOJI in the reactions route.
+const REACTIONS = ['🔥', '🚀', '👏', '🧠', '👀', '❤️'];
+
 interface Post {
   id: string;
   authorWallet: string;
@@ -41,6 +44,8 @@ interface Post {
   pinned: boolean;
   editedAt: string | null;
   createdAt: string;
+  reactions: Record<string, number>;
+  mine: string[];
 }
 
 // Small deterministic avatar: a hue derived from the wallet + the first letter
@@ -94,7 +99,8 @@ export function ProjectUpdates({ marketId, founderWallet }: { marketId: string; 
 
   const load = async () => {
     try {
-      const res = await fetch(`/api/markets/${marketId}/posts?limit=50`);
+      const q = wallet ? `&viewer=${encodeURIComponent(wallet)}` : '';
+      const res = await fetch(`/api/markets/${marketId}/posts?limit=50${q}`);
       const json = await res.json();
       if (json.success) {
         setPosts(json.data.posts || []);
@@ -109,7 +115,19 @@ export function ProjectUpdates({ marketId, founderWallet }: { marketId: string; 
   useEffect(() => {
     load();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [marketId]);
+  }, [marketId, wallet]);
+
+  // Merge an edited/pinned post back in and keep the feed ordered pinned-first,
+  // newest-first — same order the server returns.
+  const updatePost = (next: Post) => {
+    setPosts((prev) => {
+      const merged = prev.map((p) => (p.id === next.id ? next : p));
+      return merged.sort((a, b) => {
+        if (!!b.pinned !== !!a.pinned) return b.pinned ? 1 : -1;
+        return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+      });
+    });
+  };
 
   const removePost = async (id: string) => {
     if (!window.confirm('Hide this update?')) return;
@@ -151,7 +169,9 @@ export function ProjectUpdates({ marketId, founderWallet }: { marketId: string; 
               authenticated={!!authenticated}
               canModerate={isAdmin || isFounder}
               canRemove={isAdmin || (isFounder && post.authorWallet === wallet)}
+              canEdit={!!wallet && post.authorWallet === wallet}
               onRemove={() => removePost(post.id)}
+              onUpdate={updatePost}
               last={i === posts.length - 1}
             />
           ))}
@@ -273,7 +293,9 @@ function PostItem({
   authenticated,
   canModerate,
   canRemove,
+  canEdit,
   onRemove,
+  onUpdate,
   last,
 }: {
   post: Post;
@@ -282,10 +304,58 @@ function PostItem({
   authenticated: boolean;
   canModerate: boolean;
   canRemove: boolean;
+  canEdit: boolean;
   onRemove: () => void;
+  onUpdate: (p: Post) => void;
   last: boolean;
 }) {
+  const { showToast } = useToast();
   const name = displayName(post.authorName, post.authorWallet);
+  const [editing, setEditing] = useState(false);
+  const [draft, setDraft] = useState(post.body);
+  const [saving, setSaving] = useState(false);
+  const [pinning, setPinning] = useState(false);
+
+  const patch = async (payload: Record<string, unknown>) => {
+    const res = await authFetch(`/api/markets/${marketId}/posts/${post.id}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    });
+    const json = await res.json();
+    if (!json.success) throw new Error(json.error || 'Update failed');
+  };
+
+  const togglePin = async () => {
+    setPinning(true);
+    try {
+      await patch({ pinned: !post.pinned });
+      onUpdate({ ...post, pinned: !post.pinned });
+    } catch (e) {
+      showToast({ type: 'error', title: 'Couldn’t pin', message: e instanceof Error ? e.message : '' });
+    } finally {
+      setPinning(false);
+    }
+  };
+
+  const saveEdit = async () => {
+    const next = draft.trim();
+    if (!next && post.media.length === 0) {
+      showToast({ type: 'error', title: 'A post needs text or an image', message: '' });
+      return;
+    }
+    setSaving(true);
+    try {
+      await patch({ body: next });
+      onUpdate({ ...post, body: next, editedAt: new Date().toISOString() });
+      setEditing(false);
+    } catch (e) {
+      showToast({ type: 'error', title: 'Couldn’t save', message: e instanceof Error ? e.message : '' });
+    } finally {
+      setSaving(false);
+    }
+  };
+
   return (
     <article className="flex gap-3 py-5" style={last ? undefined : { borderBottom: `1px solid ${HAIR}` }}>
       <Avatar seed={post.authorWallet} label={name} />
@@ -297,19 +367,65 @@ function PostItem({
             {post.pinned ? ' · pinned' : ''}
             {post.editedAt ? ' · edited' : ''}
           </span>
-          {canRemove && (
-            <button type="button" onClick={onRemove} className="ml-auto" style={{ color: CREAM_FAINT }} title="Hide update">
-              <Trash2 className="w-3.5 h-3.5" />
-            </button>
-          )}
+          <div className="ml-auto flex items-center gap-2.5">
+            {canEdit && (
+              <button
+                type="button"
+                onClick={togglePin}
+                disabled={pinning}
+                style={{ color: post.pinned ? AMBER : CREAM_FAINT }}
+                title={post.pinned ? 'Unpin' : 'Pin to top'}
+              >
+                <Pin className="w-3.5 h-3.5" style={post.pinned ? { fill: AMBER } : undefined} />
+              </button>
+            )}
+            {canEdit && !editing && (
+              <button type="button" onClick={() => { setDraft(post.body); setEditing(true); }} style={{ color: CREAM_FAINT }} title="Edit">
+                <Pencil className="w-3.5 h-3.5" />
+              </button>
+            )}
+            {canRemove && (
+              <button type="button" onClick={onRemove} style={{ color: CREAM_FAINT }} title="Hide update">
+                <Trash2 className="w-3.5 h-3.5" />
+              </button>
+            )}
+          </div>
         </div>
 
-        {post.body && (
-          <div className="mt-1" style={{ color: CREAM, fontFamily: 'var(--font-fraunces, serif)', fontSize: '1.02rem', lineHeight: 1.6 }}>
-            <ReactMarkdown remarkPlugins={[remarkGfm]} disallowedElements={['img', 'script', 'iframe']}>
-              {post.body}
-            </ReactMarkdown>
+        {editing ? (
+          <div className="mt-2">
+            <textarea
+              value={draft}
+              onChange={(e) => setDraft(e.target.value)}
+              rows={3}
+              autoFocus
+              className="w-full bg-transparent outline-none resize-none"
+              style={{ color: CREAM, fontFamily: 'var(--font-fraunces, serif)', fontSize: '1.02rem', lineHeight: 1.6, borderBottom: `1px solid ${HAIR}` }}
+            />
+            <div className="flex items-center gap-3 mt-2">
+              <button
+                type="button"
+                onClick={saveEdit}
+                disabled={saving}
+                className="mono uppercase tracking-[0.22em] text-[0.55rem] px-4 py-1.5 rounded-full inline-flex items-center gap-1.5 disabled:opacity-40"
+                style={{ background: AMBER, color: BG }}
+              >
+                {saving ? <Loader2 className="w-3 h-3 animate-spin" /> : <Check className="w-3 h-3" />}
+                Save
+              </button>
+              <button type="button" onClick={() => setEditing(false)} className="mono uppercase tracking-[0.22em] text-[0.55rem]" style={{ color: CREAM_FAINT }}>
+                Cancel
+              </button>
+            </div>
           </div>
+        ) : (
+          post.body && (
+            <div className="mt-1" style={{ color: CREAM, fontFamily: 'var(--font-fraunces, serif)', fontSize: '1.02rem', lineHeight: 1.6 }}>
+              <ReactMarkdown remarkPlugins={[remarkGfm]} disallowedElements={['img', 'script', 'iframe']}>
+                {post.body}
+              </ReactMarkdown>
+            </div>
+          )
         )}
 
         {post.media.length > 0 && (
@@ -329,9 +445,127 @@ function PostItem({
           </a>
         )}
 
+        <ReactionBar
+          marketId={marketId}
+          targetType="post"
+          targetId={post.id}
+          reactions={post.reactions}
+          mine={post.mine}
+          authenticated={authenticated}
+        />
+
         <Replies marketId={marketId} postId={post.id} wallet={wallet} authenticated={authenticated} canModerate={canModerate} />
       </div>
     </article>
+  );
+}
+
+// Emoji reactions on a post or reply. Holds its own optimistic state and
+// reconciles with the server's authoritative counts after each toggle.
+function ReactionBar({
+  marketId,
+  targetType,
+  targetId,
+  reactions,
+  mine,
+  authenticated,
+}: {
+  marketId: string;
+  targetType: 'post' | 'reply';
+  targetId: string;
+  reactions: Record<string, number>;
+  mine: string[];
+  authenticated: boolean;
+}) {
+  const { showToast } = useToast();
+  const [counts, setCounts] = useState<Record<string, number>>(reactions || {});
+  const [own, setOwn] = useState<string[]>(mine || []);
+  const [picking, setPicking] = useState(false);
+  const [busy, setBusy] = useState(false);
+
+  const toggle = async (emoji: string) => {
+    if (!authenticated) {
+      showToast({ type: 'error', title: 'Connect wallet to react', message: '' });
+      return;
+    }
+    if (busy) return;
+    setBusy(true);
+    setPicking(false);
+    const had = own.includes(emoji);
+    // Optimistic.
+    setOwn((o) => (had ? o.filter((e) => e !== emoji) : [...o, emoji]));
+    setCounts((c) => {
+      const n = { ...c };
+      n[emoji] = (n[emoji] || 0) + (had ? -1 : 1);
+      if (n[emoji] <= 0) delete n[emoji];
+      return n;
+    });
+    try {
+      const res = await authFetch(`/api/markets/${marketId}/reactions`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ targetType, targetId, emoji }),
+      });
+      const json = await res.json();
+      if (!json.success) throw new Error(json.error || 'Failed to react');
+      setCounts(json.data.counts || {});
+      setOwn(json.data.mine || []);
+    } catch (e) {
+      // Revert.
+      setOwn((o) => (had ? [...o, emoji] : o.filter((x) => x !== emoji)));
+      setCounts((c) => {
+        const n = { ...c };
+        n[emoji] = (n[emoji] || 0) + (had ? 1 : -1);
+        if (n[emoji] <= 0) delete n[emoji];
+        return n;
+      });
+      showToast({ type: 'error', title: 'Couldn’t react', message: e instanceof Error ? e.message : '' });
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const active = REACTIONS.filter((e) => counts[e]);
+
+  return (
+    <div className="flex items-center gap-1.5 mt-2.5 flex-wrap">
+      {active.map((e) => {
+        const isMine = own.includes(e);
+        return (
+          <button
+            key={e}
+            type="button"
+            onClick={() => toggle(e)}
+            className="inline-flex items-center gap-1 rounded-full px-2 py-0.5"
+            style={{
+              border: `1px solid ${isMine ? AMBER : HAIR}`,
+              color: isMine ? AMBER : CREAM_DIM,
+              background: isMine ? 'rgba(232,150,96,0.08)' : 'transparent',
+            }}
+          >
+            <span style={{ fontSize: '0.8rem' }}>{e}</span>
+            <span className="mono text-[0.6rem]">{counts[e]}</span>
+          </button>
+        );
+      })}
+      <div className="relative">
+        <button type="button" onClick={() => setPicking((p) => !p)} title="React" style={{ color: CREAM_FAINT }} className="inline-flex items-center py-0.5">
+          <SmilePlus className="w-3.5 h-3.5" />
+        </button>
+        {picking && (
+          <div
+            className="absolute z-10 bottom-full mb-1 left-0 flex items-center gap-1.5 rounded-full px-2.5 py-1.5"
+            style={{ background: BG, border: `1px solid ${HAIR}` }}
+          >
+            {REACTIONS.map((e) => (
+              <button key={e} type="button" onClick={() => toggle(e)} className="hover:scale-125 transition-transform leading-none" style={{ fontSize: '1rem' }}>
+                {e}
+              </button>
+            ))}
+          </div>
+        )}
+      </div>
+    </div>
   );
 }
 
@@ -341,6 +575,8 @@ interface Reply {
   displayName: string | null;
   body: string;
   createdAt: string;
+  reactions: Record<string, number>;
+  mine: string[];
 }
 
 function Replies({
@@ -367,7 +603,7 @@ function Replies({
 
   const load = async () => {
     try {
-      const res = await fetch(baseUrl);
+      const res = await fetch(wallet ? `${baseUrl}?viewer=${encodeURIComponent(wallet)}` : baseUrl);
       const json = await res.json();
       if (json.success) setReplies(json.data.replies || []);
     } catch {
@@ -436,6 +672,14 @@ function Replies({
                     <p className="text-sm whitespace-pre-wrap break-words" style={{ color: CREAM_DIM, fontFamily: 'var(--font-fraunces, serif)', lineHeight: 1.45 }}>
                       {r.body}
                     </p>
+                    <ReactionBar
+                      marketId={marketId}
+                      targetType="reply"
+                      targetId={r.id}
+                      reactions={r.reactions}
+                      mine={r.mine}
+                      authenticated={authenticated}
+                    />
                   </div>
                   {(canModerate || (wallet && r.authorWallet === wallet)) && (
                     <button type="button" onClick={() => remove(r.id)} style={{ color: CREAM_FAINT }} title="Remove reply" className="shrink-0">

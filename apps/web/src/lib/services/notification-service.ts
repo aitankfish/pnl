@@ -183,6 +183,57 @@ export async function notifyFounderJoinedVoice(marketAddress: string, marketName
 }
 
 /**
+ * Send notifications when a founder posts a build-in-public update — pulls the
+ * people who staked back to read + reply. Best-effort; never blocks the post.
+ */
+export async function notifyProjectUpdate(marketAddress: string, snippet: string) {
+  try {
+    await connectToDatabase();
+
+    const market = await PredictionMarket.findOne({ marketAddress }).populate('projectId');
+    if (!market) {
+      logger.error('Market not found for project update notification', { marketAddress });
+      return { success: false, error: 'Market not found' };
+    }
+
+    const project = market.projectId as any;
+    const projectName = project?.name || (market as any).name || 'A project you backed';
+    const founderWallet = project?.founderWallet || (market as any).founderWallet;
+
+    const participants = await PredictionParticipant.find({ marketId: market._id }).distinct('participantWallet');
+    const recipients = participants.filter((wallet: string) => wallet && wallet !== founderWallet);
+    if (recipients.length === 0) {
+      return { success: true, notified: 0 };
+    }
+
+    const clean = (snippet || '').replace(/\s+/g, ' ').trim();
+    const message = clean ? (clean.length > 140 ? `${clean.slice(0, 137)}…` : clean) : 'New build-in-public update.';
+
+    await Promise.all(
+      recipients.map((userWallet: string) =>
+        createNotification({
+          userId: userWallet,
+          type: 'project_update',
+          title: `${projectName} posted an update`,
+          message,
+          priority: 'medium',
+          marketId: market._id?.toString(),
+          projectId: project?._id?.toString(),
+          actionUrl: `/market/${marketAddress}`,
+          metadata: { action: 'view_updates' },
+        }),
+      ),
+    );
+
+    logger.info('Project update notifications sent', { marketAddress, notified: recipients.length });
+    return { success: true, notified: recipients.length };
+  } catch (error) {
+    logger.error('Failed to send project update notifications:', error);
+    return { success: false, error: 'Failed to send notifications' };
+  }
+}
+
+/**
  * Send notifications when a market is resolved
  */
 export async function notifyMarketResolution(marketId: string, resolution: string) {
