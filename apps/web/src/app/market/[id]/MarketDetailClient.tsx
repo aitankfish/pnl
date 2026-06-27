@@ -320,7 +320,7 @@ export default function MarketDetailClient({
   const [railTab, setRailTab] = useState<'conviction' | 'community'>('conviction');
   // Main-column tab: the build-in-public Updates feed (default) vs everything
   // else (analysis, video, holders) under Details.
-  const [mainTab, setMainTab] = useState<'updates' | 'details'>('updates');
+  const [mainTab, setMainTab] = useState<'updates' | 'ai' | 'details'>('updates');
   const [isProcessingVote, setIsProcessingVote] = useState(false);
   const { vote } = useVoting();
   const { claim, isClaiming } = useClaiming();
@@ -2024,9 +2024,9 @@ export default function MarketDetailClient({
             </div>
           </article>
 
-        {/* Main-column tabs: Updates (build-in-public feed) | Details (analysis, video, holders) */}
+        {/* Main-column tabs: Updates (build-in-public feed) | AI review (Grok) | Details */}
         <div className="flex items-stretch" style={{ borderBottom: `1px solid ${HAIR_STRONG}` }}>
-          {(['updates', 'details'] as const).map((t) => (
+          {(['updates', 'ai', 'details'] as const).map((t) => (
             <button
               key={t}
               type="button"
@@ -2038,7 +2038,7 @@ export default function MarketDetailClient({
                 marginBottom: '-1px',
               }}
             >
-              {t === 'updates' ? 'Updates' : 'Details'}
+              {t === 'updates' ? 'Updates' : t === 'ai' ? 'AI review' : 'Details'}
             </button>
           ))}
         </div>
@@ -2046,6 +2046,39 @@ export default function MarketDetailClient({
         {/* Updates pane — the founder's build-in-public feed (the default) */}
         <div className={mainTab === 'updates' ? '' : 'hidden'}>
           <ProjectUpdates marketId={params.id as string} founderWallet={market.founderWallet || null} />
+        </div>
+
+        {/* AI review pane — the structured Grok reading (legit score, red flags,
+            positives, verdict), lifted out of Details into its own tab. */}
+        <div className={mainTab === 'ai' ? '' : 'hidden'}>
+          <article
+            className="p-4 sm:p-5"
+            style={{ background: 'rgba(244,238,228,0.025)', border: `1px solid ${HAIR_STRONG}` }}
+          >
+            <p
+              className="mono uppercase tracking-[0.32em] text-[0.55rem] mb-1.5 inline-flex items-center gap-2"
+              style={{ color: AMBER }}
+            >
+              <Sparkles className="w-3 h-3" />
+              The reading
+            </p>
+            <h3
+              className="leading-tight mb-3"
+              style={{ color: CREAM, fontFamily: 'var(--font-fraunces, serif)', fontWeight: 350, fontSize: '1.15rem' }}
+            >
+              What the data says
+            </h3>
+            <GrokRoast
+              marketId={market.id}
+              resolution={mergedOnchainData?.data?.resolution}
+              votingData={{
+                totalYesVotes: market.yesVotes || 0,
+                totalNoVotes: market.noVotes || 0,
+                yesPercentage: yesPercentage || 0,
+                totalParticipants: market.totalParticipants || 0,
+              }}
+            />
+          </article>
         </div>
 
         {/* Details pane — analysis, video, holders. Kept mounted (hidden) so
@@ -2095,46 +2128,7 @@ export default function MarketDetailClient({
           </div>
         )}
 
-        {/* AI reading — full width now that conviction moved to the rail */}
-        <div className="space-y-4">
-          {/* Deep Space Analysis */}
-          <article
-            className="p-4 sm:p-5"
-            style={{
-              background: 'rgba(244,238,228,0.025)',
-              border: `1px solid ${HAIR_STRONG}`,
-            }}
-          >
-            <p
-              className="mono uppercase tracking-[0.32em] text-[0.55rem] mb-1.5 inline-flex items-center gap-2"
-              style={{ color: AMBER }}
-            >
-              <Sparkles className="w-3 h-3" />
-              The reading
-            </p>
-            <h3
-              className="leading-tight mb-3"
-              style={{
-                color: CREAM,
-                fontFamily: 'var(--font-fraunces, serif)',
-                fontWeight: 350,
-                fontSize: '1.15rem',
-              }}
-            >
-              What the data says
-            </h3>
-            <GrokRoast
-              marketId={market.id}
-              resolution={mergedOnchainData?.data?.resolution}
-              votingData={{
-                totalYesVotes: market.yesVotes || 0,
-                totalNoVotes: market.noVotes || 0,
-                yesPercentage: yesPercentage || 0,
-                totalParticipants: market.totalParticipants || 0,
-              }}
-            />
-          </article>
-        </div>
+        {/* AI reading now lives in the "AI review" tab above. */}
         {/* End AI reading — conviction panel now lives in the right rail */}
 
         {/* Full Description — only when richer than the intro */}
