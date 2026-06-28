@@ -662,6 +662,9 @@ export function ResearchPaperClient({ paper }: { paper: Paper }) {
 
         {paper.githubUrl && <ReadmeSection paperId={paper.id} repoUrl={paper.githubUrl} />}
 
+        {/* The architecture/codemap doc, if the repo has one — renders nothing otherwise. */}
+        {paper.githubUrl && <CodemapSection paperId={paper.id} repoUrl={paper.githubUrl} />}
+
         {paper.githubUrl && <PaperActivityFeed paperId={paper.id} />}
       </article>
 
@@ -1525,6 +1528,89 @@ function InlineReaction({
         {count}
       </span>
     </button>
+  );
+}
+
+/**
+ * The repo's architecture / codemap doc, if one exists — the "how it's built
+ * and what's proven" map (ARCHITECTURE.md / INFRA-MAP.md / …). Stays SILENT
+ * (renders nothing) when the repo has none, so it never shows an empty frame.
+ * Reuses the README's `.paper-readme` styling.
+ */
+function CodemapSection({ paperId, repoUrl }: { paperId: string; repoUrl: string }) {
+  const [state, setState] = useState<
+    | { kind: 'idle' }
+    | { kind: 'rendered'; html: string; filename: string; repo: string }
+    | { kind: 'hidden' }
+  >({ kind: 'idle' });
+
+  const renderedTree = useMemo(() => (state.kind === 'rendered' ? parse(state.html) : null), [state]);
+
+  useEffect(() => {
+    let cancelled = false;
+    fetch(`/api/research/${paperId}/codemap`)
+      .then((r) => r.json())
+      .then((json) => {
+        if (cancelled) return;
+        if (json.success && json.data?.html) {
+          setState({ kind: 'rendered', html: json.data.html, filename: json.data.filename, repo: json.data.repo });
+        } else {
+          setState({ kind: 'hidden' });
+        }
+      })
+      .catch(() => {
+        if (!cancelled) setState({ kind: 'hidden' });
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [paperId]);
+
+  if (state.kind !== 'rendered') return null;
+
+  return (
+    <section className="mt-16 pnl-fade">
+      <p className="mono uppercase tracking-[0.32em] text-[0.6rem] mb-4" style={{ color: AMBER }}>
+        The architecture · {state.filename}
+      </p>
+      <h2
+        className="mb-6"
+        style={{
+          color: CREAM,
+          fontFamily: 'var(--font-fraunces, "Times New Roman", serif)',
+          fontWeight: 350,
+          fontSize: 'clamp(1.5rem, 3vw, 2.25rem)',
+          lineHeight: 1.1,
+          letterSpacing: '-0.005em',
+        }}
+      >
+        How it&rsquo;s built
+      </h2>
+      <div
+        className="paper-readme"
+        style={{
+          background: PAPER_BG,
+          border: `1px solid ${HAIR_STRONG}`,
+          padding: '2rem 2.25rem',
+          boxShadow: '0 1px 0 rgba(244,238,228,0.04), 0 18px 40px rgba(0,0,0,0.35)',
+        }}
+      >
+        {renderedTree}
+      </div>
+      <div className="mt-4 flex justify-end">
+        <a
+          href={repoUrl}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="inline-flex items-center gap-2 mono uppercase tracking-[0.22em] text-[0.6rem] transition-colors"
+          style={{ color: AMBER }}
+        >
+          <Github className="w-3.5 h-3.5" />
+          View on GitHub
+          <ExternalLink className="w-3.5 h-3.5" />
+        </a>
+      </div>
+    </section>
   );
 }
 
