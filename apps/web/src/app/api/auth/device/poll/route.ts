@@ -13,7 +13,6 @@ import { checkRateLimit } from '@/lib/auth/rate-limit';
 import {
   generateDeviceToken,
   sha256,
-  TOKEN_TTL_MS,
 } from '@/lib/auth/device-auth';
 import { createClientLogger } from '@/lib/logger';
 
@@ -59,6 +58,9 @@ export async function POST(request: NextRequest) {
 
     // Mint atomically: the `tokenHash absent` precondition lets exactly one
     // concurrent poll win, so a retry/race can never get a second live token.
+    // Device tokens are non-expiring by design (a long-lived dev credential) —
+    // safe because they're hashed, revocable, and last-used-tracked. The flag is
+    // set EXPLICITLY so a future partial write (no flag, no expiry) fails closed.
     const token = generateDeviceToken();
     const now = new Date();
     const issued = await DeviceGrant.findOneAndUpdate(
@@ -67,7 +69,7 @@ export async function POST(request: NextRequest) {
         $set: {
           tokenHash: sha256(token),
           tokenIssuedAt: now,
-          tokenExpiresAt: new Date(now.getTime() + TOKEN_TTL_MS),
+          neverExpires: true,
         },
       },
       { new: true },
@@ -84,7 +86,7 @@ export async function POST(request: NextRequest) {
         status: 'approved',
         token,
         walletAddress: issued.walletAddress,
-        expiresAt: issued.tokenExpiresAt,
+        expiresAt: null,
       },
     });
   } catch (error) {

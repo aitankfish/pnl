@@ -28,8 +28,11 @@ export const GET = withAuth(async (_request: NextRequest, authUser) => {
         label: g.label || null,
         approvedAt: g.approvedAt || null,
         lastUsedAt: g.lastUsedAt || null,
-        expiresAt: g.tokenExpiresAt || null,
-        active: !!g.tokenHash && (!g.tokenExpiresAt || g.tokenExpiresAt.getTime() > Date.now()),
+        neverExpires: !!g.neverExpires,
+        expiresAt: g.neverExpires ? null : g.tokenExpiresAt || null,
+        active:
+          !!g.tokenHash &&
+          (g.neverExpires || (!!g.tokenExpiresAt && g.tokenExpiresAt.getTime() > Date.now())),
       })),
     },
   });

@@ -1185,6 +1185,12 @@ const DeviceGrantSchema = new mongoose.Schema({
   tokenExpiresAt: {
     type: Date,
   },
+  // Explicitly issued as a non-expiring token (revocable any time). Must be set
+  // deliberately at issuance — a merely-absent tokenExpiresAt still fails closed.
+  neverExpires: {
+    type: Boolean,
+    default: false,
+  },
   lastUsedAt: {
     type: Date,
   },
@@ -1620,6 +1626,7 @@ export interface IDeviceGrant {
   tokenHash?: string;
   tokenIssuedAt?: Date;
   tokenExpiresAt?: Date;
+  neverExpires?: boolean;
   lastUsedAt?: Date;
   expiresAt: Date;
   createdAt: Date;
