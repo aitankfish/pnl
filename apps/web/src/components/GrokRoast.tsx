@@ -94,6 +94,7 @@ function parseInitialRoast(content: string, format?: string): {
   positives: string[];
   legitScore: string;
   explanation: string;
+  verifiedFacts: string[];
 } {
   const result = {
     roast: '',
@@ -101,6 +102,7 @@ function parseInitialRoast(content: string, format?: string): {
     positives: [] as string[],
     legitScore: '',
     explanation: '',
+    verifiedFacts: [] as string[],
   };
 
   if (isJsonFormat(content, format)) {
@@ -112,6 +114,8 @@ function parseInitialRoast(content: string, format?: string): {
         positives: Array.isArray(j.positives) ? j.positives.map(String) : [],
         legitScore: j.legitScore != null ? String(j.legitScore) : '',
         explanation: typeof j.explanation === 'string' ? j.explanation : '',
+        // Deterministic ground-truth facts (newer reviews only; absent on legacy).
+        verifiedFacts: Array.isArray(j.verifiedFacts) ? j.verifiedFacts.map(String) : [],
       };
     } catch {
       // Malformed JSON — fall through to the regex parser below.
@@ -288,6 +292,27 @@ function InitialRoastCard({ analysis }: { analysis: GrokAnalysis }) {
 
       {/* Red Flags & Positives */}
       <div className="space-y-3">
+        {/* Verified — deterministic, automated checks. Ground truth that stands
+            on its own, independent of the AI's read, so it leads. */}
+        {parsed.verifiedFacts.length > 0 && (
+          <div className="bg-gradient-to-br from-emerald-500/10 to-emerald-900/5 border border-emerald-500/20 rounded-xl p-4">
+            <div className="flex items-center space-x-2 mb-3">
+              <div className="w-6 h-6 rounded-lg bg-emerald-500/20 flex items-center justify-center">
+                <span className="text-emerald-400 text-xs">✓</span>
+              </div>
+              <span className="font-bold text-sm text-emerald-400">Verified</span>
+              <span className="text-[10px] text-emerald-400/50 uppercase tracking-wider">automated checks</span>
+            </div>
+            <ul className="flex flex-wrap gap-2">
+              {parsed.verifiedFacts.map((fact, i) => (
+                <li key={i} className="text-xs text-gray-300 bg-black/20 border border-emerald-500/10 rounded-full px-3 py-1">
+                  {fact}
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
+
         {/* Red Flags */}
         {parsed.redFlags.length > 0 && (
           <div className="bg-gradient-to-br from-red-500/10 to-red-900/5 border border-red-500/20 rounded-xl p-4">
