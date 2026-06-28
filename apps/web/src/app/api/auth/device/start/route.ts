@@ -42,7 +42,7 @@ export async function POST(request: NextRequest) {
     }
 
     const now = new Date();
-    await DeviceGrant.create({
+    const grant = await DeviceGrant.create({
       deviceCodeHash: sha256(deviceCode),
       userCode,
       status: 'pending',
@@ -52,7 +52,8 @@ export async function POST(request: NextRequest) {
     });
 
     const origin = (process.env.NEXT_PUBLIC_APP_URL || new URL(request.url).origin).replace(/\/$/, '');
-    logger.info('[device/start] grant created', { userCode });
+    // Never log userCode — it's the live approval credential for 15 minutes.
+    logger.info('[device/start] grant created', { grantId: String(grant._id) });
 
     return NextResponse.json({
       success: true,

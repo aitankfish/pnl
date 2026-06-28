@@ -67,7 +67,9 @@ export async function verifyDeviceToken(token: string): Promise<AuthenticatedUse
     const tokenHash = sha256(token);
     const grant = await DeviceGrant.findOne({ tokenHash, status: 'approved' });
     if (!grant || !grant.walletAddress) return null;
-    if (grant.tokenExpiresAt && grant.tokenExpiresAt.getTime() < Date.now()) return null;
+    // Fail CLOSED: a grant with no expiry (partial write, seed row, migration)
+    // must be rejected, not treated as never-expiring.
+    if (!grant.tokenExpiresAt || grant.tokenExpiresAt.getTime() < Date.now()) return null;
 
     // Best-effort last-used stamp (don't block auth on the write).
     grant.lastUsedAt = new Date();

@@ -57,21 +57,34 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ success: true, data: { status: 'approved', alreadyClaimed: true } });
     }
 
+    // Mint atomically: the `tokenHash absent` precondition lets exactly one
+    // concurrent poll win, so a retry/race can never get a second live token.
     const token = generateDeviceToken();
     const now = new Date();
-    grant.tokenHash = sha256(token);
-    grant.tokenIssuedAt = now;
-    grant.tokenExpiresAt = new Date(now.getTime() + TOKEN_TTL_MS);
-    await grant.save();
+    const issued = await DeviceGrant.findOneAndUpdate(
+      { _id: grant._id, status: 'approved', tokenHash: { $exists: false } },
+      {
+        $set: {
+          tokenHash: sha256(token),
+          tokenIssuedAt: now,
+          tokenExpiresAt: new Date(now.getTime() + TOKEN_TTL_MS),
+        },
+      },
+      { new: true },
+    );
+    if (!issued) {
+      // Lost the race — another poll already issued the one token for this grant.
+      return NextResponse.json({ success: true, data: { status: 'approved', alreadyClaimed: true } });
+    }
 
-    logger.info('[device/poll] token issued', { userCode: grant.userCode, wallet: grant.walletAddress });
+    logger.info('[device/poll] token issued', { grantId: String(issued._id), wallet: issued.walletAddress });
     return NextResponse.json({
       success: true,
       data: {
         status: 'approved',
         token,
-        walletAddress: grant.walletAddress,
-        expiresAt: grant.tokenExpiresAt,
+        walletAddress: issued.walletAddress,
+        expiresAt: issued.tokenExpiresAt,
       },
     });
   } catch (error) {

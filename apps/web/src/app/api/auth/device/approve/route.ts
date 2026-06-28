@@ -24,7 +24,10 @@ export const POST = withAuth(async (request: NextRequest, authUser) => {
 
     const body = await request.json().catch(() => ({}));
     const userCode = normalizeUserCode(String(body?.userCode || ''));
-    const approve = body?.approve !== false; // default to approve unless explicitly denied
+    // Must be an explicit boolean — a malformed/empty body must never count as
+    // an approval (binding a terminal is one-way and hard to reverse).
+    if (typeof body?.approve !== 'boolean') return bad('approve must be true or false');
+    const approve = body.approve;
     const label = typeof body?.label === 'string' ? body.label.slice(0, 120) : undefined;
     if (!userCode) return bad('Enter the code shown in your terminal');
 
