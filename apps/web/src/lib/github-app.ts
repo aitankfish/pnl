@@ -51,6 +51,14 @@ export function isGithubAppConfigured(): boolean {
   return getGithubAppConfig() !== null;
 }
 
+// GitHub installation IDs are integers. Validating before interpolating into a
+// request path blocks any path-manipulation / SSRF via a crafted id (the value
+// reaches us from the install callback URL, which is attacker-controllable).
+const NUMERIC_ID = /^\d+$/;
+export function isValidInstallationId(id: string): boolean {
+  return NUMERIC_ID.test(id);
+}
+
 function base64url(input: Buffer | string): string {
   return Buffer.from(input).toString('base64').replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
 }
@@ -74,6 +82,7 @@ export function generateAppJwt(cfg: GithubAppConfig): string {
  */
 export async function getInstallationToken(cfg: GithubAppConfig, installationId: string): Promise<string | null> {
   try {
+    if (!isValidInstallationId(installationId)) return null;
     const jwt = generateAppJwt(cfg);
     const res = await fetch(`${GITHUB_API}/app/installations/${installationId}/access_tokens`, {
       method: 'POST',
@@ -103,6 +112,7 @@ export interface InstallationInfo {
 /** Look up which GitHub account an installation belongs to (the repo owner). */
 export async function getInstallation(cfg: GithubAppConfig, installationId: string): Promise<InstallationInfo | null> {
   try {
+    if (!isValidInstallationId(installationId)) return null;
     const jwt = generateAppJwt(cfg);
     const res = await fetch(`${GITHUB_API}/app/installations/${installationId}`, {
       headers: {

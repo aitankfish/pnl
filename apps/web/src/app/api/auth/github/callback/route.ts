@@ -10,7 +10,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { connectToDatabase, GithubInstallation } from '@/lib/mongodb';
 import { getRedisClient, prefixKey } from '@/lib/redis/client';
-import { getGithubAppConfig, getInstallation } from '@/lib/github-app';
+import { getGithubAppConfig, getInstallation, isValidInstallationId } from '@/lib/github-app';
 import { createClientLogger } from '@/lib/logger';
 
 const logger = createClientLogger();
@@ -28,7 +28,11 @@ export async function GET(request: NextRequest) {
   try {
     const cfg = getGithubAppConfig();
     if (!cfg) return redirectTo(request, '/?github=error&reason=unconfigured');
-    if (!installationId) return redirectTo(request, '/?github=error&reason=missing');
+    // installation_id is attacker-controllable in this redirect URL — it must be
+    // a plain integer before it ever reaches a GitHub request path.
+    if (!installationId || !isValidInstallationId(installationId)) {
+      return redirectTo(request, '/?github=error&reason=missing');
+    }
 
     // State binds the install to the wallet that started it. (GitHub omits state
     // when a user installs from the App page directly, not via our start flow.)
