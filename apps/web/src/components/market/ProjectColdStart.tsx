@@ -11,21 +11,26 @@
  */
 
 import React from 'react';
+import { MessageCircle } from 'lucide-react';
 import { ProjectPulse } from '@/components/research/ProjectPulse';
 import { MarketCitations } from '@/components/research/MarketCitations';
 import VideoEmbed from '@/components/VideoEmbed';
 
 const CREAM_DIM = 'rgba(244,238,228,0.65)';
 const CREAM_FAINT = 'rgba(244,238,228,0.4)';
+const HAIR = 'rgba(244,238,228,0.12)';
+const AMBER = '#e89660';
 
 export function ProjectColdStart({
   marketId,
   videoUrl,
   isFounder,
+  onDiscuss,
 }: {
   marketId: string;
   videoUrl: string | null;
   isFounder: boolean;
+  onDiscuss?: () => void;
 }) {
   return (
     <div className="py-6 space-y-6">
@@ -46,6 +51,21 @@ export function ProjectColdStart({
 
       {/* The research it stands on (renders nothing if there are no citations). */}
       <MarketCitations marketIdOrAddress={marketId} variant="full" />
+
+      {/* Keep a quiet project from being silent — point to the live discussion. */}
+      {onDiscuss && (
+        <div className="text-center pt-4" style={{ borderTop: `1px solid ${HAIR}` }}>
+          <button
+            type="button"
+            onClick={onDiscuss}
+            className="inline-flex items-center gap-2 mono uppercase tracking-[0.2em] text-[0.6rem] px-4 py-2 rounded-full"
+            style={{ border: `1px solid ${HAIR}`, color: AMBER }}
+          >
+            <MessageCircle className="w-3.5 h-3.5" />
+            Join the discussion
+          </button>
+        </div>
+      )}
     </div>
   );
 }

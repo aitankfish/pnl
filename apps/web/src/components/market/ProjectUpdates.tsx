@@ -91,10 +91,12 @@ export function ProjectUpdates({
   marketId,
   founderWallet,
   videoUrl = null,
+  onDiscuss,
 }: {
   marketId: string;
   founderWallet: string | null;
   videoUrl?: string | null;
+  onDiscuss?: () => void;
 }) {
   const { primaryWallet, authenticated } = useWallet();
   const { showToast } = useToast();
@@ -160,7 +162,7 @@ export function ProjectUpdates({
         </div>
       ) : posts.length === 0 ? (
         // No updates yet → surface whatever real signal exists instead of a void.
-        <ProjectColdStart marketId={marketId} videoUrl={videoUrl} isFounder={isFounder} />
+        <ProjectColdStart marketId={marketId} videoUrl={videoUrl} isFounder={isFounder} onDiscuss={onDiscuss} />
       ) : (
         <div>
           {posts.map((post, i) => (
