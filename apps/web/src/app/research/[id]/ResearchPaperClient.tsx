@@ -11,6 +11,7 @@ import {
 } from 'lucide-react';
 import { PaperUnderpins } from '@/components/research/PaperUnderpins';
 import { PaperStats } from '@/components/research/PaperStats';
+import { OrcidBadge } from '@/components/research/OrcidBadge';
 import { PaperProgramControl } from '@/components/research/PaperProgramControl';
 import { isPlatformAdmin } from '@/lib/admin';
 import { PaperActivityFeed } from '@/components/research/PaperActivityFeed';
@@ -39,6 +40,7 @@ interface Paper {
   authorName: string;
   authorXHandle: string | null;
   authorWallet: string;
+  authorOrcid: string | null;
   paperUrl: string | null;
   summary: string | null;
   githubUrl: string | null;
@@ -445,6 +447,12 @@ export function ResearchPaperClient({ paper }: { paper: Paper }) {
               >
                 {paper.authorName}
               </Link>
+              {paper.authorOrcid && (
+                <>
+                  {' '}
+                  <OrcidBadge orcidId={paper.authorOrcid} size={15} />
+                </>
+              )}
               {paper.authorXHandle && (
                 <>
                   {' '}·{' '}
