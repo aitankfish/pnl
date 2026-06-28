@@ -27,6 +27,7 @@ import { useUserSocket } from '@/lib/hooks/useSocket';
 import { ResearchPaperCard } from '@/components/research/ResearchPaperCard';
 import { OrcidBadge } from '@/components/research/OrcidBadge';
 import { OrcidConnect } from '@/components/profile/OrcidConnect';
+import { LinkedTerminals } from '@/components/profile/LinkedTerminals';
 
 const fetcher = (url: string) => fetch(url).then((res) => res.json());
 
@@ -320,6 +321,9 @@ export default function PublicProfilePage() {
           )}
         </div>
       </div>
+
+      {/* Own-profile: terminals linked via device authorization, revocable. */}
+      {isOwnProfile && <LinkedTerminals />}
 
       {/* Content Sections */}
       <div className="max-w-4xl mx-auto space-y-6">
