@@ -17,12 +17,26 @@ import { withAuth } from '@/lib/auth/require-wallet';
 import { checkRateLimit } from '@/lib/auth/rate-limit';
 import { resolveThesisRepo } from '@/lib/services/milestone-service';
 import { getGithubAppConfig, getInstallationToken, createRelease } from '@/lib/github-app';
+import { isXConfigured, postToX, normalizeXHandle } from '@/lib/x-service';
 import { createClientLogger } from '@/lib/logger';
 
 const logger = createClientLogger();
 
 function escapeRegex(s: string): string {
   return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+// Pull a bare X handle out of a project's socialLinks (Map or plain object).
+function xHandleFrom(socials: any): string | null {
+  if (!socials) return null;
+  const obj = socials instanceof Map ? Object.fromEntries(socials) : socials;
+  for (const k of Object.keys(obj)) {
+    if (/^(twitter|x)$/i.test(k)) {
+      const h = normalizeXHandle(obj[k]);
+      if (h) return h;
+    }
+  }
+  return null;
 }
 
 export const POST = withAuth(async (_request: NextRequest, authUser, { params }: any) => {
@@ -42,7 +56,9 @@ export const POST = withAuth(async (_request: NextRequest, authUser, { params }:
     ).lean<any>();
     if (!market) return bad('Market not found', 404);
 
-    const project = market.projectId ? await Project.findById(market.projectId).select('founderWallet').lean<any>() : null;
+    const project = market.projectId
+      ? await Project.findById(market.projectId).select('founderWallet name socialLinks').lean<any>()
+      : null;
     const founderWallet = project?.founderWallet || market.founderWallet;
     if (founderWallet !== authUser.walletAddress) return bad('Only the founder can cut a release', 403);
 
@@ -89,8 +105,24 @@ export const POST = withAuth(async (_request: NextRequest, authUser, { params }:
     milestone.updatedAt = new Date();
     await milestone.save();
 
+    // Best-effort: broadcast the achievement to X, tagging the project. No-ops
+    // unless X is configured; never blocks/fails the release on a tweet hiccup.
+    let broadcastUrl: string | null = null;
+    try {
+      if (isXConfigured()) {
+        const handle = xHandleFrom(project?.socialLinks);
+        const name = project?.name || 'A PNL project';
+        const tag = handle ? ` @${handle}` : '';
+        const tweet = `🚀 ${name} shipped: ${milestone.title}${result.htmlUrl ? ` — ${result.htmlUrl}` : ''}${tag}`;
+        const posted = await postToX(tweet);
+        if (posted.ok) broadcastUrl = posted.url || null;
+      }
+    } catch (e) {
+      logger.error('[cut-release] X broadcast failed', e as any);
+    }
+
     logger.info('[cut-release] released + settled', { milestoneId, repo: `${repo.owner}/${repo.repo}`, tag: result.tagName });
-    return NextResponse.json({ success: true, data: { releaseUrl: result.htmlUrl, tag: result.tagName } });
+    return NextResponse.json({ success: true, data: { releaseUrl: result.htmlUrl, tag: result.tagName, broadcastUrl } });
   } catch (error) {
     logger.error('[cut-release] failed', error as any);
     return NextResponse.json({ success: false, error: 'Failed to cut release' }, { status: 500 });
