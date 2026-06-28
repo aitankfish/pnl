@@ -64,3 +64,13 @@ services:
         sync: false
       - key: GITHUB_APP_SLUG
         sync: false
+      # X (Twitter) broadcast — paid API; PNL account's OAuth 1.0a tokens.
+      # Unset → broadcasts no-op. All four required to enable.
+      - key: X_CONSUMER_KEY
+        sync: false
+      - key: X_CONSUMER_SECRET
+        sync: false
+      - key: X_ACCESS_TOKEN
+        sync: false
+      - key: X_ACCESS_SECRET
+        sync: false
