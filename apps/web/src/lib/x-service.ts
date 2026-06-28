@@ -61,6 +61,11 @@ function oauthHeader(cfg: XConfig, method: string, url: string): string {
     .join('&');
   const baseString = [method.toUpperCase(), pct(url), pct(paramString)].join('&');
   const signingKey = `${pct(cfg.consumerSecret)}&${pct(cfg.accessSecret)}`;
+  // NOTE: HMAC-SHA1 is REQUIRED by the OAuth 1.0a spec (RFC 5849 §3.4.2) — it's
+  // a request signature, not password hashing, and the secrets here are OAuth
+  // signing keys, not stored credentials. CodeQL's "insufficient password hash"
+  // rule is a false positive in this context; there is no stronger option for
+  // OAuth 1.0a. (The alternative is OAuth 2.0, which needs token-refresh infra.)
   const signature = crypto.createHmac('sha1', signingKey).update(baseString).digest('base64');
 
   const headerParams = { ...oauth, oauth_signature: signature };
