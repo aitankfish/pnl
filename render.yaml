@@ -40,3 +40,19 @@ services:
         sync: false
       - key: NEXT_PUBLIC_PINATA_GATEWAY_URL
         sync: false
+      # ORCID verification (verified-researcher badge). Values set in the Render
+      # dashboard. ORCID_ENV: 'sandbox' (testing) or 'production' (orcid.org).
+      - key: ORCID_ENV
+        sync: false
+      - key: ORCID_CLIENT_ID
+        sync: false
+      - key: ORCID_CLIENT_SECRET
+        sync: false
+      # Zenodo DOI minting (dedicated PNL org account). ZENODO_ENV: 'sandbox' or
+      # 'production'. ZENODO_COMMUNITY: the PNL community slug (optional).
+      - key: ZENODO_ENV
+        sync: false
+      - key: ZENODO_TOKEN
+        sync: false
+      - key: ZENODO_COMMUNITY
+        sync: false
