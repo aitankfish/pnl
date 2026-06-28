@@ -5,6 +5,7 @@
 
 import { PrivyClient } from '@privy-io/server-auth';
 import { NextRequest } from 'next/server';
+import { isDeviceToken, verifyDeviceToken } from '@/lib/auth/device-auth';
 
 // Initialize Privy client (singleton)
 let privyClient: PrivyClient | null = null;
@@ -43,6 +44,12 @@ export async function verifyAuth(request: NextRequest): Promise<AuthenticatedUse
     }
 
     const accessToken = authHeader.substring(7); // Remove 'Bearer ' prefix
+
+    // PNL device tokens (terminal-bound) are prefixed, so they're routed here
+    // without ever touching Privy. Everything else is a Privy access token.
+    if (isDeviceToken(accessToken)) {
+      return await verifyDeviceToken(accessToken);
+    }
 
     // Verify the token with Privy
     const privy = getPrivyClient();
