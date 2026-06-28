@@ -55,6 +55,22 @@ html {
 
 :root {
   --radius: 0.625rem;
+
+  /* PNL cosmic palette — brand tokens (mirror of src/lib/palette.ts).
+     Use via Tailwind: text-cream, bg-cosmic, text-ember, border-hair, … */
+  --cream: #f4eee4;
+  --cream-dim: rgba(244, 238, 228, 0.65);
+  --cream-faint: rgba(244, 238, 228, 0.4);
+  --hair: rgba(244, 238, 228, 0.08);
+  --hair-strong: rgba(244, 238, 228, 0.16);
+  --ember: #e89660;
+  --peach: #ecb48a;
+  --cosmic: #0a0814;
+  --forest: #3f7a42;
+  --earth: #d67347;
+  --signal-green: #5fbf8f;
+  --signal-red: #cf7a6f;
+
   --background: oklch(1 0 0);
   --foreground: oklch(0.145 0 0);
   --card: oklch(1 0 0);
