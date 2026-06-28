@@ -25,6 +25,8 @@ import useSWR from 'swr';
 import Link from 'next/link';
 import { useUserSocket } from '@/lib/hooks/useSocket';
 import { ResearchPaperCard } from '@/components/research/ResearchPaperCard';
+import { OrcidBadge } from '@/components/research/OrcidBadge';
+import { OrcidConnect } from '@/components/profile/OrcidConnect';
 
 const fetcher = (url: string) => fetch(url).then((res) => res.json());
 
@@ -201,10 +203,18 @@ export default function PublicProfilePage() {
             )}
           </div>
 
-          {/* Username */}
-          <h1 className="text-2xl sm:text-3xl font-bold text-white mb-2">
+          {/* Username + verified-researcher badge */}
+          <h1 className="text-2xl sm:text-3xl font-bold text-white mb-2 inline-flex items-center gap-2 justify-center">
             {profile?.username || 'Anonymous User'}
+            {profile?.orcidId && <OrcidBadge orcidId={profile.orcidId} size={20} />}
           </h1>
+
+          {/* Own-profile: verify / unlink ORCID */}
+          {isOwnProfile && (
+            <div className="mb-3 flex justify-center">
+              <OrcidConnect />
+            </div>
+          )}
 
           {/* Bio */}
           {profile?.bio && (

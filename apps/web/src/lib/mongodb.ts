@@ -591,6 +591,19 @@ const UserProfileSchema = new mongoose.Schema({
     type: String,
     index: true,
   },
+  // Verified ORCID identity — set only via the ORCID OAuth callback, never by
+  // a client write. The non-gameable "this is a real researcher" signal; also
+  // what makes any DOI minted on PNL carry trustworthy authorship.
+  orcidId: {
+    type: String,
+    index: true,
+  },
+  orcidName: {
+    type: String,
+  },
+  orcidVerifiedAt: {
+    type: Date,
+  },
   profilePhotoUrl: {
     type: String,
   },

@@ -9,7 +9,7 @@
 import { notFound } from 'next/navigation';
 import { Types } from 'mongoose';
 import Link from 'next/link';
-import { connectToDatabase, ResearchPaper, ResearchProgram } from '@/lib/mongodb';
+import { connectToDatabase, ResearchPaper, ResearchProgram, UserProfile } from '@/lib/mongodb';
 import { convertToGatewayUrl } from '@/lib/api-utils';
 import { ResearchPaperClient } from './ResearchPaperClient';
 
@@ -44,6 +44,12 @@ export default async function ResearchPaperPage({ params }: PageProps) {
   if (!paper || paper.status !== 'active') notFound();
 
   const paperUrl = convertToGatewayUrl(paper.paperUrl) || paper.paperUrl;
+
+  // The author's verified ORCID iD (if any) — drives the byline badge.
+  const authorProfile = await UserProfile.findOne({ walletAddress: paper.authorWallet })
+    .select('orcidId')
+    .lean<any>();
+  const authorOrcid = authorProfile?.orcidId || null;
 
   // If this paper belongs to a research program, resolve its slug/title so the
   // page can link back to the program (the body-of-work it's part of).
@@ -84,6 +90,7 @@ export default async function ResearchPaperPage({ params }: PageProps) {
         authorName: paper.authorName,
         authorXHandle: paper.authorXHandle || null,
         authorWallet: paper.authorWallet,
+        authorOrcid,
         paperUrl: paper.paperUrl ? paperUrl : null,
         summary: paper.summary || null,
         githubUrl: paper.githubUrl || null,
