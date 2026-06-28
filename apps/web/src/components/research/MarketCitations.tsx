@@ -25,11 +25,6 @@ const HAIR_STRONG = 'rgba(244,238,228,0.16)';
 const AMBER = '#e89660';
 const FOREST = '#3f7a42';
 
-const PAPER_BG = '#fbfaf6';
-const INK = '#0d0d0d';
-const INK_DIM = 'rgba(13,13,13,0.62)';
-const INK_FAINT = 'rgba(13,13,13,0.35)';
-
 interface Citation {
   id: string;
   paperId: string;
@@ -375,18 +370,18 @@ function ThesisCard({ citation }: { citation: Citation }) {
     <Link
       href={`/research/${paper.id}`}
       prefetch
-      className="block transition-transform group"
+      className="block transition-colors"
       style={{
-        background: PAPER_BG,
-        color: INK,
-        borderLeft: `2px solid ${INK}`,
+        background: 'rgba(244,238,228,0.025)',
+        color: CREAM,
+        border: `1px solid ${HAIR_STRONG}`,
+        borderLeft: `2px solid ${AMBER}`,
         padding: '1.25rem 1.5rem',
-        boxShadow: '0 8px 24px rgba(0,0,0,0.28)',
       }}
     >
       <p
         className="mono uppercase tracking-[0.32em] text-[0.55rem] mb-2 inline-flex items-center gap-2"
-        style={{ color: INK_FAINT }}
+        style={{ color: CREAM_FAINT }}
       >
         The thesis · v{paper.currentVersion}
         {consented && (
@@ -402,6 +397,7 @@ function ThesisCard({ citation }: { citation: Citation }) {
       <h3
         className="line-clamp-2 mb-2"
         style={{
+          color: CREAM,
           fontFamily: 'var(--font-fraunces, serif)',
           fontSize: '1.4rem',
           fontWeight: 400,
@@ -415,12 +411,12 @@ function ThesisCard({ citation }: { citation: Citation }) {
         className="mb-3 text-sm"
         style={{
           fontFamily: 'var(--font-fraunces, serif)',
-          color: INK_DIM,
+          color: CREAM_DIM,
         }}
       >
-        by <span style={{ color: INK }}>{paper.authorName}</span>
+        by <span style={{ color: CREAM }}>{paper.authorName}</span>
         {paper.authorXHandle && (
-          <span style={{ color: FOREST }}> · @{paper.authorXHandle}</span>
+          <span style={{ color: AMBER }}> · @{paper.authorXHandle}</span>
         )}
       </p>
       {paper.doi && (
@@ -430,7 +426,7 @@ function ThesisCard({ citation }: { citation: Citation }) {
           rel="noopener noreferrer"
           onClick={(e) => e.stopPropagation()}
           className="mono uppercase tracking-[0.18em] text-[0.5rem] inline-block mb-3 underline-offset-2 hover:underline"
-          style={{ color: FOREST }}
+          style={{ color: AMBER }}
           title={`Published · DOI ${paper.doi}`}
         >
           DOI {paper.doi}
@@ -441,7 +437,7 @@ function ThesisCard({ citation }: { citation: Citation }) {
           className="text-sm line-clamp-3 mb-4"
           style={{
             fontFamily: 'var(--font-fraunces, serif)',
-            color: INK_DIM,
+            color: CREAM_DIM,
             lineHeight: 1.5,
           }}
         >
@@ -453,8 +449,8 @@ function ThesisCard({ citation }: { citation: Citation }) {
           className="text-sm mb-4 italic"
           style={{
             fontFamily: 'var(--font-fraunces, serif)',
-            color: INK_DIM,
-            borderLeft: `2px solid rgba(13,13,13,0.18)`,
+            color: CREAM_DIM,
+            borderLeft: `2px solid ${HAIR_STRONG}`,
             paddingLeft: '0.75rem',
           }}
         >
@@ -463,15 +459,14 @@ function ThesisCard({ citation }: { citation: Citation }) {
       )}
       <div
         className="flex items-center justify-between pt-3"
-        style={{ borderTop: `1px solid rgba(13,13,13,0.08)` }}
+        style={{ borderTop: `1px solid ${HAIR}` }}
       >
-        {/* Read-only reception stat. Was previously styled like ✓/✗ vote
-            buttons, but liking/disliking happens on the paper page — here it's
-            just a quiet count. Hidden entirely when there's no reception yet. */}
+        {/* Read-only reception stat — endorse/dispute happens on the paper page;
+            here it's a quiet count. Hidden when there's no reception yet. */}
         {paper.likeCount > 0 || paper.dislikeCount > 0 ? (
           <span
             className="mono uppercase tracking-[0.22em] text-[0.55rem]"
-            style={{ color: INK_FAINT, fontFeatureSettings: '"tnum"' }}
+            style={{ color: CREAM_FAINT, fontFeatureSettings: '"tnum"' }}
           >
             {paper.likeCount} endorsed · {paper.dislikeCount} disputed
           </span>
@@ -480,7 +475,7 @@ function ThesisCard({ citation }: { citation: Citation }) {
         )}
         <span
           className="mono uppercase tracking-[0.24em] text-[0.6rem] inline-flex items-center gap-1.5"
-          style={{ color: FOREST }}
+          style={{ color: AMBER }}
         >
           read the paper
           <ArrowRight className="w-3.5 h-3.5" />
