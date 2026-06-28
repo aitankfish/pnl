@@ -56,3 +56,11 @@ services:
         sync: false
       - key: ZENODO_COMMUNITY
         sync: false
+      # GitHub App (cut releases that settle milestones). Register a GitHub App
+      # with Contents: write; PRIVATE_KEY may be PEM-with-\n or base64.
+      - key: GITHUB_APP_ID
+        sync: false
+      - key: GITHUB_APP_PRIVATE_KEY
+        sync: false
+      - key: GITHUB_APP_SLUG
+        sync: false

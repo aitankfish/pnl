@@ -27,6 +27,7 @@ import { useUserSocket } from '@/lib/hooks/useSocket';
 import { ResearchPaperCard } from '@/components/research/ResearchPaperCard';
 import { OrcidBadge } from '@/components/research/OrcidBadge';
 import { OrcidConnect } from '@/components/profile/OrcidConnect';
+import { GithubConnect } from '@/components/profile/GithubConnect';
 import { LinkedTerminals } from '@/components/profile/LinkedTerminals';
 
 const fetcher = (url: string) => fetch(url).then((res) => res.json());
@@ -210,10 +211,11 @@ export default function PublicProfilePage() {
             {profile?.orcidId && <OrcidBadge orcidId={profile.orcidId} size={20} />}
           </h1>
 
-          {/* Own-profile: verify / unlink ORCID */}
+          {/* Own-profile: verify ORCID + connect GitHub */}
           {isOwnProfile && (
-            <div className="mb-3 flex justify-center">
+            <div className="mb-3 flex flex-wrap items-center justify-center gap-x-5 gap-y-2">
               <OrcidConnect />
+              <GithubConnect />
             </div>
           )}
 

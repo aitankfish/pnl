@@ -1127,6 +1127,51 @@ const MilestoneSchema = new mongoose.Schema({
 });
 MilestoneSchema.index({ marketAddress: 1, order: 1, targetDate: 1 });
 
+// ── GithubInstallation ───────────────────────────────────────────
+//
+// Records a PNL user installing the PNL GitHub App on their GitHub account/org.
+// The installationId lets PNL mint a scoped access token to create releases on
+// repos under `accountLogin` (Contents: write) — the "act on git" half of the
+// milestone loop. No GitHub secret is stored here; tokens are minted on demand
+// from the app private key.
+const GithubInstallationSchema = new mongoose.Schema({
+  // PNL user who connected this installation.
+  walletAddress: {
+    type: String,
+    required: true,
+    index: true,
+  },
+  installationId: {
+    type: String,
+    required: true,
+    index: true,
+  },
+  // GitHub account/org the app was installed on (the repo owner).
+  accountLogin: {
+    type: String,
+    required: true,
+    index: true,
+  },
+  accountType: {
+    type: String, // 'User' | 'Organization'
+  },
+  status: {
+    type: String,
+    enum: ['active', 'revoked'],
+    default: 'active',
+    index: true,
+  },
+  createdAt: {
+    type: Date,
+    default: Date.now,
+  },
+  updatedAt: {
+    type: Date,
+    default: Date.now,
+  },
+});
+GithubInstallationSchema.index({ installationId: 1 }, { unique: true });
+
 // ── DeviceGrant ──────────────────────────────────────────────────
 //
 // OAuth-style device authorization: a terminal (MCP) asks for a code, the user
@@ -1382,6 +1427,9 @@ if (mongoose.models.Milestone) {
 if (mongoose.models.DeviceGrant) {
   delete mongoose.models.DeviceGrant;
 }
+if (mongoose.models.GithubInstallation) {
+  delete mongoose.models.GithubInstallation;
+}
 if (mongoose.models.PostReaction) {
   delete mongoose.models.PostReaction;
 }
@@ -1437,6 +1485,7 @@ export const ProjectPost = mongoose.model('ProjectPost', ProjectPostSchema, 'pro
 export const PostReply = mongoose.model('PostReply', PostReplySchema, 'post_replies');
 export const Milestone = mongoose.model('Milestone', MilestoneSchema, 'milestones');
 export const DeviceGrant = mongoose.model('DeviceGrant', DeviceGrantSchema, 'device_grants');
+export const GithubInstallation = mongoose.model('GithubInstallation', GithubInstallationSchema, 'github_installations');
 export const PostReaction = mongoose.model('PostReaction', PostReactionSchema, 'post_reactions');
 
 // Type definitions
@@ -1630,6 +1679,17 @@ export interface IDeviceGrant {
   lastUsedAt?: Date;
   expiresAt: Date;
   createdAt: Date;
+}
+
+export interface IGithubInstallation {
+  _id: string;
+  walletAddress: string;
+  installationId: string;
+  accountLogin: string;
+  accountType?: string;
+  status: 'active' | 'revoked';
+  createdAt: Date;
+  updatedAt: Date;
 }
 
 export interface IResearchProgram {
