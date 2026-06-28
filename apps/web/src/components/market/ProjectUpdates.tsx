@@ -18,6 +18,7 @@ import { authFetch } from '@/lib/auth/fetch-with-auth';
 import { useWallet } from '@/hooks/useWallet';
 import { useToast } from '@/lib/hooks/useToast';
 import { isPlatformAdmin } from '@/lib/admin';
+import { ProjectColdStart } from '@/components/market/ProjectColdStart';
 import { createClientLogger } from '@/lib/logger';
 
 const logger = createClientLogger();
@@ -86,7 +87,15 @@ function timeAgo(iso: string) {
   return d.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
 }
 
-export function ProjectUpdates({ marketId, founderWallet }: { marketId: string; founderWallet: string | null }) {
+export function ProjectUpdates({
+  marketId,
+  founderWallet,
+  videoUrl = null,
+}: {
+  marketId: string;
+  founderWallet: string | null;
+  videoUrl?: string | null;
+}) {
   const { primaryWallet, authenticated } = useWallet();
   const { showToast } = useToast();
   const wallet = primaryWallet?.address || null;
@@ -150,14 +159,8 @@ export function ProjectUpdates({ marketId, founderWallet }: { marketId: string; 
           <Loader2 className="w-4 h-4 animate-spin" />
         </div>
       ) : posts.length === 0 ? (
-        <div className="py-12 text-center">
-          <p style={{ fontFamily: 'var(--font-fraunces, serif)', fontSize: '1.1rem', color: CREAM_DIM }}>
-            The story starts here.
-          </p>
-          <p className="mono uppercase tracking-[0.2em] text-[0.55rem] mt-2" style={{ color: CREAM_FAINT }}>
-            {isFounder ? 'Share your first build update above.' : 'No updates yet.'}
-          </p>
-        </div>
+        // No updates yet → surface whatever real signal exists instead of a void.
+        <ProjectColdStart marketId={marketId} videoUrl={videoUrl} isFounder={isFounder} />
       ) : (
         <div>
           {posts.map((post, i) => (
