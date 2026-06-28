@@ -56,13 +56,16 @@ export const POST = withAuth(async (_request: NextRequest, authUser, { params }:
     const repo = market.projectId ? await resolveThesisRepo(String(market.projectId)) : null;
     if (!repo) return bad('No linked repository to release on (cite a thesis paper with a GitHub repo)', 404);
 
-    // The installation must exist for the repo owner.
+    // The installation must belong to THIS caller AND cover the repo owner.
+    // Without the wallet constraint, any founder could cut releases on any repo
+    // whose owner happened to install the app — even one they don't control.
     const installation = await GithubInstallation.findOne({
+      walletAddress: authUser.walletAddress,
       accountLogin: new RegExp(`^${escapeRegex(repo.owner)}$`, 'i'),
       status: 'active',
     }).lean<any>();
     if (!installation) {
-      return bad(`Install the PNL GitHub App on "${repo.owner}" first, then try again`, 409);
+      return bad(`Install the PNL GitHub App on "${repo.owner}" from your own account first, then try again`, 409);
     }
 
     const token = await getInstallationToken(cfg, installation.installationId);

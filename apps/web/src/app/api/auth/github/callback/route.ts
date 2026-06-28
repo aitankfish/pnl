@@ -50,18 +50,20 @@ export async function GET(request: NextRequest) {
 
     await connectToDatabase();
     const now = new Date();
+    // Key the upsert by installationId AND wallet. An attacker replaying a
+    // victim's installation_id under their own state can't overwrite the
+    // victim's binding: no match → insert attempt → the unique index on
+    // installationId rejects it (duplicate-key → caught below → error redirect).
     await GithubInstallation.findOneAndUpdate(
-      { installationId },
+      { installationId, walletAddress: wallet },
       {
         $set: {
-          walletAddress: wallet,
-          installationId,
           accountLogin: info.accountLogin,
           accountType: info.accountType,
           status: 'active',
           updatedAt: now,
         },
-        $setOnInsert: { createdAt: now },
+        $setOnInsert: { walletAddress: wallet, installationId, createdAt: now },
       },
       { upsert: true },
     );
