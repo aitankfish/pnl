@@ -39,9 +39,10 @@ export function generateDeviceToken(): string {
 // avoid confusion); 8 chars over a 32-symbol alphabet ≈ 40 bits.
 const USER_CODE_ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
 export function generateUserCode(): string {
-  const bytes = crypto.randomBytes(8);
+  // crypto.randomInt does unbiased rejection sampling — no modulo bias even if
+  // the alphabet length stops dividing 256.
   let s = '';
-  for (let i = 0; i < 8; i++) s += USER_CODE_ALPHABET[bytes[i] % USER_CODE_ALPHABET.length];
+  for (let i = 0; i < 8; i++) s += USER_CODE_ALPHABET[crypto.randomInt(USER_CODE_ALPHABET.length)];
   return `${s.slice(0, 4)}-${s.slice(4)}`;
 }
 
