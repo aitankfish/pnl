@@ -7,7 +7,7 @@ import { useRouter } from 'next/navigation';
 import parse from 'html-react-parser';
 import {
   Check, X, ArrowLeft, ExternalLink, Loader2, Github, Sun,
-  History, Pencil, ChevronDown, Sprout,
+  History, Pencil, ChevronDown, Sprout, Stamp,
 } from 'lucide-react';
 import { PaperUnderpins } from '@/components/research/PaperUnderpins';
 import { PaperStats } from '@/components/research/PaperStats';
@@ -103,6 +103,31 @@ export function ResearchPaperClient({ paper }: { paper: Paper }) {
     primaryWallet.address === paper.authorWallet;
   const isAdmin = isPlatformAdmin(primaryWallet?.address);
   const [hiding, setHiding] = useState(false);
+  const [minting, setMinting] = useState(false);
+
+  // Author-only: publish this paper to Zenodo and stamp the minted DOI back on
+  // it. Irreversible (Zenodo records are permanent), so we confirm first.
+  const mintDoiNow = async () => {
+    if (
+      !window.confirm(
+        'Publish this paper to Zenodo and mint a permanent DOI?\n\nThis is irreversible — the Zenodo record and its DOI are public and can’t be deleted.',
+      )
+    ) {
+      return;
+    }
+    setMinting(true);
+    try {
+      const res = await authFetch(`/api/research/${paper.id}/mint-doi`, { method: 'POST' });
+      const json = await res.json();
+      if (!json.success) throw new Error(json.error || 'Failed to mint');
+      showToast({ type: 'success', title: 'DOI minted', message: `${json.data.doi} — now citable anywhere.` });
+      router.refresh();
+    } catch (err) {
+      showToast({ type: 'error', title: 'Couldn’t mint a DOI', message: err instanceof Error ? err.message : '' });
+    } finally {
+      setMinting(false);
+    }
+  };
 
   const hidePaper = async () => {
     if (!window.confirm('Hide this paper from the shelf? It’s reversible but removes it from public view.')) {
@@ -357,6 +382,23 @@ export function ResearchPaperClient({ paper }: { paper: Paper }) {
               doi
               <ExternalLink className="w-3.5 h-3.5" />
             </a>
+          )}
+          {/* Author-only: mint a real DOI for a native paper that doesn't have
+              one yet (needs an embeddable PDF to deposit). */}
+          {isAuthor && !displayDoi && hasEmbed && (
+            <button
+              type="button"
+              onClick={mintDoiNow}
+              disabled={minting}
+              className="inline-flex items-center gap-2 mono uppercase tracking-[0.22em] text-[0.6rem] transition-colors disabled:opacity-50"
+              style={{ color: AMBER }}
+              onMouseEnter={(e) => (e.currentTarget.style.color = PEACH)}
+              onMouseLeave={(e) => (e.currentTarget.style.color = AMBER)}
+              title="Publish to Zenodo and mint a citable DOI"
+            >
+              {minting ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Stamp className="w-3.5 h-3.5" />}
+              {minting ? 'minting' : 'mint doi'}
+            </button>
           )}
           {displayExternalUrl && !displayDoi && (
             <a
