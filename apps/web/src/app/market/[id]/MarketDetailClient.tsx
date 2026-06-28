@@ -1927,7 +1927,16 @@ export default function MarketDetailClient({
             founderWallet={market.founderWallet || null}
             onPosted={() => setUpdatesReloadToken((t) => t + 1)}
           />
-          <ProjectUpdates key={updatesReloadToken} marketId={params.id as string} founderWallet={market.founderWallet || null} videoUrl={market.metadata?.videoUrl || null} />
+          <ProjectUpdates
+            key={updatesReloadToken}
+            marketId={params.id as string}
+            founderWallet={market.founderWallet || null}
+            videoUrl={market.metadata?.videoUrl || null}
+            onDiscuss={() => {
+              setRailTab('community');
+              document.getElementById('conviction-rail')?.scrollIntoView({ behavior: 'smooth' });
+            }}
+          />
         </div>
 
         {/* AI review pane — the structured Grok reading (legit score, red flags,
