@@ -60,6 +60,25 @@ module.exports = {
           '4': "hsl(var(--chart-4))",
           '5': "hsl(var(--chart-5))",
         },
+        // PNL cosmic palette — brand tokens (mirror of src/lib/palette.ts +
+        // globals.css). Named to NOT collide with Tailwind's default
+        // amber/red/green scales: brand amber = `ember`, signals = `signal-*`.
+        cream: {
+          DEFAULT: "var(--cream)",
+          dim: "var(--cream-dim)",
+          faint: "var(--cream-faint)",
+        },
+        ember: "var(--ember)",
+        peach: "var(--peach)",
+        cosmic: "var(--cosmic)",
+        forest: "var(--forest)",
+        earth: "var(--earth)",
+        hair: {
+          DEFAULT: "var(--hair)",
+          strong: "var(--hair-strong)",
+        },
+        'signal-green': "var(--signal-green)",
+        'signal-red': "var(--signal-red)",
       },
       borderRadius: {
         lg: "var(--radius)",
