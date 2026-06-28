@@ -21,6 +21,7 @@ import { walletInputSchema, callWallet } from './tools/wallet.js';
 import { exportKeypairInputSchema, callExportKeypair } from './tools/export-keypair.js';
 import { pitchIdeaInputSchema, callPitchIdea } from './tools/pitch-idea.js';
 import { setUsernameInputSchema, callSetUsername } from './tools/set-username.js';
+import { loginInputSchema, callLogin, logoutInputSchema, callLogout } from './tools/login.js';
 import { unlockInputSchema, callUnlock, lockInputSchema, callLock } from './tools/unlock.js';
 import { restoreInputSchema, callRestore } from './tools/restore.js';
 import { helpInputSchema, callHelp } from './tools/help.js';
@@ -176,6 +177,20 @@ async function main(): Promise<void> {
     "Claim or rename the PNL username for the local wallet. Signs a time-bounded challenge with the keypair from pnl_init so the backend can verify wallet ownership -- no Privy session or Gmail login required. Usernames are 3-20 characters of letters/numbers/_/-. Returns 'taken' if another wallet has claimed the name. Use when the user says 'set my PNL username to X', 'rename my PNL profile', or after pnl_init when they want a custom name instead of the auto-generated Cosmic one.",
     setUsernameInputSchema,
     async (args) => callSetUsername(args),
+  );
+
+  server.tool(
+    'pnl_login',
+    "Link this terminal to the user's PNL web account via device authorization, so the MCP can act as them (post build updates, declare/cut milestones, mint DOIs) — distinct from the local on-chain keypair (pnl_init). Two steps in one tool: the FIRST call returns a URL + short code; the user opens it, signs in with their PNL account, and approves; the SECOND call (run pnl_login again) finishes and stores a revocable device token at ~/.config/pnl/token.json. Use when the user says 'log in to PNL', 'link my account', or 'connect my terminal to PNL'. Idempotent — re-running guides the user to the next step.",
+    loginInputSchema,
+    async (args) => callLogin(args),
+  );
+
+  server.tool(
+    'pnl_logout',
+    'Unlink this terminal from the PNL web account — deletes the locally stored device token. Use when the user says \'log out of PNL\' or \'unlink this terminal\'. Reminds the user they can also revoke the terminal server-side from their PNL profile. Does not touch the local on-chain wallet (use pnl_lock for that).',
+    logoutInputSchema,
+    async () => callLogout(),
   );
 
   const transport = new StdioServerTransport();
