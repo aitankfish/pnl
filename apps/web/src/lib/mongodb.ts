@@ -1127,6 +1127,78 @@ const MilestoneSchema = new mongoose.Schema({
 });
 MilestoneSchema.index({ marketAddress: 1, order: 1, targetDate: 1 });
 
+// ── DeviceGrant ──────────────────────────────────────────────────
+//
+// OAuth-style device authorization: a terminal (MCP) asks for a code, the user
+// approves it in the browser while logged in via Privy, and the terminal gets a
+// revocable PNL device token that authenticates as that user's wallet. Secrets
+// (deviceCode, token) are stored HASHED — never in plaintext. The doc is NOT
+// TTL-reaped because an approved grant is a live credential; the `expiresAt`
+// field bounds only the pending-approval window, and `tokenExpiresAt` the token.
+const DeviceGrantSchema = new mongoose.Schema({
+  // sha256 of the device_code the terminal polls with.
+  deviceCodeHash: {
+    type: String,
+    required: true,
+    index: true,
+  },
+  // Short human code shown in the terminal + entered/confirmed in the browser.
+  userCode: {
+    type: String,
+    required: true,
+    index: true,
+  },
+  status: {
+    type: String,
+    enum: ['pending', 'approved', 'denied', 'expired'],
+    default: 'pending',
+    index: true,
+  },
+  // Optional human label for the terminal ("cli on macbook").
+  label: {
+    type: String,
+    maxlength: 120,
+  },
+  // Bound on approval — the approving user's verified identity.
+  walletAddress: {
+    type: String,
+    index: true,
+  },
+  userId: {
+    type: String,
+  },
+  email: {
+    type: String,
+  },
+  approvedAt: {
+    type: Date,
+  },
+  // sha256 of the issued device token (set when the token is first handed to
+  // the terminal on poll). Lookup key for device-token auth.
+  tokenHash: {
+    type: String,
+    index: true,
+  },
+  tokenIssuedAt: {
+    type: Date,
+  },
+  tokenExpiresAt: {
+    type: Date,
+  },
+  lastUsedAt: {
+    type: Date,
+  },
+  // Deadline for the pending-approval window (not a Mongo TTL).
+  expiresAt: {
+    type: Date,
+    required: true,
+  },
+  createdAt: {
+    type: Date,
+    default: Date.now,
+  },
+});
+
 // Lightweight emoji reactions on a project post or one of its replies. One row
 // per (target, wallet, emoji); toggling a reaction inserts/removes a row.
 const PostReactionSchema = new mongoose.Schema({
@@ -1301,6 +1373,9 @@ if (mongoose.models.PostReply) {
 if (mongoose.models.Milestone) {
   delete mongoose.models.Milestone;
 }
+if (mongoose.models.DeviceGrant) {
+  delete mongoose.models.DeviceGrant;
+}
 if (mongoose.models.PostReaction) {
   delete mongoose.models.PostReaction;
 }
@@ -1355,6 +1430,7 @@ export const ResearchProgram = mongoose.model('ResearchProgram', ResearchProgram
 export const ProjectPost = mongoose.model('ProjectPost', ProjectPostSchema, 'project_posts');
 export const PostReply = mongoose.model('PostReply', PostReplySchema, 'post_replies');
 export const Milestone = mongoose.model('Milestone', MilestoneSchema, 'milestones');
+export const DeviceGrant = mongoose.model('DeviceGrant', DeviceGrantSchema, 'device_grants');
 export const PostReaction = mongoose.model('PostReaction', PostReactionSchema, 'post_reactions');
 
 // Type definitions
@@ -1528,6 +1604,24 @@ export interface IPostReaction {
   marketAddress: string;
   walletAddress: string;
   emoji: string;
+  createdAt: Date;
+}
+
+export interface IDeviceGrant {
+  _id: string;
+  deviceCodeHash: string;
+  userCode: string;
+  status: 'pending' | 'approved' | 'denied' | 'expired';
+  label?: string;
+  walletAddress?: string;
+  userId?: string;
+  email?: string;
+  approvedAt?: Date;
+  tokenHash?: string;
+  tokenIssuedAt?: Date;
+  tokenExpiresAt?: Date;
+  lastUsedAt?: Date;
+  expiresAt: Date;
   createdAt: Date;
 }
 
