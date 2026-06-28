@@ -6,9 +6,16 @@
  * The only "cost" is the prefix reads 10.5281/zenodo.* rather than a PNL prefix
  * — swapping to a DataCite/PNL prefix later is a change behind this one module.
  *
- * Config via env (free — create a Zenodo personal access token with
+ * Depositor model = INSTITUTIONAL: one dedicated PNL Zenodo ORG account (never
+ * a personal token) is the depositor of every paper; the visible author/creator
+ * is the actual researcher (set from the paper + their verified ORCID), and
+ * records are branded into the PNL Zenodo *community*. PNL is the repository,
+ * the researcher is the author — the normal journal/repository split.
+ *
+ * Config via env (free — create the token on the PNL org account with
  * deposit:write + deposit:actions):
  *   ZENODO_TOKEN, ZENODO_ENV = 'sandbox' | 'production' (default 'sandbox')
+ *   ZENODO_COMMUNITY = the PNL community identifier (optional; brands records)
  */
 
 import { createClientLogger } from '@/lib/logger';
@@ -84,20 +91,24 @@ export async function mintDoi(cfg: ZenodoConfig, input: MintInput): Promise<Mint
   }
 
   // 3. Attach metadata. ORCID, when present, ties the DOI to a verified author.
+  // The depositing account is PNL's, but the CREATOR is the researcher — so the
+  // citation reads their name, not the institutional depositor's.
   const creator: Record<string, string> = { name: input.creatorName };
   if (input.creatorOrcid) creator.orcid = input.creatorOrcid;
+  const metadata: Record<string, unknown> = {
+    title: input.title,
+    upload_type: 'publication',
+    publication_type: 'preprint',
+    description: input.description,
+    creators: [creator],
+  };
+  // Brand into the PNL community when configured (PNL = the repository).
+  const community = process.env.ZENODO_COMMUNITY;
+  if (community) metadata.communities = [{ identifier: community }];
   const metaRes = await fetch(`${cfg.base}/deposit/depositions/${depositionId}`, {
     method: 'PUT',
     headers: { ...auth, 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      metadata: {
-        title: input.title,
-        upload_type: 'publication',
-        publication_type: 'preprint',
-        description: input.description,
-        creators: [creator],
-      },
-    }),
+    body: JSON.stringify({ metadata }),
   });
   if (!metaRes.ok) {
     throw new Error(`Zenodo metadata failed (${metaRes.status})`);
