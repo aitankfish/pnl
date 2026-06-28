@@ -10,6 +10,7 @@ import {
   History, Pencil, ChevronDown, Sprout,
 } from 'lucide-react';
 import { PaperUnderpins } from '@/components/research/PaperUnderpins';
+import { PaperStats } from '@/components/research/PaperStats';
 import { PaperProgramControl } from '@/components/research/PaperProgramControl';
 import { isPlatformAdmin } from '@/lib/admin';
 import { PaperActivityFeed } from '@/components/research/PaperActivityFeed';
@@ -402,13 +403,127 @@ export function ResearchPaperClient({ paper }: { paper: Paper }) {
         className="max-w-[1000px] mx-auto px-6 sm:px-12 py-10 sm:py-16"
         style={{ borderLeft: `1px solid ${HAIR_STRONG}` }}
       >
-        {/* Eyebrow — paper name + date, sits on the front above the PDF */}
-        <p
-          className="mono uppercase tracking-[0.32em] text-[0.6rem] mb-5 pnl-fade"
-          style={{ color: AMBER }}
-        >
-          {paper.title} · {formattedDate}
-        </p>
+        {/* ─── Front matter ─── title, byline, reactions, abstract sit ABOVE
+            the PDF, so the page leads with who/what/score and then the
+            document itself renders below. */}
+        <header className="mb-10 sm:mb-12 pnl-fade">
+          <p
+            className="mono uppercase tracking-[0.32em] text-[0.55rem] mb-4"
+            style={{ color: AMBER }}
+          >
+            Research · {formattedDate}
+          </p>
+          <h1
+            className="mb-6"
+            style={{
+              color: CREAM,
+              fontFamily: 'var(--font-fraunces, "Times New Roman", serif)',
+              fontWeight: 350,
+              fontSize: 'clamp(1.9rem, 4vw, 3rem)',
+              lineHeight: 1.08,
+              letterSpacing: '-0.01em',
+            }}
+          >
+            {paper.title}
+          </h1>
+
+          {/* Byline + inline tick/cross */}
+          <div className="flex flex-wrap items-center gap-x-5 gap-y-3 mb-6">
+            <p
+              style={{
+                fontFamily: 'var(--font-fraunces, serif)',
+                fontSize: '1.05rem',
+                color: CREAM_DIM,
+                margin: 0,
+              }}
+            >
+              by{' '}
+              <Link
+                href={`/research/author/${paper.authorWallet}`}
+                className="underline-offset-4 hover:underline"
+                style={{ color: CREAM }}
+              >
+                {paper.authorName}
+              </Link>
+              {paper.authorXHandle && (
+                <>
+                  {' '}·{' '}
+                  <a
+                    href={`https://x.com/${paper.authorXHandle}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="underline-offset-4 hover:underline"
+                    style={{ color: AMBER }}
+                  >
+                    @{paper.authorXHandle}
+                  </a>
+                </>
+              )}
+            </p>
+            <div className="flex items-center gap-2">
+              <InlineReaction
+                variant="like"
+                active={reaction === 'like'}
+                count={likeCount}
+                disabled={busy}
+                onClick={() => react('like')}
+              />
+              <InlineReaction
+                variant="dislike"
+                active={reaction === 'dislike'}
+                count={dislikeCount}
+                disabled={busy}
+                onClick={() => react('dislike')}
+              />
+              {!authenticated && (
+                <span
+                  className="mono uppercase tracking-[0.2em] text-[0.5rem] ml-1"
+                  style={{ color: CREAM_FAINT }}
+                >
+                  · connect wallet to react
+                </span>
+              )}
+            </div>
+          </div>
+
+          {/* External reach — citations / downloads / views from the scholarly
+              graph (silent until a DOI's sources return numbers). */}
+          <PaperStats paperId={paper.id} />
+
+          {paper.program && (
+            <Link
+              href={`/research/program/${paper.program.slug}`}
+              className="inline-flex items-center gap-2 mono uppercase tracking-[0.2em] text-[0.55rem] mb-6 px-3 py-1.5 transition-colors"
+              style={{ color: AMBER, border: `1px solid ${AMBER}44` }}
+            >
+              part of {paper.program.title} →
+            </Link>
+          )}
+
+          {paper.summary && (
+            <div>
+              <p
+                className="mono uppercase tracking-[0.28em] text-[0.55rem] mb-2.5"
+                style={{ color: CREAM_FAINT }}
+              >
+                Abstract
+              </p>
+              <p
+                style={{
+                  fontFamily: 'var(--font-fraunces, serif)',
+                  fontSize: '1.15rem',
+                  lineHeight: 1.55,
+                  color: CREAM_DIM,
+                  borderLeft: `1px solid ${HAIR_STRONG}`,
+                  paddingLeft: '1rem',
+                  margin: 0,
+                }}
+              >
+                {paper.summary}
+              </p>
+            </div>
+          )}
+        </header>
 
         {!isCurrent && activeVersion && (
           <div
@@ -480,94 +595,6 @@ export function ResearchPaperClient({ paper }: { paper: Paper }) {
              canonical published version instead of an empty frame. */
           <PublishedSourceCard doi={displayDoi} externalUrl={displayExternalUrl} />
         )}
-
-        {/* Byline + reactions + summary, below the paper */}
-        <header className="mt-12 sm:mt-16 pnl-fade">
-          {/* Byline + inline tick/cross */}
-          <div className="flex flex-wrap items-center gap-x-5 gap-y-3 mb-6">
-            <p
-              style={{
-                fontFamily: 'var(--font-fraunces, serif)',
-                fontSize: '1.05rem',
-                color: CREAM_DIM,
-                margin: 0,
-              }}
-            >
-              by{' '}
-              <Link
-                href={`/research/author/${paper.authorWallet}`}
-                className="underline-offset-4 hover:underline"
-                style={{ color: CREAM }}
-              >
-                {paper.authorName}
-              </Link>
-              {paper.authorXHandle && (
-                <>
-                  {' '}·{' '}
-                  <a
-                    href={`https://x.com/${paper.authorXHandle}`}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="underline-offset-4 hover:underline"
-                    style={{ color: AMBER }}
-                  >
-                    @{paper.authorXHandle}
-                  </a>
-                </>
-              )}
-            </p>
-            <div className="flex items-center gap-2">
-              <InlineReaction
-                variant="like"
-                active={reaction === 'like'}
-                count={likeCount}
-                disabled={busy}
-                onClick={() => react('like')}
-              />
-              <InlineReaction
-                variant="dislike"
-                active={reaction === 'dislike'}
-                count={dislikeCount}
-                disabled={busy}
-                onClick={() => react('dislike')}
-              />
-              {!authenticated && (
-                <span
-                  className="mono uppercase tracking-[0.2em] text-[0.5rem] ml-1"
-                  style={{ color: CREAM_FAINT }}
-                >
-                  · connect wallet to react
-                </span>
-              )}
-            </div>
-          </div>
-
-          {paper.program && (
-            <Link
-              href={`/research/program/${paper.program.slug}`}
-              className="inline-flex items-center gap-2 mono uppercase tracking-[0.2em] text-[0.55rem] mb-5 px-3 py-1.5 transition-colors"
-              style={{ color: AMBER, border: `1px solid ${AMBER}44` }}
-            >
-              part of {paper.program.title} →
-            </Link>
-          )}
-
-          {paper.summary && (
-            <p
-              className="mb-2"
-              style={{
-                fontFamily: 'var(--font-fraunces, serif)',
-                fontSize: '1.15rem',
-                lineHeight: 1.5,
-                color: CREAM_DIM,
-                borderLeft: `1px solid ${HAIR_STRONG}`,
-                paddingLeft: '1rem',
-              }}
-            >
-              {paper.summary}
-            </p>
-          )}
-        </header>
 
         {/* Author-only: group this paper into a program + set its lineage. */}
         {isAuthor && (
