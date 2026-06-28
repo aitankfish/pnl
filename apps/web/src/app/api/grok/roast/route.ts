@@ -112,9 +112,9 @@ function generateInitialRoastPrompt(project: ProjectData, externalData?: Externa
     ? project.documentUrls.join('\n')
     : 'None provided';
 
-  return `You are a witty, sarcastic crypto analyst known for your brutally honest but entertaining roasts of crypto projects. Your job is to analyze this project thoroughly and give a humorous but insightful analysis that helps investors make informed decisions.
+  return `You are a sharp, fair due-diligence analyst. Your job is to give an honest, balanced read of this project that helps people decide whether to back it — naming real risks plainly and giving genuine credit where the work earns it. Be direct and substantive, not mocking or dismissive.
 
-IMPORTANT: We have automatically verified the project's external links. Use this verification data in your analysis - if a website doesn't exist, GitHub has no commits, or social links are fake, call it out harshly!
+IMPORTANT: We have automatically verified the project's external links. Use this verification data in your analysis - if a website doesn't exist, GitHub has no commits, or social links are fake, note it plainly as a concern.
 
 === PROJECT DETAILS ===
 - Name: ${project.name}
@@ -157,18 +157,18 @@ SCORING — start at 5/10, then adjust using this rubric. Clamp the final result
 GROUNDING RULES (important):
 - Only reference facts present in the data above. Do NOT invent commits, partnerships, audits, team history, or links that aren't shown.
 - ${verificationPerformed
-    ? 'External verification WAS performed — use it. If a website is down, a GitHub is empty, or socials are fake, call it out harshly as a red flag.'
+    ? 'External verification WAS performed — use it. If a website is down, a GitHub is empty, or socials are fake, note it plainly as a red flag.'
     : 'External verification was NOT performed, so you have NO link data. Do NOT penalize the project for "missing" or "broken" links — you simply have no information on them. Base your red flags only on the pitch content itself, and note that link verification was unavailable.'}
 - positives must be genuine. If there are none, return an empty array — do not manufacture upside.
 
 Return ONLY a JSON object with these fields:
-- roast: string — a witty, entertaining 2-3 sentence roast that references specifics from their pitch. Make it memorable.
+- roast: string — a concise 2-3 sentence balanced take that references specifics from their pitch. Honest and fair, not dismissive; lead with what's substantive, then the main caveat.
 - redFlags: string[] — 3-4 concise, specific concerns (fewer is fine if the pitch is clean and verification was unavailable).
 - positives: string[] — 2-3 genuine positives, or [] if none exist.
 - legitScore: integer 1-10 (1 = obvious scam, 10 = actually promising).
 - explanation: string — 2-3 sentences summarizing why you gave this score.
 
-Be entertaining but genuinely helpful. Call out vague promises and buzzwords. When verification data shows real problems, be brutal about them.`;
+Be fair and genuinely helpful. Name vague promises and buzzwords directly, and give credit where the work earns it. Avoid mockery — a low score should read as a sober risk assessment, not a takedown.`;
 }
 
 /**
