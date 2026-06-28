@@ -165,6 +165,7 @@ function MilestoneRow({
 }) {
   const { showToast } = useToast();
   const [busy, setBusy] = useState(false);
+  const [cutting, setCutting] = useState(false);
   const [shipUrl, setShipUrl] = useState('');
   const [shipping, setShipping] = useState(false);
 
@@ -182,6 +183,22 @@ function MilestoneRow({
     } catch (e) {
       showToast({ type: 'error', title: 'Couldn’t remove', message: e instanceof Error ? e.message : '' });
       setBusy(false);
+    }
+  };
+
+  const cutRelease = async () => {
+    if (!window.confirm(`Cut GitHub release "${m.triggerMatch}" now? This creates a real release on the repo and settles this milestone.`)) return;
+    setCutting(true);
+    try {
+      const res = await authFetch(`/api/markets/${marketId}/milestones/${m.id}/cut-release`, { method: 'POST' });
+      const json = await res.json();
+      if (!json.success) throw new Error(json.error);
+      onChange({ ...m, status: 'shipped', evidenceUrl: json.data.releaseUrl, shippedAt: new Date().toISOString() });
+      showToast({ type: 'success', title: 'Release cut', message: `${json.data.tag} is live.` });
+    } catch (e) {
+      showToast({ type: 'error', title: 'Couldn’t cut release', message: e instanceof Error ? e.message : '' });
+    } finally {
+      setCutting(false);
     }
   };
 
@@ -266,6 +283,15 @@ function MilestoneRow({
               mark shipped →
             </button>
           )
+        )}
+
+        {/* Founder: cut the GitHub release for a git-triggered milestone (needs
+            the PNL GitHub App on the repo). Creating the tag settles it. */}
+        {isFounder && m.status === 'open' && m.triggerType !== 'manual' && m.triggerMatch && (
+          <button type="button" onClick={cutRelease} disabled={cutting} className="mono text-[0.55rem] mt-1.5 inline-flex items-center gap-1 disabled:opacity-50" style={{ color: AMBER }}>
+            {cutting ? <Loader2 className="w-3 h-3 animate-spin" /> : <Tag className="w-2.5 h-2.5" />}
+            {cutting ? 'cutting…' : `cut release ${m.triggerMatch} →`}
+          </button>
         )}
       </div>
     </div>
