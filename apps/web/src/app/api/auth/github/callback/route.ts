@@ -43,7 +43,13 @@ export async function GET(request: NextRequest) {
       wallet = await redis.get(key);
       await redis.del(key);
     }
-    if (!wallet) return redirectTo(request, '/?github=error&reason=state');
+    // No usable state (GitHub didn't forward it, it expired, or this was a
+    // direct install from the App page) — hand off to the client page, which
+    // binds the installation from the user's live session. installationId is
+    // already validated as a plain integer above.
+    if (!wallet) {
+      return redirectTo(request, `/github/connected?installation_id=${installationId}`);
+    }
 
     const info = await getInstallation(cfg, installationId);
     if (!info) return redirectTo(request, `/profile/${wallet}?github=error&reason=lookup`);
