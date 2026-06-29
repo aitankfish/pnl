@@ -59,6 +59,9 @@ import { useCreatorFees } from '@/lib/hooks/useCreatorFees';
 import { SeedIcon, TreeIcon, BloomIcon, LeafIcon, BasketIcon } from '@/components/PlantIcons';
 import { LiveNumber } from '@/components/LiveNumber';
 import AiKeySettings from '@/components/settings/AiKeySettings';
+import { OrcidConnect } from '@/components/profile/OrcidConnect';
+import { GithubConnect } from '@/components/profile/GithubConnect';
+import { LinkedTerminals } from '@/components/profile/LinkedTerminals';
 import { ResearchPaperCard } from '@/components/research/ResearchPaperCard';
 import { useToast } from '@/lib/hooks/useToast';
 
@@ -1988,6 +1991,23 @@ export default function WalletPage() {
                 placeholder="X handle"
               />
             </div>
+          </div>
+
+          {/* Identity & connections — ORCID (verified researcher), GitHub App
+              (cut releases), and terminals linked via device auth. The same
+              controls shown on the public profile, here in the account home. */}
+          <div
+            className="w-full max-w-md mt-2 pt-5 flex flex-col items-center gap-3"
+            style={{ borderTop: '1px solid rgba(244,238,228,0.1)' }}
+          >
+            <p className="mono uppercase tracking-[0.3em] text-[0.55rem]" style={{ color: '#e89660' }}>
+              Identity &amp; connections
+            </p>
+            <div className="flex flex-wrap items-center justify-center gap-x-5 gap-y-2">
+              <OrcidConnect />
+              <GithubConnect />
+            </div>
+            <LinkedTerminals />
           </div>
         </div>
 
