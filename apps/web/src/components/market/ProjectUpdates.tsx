@@ -13,8 +13,9 @@
 import React, { useEffect, useRef, useState } from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
-import { Loader2, ImagePlus, X, Trash2, Link2, Send, MessageSquare, Pin, Pencil, SmilePlus, Check } from 'lucide-react';
+import { Loader2, ImagePlus, X, Trash2, Link2, Send, MessageSquare, Pin, Pencil, SmilePlus, Check, Sparkles } from 'lucide-react';
 import { authFetch } from '@/lib/auth/fetch-with-auth';
+import { loadByok, byokHeaders } from '@/lib/agent/byok-shared';
 import { useWallet } from '@/hooks/useWallet';
 import { useToast } from '@/lib/hooks/useToast';
 import { isPlatformAdmin } from '@/lib/admin';
@@ -194,6 +195,8 @@ function Composer({ marketId, onPosted }: { marketId: string; onPosted: (p: Post
   const [sourceUrl, setSourceUrl] = useState('');
   const [showSource, setShowSource] = useState(false);
   const [posting, setPosting] = useState(false);
+  const [drafting, setDrafting] = useState(false);
+  const [hasRepo, setHasRepo] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -202,9 +205,49 @@ function Composer({ marketId, onPosted }: { marketId: string; onPosted: (p: Post
     return () => urls.forEach((u) => URL.revokeObjectURL(u));
   }, [images]);
 
+  // Only offer "draft from commits" when the project actually has a linked
+  // repo — otherwise the button would just error. Cheap DB-only probe.
+  useEffect(() => {
+    let live = true;
+    (async () => {
+      try {
+        const res = await fetch(`/api/markets/${marketId}/draft-update`);
+        const json = await res.json();
+        if (live && json.success) setHasRepo(!!json.data.hasRepo);
+      } catch {
+        /* non-fatal — just leave the button hidden */
+      }
+    })();
+    return () => { live = false; };
+  }, [marketId]);
+
   const addImages = (files: FileList | null) => {
     if (!files) return;
     setImages((prev) => [...prev, ...Array.from(files)].slice(0, MAX_IMAGES));
+  };
+
+  // Draft an update from the repo's recent commits using the founder's own AI
+  // key. The LLM proposes; this only fills the textarea — nothing publishes
+  // until the founder edits and hits Post.
+  const draftFromCommits = async () => {
+    if (!loadByok()) {
+      showToast({ type: 'error', title: 'Add your AI key first', message: 'Set an AI provider key in Settings to draft from commits.' });
+      return;
+    }
+    if (body.trim() && !window.confirm('Replace what you’ve written with an AI draft from recent commits?')) return;
+    setDrafting(true);
+    try {
+      const res = await authFetch(`/api/markets/${marketId}/draft-update`, { method: 'POST', headers: byokHeaders() });
+      const json = await res.json();
+      if (!json.success) {
+        throw new Error(json.error === 'no_key' ? (json.message || 'Add your AI key in Settings.') : (json.error || 'Couldn’t draft'));
+      }
+      setBody(json.data.draft);
+    } catch (e) {
+      showToast({ type: 'error', title: 'Couldn’t draft from commits', message: e instanceof Error ? e.message : '' });
+    } finally {
+      setDrafting(false);
+    }
   };
 
   const submit = async () => {
@@ -275,6 +318,11 @@ function Composer({ marketId, onPosted }: { marketId: string; onPosted: (p: Post
         <button type="button" onClick={() => setShowSource((s) => !s)} title="Crosspost link" style={{ color: showSource || sourceUrl ? AMBER : CREAM_FAINT }}>
           <Link2 className="w-4 h-4" />
         </button>
+        {hasRepo && (
+          <button type="button" onClick={draftFromCommits} disabled={drafting} title="Draft from recent commits" className="disabled:opacity-40" style={{ color: drafting ? AMBER : CREAM_FAINT }}>
+            {drafting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Sparkles className="w-4 h-4" />}
+          </button>
+        )}
         <input ref={fileRef} type="file" accept="image/*" multiple className="hidden" onChange={(e) => { addImages(e.target.files); e.target.value = ''; }} />
         <button
           type="button"
