@@ -12,10 +12,6 @@
 // supported provider (OpenRouter / Anthropic / OpenAI / Google) in Settings.
 
 import { streamText, tool, convertToModelMessages, stepCountIs, type UIMessage, type LanguageModel } from 'ai';
-import { createAnthropic } from '@ai-sdk/anthropic';
-import { createOpenAI } from '@ai-sdk/openai';
-import { createGoogleGenerativeAI } from '@ai-sdk/google';
-import { createOpenRouter } from '@openrouter/ai-sdk-provider';
 import { z } from 'zod';
 import { checkRateLimit } from '@/lib/auth/rate-limit';
 import { createClientLogger } from '@/lib/logger';
@@ -27,37 +23,13 @@ import {
   actionLink,
   MARKET_STATUSES,
 } from '@/lib/agent/pnl-read';
-import {
-  BYOK_PROVIDER_HEADER,
-  BYOK_KEY_HEADER,
-  BYOK_MODEL_HEADER,
-  providerMeta,
-} from '@/lib/agent/byok-shared';
+import { buildModel, readByok } from '@/lib/agent/byok-server';
 
 export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
 export const maxDuration = 30;
 
 const logger = createClientLogger();
-
-// Build a model instance from the user-supplied provider + key. The key never
-// leaves this request scope. Throws on unknown provider.
-function buildModel(provider: string, apiKey: string, model?: string): LanguageModel {
-  const id = model?.trim() || providerMeta(provider)?.defaultModel;
-  if (!id) throw new Error(`unknown provider: ${provider}`);
-  switch (provider) {
-    case 'anthropic':
-      return createAnthropic({ apiKey })(id);
-    case 'openai':
-      return createOpenAI({ apiKey })(id);
-    case 'google':
-      return createGoogleGenerativeAI({ apiKey })(id);
-    case 'openrouter':
-      return createOpenRouter({ apiKey })(id);
-    default:
-      throw new Error(`unsupported provider: ${provider}`);
-  }
-}
 
 const SYSTEM = `You are the PNL House Agent — the concierge for PNL (Predict and Launch), a coordination market for ideas on Solana.
 
@@ -138,9 +110,7 @@ export async function POST(req: Request) {
   if (limited) return limited;
 
   // BYOK: provider + key (+ optional model) arrive per-request from the browser.
-  const provider = req.headers.get(BYOK_PROVIDER_HEADER)?.trim() || '';
-  const apiKey = req.headers.get(BYOK_KEY_HEADER)?.trim() || '';
-  const model = req.headers.get(BYOK_MODEL_HEADER)?.trim() || undefined;
+  const { provider, apiKey, model } = readByok(req);
   if (!provider || !apiKey) {
     return Response.json(
       { error: 'no_key', message: 'Add your own AI provider key in Settings to use the concierge.' },
