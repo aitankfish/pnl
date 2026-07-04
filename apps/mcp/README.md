@@ -18,7 +18,7 @@ market.
 
 ## Status
 
-**v0.5.1 — autosign live.** 17 tools across read, identity, wallet,
+**v0.5.1 — autosign live.** 19 tools across read, identity, wallet,
 and market actions.
 
 ### Read tools (no auth)
