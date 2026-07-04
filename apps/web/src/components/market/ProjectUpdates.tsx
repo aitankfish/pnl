@@ -107,6 +107,7 @@ export function ProjectUpdates({
   const [posts, setPosts] = useState<Post[]>([]);
   const [loading, setLoading] = useState(true);
   const [resolvedFounder, setResolvedFounder] = useState<string | null>(founderWallet);
+  const [xConfigured, setXConfigured] = useState(false);
   const isFounder = !!authenticated && !!wallet && wallet === resolvedFounder;
 
   const load = async () => {
@@ -117,6 +118,7 @@ export function ProjectUpdates({
       if (json.success) {
         setPosts(json.data.posts || []);
         setResolvedFounder(json.data.founderWallet || founderWallet);
+        setXConfigured(!!json.data.xConfigured);
       }
     } catch (e) {
       logger.error('[updates] load failed', e as any);
@@ -155,7 +157,7 @@ export function ProjectUpdates({
 
   return (
     <div>
-      {isFounder && <Composer marketId={marketId} onPosted={(p) => setPosts((prev) => [p, ...prev])} />}
+      {isFounder && <Composer marketId={marketId} xConfigured={xConfigured} onPosted={(p) => setPosts((prev) => [p, ...prev])} />}
 
       {loading ? (
         <div className="flex items-center justify-center py-12" style={{ color: CREAM_FAINT }}>
@@ -187,7 +189,7 @@ export function ProjectUpdates({
   );
 }
 
-function Composer({ marketId, onPosted }: { marketId: string; onPosted: (p: Post) => void }) {
+function Composer({ marketId, xConfigured, onPosted }: { marketId: string; xConfigured: boolean; onPosted: (p: Post) => void }) {
   const { showToast } = useToast();
   const [body, setBody] = useState('');
   const [images, setImages] = useState<File[]>([]);
@@ -197,6 +199,7 @@ function Composer({ marketId, onPosted }: { marketId: string; onPosted: (p: Post
   const [posting, setPosting] = useState(false);
   const [drafting, setDrafting] = useState(false);
   const [hasRepo, setHasRepo] = useState(false);
+  const [shareToX, setShareToX] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -258,14 +261,23 @@ function Composer({ marketId, onPosted }: { marketId: string; onPosted: (p: Post
       if (body.trim()) fd.append('body', body.trim());
       images.forEach((f, i) => fd.append(`image${i}`, f));
       if (sourceUrl.trim()) fd.append('sourceUrl', sourceUrl.trim());
+      if (shareToX) fd.append('shareToX', 'true');
       const res = await authFetch(`/api/markets/${marketId}/posts`, { method: 'POST', body: fd });
       const json = await res.json();
       if (!json.success) throw new Error(json.error || 'Failed to post');
       onPosted(json.data);
+      if (shareToX) {
+        showToast(
+          json.data.broadcastUrl
+            ? { type: 'success', title: 'Shared to X', message: json.data.broadcastUrl }
+            : { type: 'error', title: 'Posted, but the X share didn’t go through', message: '' },
+        );
+      }
       setBody('');
       setImages([]);
       setSourceUrl('');
       setShowSource(false);
+      setShareToX(false);
     } catch (e) {
       showToast({ type: 'error', title: 'Couldn’t post the update', message: e instanceof Error ? e.message : '' });
     } finally {
@@ -324,6 +336,21 @@ function Composer({ marketId, onPosted }: { marketId: string; onPosted: (p: Post
           </button>
         )}
         <input ref={fileRef} type="file" accept="image/*" multiple className="hidden" onChange={(e) => { addImages(e.target.files); e.target.value = ''; }} />
+        {xConfigured && (
+          <button
+            type="button"
+            onClick={() => setShareToX((s) => !s)}
+            title="Also post this update to X"
+            className="mono uppercase tracking-[0.18em] text-[0.5rem] px-2 py-1 rounded-full"
+            style={{
+              border: `1px solid ${shareToX ? AMBER : HAIR}`,
+              color: shareToX ? AMBER : CREAM_FAINT,
+              background: shareToX ? 'rgba(232,150,96,0.08)' : 'transparent',
+            }}
+          >
+            {shareToX ? 'Sharing to X' : 'Share to X'}
+          </button>
+        )}
         <button
           type="button"
           onClick={submit}
