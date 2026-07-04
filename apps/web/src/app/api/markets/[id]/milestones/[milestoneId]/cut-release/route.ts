@@ -17,26 +17,13 @@ import { withAuth } from '@/lib/auth/require-wallet';
 import { checkRateLimit } from '@/lib/auth/rate-limit';
 import { resolveThesisRepo } from '@/lib/services/milestone-service';
 import { getGithubAppConfig, getInstallationToken, createRelease } from '@/lib/github-app';
-import { isXConfigured, postToX, normalizeXHandle } from '@/lib/x-service';
+import { isXConfigured, postToX, xHandleFrom } from '@/lib/x-service';
 import { createClientLogger } from '@/lib/logger';
 
 const logger = createClientLogger();
 
 function escapeRegex(s: string): string {
   return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-}
-
-// Pull a bare X handle out of a project's socialLinks (Map or plain object).
-function xHandleFrom(socials: any): string | null {
-  if (!socials) return null;
-  const obj = socials instanceof Map ? Object.fromEntries(socials) : socials;
-  for (const k of Object.keys(obj)) {
-    if (/^(twitter|x)$/i.test(k)) {
-      const h = normalizeXHandle(obj[k]);
-      if (h) return h;
-    }
-  }
-  return null;
 }
 
 export const POST = withAuth(async (_request: NextRequest, authUser, { params }: any) => {

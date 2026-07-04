@@ -15,6 +15,7 @@ import { checkRateLimit } from '@/lib/auth/rate-limit';
 import { convertToGatewayUrl } from '@/lib/api-utils';
 import { safeExternalUrl } from '@/lib/safe-url';
 import { notifyProjectUpdate } from '@/lib/services/notification-service';
+import { isXConfigured, postToX, xHandleFrom } from '@/lib/x-service';
 import { createClientLogger } from '@/lib/logger';
 
 const logger = createClientLogger();
@@ -93,6 +94,9 @@ export const POST = withAuth(async (request: NextRequest, authUser, { params }: 
       sourceUrl = safe;
     }
 
+    // Opt-in: also broadcast this update to X from PNL's account.
+    const shareToX = (formData.get('shareToX') as string | null) === 'true';
+
     const media: { url: string; kind: string }[] = [];
     for (let i = 0; i < MAX_IMAGES; i++) {
       const f = formData.get(`image${i}`) as File | null;
@@ -130,7 +134,30 @@ export const POST = withAuth(async (request: NextRequest, authUser, { params }: 
       logger.error('[project-post] notify failed', notifyErr as any);
     }
 
-    return NextResponse.json({ success: true, data: serialize(post.toObject(), await nameFor(authUser.walletAddress)) });
+    // Optional outward broadcast to X. Best-effort — a tweet hiccup never fails
+    // the post. No-ops silently unless the founder opted in AND X is configured.
+    let broadcastUrl: string | null = null;
+    if (shareToX && isXConfigured()) {
+      try {
+        const origin = (process.env.NEXT_PUBLIC_APP_URL || new URL(request.url).origin).replace(/\/$/, '');
+        const link = `${origin}/market/${market.marketAddress}`;
+        const projectName = project?.name || market.name || 'A PNL project';
+        const handle = xHandleFrom(project?.socialLinks);
+        const tag = handle ? ` @${handle}` : '';
+        // Budget the body so the project name, link, and @tag always survive
+        // X's 280-char cap; postToX slices as a final backstop.
+        const room = 280 - (`${projectName}: `.length + ` — ${link}`.length + tag.length);
+        const snippet = body.length > room ? `${body.slice(0, Math.max(0, room - 1))}…` : body;
+        const tweet = `${projectName}: ${snippet} — ${link}${tag}`;
+        const posted = await postToX(tweet);
+        if (posted.ok) broadcastUrl = posted.url || null;
+      } catch (xErr) {
+        logger.error('[project-post] X broadcast failed', xErr as any);
+      }
+    }
+
+    const data = serialize(post.toObject(), await nameFor(authUser.walletAddress));
+    return NextResponse.json({ success: true, data: { ...data, broadcastUrl } });
   } catch (error) {
     logger.error('[project-post] create failed', error as any);
     return NextResponse.json({ success: false, error: 'Failed to publish update' }, { status: 500 });
@@ -186,6 +213,7 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
           serialize(p, nameBy.get(p.authorWallet), countsBy.get(String(p._id)) || {}, mineBy.get(String(p._id)) || []),
         ),
         founderWallet,
+        xConfigured: isXConfigured(),
       },
     });
   } catch (error) {

@@ -127,3 +127,16 @@ export function normalizeXHandle(input: string | null | undefined): string | nul
     .match(/^([A-Za-z0-9_]{1,15})/);
   return m ? m[1] : null;
 }
+
+/** Pull a bare X handle out of a project's socialLinks (Map or plain object). */
+export function xHandleFrom(socials: any): string | null {
+  if (!socials) return null;
+  const obj = socials instanceof Map ? Object.fromEntries(socials) : socials;
+  for (const k of Object.keys(obj)) {
+    if (/^(twitter|x)$/i.test(k)) {
+      const h = normalizeXHandle(obj[k]);
+      if (h) return h;
+    }
+  }
+  return null;
+}
