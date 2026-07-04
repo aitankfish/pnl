@@ -13,9 +13,26 @@
 
 import { NextResponse } from 'next/server';
 import { getRedisClient, prefixKey } from '@/lib/redis/client';
+import { apiError } from '@/lib/api-error';
 import { createClientLogger } from '@/lib/logger';
 
 const logger = createClientLogger();
+
+/**
+ * Standard 429 with the signalling headers an agent needs to back off cleanly:
+ * Retry-After (seconds) + X-RateLimit-Limit / -Remaining / -Reset (epoch secs).
+ * Body carries `errorCode: 'RATE_LIMITED'` so callers branch without string-matching.
+ */
+function tooManyRequests(retryAfterSec: number, limit: number, resetEpochSec: number): NextResponse {
+  return apiError('RATE_LIMITED', `Rate limit exceeded. Try again in ${retryAfterSec}s.`, {
+    headers: {
+      'Retry-After': String(retryAfterSec),
+      'X-RateLimit-Limit': String(limit),
+      'X-RateLimit-Remaining': '0',
+      'X-RateLimit-Reset': String(resetEpochSec),
+    },
+  });
+}
 
 interface FallbackEntry {
   count: number;
@@ -69,16 +86,8 @@ export async function checkRateLimit(
 
     if (count > maxRequests) {
       const retryAfter = Math.max(1, Math.ceil(ttlMs / 1000));
-      return NextResponse.json(
-        {
-          success: false,
-          error: `Rate limit exceeded. Try again in ${retryAfter}s.`,
-        },
-        {
-          status: 429,
-          headers: { 'Retry-After': String(retryAfter) },
-        },
-      );
+      const resetEpochSec = Math.ceil((Date.now() + ttlMs) / 1000);
+      return tooManyRequests(retryAfter, maxRequests, resetEpochSec);
     }
     return null;
   } catch (err) {
@@ -108,17 +117,8 @@ function checkRateLimitFallback(
   entry.count++;
 
   if (entry.count > maxRequests) {
-    const retryAfter = Math.ceil((entry.resetAt - now) / 1000);
-    return NextResponse.json(
-      {
-        success: false,
-        error: `Rate limit exceeded. Try again in ${retryAfter}s.`,
-      },
-      {
-        status: 429,
-        headers: { 'Retry-After': String(retryAfter) },
-      },
-    );
+    const retryAfter = Math.max(1, Math.ceil((entry.resetAt - now) / 1000));
+    return tooManyRequests(retryAfter, maxRequests, Math.ceil(entry.resetAt / 1000));
   }
 
   return null;

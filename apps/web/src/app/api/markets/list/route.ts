@@ -15,6 +15,8 @@ import {
   getVoteButtonStates
 } from '@/lib/api-utils';
 import { getRedisClient, prefixKey } from '@/lib/redis/client';
+import { checkRateLimit } from '@/lib/auth/rate-limit';
+import { apiError } from '@/lib/api-error';
 
 // Disable Next.js caching for this route - data changes frequently
 export const dynamic = 'force-dynamic';
@@ -28,6 +30,12 @@ const LIST_CACHE_TTL_SECONDS = 30;
 
 export async function GET(request: NextRequest) {
   try {
+    // Public + Redis-cached, so the ceiling is generous — it only stops a flood
+    // (e.g. an agent walking every market uncached), not normal browsing/CDN.
+    const ip = request.headers.get('x-forwarded-for')?.split(',')[0]?.trim() || 'unknown';
+    const limited = await checkRateLimit(`markets-list:${ip}`, 600, 60_000);
+    if (limited) return limited;
+
     // Get query params
     const { searchParams } = new URL(request.url);
     const status = searchParams.get('status') || 'active';
@@ -326,14 +334,8 @@ export async function GET(request: NextRequest) {
 
   } catch (error) {
     logger.error('Failed to fetch markets:', error as any);
-
-    return NextResponse.json(
-      {
-        success: false,
-        error: 'Failed to fetch markets',
-        details: error instanceof Error ? error.message : 'Unknown error'
-      },
-      { status: 500 }
-    );
+    return apiError('INTERNAL', 'Failed to fetch markets', {
+      details: error instanceof Error ? error.message : 'Unknown error',
+    });
   }
 }
