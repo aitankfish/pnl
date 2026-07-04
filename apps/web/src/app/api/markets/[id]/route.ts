@@ -7,6 +7,7 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { connectToDatabase, PredictionMarket, PredictionParticipant } from '@/lib/mongodb';
+import { recordMetric, actorFromRequest } from '@/lib/services/metrics-service';
 import { createClientLogger } from '@/lib/logger';
 import { calculateVoteCounts } from '@/lib/vote-counts';
 import { isMarketDataStale, formatProjectAge, truncateWallet, convertToGatewayUrl } from '@/lib/api-utils';
@@ -83,6 +84,12 @@ export async function GET(
     const project = marketWithRelations.project;
     const founderUsername = marketWithRelations.founderUsername || null;
     const founderWallet = marketWithRelations.founderWallet;
+
+    // Count agent reads here. Humans are counted by the client beacon on the
+    // page, so only tag agent traffic — avoids double-counting. Fire-and-forget.
+    if (market?.marketAddress && actorFromRequest(request) === 'agent') {
+      recordMetric('market', market.marketAddress, 'agent').catch(() => {});
+    }
 
     if (!project) {
       return NextResponse.json(
