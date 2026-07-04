@@ -26,10 +26,14 @@ interface XConfig {
 }
 
 export function getXConfig(): XConfig | null {
-  const consumerKey = process.env.X_CONSUMER_KEY;
-  const consumerSecret = process.env.X_CONSUMER_SECRET;
-  const accessToken = process.env.X_ACCESS_TOKEN;
-  const accessSecret = process.env.X_ACCESS_SECRET;
+  // Prefer the X_* names, but fall back to the older TWITTER_* names that the
+  // market-created tweet path (services/twitter/twitter-service) already reads.
+  // Same four OAuth 1.0a credentials — "consumer key" is Twitter's "API key" —
+  // so one set in Render powers every broadcaster and there's nothing to drift.
+  const consumerKey = process.env.X_CONSUMER_KEY || process.env.TWITTER_API_KEY;
+  const consumerSecret = process.env.X_CONSUMER_SECRET || process.env.TWITTER_API_SECRET;
+  const accessToken = process.env.X_ACCESS_TOKEN || process.env.TWITTER_ACCESS_TOKEN;
+  const accessSecret = process.env.X_ACCESS_SECRET || process.env.TWITTER_ACCESS_TOKEN_SECRET;
   if (!consumerKey || !consumerSecret || !accessToken || !accessSecret) return null;
   return { consumerKey, consumerSecret, accessToken, accessSecret };
 }
