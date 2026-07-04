@@ -1488,6 +1488,29 @@ export const DeviceGrant = mongoose.model('DeviceGrant', DeviceGrantSchema, 'dev
 export const GithubInstallation = mongoose.model('GithubInstallation', GithubInstallationSchema, 'github_installations');
 export const PostReaction = mongoose.model('PostReaction', PostReactionSchema, 'post_reactions');
 
+// ─── MetricCounter ───────────────────────────────────────────────
+// Lightweight visit/view analytics — aggregate daily counters, bounded growth.
+// scope 'platform' (key 'visit') or 'market' (key = marketAddress); actor
+// 'human' | 'agent'. One doc per (scope,key,actor,day), incremented via $inc.
+const MetricCounterSchema = new mongoose.Schema(
+  {
+    scope: { type: String, required: true, enum: ['platform', 'market'] },
+    key: { type: String, required: true },
+    actor: { type: String, required: true, enum: ['human', 'agent'], default: 'human' },
+    day: { type: String, required: true }, // 'YYYY-MM-DD' (UTC)
+    count: { type: Number, default: 0 },
+    updatedAt: { type: Date, default: Date.now },
+  },
+  { collection: 'metric_counters' },
+);
+MetricCounterSchema.index({ scope: 1, key: 1, actor: 1, day: 1 }, { unique: true });
+MetricCounterSchema.index({ scope: 1, key: 1, day: 1 });
+
+if (mongoose.models.MetricCounter) {
+  delete mongoose.models.MetricCounter;
+}
+export const MetricCounter = mongoose.model('MetricCounter', MetricCounterSchema, 'metric_counters');
+
 // Type definitions
 export interface IProject {
   _id: string;

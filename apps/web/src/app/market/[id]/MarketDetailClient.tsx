@@ -315,6 +315,24 @@ export default function MarketDetailClient({
   const [market, setMarket] = useState<MarketDetails | null>(initialMarket);
   // Skip the loading shell when the server already provided market data.
   const [loading, setLoading] = useState(!initialMarket);
+
+  // Fire a "market view" beacon once per market (keyed on the on-chain address
+  // so it's stable across id/address URL forms). Humans only — agents that read
+  // the market via the API are counted server-side in /api/markets/[id].
+  const viewBeaconFor = useRef<string | null>(null);
+  useEffect(() => {
+    const addr = market?.marketAddress;
+    if (!addr || viewBeaconFor.current === addr) return;
+    viewBeaconFor.current = addr;
+    try {
+      navigator.sendBeacon?.(
+        '/api/track',
+        new Blob([JSON.stringify({ event: 'market_view', marketId: addr })], { type: 'application/json' }),
+      );
+    } catch {
+      /* best-effort */
+    }
+  }, [market?.marketAddress]);
   const [error, setError] = useState<string | null>(null);
   const [selectedSide, setSelectedSide] = useState<'yes' | 'no'>('yes');
   // Right-rail tab: conviction (vote + on-chain) vs community (chat/voice).

@@ -13,7 +13,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
-import { Loader2, ImagePlus, X, Trash2, Link2, Send, MessageSquare, Pin, Pencil, SmilePlus, Check, Sparkles } from 'lucide-react';
+import { Loader2, ImagePlus, X, Trash2, Link2, Send, MessageSquare, Pin, Pencil, SmilePlus, Check, Sparkles, Eye } from 'lucide-react';
 import { authFetch } from '@/lib/auth/fetch-with-auth';
 import { loadByok, byokHeaders } from '@/lib/agent/byok-shared';
 import { useWallet } from '@/hooks/useWallet';
@@ -108,6 +108,11 @@ export function ProjectUpdates({
   const [loading, setLoading] = useState(true);
   const [resolvedFounder, setResolvedFounder] = useState<string | null>(founderWallet);
   const [xConfigured, setXConfigured] = useState(false);
+  const [views, setViews] = useState<{
+    total: { total: number; human: number; agent: number };
+    sinceLastUpdate: { total: number; human: number; agent: number };
+    hasUpdate: boolean;
+  } | null>(null);
   const isFounder = !!authenticated && !!wallet && wallet === resolvedFounder;
 
   const load = async () => {
@@ -130,6 +135,25 @@ export function ProjectUpdates({
     load();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [marketId, wallet]);
+
+  // Founder-only: how many have viewed this project, and how many since the
+  // last update — the pull signal (did posting move the number). Re-fetches
+  // after a new post lands (posts.length changes).
+  useEffect(() => {
+    if (!isFounder) return;
+    let live = true;
+    (async () => {
+      try {
+        const res = await authFetch(`/api/markets/${marketId}/views`);
+        const json = await res.json();
+        if (live && json.success) setViews(json.data);
+      } catch {
+        /* non-fatal */
+      }
+    })();
+    return () => { live = false; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isFounder, marketId, posts.length]);
 
   // Merge an edited/pinned post back in and keep the feed ordered pinned-first,
   // newest-first — same order the server returns.
@@ -157,6 +181,20 @@ export function ProjectUpdates({
 
   return (
     <div>
+      {isFounder && views && views.total.total > 0 && (
+        <div className="mono uppercase tracking-[0.18em] text-[0.5rem] pb-3 flex items-center gap-1.5" style={{ color: CREAM_FAINT }}>
+          <Eye className="w-3 h-3" />
+          {views.hasUpdate
+            ? `${views.sinceLastUpdate.total} view${views.sinceLastUpdate.total === 1 ? '' : 's'} since your last update`
+            : `${views.total.total} view${views.total.total === 1 ? '' : 's'} so far`}
+          <span style={{ color: 'rgba(244,238,228,0.28)' }}>·</span>
+          {views.total.total} all-time
+          {views.total.agent > 0 && (
+            <span style={{ color: 'rgba(244,238,228,0.28)' }}>· {views.total.agent} agent</span>
+          )}
+        </div>
+      )}
+
       {isFounder && <Composer marketId={marketId} xConfigured={xConfigured} onPosted={(p) => setPosts((prev) => [p, ...prev])} />}
 
       {loading ? (

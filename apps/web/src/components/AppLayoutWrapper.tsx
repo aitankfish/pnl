@@ -1,5 +1,6 @@
 'use client';
 
+import { useEffect } from 'react';
 import { usePathname } from 'next/navigation';
 import { motion } from 'framer-motion';
 import AppLayout from './AppLayout';
@@ -13,6 +14,21 @@ export default function AppLayoutWrapper({ children, footer }: AppLayoutWrapperP
   // usePathname() returns null on the server until hydration; treat that as
   // a non-matching pathname so the layout renders the full chrome by default.
   const pathname = usePathname() ?? '';
+
+  // Fire a "platform visit" beacon once per browser session (sessionStorage
+  // guard, so internal navigation and refreshes don't inflate the count).
+  useEffect(() => {
+    try {
+      if (sessionStorage.getItem('pnl.visited')) return;
+      sessionStorage.setItem('pnl.visited', '1');
+      navigator.sendBeacon?.(
+        '/api/track',
+        new Blob([JSON.stringify({ event: 'platform_visit' })], { type: 'application/json' }),
+      );
+    } catch {
+      /* best-effort — never block render */
+    }
+  }, []);
 
   // Hide navbar and footer on the landing page
   const isLandingPage = pathname === '/';
