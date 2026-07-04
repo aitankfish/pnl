@@ -8,6 +8,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { connectToDatabase, PredictionMarket, PredictionParticipant } from '@/lib/mongodb';
 import { recordMetric, actorFromRequest } from '@/lib/services/metrics-service';
+import { checkRateLimit } from '@/lib/auth/rate-limit';
+import { apiError } from '@/lib/api-error';
 import { createClientLogger } from '@/lib/logger';
 import { calculateVoteCounts } from '@/lib/vote-counts';
 import { isMarketDataStale, formatProjectAge, truncateWallet, convertToGatewayUrl } from '@/lib/api-utils';
@@ -28,6 +30,12 @@ export async function GET(
 ) {
   try {
     const { id } = await params;
+
+    // Near-real-time cached (2s) + hit on every market page + socket; the
+    // ceiling is generous so it only trips on a flood, not normal use.
+    const ip = request.headers.get('x-forwarded-for')?.split(',')[0]?.trim() || 'unknown';
+    const limited = await checkRateLimit(`market-detail:${ip}`, 600, 60_000);
+    if (limited) return limited;
 
     // Connect to MongoDB
     await connectToDatabase();
@@ -73,10 +81,7 @@ export async function GET(
     ]);
 
     if (!marketAggregation || marketAggregation.length === 0) {
-      return NextResponse.json(
-        { success: false, error: 'Market not found' },
-        { status: 404 }
-      );
+      return apiError('NOT_FOUND', 'Market not found');
     }
 
     const marketWithRelations = marketAggregation[0];
@@ -92,10 +97,7 @@ export async function GET(
     }
 
     if (!project) {
-      return NextResponse.json(
-        { success: false, error: 'Associated project not found' },
-        { status: 404 }
-      );
+      return apiError('NOT_FOUND', 'Associated project not found');
     }
 
     // Calculate project age from market creation date
@@ -482,14 +484,8 @@ export async function GET(
 
   } catch (error) {
     logger.error('Failed to fetch market details:', error as any);
-
-    return NextResponse.json(
-      {
-        success: false,
-        error: 'Failed to fetch market details',
-        details: error instanceof Error ? error.message : 'Unknown error'
-      },
-      { status: 500 }
-    );
+    return apiError('INTERNAL', 'Failed to fetch market details', {
+      details: error instanceof Error ? error.message : 'Unknown error',
+    });
   }
 }

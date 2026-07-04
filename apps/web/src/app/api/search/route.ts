@@ -5,6 +5,7 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { connectToDatabase, UserProfile, PredictionMarket, Project } from '@/lib/mongodb';
+import { apiError } from '@/lib/api-error';
 import { createClientLogger } from '@/lib/logger';
 
 const logger = createClientLogger();
@@ -106,14 +107,8 @@ export async function GET(request: NextRequest) {
     });
   } catch (error) {
     logger.error('Search failed:', error);
-
-    return NextResponse.json(
-      {
-        success: false,
-        error: 'Search failed',
-        details: error instanceof Error ? error.message : 'Unknown error',
-      },
-      { status: 500 }
-    );
+    return apiError('INTERNAL', 'Search failed', {
+      details: error instanceof Error ? error.message : 'Unknown error',
+    });
   }
 }

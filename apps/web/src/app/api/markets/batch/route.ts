@@ -11,6 +11,8 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { connectToDatabase, PredictionMarket } from '@/lib/mongodb';
+import { checkRateLimit } from '@/lib/auth/rate-limit';
+import { apiError } from '@/lib/api-error';
 import { createClientLogger } from '@/lib/logger';
 
 export const dynamic = 'force-dynamic';
@@ -25,9 +27,13 @@ function isValidObjectId(id: string): boolean {
 
 export async function GET(request: NextRequest) {
   try {
+    const ip = request.headers.get('x-forwarded-for')?.split(',')[0]?.trim() || 'unknown';
+    const limited = await checkRateLimit(`markets-batch:${ip}`, 600, 60_000);
+    if (limited) return limited;
+
     const idsParam = request.nextUrl.searchParams.get('ids');
     if (!idsParam) {
-      return NextResponse.json({ success: false, error: 'ids query param required' }, { status: 400 });
+      return apiError('BAD_REQUEST', 'ids query param required');
     }
 
     const ids = idsParam
@@ -40,10 +46,7 @@ export async function GET(request: NextRequest) {
     }
 
     if (ids.length > MAX_IDS_PER_REQUEST) {
-      return NextResponse.json(
-        { success: false, error: `too many ids (max ${MAX_IDS_PER_REQUEST})` },
-        { status: 400 },
-      );
+      return apiError('BAD_REQUEST', `too many ids (max ${MAX_IDS_PER_REQUEST})`);
     }
 
     await connectToDatabase();
@@ -150,9 +153,6 @@ export async function GET(request: NextRequest) {
     });
   } catch (err: any) {
     logger.error('[markets/batch] failed', { error: err?.message });
-    return NextResponse.json(
-      { success: false, error: err?.message || 'batch fetch failed' },
-      { status: 500 },
-    );
+    return apiError('INTERNAL', 'batch fetch failed', { details: err?.message });
   }
 }
