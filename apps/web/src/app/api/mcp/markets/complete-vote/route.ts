@@ -29,6 +29,7 @@ import { getProgramIdForNetwork } from '@/lib/anchor-program';
 import { SOLANA_NETWORK } from '@/config/solana';
 import { invalidateCache } from '@/lib/redis/invalidate';
 import { verifyMcpSignature, challenge, signedRequestHash } from '@/lib/mcp-auth';
+import { apiError, apiErrorForStatus } from '@/lib/api-error';
 import { checkRateLimit } from '@/lib/auth/rate-limit';
 
 export const dynamic = 'force-dynamic';
@@ -99,22 +100,13 @@ export async function POST(request: NextRequest) {
 
     const body = (await request.json()) as CompleteVoteBody;
     if (!body.walletAddress || !body.nonce || !body.signature) {
-      return NextResponse.json(
-        { success: false, error: 'walletAddress, nonce, and signature are required' },
-        { status: 400 },
-      );
+      return apiError('BAD_REQUEST', 'walletAddress, nonce, and signature are required');
     }
     if (!body.txSignature || !body.marketId || !body.voteType || !body.amountSol) {
-      return NextResponse.json(
-        { success: false, error: 'txSignature, marketId, voteType, and amountSol are required' },
-        { status: 400 },
-      );
+      return apiError('BAD_REQUEST', 'txSignature, marketId, voteType, and amountSol are required');
     }
     if (body.voteType !== 'yes' && body.voteType !== 'no') {
-      return NextResponse.json(
-        { success: false, error: "voteType must be 'yes' or 'no'" },
-        { status: 400 },
-      );
+      return apiError('BAD_REQUEST', "voteType must be 'yes' or 'no'");
     }
 
     // Signature verification first — cheap. Payload-bound: the sig
@@ -128,13 +120,13 @@ export async function POST(request: NextRequest) {
       challengeStr,
     );
     if (!verified.ok) {
-      return NextResponse.json({ success: false, error: verified.reason }, { status: verified.status });
+      return apiErrorForStatus(verified.status, verified.reason);
     }
 
     // On-chain verification.
     const chainCheck = await verifyTxOnChain(body.txSignature, body.walletAddress);
     if (!chainCheck.ok) {
-      return NextResponse.json({ success: false, error: chainCheck.reason }, { status: chainCheck.status });
+      return apiErrorForStatus(chainCheck.status, chainCheck.reason);
     }
 
     await connectMongoose();
@@ -272,13 +264,8 @@ export async function POST(request: NextRequest) {
     logger.error('[mcp/complete-vote] failed', {
       error: error instanceof Error ? error.message : String(error),
     });
-    return NextResponse.json(
-      {
-        success: false,
-        error: 'internal',
-        stack: process.env.NODE_ENV !== 'production' && error instanceof Error ? error.stack : undefined,
-      },
-      { status: 500 },
-    );
+    return apiError('INTERNAL', 'internal', {
+      details: process.env.NODE_ENV !== 'production' && error instanceof Error ? error.stack : undefined,
+    });
   }
 }

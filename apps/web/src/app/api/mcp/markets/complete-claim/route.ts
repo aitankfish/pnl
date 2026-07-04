@@ -17,6 +17,7 @@ import { ObjectId } from 'mongodb';
 import { createClientLogger } from '@/lib/logger';
 import { invalidateCache } from '@/lib/redis/invalidate';
 import { verifyMcpSignature, challenge, signedRequestHash } from '@/lib/mcp-auth';
+import { apiError, apiErrorForStatus } from '@/lib/api-error';
 import { checkRateLimit } from '@/lib/auth/rate-limit';
 import { getSolanaConnection } from '@/lib/solana';
 import { getProgramIdForNetwork } from '@/lib/anchor-program';
@@ -90,16 +91,10 @@ export async function POST(request: NextRequest) {
     const body = (await request.json()) as CompleteClaimBody;
 
     if (!body.walletAddress || !body.nonce || !body.signature) {
-      return NextResponse.json(
-        { success: false, error: 'walletAddress, nonce, and signature are required' },
-        { status: 400 },
-      );
+      return apiError('BAD_REQUEST', 'walletAddress, nonce, and signature are required');
     }
     if (!body.txSignature || !body.marketId) {
-      return NextResponse.json(
-        { success: false, error: 'txSignature and marketId are required' },
-        { status: 400 },
-      );
+      return apiError('BAD_REQUEST', 'txSignature and marketId are required');
     }
 
     const payloadHash = signedRequestHash(body as unknown as Record<string, unknown>);
@@ -109,12 +104,12 @@ export async function POST(request: NextRequest) {
       challengeStr,
     );
     if (!verified.ok) {
-      return NextResponse.json({ success: false, error: verified.reason }, { status: verified.status });
+      return apiErrorForStatus(verified.status, verified.reason);
     }
 
     const chainCheck = await verifyTxOnChain(body.txSignature, body.walletAddress);
     if (!chainCheck.ok) {
-      return NextResponse.json({ success: false, error: chainCheck.reason }, { status: chainCheck.status });
+      return apiErrorForStatus(chainCheck.status, chainCheck.reason);
     }
 
     await connectToDatabase();
@@ -169,13 +164,8 @@ export async function POST(request: NextRequest) {
     logger.error('[mcp/complete-claim] failed', {
       error: error instanceof Error ? error.message : String(error),
     });
-    return NextResponse.json(
-      {
-        success: false,
-        error: 'internal',
-        stack: process.env.NODE_ENV !== 'production' && error instanceof Error ? error.stack : undefined,
-      },
-      { status: 500 },
-    );
+    return apiError('INTERNAL', 'internal', {
+      details: process.env.NODE_ENV !== 'production' && error instanceof Error ? error.stack : undefined,
+    });
   }
 }

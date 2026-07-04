@@ -31,6 +31,7 @@ import { broadcastNewMarket } from '@/services/socket/socket-server';
 import { invalidateCache } from '@/lib/redis/invalidate';
 import { ensureUserProfile } from '@/lib/user-profile-init';
 import { verifyMcpSignature, challenge, signedRequestHash } from '@/lib/mcp-auth';
+import { apiError, apiErrorForStatus } from '@/lib/api-error';
 import { checkRateLimit } from '@/lib/auth/rate-limit';
 import { getSolanaConnection } from '@/lib/solana';
 import { getProgramIdForNetwork } from '@/lib/anchor-program';
@@ -141,22 +142,13 @@ export async function POST(request: NextRequest) {
     const body = (await request.json()) as CompleteCreateBody;
 
     if (!body.walletAddress || !body.nonce || !body.signature) {
-      return NextResponse.json(
-        { success: false, error: 'walletAddress, nonce, and signature are required' },
-        { status: 400 },
-      );
+      return apiError('BAD_REQUEST', 'walletAddress, nonce, and signature are required');
     }
     if (!body.txSignature || !body.marketAddress || !body.ipfsCid) {
-      return NextResponse.json(
-        { success: false, error: 'txSignature, marketAddress, and ipfsCid are required' },
-        { status: 400 },
-      );
+      return apiError('BAD_REQUEST', 'txSignature, marketAddress, and ipfsCid are required');
     }
     if (!body.payload || !body.payload.name || !body.payload.tokenSymbol) {
-      return NextResponse.json(
-        { success: false, error: 'payload (with name + tokenSymbol) is required' },
-        { status: 400 },
-      );
+      return apiError('BAD_REQUEST', 'payload (with name + tokenSymbol) is required');
     }
 
     // Verify signature first — cheap, in-memory. Bail before the RPC
@@ -173,13 +165,13 @@ export async function POST(request: NextRequest) {
       challengeStr,
     );
     if (!verified.ok) {
-      return NextResponse.json({ success: false, error: verified.reason }, { status: verified.status });
+      return apiErrorForStatus(verified.status, verified.reason);
     }
 
     // Verify the on-chain tx was signed by the same wallet.
     const chainCheck = await verifyTxOnChain(body.txSignature, body.walletAddress);
     if (!chainCheck.ok) {
-      return NextResponse.json({ success: false, error: chainCheck.reason }, { status: chainCheck.status });
+      return apiErrorForStatus(chainCheck.status, chainCheck.reason);
     }
 
     await connectToDatabase();
@@ -354,13 +346,8 @@ export async function POST(request: NextRequest) {
     logger.error('[mcp/complete-create] failed', {
       error: error instanceof Error ? error.message : String(error),
     });
-    return NextResponse.json(
-      {
-        success: false,
-        error: 'internal',
-        stack: process.env.NODE_ENV !== 'production' && error instanceof Error ? error.stack : undefined,
-      },
-      { status: 500 },
-    );
+    return apiError('INTERNAL', 'internal', {
+      details: process.env.NODE_ENV !== 'production' && error instanceof Error ? error.stack : undefined,
+    });
   }
 }
