@@ -65,7 +65,10 @@ services:
       - key: GITHUB_APP_SLUG
         sync: false
       # X (Twitter) broadcast — paid API; PNL account's OAuth 1.0a tokens.
-      # Unset → broadcasts no-op. All four required to enable.
+      # Unset → broadcasts no-op. All four required to enable. x-service also
+      # falls back to the TWITTER_* names (TWITTER_API_KEY / TWITTER_API_SECRET /
+      # TWITTER_ACCESS_TOKEN / TWITTER_ACCESS_TOKEN_SECRET) the market-created
+      # tweet path uses, so either naming works — no need to set both.
       - key: X_CONSUMER_KEY
         sync: false
       - key: X_CONSUMER_SECRET
