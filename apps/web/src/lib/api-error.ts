@@ -47,3 +47,21 @@ export function apiError(
     ...(opts?.headers ? { headers: opts.headers } : {}),
   });
 }
+
+/**
+ * Map an existing HTTP status to a structured error, preserving the status.
+ * Handy for routes that already compute a status (e.g. tx verification returning
+ * 400/404/502) — keeps the status exact while adding a branchable errorCode.
+ */
+export function apiErrorForStatus(status: number, message: string, details?: unknown): NextResponse {
+  const code: ApiErrorCode =
+    status === 400 ? 'BAD_REQUEST'
+      : status === 401 ? 'UNAUTHORIZED'
+      : status === 403 ? 'FORBIDDEN'
+      : status === 404 ? 'NOT_FOUND'
+      : status === 422 ? 'VALIDATION'
+      : status === 429 ? 'RATE_LIMITED'
+      : status === 502 ? 'UPSTREAM'
+      : 'INTERNAL';
+  return apiError(code, message, { status, details });
+}

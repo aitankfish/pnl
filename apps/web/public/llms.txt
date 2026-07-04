@@ -35,6 +35,7 @@ The thesis: most ideas die in private notebooks because the old path — venture
 
 Live state is most efficiently retrieved as JSON. These endpoints are read-only and require no authentication:
 
+- `GET https://pnl.market/api/mcp/capabilities` — machine-readable manifest of the whole agent surface (read API, MCP server + its 19 tools, auth methods, rate-limit headers, error codes). Start here.
 - `GET https://pnl.market/api/markets/list?status=active&page=1&limit=25` — list of active markets. Other valid `status` values: `yesWins` (bloomed), `noWins` (withered), `expired` (closed), `refund` (returned), `all`.
 - `GET https://pnl.market/api/markets/[id]` — single market by id (from the list response). Returns mechanics, pool, votes, expiry, and resolution.
 - `GET https://pnl.market/sitemap.xml` — full crawl index including every market URL.
