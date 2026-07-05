@@ -1,16 +1,17 @@
 'use client';
 
 import React, { useState, useEffect, useRef } from 'react';
-import { Search, X, User, Target, Loader2 } from 'lucide-react';
+import { Search, X, User, Target, Loader2, FileText, BadgeCheck } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 
 interface SearchResult {
-  type: 'user' | 'market';
+  type: 'user' | 'market' | 'paper';
   // User fields
   walletAddress?: string;
   username?: string | null;
   profilePhotoUrl?: string | null;
   bio?: string | null;
+  orcidId?: string | null;
   reputationScore?: number;
   followerCount?: number;
   // Market fields
@@ -22,14 +23,19 @@ interface SearchResult {
   projectImageUrl?: string | null;
   tokenSymbol?: string | null;
   marketState?: number;
+  // Research paper fields
+  title?: string;
+  authorName?: string | null;
+  summary?: string | null;
 }
 
 export default function GlobalSearch() {
   const [isExpanded, setIsExpanded] = useState(false);
   const [query, setQuery] = useState('');
-  const [results, setResults] = useState<{ users: SearchResult[]; markets: SearchResult[] }>({
+  const [results, setResults] = useState<{ users: SearchResult[]; markets: SearchResult[]; research: SearchResult[] }>({
     users: [],
     markets: [],
+    research: [],
   });
   const [isSearching, setIsSearching] = useState(false);
   const [showResults, setShowResults] = useState(false);
@@ -40,7 +46,7 @@ export default function GlobalSearch() {
   // Debounced search
   useEffect(() => {
     if (!query.trim()) {
-      setResults({ users: [], markets: [] });
+      setResults({ users: [], markets: [], research: [] });
       setShowResults(false);
       return;
     }
@@ -55,6 +61,7 @@ export default function GlobalSearch() {
           setResults({
             users: data.data.users || [],
             markets: data.data.markets || [],
+            research: data.data.research || [],
           });
           setShowResults(true);
         }
@@ -95,7 +102,7 @@ export default function GlobalSearch() {
   const handleCollapse = () => {
     setIsExpanded(false);
     setQuery('');
-    setResults({ users: [], markets: [] });
+    setResults({ users: [], markets: [], research: [] });
     setShowResults(false);
   };
 
@@ -104,11 +111,13 @@ export default function GlobalSearch() {
       router.push(`/profile/${result.walletAddress}`);
     } else if (result.type === 'market') {
       router.push(`/market/${result.id}`);
+    } else if (result.type === 'paper') {
+      router.push(`/research/${result.id}`);
     }
     handleCollapse();
   };
 
-  const totalResults = results.users.length + results.markets.length;
+  const totalResults = results.users.length + results.markets.length + results.research.length;
 
   return (
     <div ref={searchRef} className="relative">
@@ -117,7 +126,7 @@ export default function GlobalSearch() {
         <button
           onClick={handleExpand}
           className="flex items-center justify-center w-9 h-9 sm:w-12 sm:h-12 rounded-xl text-white/70 hover:text-white hover:bg-white/10 transition-all duration-200 flex-shrink-0"
-          title="Search users and markets"
+          title="Search users, markets, and research"
         >
           <Search className="w-4 h-4 sm:w-5 sm:h-5" />
         </button>
@@ -171,8 +180,14 @@ export default function GlobalSearch() {
                       )}
                     </div>
                     <div className="flex-1 min-w-0">
-                      <div className="font-medium text-white truncate">
-                        {user.username || 'Anonymous'}
+                      <div className="font-medium text-white truncate flex items-center gap-1">
+                        <span className="truncate">{user.username || 'Anonymous'}</span>
+                        {user.orcidId && (
+                          <BadgeCheck
+                            className="w-3.5 h-3.5 text-green-400 flex-shrink-0"
+                            aria-label="Verified researcher"
+                          />
+                        )}
                       </div>
                       <div className="text-xs text-gray-400 truncate">
                         {user.walletAddress?.slice(0, 8)}...{user.walletAddress?.slice(-6)}
@@ -225,6 +240,38 @@ export default function GlobalSearch() {
                     </div>
                     <div className="text-xs text-gray-400 flex-shrink-0">
                       {market.marketState === 0 ? 'Active' : market.marketState === 1 ? 'Resolved' : 'Closed'}
+                    </div>
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Research Section */}
+          {results.research.length > 0 && (
+            <div className="p-2 sm:p-3 border-t border-white/10">
+              <h3 className="text-xs font-semibold text-white/50 uppercase tracking-wide mb-2 flex items-center">
+                <FileText className="w-3 h-3 mr-1" />
+                Research ({results.research.length})
+              </h3>
+              <div className="space-y-1">
+                {results.research.map((paper) => (
+                  <button
+                    key={paper.id}
+                    onClick={() => handleResultClick(paper)}
+                    className="w-full flex items-center gap-2 sm:gap-3 p-1.5 sm:p-2 rounded-lg hover:bg-white/10 transition-colors text-left"
+                  >
+                    <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-lg bg-gradient-to-r from-amber-500 to-orange-500 flex items-center justify-center flex-shrink-0">
+                      <FileText className="w-5 h-5 text-white" />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="font-medium text-white truncate">{paper.title}</div>
+                      {paper.authorName && (
+                        <div className="text-xs text-gray-400 truncate">{paper.authorName}</div>
+                      )}
+                      {paper.summary && (
+                        <div className="text-xs text-gray-500 truncate mt-0.5">{paper.summary}</div>
+                      )}
                     </div>
                   </button>
                 ))}
