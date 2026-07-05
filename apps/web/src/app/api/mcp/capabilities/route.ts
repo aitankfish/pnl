@@ -36,7 +36,7 @@ const CAPABILITIES = {
       { method: 'GET', path: '/api/markets/list', description: 'Paginated market list. Query: status (active|yesWins|noWins|expired|refund|all), page, limit (1-100).' },
       { method: 'GET', path: '/api/markets/{id}', description: 'One market by Mongo id or on-chain address. Vote split is masked on unresolved markets by design.' },
       { method: 'GET', path: '/api/markets/batch?ids={csv}', description: 'Compact fetch for up to 40 ids at once.' },
-      { method: 'GET', path: '/api/search?q={query}', description: 'Keyword search across markets and users.' },
+      { method: 'GET', path: '/api/search?q={query}', description: 'Keyword search across markets, users, and research papers.' },
     ],
   },
 

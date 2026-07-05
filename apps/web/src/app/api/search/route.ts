@@ -4,7 +4,7 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
-import { connectToDatabase, UserProfile, PredictionMarket, Project } from '@/lib/mongodb';
+import { connectToDatabase, UserProfile, PredictionMarket, Project, ResearchPaper } from '@/lib/mongodb';
 import { apiError } from '@/lib/api-error';
 import { createClientLogger } from '@/lib/logger';
 
@@ -62,6 +62,19 @@ export async function GET(request: NextRequest) {
       .limit(limit)
       .lean();
 
+    // Search research papers by title or author — so a researcher's work (and,
+    // via the author, the researcher) is discoverable from the global bar.
+    const papers = await ResearchPaper.find({
+      status: 'active',
+      $or: [
+        { title: { $regex: safeQuery, $options: 'i' } },
+        { authorName: { $regex: safeQuery, $options: 'i' } },
+      ],
+    })
+      .limit(limit)
+      .sort({ updatedAt: -1, createdAt: -1 })
+      .lean();
+
     // Format user results
     const formattedUsers = users.map((user: any) => ({
       type: 'user' as const,
@@ -69,9 +82,21 @@ export async function GET(request: NextRequest) {
       username: user.username || null,
       profilePhotoUrl: user.profilePhotoUrl || null,
       bio: user.bio || null,
+      // Verified-researcher signal — lets the UI mark researchers among users.
+      orcidId: user.orcidId || null,
       reputationScore: user.reputationScore || 0,
       followerCount: user.followerCount || 0,
       followingCount: user.followingCount || 0,
+    }));
+
+    // Format research paper results
+    const formattedPapers = papers.map((p: any) => ({
+      type: 'paper' as const,
+      id: String(p._id),
+      title: p.title,
+      authorName: p.authorName || null,
+      authorWallet: p.authorWallet || null,
+      summary: p.summary || null,
     }));
 
     // Format market results
@@ -95,6 +120,7 @@ export async function GET(request: NextRequest) {
       query,
       userResults: formattedUsers.length,
       marketResults: formattedMarkets.length,
+      paperResults: formattedPapers.length,
     });
 
     return NextResponse.json({
@@ -102,6 +128,7 @@ export async function GET(request: NextRequest) {
       data: {
         users: formattedUsers,
         markets: formattedMarkets,
+        research: formattedPapers,
         query,
       },
     });
