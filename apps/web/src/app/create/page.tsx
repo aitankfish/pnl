@@ -790,6 +790,19 @@ export default function CreatePage() {
           >
             {step.subtitle}
           </p>
+
+          {/* Answered up front on step 1 only. Newcomers otherwise discover the
+              wallet requirement and the fee after investing several minutes in
+              the form, which is where they quit. */}
+          {currentStep === 1 && (
+            <p
+              className="mt-4 text-[0.78rem] leading-relaxed"
+              style={{ color: CREAM_DIM }}
+            >
+              Draft without a wallet &mdash; connect only when you publish.
+              Publishing costs about 0.017 SOL.
+            </p>
+          )}
         </header>
 
         {/* ─── Progress dots ─── */}
@@ -1230,6 +1243,16 @@ function BloomStep({
 
       <div>
         <FieldLabel required>Target pool</FieldLabel>
+        {/* Without this line the field reads as a 5-15 SOL charge to the creator,
+            which is the single scariest thing a first-time visitor sees in the
+            form. It is the amount the crowd needs to stake, not a price. */}
+        <p
+          className="mb-2 text-[0.72rem] leading-relaxed"
+          style={{ color: CREAM_DIM }}
+        >
+          How much the community needs to stake for this to launch &mdash; not
+          something you pay.
+        </p>
         <Dropdown
           value={isCustom ? 'custom' : formData.targetPool}
           onChange={(v) => {

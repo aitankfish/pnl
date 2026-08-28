@@ -77,13 +77,19 @@ export default function MobileLanding() {
           Watch it grow.
         </p>
 
+        {/* The mechanism, in plain words. This used to read "PNL is a conviction
+            market … what wins gets tokenized" — every load-bearing term in that
+            sentence ("conviction market", "tokenized") is jargon to someone who has
+            never touched Solana, which is exactly who lands here from a hackathon.
+            Say what happens instead of naming the category. */}
         <p className="mt-6 text-center text-[0.95rem] leading-[1.55] text-[#c8bdb0] max-w-[34ch] mx-auto">
-          PNL is a conviction market.
-          The community stakes YES or NO on your idea.
-          What wins gets tokenized.
+          Post a project. Believers stake YES, critics stake NO.
+          If YES wins it launches a token. If NO wins, the critics get paid.
         </p>
 
-        {/* Pull-quote — book-voice line that ties to the manifesto */}
+        {/* Pull-quote — keeps the book voice, but now carries the differentiator
+            instead of restating the metaphor. This is the one line no launchpad
+            and no prediction market can claim. */}
         <figure className="mt-9 mx-auto max-w-[36ch]">
           <div
             aria-hidden
@@ -93,7 +99,7 @@ export default function MobileLanding() {
           <blockquote
             className="serif text-center text-[0.95rem] leading-[1.6] italic text-[#ecb48a]"
           >
-            &ldquo;Ideas planted on-chain. The community decides what grows.&rdquo;
+            &ldquo;Nowhere else pays you to say no.&rdquo;
           </blockquote>
         </figure>
       </section>
@@ -110,7 +116,10 @@ export default function MobileLanding() {
                        border border-[#e89660]
                        transition-colors"
           >
-            <span>Enter markets</span>
+            {/* "no wallet" is the highest-value four words on this screen. A cold
+                visitor's first question is whether looking around will cost them
+                something or demand a signature. Answer it on the button. */}
+            <span>Browse ideas &mdash; no wallet</span>
             <ArrowRight />
           </Link>
 
@@ -124,7 +133,7 @@ export default function MobileLanding() {
                        transition-colors"
           >
             <SproutGlyph />
-            <span>Pitch an idea</span>
+            <span>Post your project</span>
           </Link>
         </div>
       </section>

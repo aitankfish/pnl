@@ -454,6 +454,16 @@ export default function BrowsePage() {
             >
               What's growing
             </h1>
+            {/* Signed-out visitors need this answered before anything else:
+                looking around is free and does not ask for a signature. */}
+            {!authenticated && (
+              <p
+                className="mono uppercase tracking-[0.22em] text-[0.6rem]"
+                style={{ color: CREAM_DIM }}
+              >
+                Browse freely &middot; connect only to stake
+              </p>
+            )}
             {totalCount > 0 && (
               <p
                 className="mono uppercase tracking-[0.24em] text-[0.6rem]"
@@ -739,6 +749,7 @@ export default function BrowsePage() {
                 }
                 anyVoting={votingState !== null}
                 onQuickVote={handleQuickVote}
+                authenticated={authenticated}
               />
             ))}
           </div>
@@ -1014,6 +1025,7 @@ const MarketCard = React.memo(function MarketCard({
   voting,
   anyVoting,
   onQuickVote,
+  authenticated,
 }: {
   market: Market;
   isHot: boolean;
@@ -1024,6 +1036,8 @@ const MarketCard = React.memo(function MarketCard({
   voting: 'yes' | 'no' | null;
   anyVoting: boolean;
   onQuickVote: (m: Market, v: 'yes' | 'no', amount: number) => void;
+  /** Signed-out visitors get a read-only card — see the isActionable branch. */
+  authenticated: boolean;
 }) {
   const status = getMarketStatus(market);
   const yesDisabled = isYesVoteDisabled(market);
@@ -1243,6 +1257,37 @@ const MarketCard = React.memo(function MarketCard({
                 }}
               >
                 {verdict.label}
+              </div>
+            );
+          }
+          // Signed out: a read-only card that TEACHES instead of one that traps.
+          // Previously every visitor saw a bare SOL slider and unlabelled Yes/No
+          // buttons; tapping either silently threw up an auth modal, which reads
+          // as a paywall to someone who has not yet worked out what the site does.
+          // Now the two outcomes are spelled out and the only action is to look.
+          if (isActionable && !authenticated) {
+            return (
+              <div className="space-y-1.5">
+                <div className="grid grid-cols-2 gap-1.5">
+                  <div
+                    className="mono uppercase tracking-[0.18em] text-[0.55rem] py-2 text-center leading-tight"
+                    style={{ color: FOREST, border: `1px solid ${FOREST}55` }}
+                  >
+                    Yes · launches
+                  </div>
+                  <div
+                    className="mono uppercase tracking-[0.18em] text-[0.55rem] py-2 text-center leading-tight"
+                    style={{ color: EARTH, border: `1px solid ${EARTH}55` }}
+                  >
+                    No · critics paid
+                  </div>
+                </div>
+                <div
+                  className="text-center py-2 mono uppercase tracking-[0.22em] text-[0.6rem]"
+                  style={{ color: CREAM_DIM, border: `1px solid ${HAIR_STRONG}` }}
+                >
+                  View project
+                </div>
               </div>
             );
           }
