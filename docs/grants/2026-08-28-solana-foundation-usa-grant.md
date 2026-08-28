@@ -1,13 +1,13 @@
 # Solana Foundation USA Grant — application (pnl.market)
 
-*2026-08-28. Ask: $10,000 (program cap; mean award $8,307, so the ceiling is the right
-ask). Applicant: Bishwanath Bastola, **individually** — not through UNM, not through a
-student club. Payout to a personal Solana wallet. Rolling, ~1 week decision, US-only.*
+*2026-08-28, rev 3. Ask: $10,000 (program cap; mean award $8,307, so the ceiling is the
+right ask). Applicant: Bishwanath Bastola, **individually** — not through UNM, not through
+a student club. Rolling, ~1 week decision, US-only.*
 
-⚠️ **Every claim below was verified against branch `2026` on 2026-08-28.** An earlier
-draft (2026-08-27) described the P0 *spec document* as shipped code and claimed
-cryptographic authorship that does not exist. That draft is void. Do not reuse its
-language.
+⚠️ **Every claim below was verified against branch `2026` on 2026-08-28.** Rev 1
+(2026-08-27) described a spec document as shipped code. Rev 2 corrected the facts but
+inverted the product — it pitched PNL *as* a research platform. PNL is a conviction
+market; research is evidence underneath it. This rev fixes the hierarchy.
 
 Pre-application contact: **nicky@solanaeco.io** (Nicky Scannella, Superteam USA).
 Form: https://superteam.fun/earn/grants/solana-foundation-usa-grants
@@ -16,75 +16,85 @@ Form: https://superteam.fun/earn/grants/solana-foundation-usa-grants
 
 ## Project name
 
-**PNL — verified research publishing on Solana**
+**PNL — conviction markets for projects, with evidence you can verify**
 
 ## One-liner
 
-An ORCID-verified researcher mints a permanent, citable DOI from a Solana-authenticated
-account — and the wallet that holds the identity is the wallet that gets credited.
+The community stakes YES or NO on which projects deserve to launch, and critics get paid
+to filter noise. This grant makes the evidence under those bets verifiable.
 
-## The problem
+## What PNL is
 
-When a paper gets submitted, the only identity check is an email address. Nobody verifies
-the person actually wrote it. Academia never solved the problem crypto solved years ago —
-proving you're the one who made a thing — and every incentive built on top of authorship
-inherits that gap: citation credit, reputation, grant funding.
+A conviction market for ideas, live on Solana mainnet. Anyone posts an idea for 0.015
+SOL. Believers stake YES, critics stake NO. At expiry the side with more pooled SOL wins:
+YES launches a token on pump.fun with 65% of supply airdropped to YES voters; NO returns
+95% of the pool to the critics who called it.
 
-That was tolerable when submission was expensive. It isn't now: generated submissions
-arrive faster than any registrar can vet them, and "who actually wrote this, and can you
-check it later" has no good answer.
+That last part is the mechanism I care about. In a memecoin launchpad nobody is paid to
+say no, and in a standard prediction market the bet is one-sided. **Here, critics are
+compensated for filtering.** Skepticism has a payoff, so noise has a cost.
 
-Crypto has not helped, because crypto research tooling generally ignores the
-infrastructure researchers actually use — ORCID for identity, DOIs for permanence,
-Crossref and DataCite for resolution. A paper that only exists inside a crypto app is
-not citable anywhere that matters.
+## The problem this grant solves
+
+Conviction markets price ideas — but what is the crowd actually pricing? Today, a pitch.
+A title, a thesis, a target raise. Nothing underneath it is checkable.
+
+Meanwhile the people posting ideas often have real work behind them: papers, code,
+credentials. None of it can be verified by the person deciding whether to stake. So
+conviction gets priced on presentation, and the filter that makes PNL different is
+filtering on vibes.
+
+The underlying gap is old and not specific to crypto. When a paper gets submitted
+anywhere, the only identity check is an email address — nobody verifies the person
+actually wrote it. Academia never solved the problem crypto solved years ago, proving
+you're the one who made a thing. Crypto hasn't helped either, because crypto research
+tools ignore the infrastructure researchers actually use, so a paper that only exists
+inside a crypto app isn't citable anywhere that counts.
+
+**PNL is in an unusual position to close it, because it already sits on both sides.**
 
 ## What ships today — verified
 
-PNL already joins the two halves. This is running in production, not planned:
-
-- **ORCID via real OAuth.** `start` / `callback` / `disconnect` / `status` routes,
-  `lib/orcid.ts`, a verified badge, and `orcidId` + `orcidVerifiedAt` on the user
-  profile. Not a text field the user types.
+- **ORCID via real OAuth.** `start` / `callback` / `disconnect` / `status`,
+  `lib/orcid.ts`, a verified badge, `orcidId` + `orcidVerifiedAt` on the profile. Not a
+  text field the user types.
 - **Zenodo DOI minting.** `lib/zenodo.ts` + `api/research/[id]/mint-doi` +
   `resolve-doi`. Author-gated, requires a PDF, refuses if a DOI already exists,
-  rate-limited. The code treats the irreversibility seriously — Zenodo publication
-  cannot be undone.
-- **The join that matters: the verified ORCID flows into the minted DOI's creator
-  record.** The permanent, externally-resolvable citation carries an identity that was
-  actually checked.
+  rate-limited, and written to respect the fact that Zenodo publication is irreversible.
+- **The join: the verified ORCID flows into the minted DOI's creator record.** The
+  permanent, externally resolvable citation carries an identity that was actually checked.
+- **Evidence already attaches to markets.** A paper can be cited as a project's thesis,
+  which is how a market reaches its repository and its research today.
 - **Solana as the account layer.** Author of record is the authenticated wallet, taken
-  from the session and never from a request body. Author pages are addressed by wallet.
+  from the session and never from a request body.
 - **A self-custodial terminal client.** `@pnlmarket/mcp-server` v0.5.1, 19 tools. BIP39
   key encrypted at rest with scrypt (N=2¹⁷) + AES-256-GCM, `0600`, OS-dialog passphrase,
-  in-memory unlock TTL — and it refuses to decrypt if the scrypt parameters were altered.
+  in-memory unlock TTL, and it refuses to decrypt if the scrypt parameters were altered.
   SIWS-style ed25519 challenge auth, live today against PNL's markets API.
-- **A device-authorization flow** so a terminal can act as the user with a revocable
-  token, plus a GitHub App integration and 43 research endpoints including per-paper
-  repository browsing.
-- **An Anchor program live on mainnet** (`C5mVE2Bw…`), running the markets side.
+- **A mainnet Anchor program** (`C5mVE2Bw…`) running the full market lifecycle, plus a
+  device-authorization flow and 43 research endpoints including per-paper repo browsing.
 
 ## What the $10k buys
 
-Publishing is still browser-only, and authorship is still *session*-authenticated rather
-than *signed*. Those are the two gaps between what works and what a researcher outside
-my own circle can use and verify.
+Two gaps stand between "evidence exists" and "a stranger can verify it before staking":
+publishing is browser-only, and authorship is *session*-authenticated rather than
+*signed*.
 
 **M1 — Wallet-signed publication, from the terminal ($3,000, weeks 1–3).**
-An ed25519 signature path for paper creation, reusing the verification already live on
-PNL's markets endpoints. The signature binds `sha256(pdf_bytes)` plus a metadata hash, so a
-captured signature cannot be replayed onto a different file. Ships `pnl_post_paper` so a
+An ed25519 signature path for paper creation, reusing verification already live on PNL's
+markets endpoints. The signature binds `sha256(pdf_bytes)` plus a metadata hash, so a
+captured signature cannot be replayed onto a different file. Ships `pnl_post_paper`, so a
 researcher — or their agent — publishes from the terminal where the work happens.
-*Deliverable:* merged PR, a real paper published this way, and a one-command
-verification anyone can run.
+*Deliverable:* merged PR, a real paper published this way, and a one-command verification
+anyone can run before they stake on it.
 
-**M2 — The academic graph ($4,000, weeks 4–7).**
+**M2 — The evidence graph ($4,000, weeks 4–7).**
 Multi-author records with per-author ORCID. Paper→paper citations, which do not exist
 today — the current citation model requires a project on one end. Import-from-DOI for
 arXiv, Zenodo and Crossref that attributes the *real* authors and links the canonical
 source rather than re-hosting or re-claiming it.
 *Deliverable:* ≥100 imported papers forming a queryable citation graph behind a public
-read API.
+read API, so a market's thesis resolves to real, checkable prior work.
 
 **M3 — Open the verification ($3,000, weeks 8–12).**
 A written spec plus a standalone reference verifier, so "this Solana pubkey signed this
@@ -96,20 +106,27 @@ without trusting PNL.
 
 The verification spec, the reference verifier, and the terminal client. PNL's market
 surface is a commercial product and I'm not claiming otherwise — the identity and
-verification layer beneath it is the public good, and that is what this grant funds.
+verification layer beneath it is the public good, and that is what this grant funds. Any
+Solana project that needs "prove this wallet authored this artifact" can use it without
+touching PNL.
 
 ## Scope discipline — what I am deliberately not promising
 
-An on-chain record of research is designed and is the natural next layer, but it is
-**not** in this grant. Putting research settlement on-chain requires an oracle model I
-have not yet validated, and my own analysis concluded that a mainnet program change
-before that validation is premature. I would rather ship a verifiable off-chain layer in
-12 weeks than promise a chain upgrade I would have to walk back.
+PNL is adding a second market type alongside tokenization: **milestone-settled projects**,
+where instead of staking on whether an idea deserves to launch, you back a builder and a
+git event settles whether they shipped. Existing conviction markets are untouched by it.
+
+That needs a program change and an oracle model I have not validated yet, so it is
+**deliberately outside this grant.** I would rather ship a verifiable evidence layer in
+12 weeks — which both market types need regardless — than promise a chain upgrade I would
+have to walk back. The manual, zero-code pilot for that resolution rule is already
+specified and runs on my own time.
 
 ## Why me
 
-I'm a PhD student at the University of New Mexico — the user, not a founder guessing at
-a market. I've shipped the custody, auth, ORCID and DOI surfaces above.
+I'm a PhD student at the University of New Mexico, which puts me on both sides of this: I
+publish research, and I built the market that prices it. I've shipped the custody, auth,
+ORCID and DOI surfaces above.
 
 UNM has no blockchain club and no Solana presence at all. I'm working to change that this
 semester, which puts the first cohort of researchers testing this a campus away rather
@@ -130,43 +147,49 @@ than hypothetical.
 - X: https://x.com/pnldotmarket
 
 The **payout wallet is a form field, not part of the pitch** — Superteam pays in USDC and
-needs a destination. It never appears in the email. Use a wallet you control.
+needs a destination. It never appears in the email.
 
 ---
 
 ## Intro email — send BEFORE the form
 
 **To:** nicky@solanaeco.io
-**Subject:** USA grant — verified research publishing on Solana (PNL)
+**Subject:** USA grant — conviction markets with verifiable evidence (PNL)
 
 Hi Nicky,
 
 I'm a PhD student at the University of New Mexico building pnl.market, and I'm about to
 submit for the Solana Foundation USA grant. Wanted to introduce it first.
 
-When a paper gets submitted, the only identity check is an email address. Nobody verifies
-the person actually wrote it. Academia never solved the problem crypto solved years ago —
-proving you're the one who made a thing — and every incentive built on top of authorship
-inherits that gap: citation credit, reputation, grant funding. Crypto hasn't helped
-either, because crypto research tools ignore the infrastructure researchers actually use.
-A paper that only exists inside a crypto app isn't citable anywhere that counts.
+PNL is a conviction market for projects, live on mainnet. Anyone posts an idea, believers
+stake YES, critics stake NO, and at expiry YES launches a token on pump.fun with 65% of
+supply airdropped to YES voters — while NO returns 95% of the pool to the critics who
+called it. That's the part I care about: in a launchpad nobody is paid to say no, so
+noise is free. Here, skepticism has a payoff.
 
-PNL already joins the two halves, in production today: ORCID connected through real
-OAuth, Zenodo DOI minting that's author-gated and treats publication as irreversible, and
-the verified ORCID flowing into the minted DOI's creator record — with the Solana wallet
-as the account of record. The terminal client holds keys self-custodially (scrypt +
-AES-256-GCM) and already does SIWS-style signature auth against PNL's markets API,
-which runs on a mainnet Anchor program.
+The problem is what the crowd is actually pricing. Today it's a pitch — a title, a
+thesis, a target raise, with nothing checkable underneath. The people posting often have
+real work behind them, papers and code and credentials, and none of it can be verified by
+the person deciding whether to stake. So the filter that makes PNL different is filtering
+on presentation.
+
+I'm in an odd position to fix that, because PNL already sits on both sides. In production
+today: ORCID connected through real OAuth, Zenodo DOI minting that's author-gated and
+treats publication as irreversible, and the verified ORCID flowing into the minted DOI's
+creator record — with the Solana wallet as the account of record. The terminal client
+holds keys self-custodially (scrypt + AES-256-GCM) and already does SIWS-style signature
+auth against the markets API.
 
 The gap is that publishing is browser-only and authorship is session-authenticated rather
-than signed. The $10k closes it: a signature path that binds the PDF hash so authorship
-is verifiable by anyone, paper-to-paper citations with per-author ORCID, and an open spec
-plus reference verifier so the check doesn't require trusting PNL.
+than signed. The $10k closes it: a signature path binding the PDF hash so authorship is
+verifiable by anyone before they stake, a citation graph so a thesis resolves to real
+prior work, and an open spec plus reference verifier so the check doesn't require trusting
+PNL.
 
-One thing I'll say plainly: an on-chain research record is the natural next layer and
-it's deliberately *not* in this proposal — the oracle model isn't validated yet, and I'd
-rather ship a verifiable off-chain layer in 12 weeks than promise a chain upgrade I'd
-have to walk back.
+One thing I'll say plainly — I'm adding a second market type where a git event settles
+whether a builder shipped, and it's deliberately *not* in this proposal. That needs a
+program change and an oracle model I haven't validated, and I'd rather ship the evidence
+layer both market types need than promise a chain upgrade I'd have to walk back.
 
 Code: github.com/aitankfish/pnl · X: @pnldotmarket · happy to send the milestone
 breakdown or walk through a demo.
@@ -180,30 +203,34 @@ Bishwanath Bastola
 
 ---
 
-## Notes on the email
+## Notes on the framing
 
-**Voice is first person throughout.** PNL is named as the product; "I" is the builder.
-A solo PhD student who shipped this reads stronger than an implied team, and a one-person
-sign-off under "we" invites the question of who else there is.
+**PNL is the conviction market. Research is evidence underneath it.** Rev 2 had this
+backwards and pitched a research platform, which both mis-describes the product and is a
+thin story — 7 papers in production. A live conviction market hardening its evidence layer
+is a much better one, and it explains why a narrow $10k deliverable matters.
+
+**"Critics are paid to filter" is the strongest line in the pitch.** It is the row in
+PNL's own comparison table that neither a launchpad nor a prediction market can claim.
+Lead with it.
+
+**Voice is first person throughout**; PNL is named as the product. A one-person sign-off
+under "we" invites the question of who else there is.
 
 **The problem paragraph is written for a crypto operator, not an academic.** Nicky runs
-Superteam USA — he is not going to reconstruct the academic incentive chain from
-"publishing verifies an email address." So it names the concrete failure (nobody checks
-that you wrote it) and anchors it to something he already lives in (crypto solved
-proof-of-authorship years ago; academia never did).
+Superteam USA. He will not reconstruct the academic incentive chain from "publishing
+verifies an email address," so it names the concrete failure — nobody checks that you
+wrote it — and anchors it to something he already lives in.
 
-**Keep the scope-discipline paragraph.** Volunteering what is *not* being promised is the
-most credible thing in the message to a reader who sees applications promising on-chain
-everything. It also means nothing has to be walked back later.
+**Keep the scope-discipline paragraph.** Volunteering what is *not* promised is the most
+credible thing in the message to a reader who sees applications promising on-chain
+everything, and it means nothing has to be walked back.
 
 ## Before you send
 
-1. **The payout wallet is not email content** — it is a form field, because Superteam
-   pays in USDC and needs a destination. Links in the email are just the product, the
-   code, and X.
-2. If the form pushes back on $10k, M1+M2 alone is a coherent $7k.
-3. Do not present UNM as a fiscal host. It belongs here as credibility and a user base
-   only — the money goes to your wallet, not through the university.
-4. Before accepting: visa/work-authorization implications (UNM Global Education Office),
+1. If the form pushes back on $10k, M1+M2 alone is a coherent $7k.
+2. Do not present UNM as a fiscal host. It is credibility and a user base only — the
+   money goes to your wallet, not through the university.
+3. Before accepting: visa/work-authorization implications (UNM Global Education Office),
    assistantship COI disclosure, and USDC taxed as property at fair market value on
    receipt.

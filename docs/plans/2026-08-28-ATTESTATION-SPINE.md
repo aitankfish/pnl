@@ -97,37 +97,56 @@ metadata off-chain.
 
 ---
 
-## Do we modify the smart contracts? **Yes — but not first.**
+## Do we modify the smart contracts? **Yes — additively, and not first.**
 
-**Milestone resolution is impossible on the current program.** `resolve_market.rs:158`
+⚠️ **Correction to an earlier reading (mine and Codex's both).** `resolve_market.rs:158`
 computes the outcome purely from pool mechanics:
 
 ```rust
 if pool_balance < target_pool      { Refund }
-else if yes_shares > no_shares     { YesWins }   // → token launch
-else if no_shares > yes_shares     { NoWins }
+else if yes_shares > no_shares     { YesWins }   // → pump.fun launch, 65% to YES
+else if no_shares > yes_shares     { NoWins }    // → 95% of pool to NO
 else                               { Refund }
 ```
 
-There is no oracle input, no resolution-source field, no external-fact surface anywhere
-in `Market`. The outcome is a **vote of capital**, not a fact about the world. No
-off-chain work can fix this: a crank cannot transmit a verdict the program has no field
-to receive, and anyone may already call `resolve_market` once `is_expired`. Encoding the
-answer by manipulating share balances is manipulation, not resolution.
+We both called this a limitation. **It is not — it is the specified design.**
+`docs/mechanics/overview.mdx` defines PNL as *"a conviction market for ideas"* where *"at
+expiry, the side with more pooled SOL wins,"* and names the differentiator as **"NO voters
+paid to filter."** A conviction market is *supposed* to resolve by conviction. The program
+implements the whitepaper correctly.
 
-**Minimum viable change, when the time comes:**
-- immutable `resolver` + `rules_hash` on `Market`
-- resolution accepts `outcome: Yes|No` + an evidence hash (merge SHA)
-- require the authorized resolver's signature and `now >= expiry_time`
-- remove the founder-early and share-majority outcome paths
-- keep Refund only as a separate underfunding rule
-- record outcome + evidence *before* payout or token-launch logic
+**Decision (Biswa, 2026-08-28): milestone-settled projects are ADDED alongside
+tokenization, not a replacement.** Two market types coexist:
+
+| | resolves on | the bet is about |
+|---|---|---|
+| **Conviction** (today, live) | pooled SOL at expiry | does this *idea* deserve to launch |
+| **Milestone** (new) | a git event by a deadline | did this *builder* ship |
+
+That makes the contract work **additive and much safer** than a replacement would be:
+
+- add a `resolution_mode: Conviction \| Milestone` discriminator to `Market`, defaulting
+  to `Conviction` so **every existing market and every live position is untouched**
+- for `Milestone` only: immutable `resolver` + `rules_hash`, set at creation
+- resolution branches on the mode. `Conviction` keeps today's logic **verbatim** —
+  including the founder-early and share-majority paths, which Codex advised removing on
+  the assumption of a replacement. **That advice does not apply here; removing them would
+  break the live product.**
+- the `Milestone` branch accepts `outcome: Yes|No` + an evidence hash (merge SHA),
+  requires the authorized resolver's signature and `now >= expiry_time`, and records
+  outcome + evidence *before* any payout
+- ⛔ never let the builder's own signature settle their own milestone market
+
+Nothing off-chain substitutes for this: a crank cannot transmit a verdict the program has
+no field to receive, and encoding the answer by moving share balances is manipulation, not
+resolution.
 
 **Distinguish the two failures.** *"Deadline passed, nobody called"* is an ops/crank gap —
-Solana does not self-execute. *"The contract cannot settle from GitHub evidence"* is a
-contract limitation. Only the second needs an upgrade.
+Solana does not self-execute. *"The program cannot settle from GitHub evidence"* is a
+genuine gap in the new mode. Only the second needs the upgrade.
 
-⛔ **Do not launch real-money milestone markets on the current program.**
+⛔ **Do not launch real-money milestone markets until that mode exists.** Conviction
+markets are unaffected and keep running throughout.
 
 ---
 
