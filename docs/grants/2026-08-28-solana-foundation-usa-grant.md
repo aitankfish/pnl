@@ -226,8 +226,13 @@ decentralized in the way that actually matters here — contributors bring hardw
 own, and a market decides which projects get it. A broke student with a real idea gets
 the resource they need instead of a liquidity pool.
 
-Code: github.com/aitankfish/pnl · X: @pnldotmarket · happy to send the full budget and
-target numbers, or walk through the live product.
+Product: https://pnl.market
+Docs: https://docs.pnl.market
+Code: https://github.com/aitankfish/pnl
+X: https://x.com/pnldotmarket
+The compute mesh: https://prithviloka.net
+
+Happy to send the full budget and target numbers, or walk through the live product.
 
 Thanks,
 Earth
