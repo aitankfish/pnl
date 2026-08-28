@@ -1,13 +1,19 @@
 # Solana Foundation USA Grant — application (pnl.market)
 
-*2026-08-28, rev 3. Ask: $10,000 (program cap; mean award $8,307, so the ceiling is the
-right ask). Applicant: Bishwanath Bastola, **individually** — not through UNM, not through
-a student club. Rolling, ~1 week decision, US-only.*
+*2026-08-28, rev 4. Ask: $10,000 (program cap; mean award $8,307). Applicant: Bishwanath
+Bastola, **individually**. Rolling, ~1 week decision, US-only.*
 
-⚠️ **Every claim below was verified against branch `2026` on 2026-08-28.** Rev 1
-(2026-08-27) described a spec document as shipped code. Rev 2 corrected the facts but
-inverted the product — it pitched PNL *as* a research platform. PNL is a conviction
-market; research is evidence underneath it. This rev fixes the hierarchy.
+⚠️ **This is a COMMUNITY grant, not a code grant.** Superteam grants split three ways —
+Code, Content, Community — and community grants explicitly cover *"hosting workshops,
+bootcamps, or hackathons."* There is a dedicated Solana Foundation Community Grants track
+for hackathon organizing ($100–$10,000) that *"recommends applicants with good proof of
+work in organizing hackathons."*
+
+Revision history: rev 1 described a spec as shipped code. rev 2 fixed the facts but
+pitched PNL as a research platform. rev 3 fixed the product hierarchy but asked for
+engineering money — and **nothing was actually blocked by engineering.** The real
+constraint is distribution: PNL needs founders and builders on it. That is what this asks
+for.
 
 Pre-application contact: **nicky@solanaeco.io** (Nicky Scannella, Superteam USA).
 Form: https://superteam.fun/earn/grants/solana-foundation-usa-grants
@@ -16,12 +22,12 @@ Form: https://superteam.fun/earn/grants/solana-foundation-usa-grants
 
 ## Project name
 
-**PNL — conviction markets for projects, with evidence you can verify**
+**PNL — conviction markets for projects**
 
 ## One-liner
 
 The community stakes YES or NO on which projects deserve to launch, and critics get paid
-to filter noise. This grant makes the evidence under those bets verifiable.
+to filter noise. This grant brings the first real cohort of founders onto it.
 
 ## What PNL is
 
@@ -30,173 +36,162 @@ SOL. Believers stake YES, critics stake NO. At expiry the side with more pooled 
 YES launches a token on pump.fun with 65% of supply airdropped to YES voters; NO returns
 95% of the pool to the critics who called it.
 
-That last part is the mechanism I care about. In a memecoin launchpad nobody is paid to
-say no, and in a standard prediction market the bet is one-sided. **Here, critics are
-compensated for filtering.** Skepticism has a payoff, so noise has a cost.
+**In a launchpad nobody is paid to say no, so noise is free. Here, skepticism has a
+payoff.** That single mechanism is what separates PNL from both a memecoin launchpad and
+a standard prediction market.
 
-## The problem this grant solves
+## What it is becoming
 
-Conviction markets price ideas — but what is the crowd actually pricing? Today, a pitch.
-A title, a thesis, a target raise. Nothing underneath it is checkable.
+PNL borrows a piece from five places and fixes the thing all five are missing.
 
-Meanwhile the people posting ideas often have real work behind them: papers, code,
-credentials. None of it can be verified by the person deciding whether to stake. So
-conviction gets priced on presentation, and the filter that makes PNL different is
-filtering on vibes.
+X hosts the claims and keeps no record of them. GitHub hosts the work but stars measure
+attention, not whether anything shipped. Reddit ranks by agreement. pump.fun launches
+tokens with no filter at all. Kalshi settles real questions but only about the world, not
+about builders.
 
-The underlying gap is old and not specific to crypto. When a paper gets submitted
-anywhere, the only identity check is an email address — nobody verifies the person
-actually wrote it. Academia never solved the problem crypto solved years ago, proving
-you're the one who made a thing. Crypto hasn't helped either, because crypto research
-tools ignore the infrastructure researchers actually use, so a paper that only exists
-inside a crypto app isn't citable anywhere that counts.
+**Every one of them is a place where people make claims and nobody ever finds out who was
+right.** A paper is a claim. A repo is a claim about capability. A milestone is a claim
+with a date. PNL's bet is that one mechanic runs underneath all of them: make a claim,
+stake on it, get resolved, accrue a public record.
 
-**PNL is in an unusual position to close it, because it already sits on both sides.**
+Concretely, that means adding a second market type alongside tokenization —
+milestone-settled projects, where you back a builder and a git event settles whether they
+shipped. Existing conviction markets are untouched by it.
 
-## What ships today — verified
+## What is actually stopping this — and it isn't code
 
-- **ORCID via real OAuth.** `start` / `callback` / `disconnect` / `status`,
-  `lib/orcid.ts`, a verified badge, `orcidId` + `orcidVerifiedAt` on the profile. Not a
-  text field the user types.
-- **Zenodo DOI minting.** `lib/zenodo.ts` + `api/research/[id]/mint-doi` +
-  `resolve-doi`. Author-gated, requires a PDF, refuses if a DOI already exists,
-  rate-limited, and written to respect the fact that Zenodo publication is irreversible.
-- **The join: the verified ORCID flows into the minted DOI's creator record.** The
-  permanent, externally resolvable citation carries an identity that was actually checked.
-- **Evidence already attaches to markets.** A paper can be cited as a project's thesis,
-  which is how a market reaches its repository and its research today.
-- **Solana as the account layer.** Author of record is the authenticated wallet, taken
-  from the session and never from a request body.
-- **A self-custodial terminal client.** `@pnlmarket/mcp-server` v0.5.1, 19 tools. BIP39
-  key encrypted at rest with scrypt (N=2¹⁷) + AES-256-GCM, `0600`, OS-dialog passphrase,
-  in-memory unlock TTL, and it refuses to decrypt if the scrypt parameters were altered.
-  SIWS-style ed25519 challenge auth, live today against PNL's markets API.
-- **A mainnet Anchor program** (`C5mVE2Bw…`) running the full market lifecycle, plus a
-  device-authorization flow and 43 research endpoints including per-paper repo browsing.
+PNL is live. The mainnet program runs the full lifecycle. Identity is real: ORCID through
+OAuth, Zenodo DOI minting, GitHub App integration, and a self-custodial terminal client
+doing SIWS-style signature auth. 43 research endpoints. A mobile app.
 
-## What the $10k buys
+What it does not have is **people.** Markets are founder-seeded, pools are small, and a
+conviction market with no crowd is just a database. No amount of engineering fixes that —
+it needs founders posting real ideas and builders willing to stake against them.
 
-Two gaps stand between "evidence exists" and "a stranger can verify it before staking":
-publishing is browser-only, and authorship is *session*-authenticated rather than
-*signed*.
+**That is what this grant funds: distribution, not development.**
 
-**M1 — Wallet-signed publication, from the terminal ($3,000, weeks 1–3).**
-An ed25519 signature path for paper creation, reusing verification already live on PNL's
-markets endpoints. The signature binds `sha256(pdf_bytes)` plus a metadata hash, so a
-captured signature cannot be replayed onto a different file. Ships `pnl_post_paper`, so a
-researcher — or their agent — publishes from the terminal where the work happens.
-*Deliverable:* merged PR, a real paper published this way, and a one-command verification
-anyone can run before they stake on it.
+## The plan
 
-**M2 — The evidence graph ($4,000, weeks 4–7).**
-Multi-author records with per-author ORCID. Paper→paper citations, which do not exist
-today — the current citation model requires a project on one end. Import-from-DOI for
-arXiv, Zenodo and Crossref that attributes the *real* authors and links the canonical
-source rather than re-hosting or re-claiming it.
-*Deliverable:* ≥100 imported papers forming a queryable citation graph behind a public
-read API, so a market's thesis resolves to real, checkable prior work.
+**1. Three hackathons — UNM and Albuquerque ($4,500).**
+I've already run and placed in hackathons on this campus, funded by non-crypto-native
+sponsors. That is the population I want: builders who have never touched Solana and are
+not here for a token. Each event ends with teams posting their project to PNL as a live
+conviction market, so the hackathon does not evaporate on Sunday night — the judging
+continues as a market, and the crowd keeps pricing it.
 
-**M3 — Open the verification ($3,000, weeks 8–12).**
-A written spec plus a standalone reference verifier, so "this Solana pubkey signed this
-exact PDF, and this ORCID was verified at that time" is checkable by any application
-without trusting PNL.
-*Deliverable:* published package, spec document, and 3 external researchers publishing.
+Albuquerque has no Solana presence whatsoever. Not a club, not a meetup, nothing. Every
+builder onboarded here is net new to the ecosystem, not moved from another chain.
 
-## What is open source
+**2. A build-in-public cohort ($2,500).**
+Ten founders, eight weeks, each running a live PNL market on their project and shipping
+weekly in the open. Small stipends for completion. The output is the thing PNL needs most
+and cannot fake: real projects with real stakes and a public record of who delivered.
 
-The verification spec, the reference verifier, and the terminal client. PNL's market
-surface is a commercial product and I'm not claiming otherwise — the identity and
-verification layer beneath it is the public good, and that is what this grant funds. Any
-Solana project that needs "prove this wallet authored this artifact" can use it without
-touching PNL.
+**3. Content and documentation of the model ($1,500).**
+Write up how conviction markets work as a fundraising primitive — including the
+mechanism where critics are paid, which nobody else is doing. Founders do not currently
+know this option exists. This is ecosystem education that outlives my project.
 
-## Scope discipline — what I am deliberately not promising
+**4. Fraud resistance as the on-ramp ($1,500).**
+The reason a stranger cannot safely stake today is that nothing under an idea is
+checkable. Anyone can claim any paper, any repo, any credential. This funds wiring the
+verification that already exists — ORCID, GitHub ownership, DOI provenance — into the
+onboarding flow, plus written guidance so incoming founders understand what is verified
+and what is merely asserted. Every new market becomes harder to fake by default.
 
-PNL is adding a second market type alongside tokenization: **milestone-settled projects**,
-where instead of staking on whether an idea deserves to launch, you back a builder and a
-git event settles whether they shipped. Existing conviction markets are untouched by it.
+## Proof of work
 
-That needs a program change and an oracle model I have not validated yet, so it is
-**deliberately outside this grant.** I would rather ship a verifiable evidence layer in
-12 weeks — which both market types need regardless — than promise a chain upgrade I would
-have to walk back. The manual, zero-code pilot for that resolution rule is already
-specified and runs on my own time.
+- **PNL is live on mainnet**, not a deck. Full market lifecycle on-chain, plus the
+  identity stack above.
+- **I have already received hackathon funding on this campus from non-crypto sponsors** —
+  proof I can organize and win in this exact venue, with a builder population that has no
+  crypto exposure yet.
+- **I am a PhD student at UNM**, so the venue, the department relationships, and the
+  student pipeline are not hypothetical.
 
-## Why me
+## Why the agentic angle matters here
 
-I'm a PhD student at the University of New Mexico, which puts me on both sides of this: I
-publish research, and I built the market that prices it. I've shipped the custody, auth,
-ORCID and DOI surfaces above.
+I am also building **Prithvi** and **Nakshatra** — a sovereign, self-hosted AI mesh and a
+distributed inference layer. That is not a separate hobby; it is the backend PNL needs
+for where this is going.
 
-UNM has no blockchain club and no Solana presence at all. I'm working to change that this
-semester, which puts the first cohort of researchers testing this a campus away rather
-than hypothetical.
+In the agentic era the entities posting claims and staking on them will increasingly be
+agents. PNL already exposes an MCP server with self-custodial signing, so an agent can
+hold its own key and act on the market today. What is missing is a public record of which
+agents were *right*. I am building both halves: the market that prices claims, and the
+agent infrastructure that will make them at volume.
+
+That is why I care about the record-of-who-was-right problem specifically, rather than
+building another launchpad.
 
 ## Budget
 
 | | |
 |---|---|
-| Engineering time (12 weeks, part-time) | $8,200 |
-| IPFS pinning + RPC for the import and graph load | $1,000 |
-| DOI registration and metadata deposits | $800 |
+| Three hackathons — venue, food, prizes, materials | $4,500 |
+| Build-in-public cohort — 10 founders, 8 weeks, completion stipends | $2,500 |
+| Content: conviction markets as a fundraising primitive | $1,500 |
+| Verification wired into onboarding + fraud-resistance guidance | $1,500 |
+| **Total** | **$10,000** |
+
+## What success looks like
+
+Measurable, and I will report them honestly whether or not they land:
+
+- **60+ builders** onboarded to Solana who had no prior exposure
+- **25+ real projects** posted as live markets, not seeded by me
+- **10 founders** completing the build-in-public cohort with public shipping records
+- **A standing Solana presence at UNM** that outlives the grant period
 
 ## Links
 
 - Product: https://pnl.market
-- Code: https://github.com/aitankfish/pnl (public, verified 2026-08-28)
+- Code: https://github.com/aitankfish/pnl (public)
 - X: https://x.com/pnldotmarket
-
-The **payout wallet is a form field, not part of the pitch** — Superteam pays in USDC and
-needs a destination. It never appears in the email.
 
 ---
 
 ## Intro email — send BEFORE the form
 
 **To:** nicky@solanaeco.io
-**Subject:** USA grant — conviction markets with verifiable evidence (PNL)
+**Subject:** USA grant — bringing New Mexico founders onto Solana via PNL
 
 Hi Nicky,
 
-I'm a PhD student at the University of New Mexico building pnl.market, and I'm about to
-submit for the Solana Foundation USA grant. Wanted to introduce it first.
+I'm a PhD student at the University of New Mexico building pnl.market, and I'd like to
+apply for a community grant. Wanted to introduce it first.
 
-PNL is a conviction market for projects, live on mainnet. Anyone posts an idea, believers
-stake YES, critics stake NO, and at expiry YES launches a token on pump.fun with 65% of
-supply airdropped to YES voters — while NO returns 95% of the pool to the critics who
-called it. That's the part I care about: in a launchpad nobody is paid to say no, so
-noise is free. Here, skepticism has a payoff.
+PNL is a conviction market for projects, live on Solana mainnet. Anyone posts an idea,
+believers stake YES, critics stake NO, and at expiry YES launches a token on pump.fun with
+65% of supply airdropped to YES voters — while NO returns 95% of the pool to the critics
+who called it. In a launchpad nobody is paid to say no, so noise is free. Here, skepticism
+has a payoff.
 
-The problem is what the crowd is actually pricing. Today it's a pitch — a title, a
-thesis, a target raise, with nothing checkable underneath. The people posting often have
-real work behind them, papers and code and credentials, and none of it can be verified by
-the person deciding whether to stake. So the filter that makes PNL different is filtering
-on presentation.
+The product is built. Mainnet program, full lifecycle, ORCID and GitHub identity, DOI
+provenance, a self-custodial MCP client so an agent can hold its own key and act on the
+market. What it doesn't have is people — and a conviction market with no crowd is just a
+database. No amount of engineering fixes that, which is why I'm asking for community
+money rather than code money.
 
-I'm in an odd position to fix that, because PNL already sits on both sides. In production
-today: ORCID connected through real OAuth, Zenodo DOI minting that's author-gated and
-treats publication as irreversible, and the verified ORCID flowing into the minted DOI's
-creator record — with the Solana wallet as the account of record. The terminal client
-holds keys self-custodially (scrypt + AES-256-GCM) and already does SIWS-style signature
-auth against the markets API.
+The plan is three hackathons at UNM and in Albuquerque, plus a ten-founder
+build-in-public cohort where each runs a live market on their own project. I've already
+run and placed in hackathons on this campus funded by non-crypto sponsors, so I know the
+venue and the builder population — and that population is the point. Albuquerque has no
+Solana presence at all. No club, no meetup, nothing. Everyone onboarded here is net new
+to the ecosystem, not migrated from another chain.
 
-The gap is that publishing is browser-only and authorship is session-authenticated rather
-than signed. The $10k closes it: a signature path binding the PDF hash so authorship is
-verifiable by anyone before they stake, a citation graph so a thesis resolves to real
-prior work, and an open spec plus reference verifier so the check doesn't require trusting
-PNL.
+One piece I'd flag because it's the on-ramp problem: a stranger can't safely stake on an
+idea today, because nothing underneath it is checkable — anyone can claim any paper,
+repo, or credential. Part of the ask is wiring the verification PNL already has into
+onboarding, so every new market is harder to fake by default.
 
-One thing I'll say plainly — I'm adding a second market type where a git event settles
-whether a builder shipped, and it's deliberately *not* in this proposal. That needs a
-program change and an oracle model I haven't validated, and I'd rather ship the evidence
-layer both market types need than promise a chain upgrade I'd have to walk back.
+For context on where I think this goes: I'm also building a sovereign AI mesh and a
+distributed inference layer, because in the agentic era the things posting claims and
+staking on them will increasingly be agents. PNL already lets an agent sign for itself.
+What's missing everywhere is a public record of which ones were right.
 
-Code: github.com/aitankfish/pnl · X: @pnldotmarket · happy to send the milestone
-breakdown or walk through a demo.
-
-Separately — UNM has no Solana presence at all right now. No blockchain club, nothing.
-I'm working on changing that this semester and would welcome a pointer on how Superteam
-USA likes to plug into a new campus.
+Code: github.com/aitankfish/pnl · X: @pnldotmarket · happy to send the full budget and
+target numbers, or walk through the live product.
 
 Thanks,
 Bishwanath Bastola
@@ -205,32 +200,37 @@ Bishwanath Bastola
 
 ## Notes on the framing
 
-**PNL is the conviction market. Research is evidence underneath it.** Rev 2 had this
-backwards and pitched a research platform, which both mis-describes the product and is a
-thin story — 7 papers in production. A live conviction market hardening its evidence layer
-is a much better one, and it explains why a narrow $10k deliverable matters.
+**This asks for community money, not engineering money.** Rev 3 asked for $10k to build
+M1–M3, and the honest answer to "what's blocking that" was *nothing* — the signature
+primitive is already live on the markets endpoints, the spec is written, it's days of
+work. Asking a grant to fund unblocked engineering is a weak ask and a reviewer will feel
+it. The real constraint is that a conviction market with no crowd is just a database.
 
-**"Critics are paid to filter" is the strongest line in the pitch.** It is the row in
-PNL's own comparison table that neither a launchpad nor a prediction market can claim.
-Lead with it.
+**"Critics are paid to filter" leads.** It is the row in PNL's own comparison table that
+neither a launchpad nor a prediction market can claim.
 
-**Voice is first person throughout**; PNL is named as the product. A one-person sign-off
-under "we" invites the question of who else there is.
+**The five-platform comparison is framed as a gap, not a boast.** "More than X, GitHub,
+Reddit, pump.fun and Kalshi" reads as grandiose stated flat. "Every one of them is a place
+where people make claims and nobody finds out who was right" is the same claim, specific
+and defensible.
 
-**The problem paragraph is written for a crypto operator, not an academic.** Nicky runs
-Superteam USA. He will not reconstruct the academic incentive chain from "publishing
-verifies an email address," so it names the concrete failure — nobody checks that you
-wrote it — and anchors it to something he already lives in.
+**Non-crypto campus hackathon funding is the strongest credential in the application** —
+Superteam's own hackathon track says it recommends applicants with *proof of work in
+organizing hackathons.* Lead with it in any follow-up.
 
-**Keep the scope-discipline paragraph.** Volunteering what is *not* promised is the most
-credible thing in the message to a reader who sees applications promising on-chain
-everything, and it means nothing has to be walked back.
+**Prithvi/Nakshatra is one paragraph, positioned as backend not side project.** Two extra
+projects in a $10k application can read as unfocused; framed as "the agent layer that will
+make the claims PNL prices," it reads as building for where the ecosystem is going.
 
 ## Before you send
 
-1. If the form pushes back on $10k, M1+M2 alone is a coherent $7k.
-2. Do not present UNM as a fiscal host. It is credibility and a user base only — the
-   money goes to your wallet, not through the university.
-3. Before accepting: visa/work-authorization implications (UNM Global Education Office),
+1. **Replace the target numbers with ones you'll actually stand behind.** 60 builders /
+   25 markets / 10 founders are my estimates, not yours. A reviewer may hold you to them.
+2. **Name the campus hackathons you were funded by** — specifics beat "non-crypto
+   sponsors."
+3. If the form pushes back on $10k, hackathons + cohort alone is a coherent $7k.
+4. Do not present UNM as a fiscal host — credibility and venue only. Money goes to your
+   wallet.
+5. Before accepting: visa/work-authorization implications (UNM Global Education Office),
    assistantship COI disclosure, and USDC taxed as property at fair market value on
    receipt.
