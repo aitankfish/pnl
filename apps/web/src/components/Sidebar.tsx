@@ -102,19 +102,27 @@ function Sidebar({ currentPage }: SidebarProps) {
       }}
     >
       <div className="max-w-[1600px] mx-auto px-4 sm:px-6 h-14 sm:h-[64px] flex items-center justify-between gap-3 sm:gap-4">
-        {/* ─── Brand mark — wordless drawn bow, aimed right (app-only) ─── */}
+        {/* ─── Brand mark — drawn bow, aimed right, + wordmark ───
+            href is "/", not "/launchpad": the aria-label already promised "home",
+            and a first-time visitor who taps the logo to get their bearings should
+            land on the page that explains the product, not deeper into the app.
+            The wordmark rides alongside because a wordless glyph tells a stranger
+            nothing about whose site they are on. */}
         <Link
-          href="/launchpad"
+          href="/"
           prefetch
-          className="flex items-center flex-shrink-0 group transition-opacity hover:opacity-85"
-          aria-label="PnL — home"
-          title="PnL"
+          className="flex items-center gap-2 flex-shrink-0 group transition-opacity hover:opacity-85"
+          aria-label="PNL — home"
+          title="PNL"
           style={{ color: '#f4eee4' }}
         >
           <BowMark
             className="w-[42px] sm:w-[50px] h-auto transition-transform duration-300 group-hover:translate-x-0.5"
             strokeWidth={1.4}
           />
+          <span className="serif text-[1.05rem] sm:text-[1.15rem] tracking-[-0.01em] leading-none">
+            PNL
+          </span>
         </Link>
 
         {/* ─── Center nav — plant-icon + mono label ─── */}

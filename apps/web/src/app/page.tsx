@@ -2450,10 +2450,25 @@ export default function HomePage() {
     };
   }, []);
 
-  // First paint before hydration — a deep-night skeleton so neither
-  // real surface flickers a layout in when the swap happens.
+  // First paint before hydration. This used to be an empty dark div, which meant
+  // the first thing a cold visitor saw was a black screen — on a slow phone with
+  // JS still parsing, that is a bounce before the product ever loads. It now says
+  // what PNL is. Kept to a centred wordmark plus one line so the swap into the
+  // real surface stays visually quiet, which was the original point of the skeleton.
   if (isMobile === null) {
-    return <div className="min-h-screen bg-[#0a0814]" />;
+    return (
+      <div className="min-h-screen bg-[#0a0814] flex flex-col items-center justify-center px-8 text-center">
+        <span className="serif text-[2rem] tracking-[-0.02em]" style={{ color: 'var(--cream)' }}>
+          PNL
+        </span>
+        <p
+          className="mt-3 text-[0.9rem] leading-relaxed max-w-[30ch]"
+          style={{ color: 'var(--cream-dim)' }}
+        >
+          Post a project. People stake on whether it deserves to launch.
+        </p>
+      </div>
+    );
   }
 
   return isMobile ? <MobileLanding /> : <DesktopLanding />;

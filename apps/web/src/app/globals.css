@@ -163,114 +163,20 @@ html {
   }
 }
 
-/* Custom styling for Dynamic wallet modal - MUST be outside @layer to have higher specificity */
-/* Target Dynamic's shadow DOM wrapper and portal */
-dynamic-widget,
-dynamic-widget *,
-#dynamic-widget,
-#dynamic-modal-portal,
-[data-dynamic-widget],
-body > div[class*="dynamic"],
-body > div[style*="z-index"] {
-  /* Ensure we can style inside Dynamic's components */
-  all: unset !important;
-}
+/* The Dynamic wallet-modal override block used to live here (~107 lines) and was
+   deleted 2026-08-28. Dynamic is GONE — not in package.json, not rendered anywhere;
+   the app runs on Privy (src/lib/wallet.tsx). The intent was dead but the blast
+   radius was not: it carried
 
-/* Target the modal overlay/backdrop with maximum specificity - but NOT Radix dialogs */
-body .dynamic-modal-overlay,
-body [class*="modal"][class*="overlay"]:not([data-slot]),
-body div[class*="Overlay"]:not([data-slot]),
-body div[data-testid*="overlay"],
-body div[role="dialog"]:has([class*="dynamic"]) {
-  background: rgba(0, 0, 0, 0.92) !important;
-  backdrop-filter: blur(12px) !important;
-  -webkit-backdrop-filter: blur(12px) !important;
-  position: relative !important;
-}
+       body > div[style*="z-index"] { all: unset !important; }
 
-/* Add animated stars to modal backdrop - only for Dynamic wallet */
-body div[role="dialog"]:has([class*="dynamic"])::before,
-body .dynamic-modal-overlay::before {
-  content: '' !important;
-  position: absolute !important;
-  top: 0 !important;
-  left: 0 !important;
-  right: 0 !important;
-  bottom: 0 !important;
-  background-image:
-    radial-gradient(2px 2px at 20% 30%, white, transparent),
-    radial-gradient(2px 2px at 60% 70%, white, transparent),
-    radial-gradient(1px 1px at 50% 50%, white, transparent),
-    radial-gradient(1px 1px at 80% 10%, cyan, transparent),
-    radial-gradient(2px 2px at 90% 60%, white, transparent),
-    radial-gradient(1px 1px at 33% 80%, blue, transparent),
-    radial-gradient(1px 1px at 70% 40%, white, transparent) !important;
-  background-size: 200% 200% !important;
-  animation: float 20s ease-in-out infinite !important;
-  pointer-events: none !important;
-  opacity: 0.4 !important;
-  z-index: 1 !important;
-}
+   which matches ANY top-level div with an inline z-index — Privy's own portals
+   included — plus `position: relative !important` on generic [class*="overlay"]
+   selectors, which breaks fixed-position modals. It sat on the auth step, i.e. the
+   critical conversion point for every new user.
 
-/* Nebula effect - only for Dynamic wallet */
-body div[role="dialog"]:has([class*="dynamic"])::after,
-body .dynamic-modal-overlay::after {
-  content: '' !important;
-  position: absolute !important;
-  top: -50% !important;
-  left: -50% !important;
-  right: -50% !important;
-  bottom: -50% !important;
-  background: radial-gradient(
-    ellipse at center,
-    rgba(59, 130, 246, 0.08) 0%,
-    transparent 50%
-  ) !important;
-  animation: rotate 30s linear infinite !important;
-  pointer-events: none !important;
-  z-index: 1 !important;
-}
-
-/* Ensure modal content is above the effects - only for Dynamic wallet */
-body div[role="dialog"]:has([class*="dynamic"]) > *,
-body .dynamic-modal-overlay > * {
-  position: relative !important;
-  z-index: 2 !important;
-}
-
-/* Style the actual modal card with all possible selectors - only for Dynamic wallet */
-body div[role="dialog"]:has([class*="dynamic"]) > div,
-body div[role="dialog"]:has([class*="dynamic"]) div[class*="modal"],
-body div[role="dialog"]:has([class*="dynamic"]) div[class*="Modal"],
-body div[role="dialog"]:has([class*="dynamic"]) div[class*="card"],
-body div[role="dialog"]:has([class*="dynamic"]) div[class*="Card"],
-body [data-dynamic-modal],
-body .dynamic__auth-modal,
-body div[class*="DynamicModal"],
-body div[data-testid*="modal"] {
-  background: linear-gradient(135deg, rgba(15, 23, 42, 0.98) 0%, rgba(30, 41, 59, 0.98) 100%) !important;
-  border: 1px solid rgba(100, 200, 255, 0.25) !important;
-  border-radius: 24px !important;
-  box-shadow:
-    0 0 60px rgba(100, 200, 255, 0.2),
-    0 0 120px rgba(59, 130, 246, 0.15),
-    0 0 200px rgba(100, 200, 255, 0.08) !important;
-}
-
-/* Animate all primary buttons with space theme - only for Dynamic wallet */
-body div[role="dialog"]:has([class*="dynamic"]) button,
-body .dynamic__button:not(.dynamic__button--secondary) {
-  background: linear-gradient(135deg, #3b82f6 0%, #8b5cf6 100%) !important;
-  transition: all 0.3s ease !important;
-  border: none !important;
-  border-radius: 12px !important;
-}
-
-body div[role="dialog"]:has([class*="dynamic"]) button:hover,
-body .dynamic__button:not(.dynamic__button--secondary):hover {
-  transform: translateY(-2px) !important;
-  box-shadow: 0 8px 24px rgba(59, 130, 246, 0.5) !important;
-}
+   If wallet-modal theming is ever wanted again: scope it to Privy's own documented
+   class names, never to generic attribute selectors, and never with `all: unset`. */
 
 /* Custom scrollbar styling */
 .custom-scrollbar {
