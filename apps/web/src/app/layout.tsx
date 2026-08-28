@@ -84,7 +84,10 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en" className={`dark ${fraunces.variable} ${jetbrainsMono.variable}`}>
-      <body className={`${inter.className} min-h-screen bg-black text-white`}>
+      {/* bg-background/text-foreground, not bg-black/text-white: the tokens now
+          resolve (globals.css), so the page ground is --cosmic #0a0814 and body
+          copy is --cream #f4eee4 — the brand, not pure black on pure white. */}
+      <body className={`${inter.className} min-h-screen bg-background text-foreground`}>
         <WalletProvider>
           <AuthModalProvider>
             <NetworkProvider>
