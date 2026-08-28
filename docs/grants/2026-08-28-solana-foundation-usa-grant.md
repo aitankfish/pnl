@@ -111,36 +111,45 @@ and what is merely asserted. Every new market becomes harder to fake by default.
 
 ## The compute layer — why this is more than a market
 
-**Prithvi** and **Nakshatra** are a sovereign self-hosted AI mesh and a distributed
-inference layer, running across university H100s, my own GPUs, and a small multi-node
-mesh. They are not a side project — they are what lets PNL pay out in something a
-launchpad structurally cannot.
+⛔ **NEVER offer university compute.** An earlier draft of this document said "university
+H100s." CARC allocations belong to UNM and are granted for research; offering them as
+prizes in a crypto market would be a misuse of an academic allocation with real
+consequences for a PhD student. Removed. This section describes **only** hardware Biswa
+and his collaborators personally own.
 
-**The plan is for PNL markets to settle in compute as well as capital.** A project the
-crowd backs receives inference and training capacity, not only liquidity.
+**Prithvi** and **Nakshatra** are a sovereign self-hosted AI mesh and a **distributed
+heterogeneous inference network** — a handful of people running consumer hardware they
+already own, testing how far inference can be pushed across mismatched machines on
+ordinary connections. No datacenter, no institutional allocation, no rented cloud. That
+constraint is the research question, not a limitation.
+
+**The plan is for PNL markets to allocate compute as well as capital.** A project the
+crowd backs receives inference capacity from the network, not only liquidity.
 
 Why that is the unlock for this specific audience:
 
 - The builders at a university hackathon in 2026 are overwhelmingly **AI builders blocked
-  on GPUs, not on ideas.** Compute is the binding constraint on every student project I
-  have watched die.
+  on GPUs, not on ideas.** Compute is the binding constraint on nearly every student
+  project that dies.
 - pump.fun can hand you a token. It cannot hand you the machine to build the thing the
   token is supposed to represent. **No launch venue on any chain currently offers this.**
-- It inverts who benefits. A broke student with a genuinely good idea currently gets
-  nothing until they can already afford to build. Here, conviction converts directly into
-  the resource they actually need — *the benefit goes to the dreamers, not to whoever
-  arrived with capital.*
+- It inverts who benefits. A broke student with a genuinely good idea gets nothing today
+  until they can already afford to build. Here conviction converts into the resource they
+  actually need — *the benefit reaches the dreamers, not whoever arrived with capital.*
+- **It is decentralized in the way Solana actually cares about.** Contributors bring
+  hardware they own; a market decides which projects get it. That is permissionless
+  compute allocation, and it is a far better fit for this ecosystem than reselling
+  someone else's datacenter.
 - It gives the market a second, non-speculative reason to exist. Even if a token never
   moves, the compute was real and the project got built.
 
-There is a secondary angle worth stating: in the agentic era the entities posting claims
-and staking on them will increasingly be agents, and PNL's MCP server already lets an
-agent hold its own key and act on the market. But the compute story is the near-term one,
-and it is the reason I can get non-crypto builders in a room.
+Secondary, worth one line only: in the agentic era the entities posting claims and staking
+on them will increasingly be agents, and PNL's MCP server already lets an agent hold its
+own key. But compute is the near-term story and the reason non-crypto builders show up.
 
-⚠️ *Scale honestly in any follow-up. This is a real mesh with real GPUs, not a
-hyperscaler. Offer specific capacity — "N GPU-hours on this hardware" — rather than
-implying unlimited compute.*
+⚠️ *Scale honestly in any follow-up. This is a small friend-network of local machines,
+early and experimental. Offer concrete capacity you can actually deliver — never imply
+scale you do not have, and never imply access you do not own.*
 
 ## Budget
 
@@ -203,17 +212,19 @@ idea today, because nothing underneath it is checkable — anyone can claim any 
 repo, or credential. Part of the ask is wiring the verification PNL already has into
 onboarding, so every new market is harder to fake by default.
 
-There's one piece that makes this more than a market. I also run a distributed compute
-mesh — university H100s plus my own GPUs — and the plan is for PNL to settle in **compute
-as well as capital**. A project the crowd backs gets inference and training capacity, not
-just liquidity.
+There's one piece that makes this more than a market. Alongside PNL I'm building a
+distributed heterogeneous inference network with a few friends — consumer hardware we
+already own, testing how far inference can be pushed across mismatched machines on
+ordinary connections. No datacenter, no rented cloud. The plan is for PNL to allocate
+**compute as well as capital**: a project the crowd backs gets inference capacity from
+that network, not just liquidity.
 
 That matters for exactly the builders I'm trying to reach. The students I want at these
 hackathons are AI builders blocked on GPUs, not on ideas. A launchpad can hand you a
-token; it can't hand you the compute to build the thing the token is for. Being able to
-say "win conviction here and you get GPU time" is an on-ramp no other launch venue on any
-chain can offer, and it means a broke student with a real idea gets resources instead of
-just a liquidity pool.
+token; it can't hand you the machine to build the thing the token is for. And it's
+decentralized in the way that actually matters here — contributors bring hardware they
+own, and a market decides which projects get it. A broke student with a real idea gets
+the resource they need instead of a liquidity pool.
 
 Code: github.com/aitankfish/pnl · X: @pnldotmarket · happy to send the full budget and
 target numbers, or walk through the live product.
