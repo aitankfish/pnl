@@ -1,7 +1,12 @@
 # Solana Foundation USA Grant — application (pnl.market)
 
-*2026-08-28, rev 4. Ask: $10,000 (program cap; mean award $8,307). Applicant: Bishwanath
-Bastola, **individually**. Rolling, ~1 week decision, US-only.*
+*2026-08-28, rev 5. Ask: $10,000 (program cap; mean award $8,307). Applicant: **Earth**,
+individually. Rolling, ~1 week decision, US-only.*
+
+⚠️ *Correspondence goes out as **Earth** — that is the preferred name. The grant **form**
+is a separate matter: Superteam pays in USDC and any KYC or payment field will want
+whatever name matches the account receiving it. Use the preferred name everywhere the
+form does not specifically ask for a legal one.*
 
 ⚠️ **This is a COMMUNITY grant, not a code grant.** Superteam grants split three ways —
 Code, Content, Community — and community grants explicitly cover *"hosting workshops,
@@ -207,17 +212,12 @@ venue and the builder population — and that population is the point. Albuquerq
 Solana presence at all. No club, no meetup, nothing. Everyone onboarded here is net new
 to the ecosystem, not migrated from another chain.
 
-One piece I'd flag because it's the on-ramp problem: a stranger can't safely stake on an
-idea today, because nothing underneath it is checkable — anyone can claim any paper,
-repo, or credential. Part of the ask is wiring the verification PNL already has into
-onboarding, so every new market is harder to fake by default.
-
-There's one piece that makes this more than a market. Alongside PNL I'm building a
-distributed heterogeneous inference network with a few friends — consumer hardware we
-already own, testing how far inference can be pushed across mismatched machines on
-ordinary connections. No datacenter, no rented cloud. The plan is for PNL to allocate
-**compute as well as capital**: a project the crowd backs gets inference capacity from
-that network, not just liquidity.
+What makes this more than a market: alongside PNL I'm building a distributed
+heterogeneous inference network with a few friends — consumer hardware we already own,
+testing how far inference can be pushed across mismatched machines on ordinary
+connections. No datacenter, no rented cloud. The plan is for PNL to allocate **compute as
+well as capital**: a project the crowd backs gets inference capacity from that network,
+not just liquidity.
 
 That matters for exactly the builders I'm trying to reach. The students I want at these
 hackathons are AI builders blocked on GPUs, not on ideas. A launchpad can hand you a
@@ -230,7 +230,7 @@ Code: github.com/aitankfish/pnl · X: @pnldotmarket · happy to send the full bu
 target numbers, or walk through the live product.
 
 Thanks,
-Bishwanath Bastola
+Earth
 
 ---
 
