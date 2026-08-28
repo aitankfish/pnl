@@ -109,20 +109,38 @@ and what is merely asserted. Every new market becomes harder to fake by default.
 - **I am a PhD student at UNM**, so the venue, the department relationships, and the
   student pipeline are not hypothetical.
 
-## Why the agentic angle matters here
+## The compute layer — why this is more than a market
 
-I am also building **Prithvi** and **Nakshatra** — a sovereign, self-hosted AI mesh and a
-distributed inference layer. That is not a separate hobby; it is the backend PNL needs
-for where this is going.
+**Prithvi** and **Nakshatra** are a sovereign self-hosted AI mesh and a distributed
+inference layer, running across university H100s, my own GPUs, and a small multi-node
+mesh. They are not a side project — they are what lets PNL pay out in something a
+launchpad structurally cannot.
 
-In the agentic era the entities posting claims and staking on them will increasingly be
-agents. PNL already exposes an MCP server with self-custodial signing, so an agent can
-hold its own key and act on the market today. What is missing is a public record of which
-agents were *right*. I am building both halves: the market that prices claims, and the
-agent infrastructure that will make them at volume.
+**The plan is for PNL markets to settle in compute as well as capital.** A project the
+crowd backs receives inference and training capacity, not only liquidity.
 
-That is why I care about the record-of-who-was-right problem specifically, rather than
-building another launchpad.
+Why that is the unlock for this specific audience:
+
+- The builders at a university hackathon in 2026 are overwhelmingly **AI builders blocked
+  on GPUs, not on ideas.** Compute is the binding constraint on every student project I
+  have watched die.
+- pump.fun can hand you a token. It cannot hand you the machine to build the thing the
+  token is supposed to represent. **No launch venue on any chain currently offers this.**
+- It inverts who benefits. A broke student with a genuinely good idea currently gets
+  nothing until they can already afford to build. Here, conviction converts directly into
+  the resource they actually need — *the benefit goes to the dreamers, not to whoever
+  arrived with capital.*
+- It gives the market a second, non-speculative reason to exist. Even if a token never
+  moves, the compute was real and the project got built.
+
+There is a secondary angle worth stating: in the agentic era the entities posting claims
+and staking on them will increasingly be agents, and PNL's MCP server already lets an
+agent hold its own key and act on the market. But the compute story is the near-term one,
+and it is the reason I can get non-crypto builders in a room.
+
+⚠️ *Scale honestly in any follow-up. This is a real mesh with real GPUs, not a
+hyperscaler. Offer specific capacity — "N GPU-hours on this hardware" — rather than
+implying unlimited compute.*
 
 ## Budget
 
@@ -185,10 +203,17 @@ idea today, because nothing underneath it is checkable — anyone can claim any 
 repo, or credential. Part of the ask is wiring the verification PNL already has into
 onboarding, so every new market is harder to fake by default.
 
-For context on where I think this goes: I'm also building a sovereign AI mesh and a
-distributed inference layer, because in the agentic era the things posting claims and
-staking on them will increasingly be agents. PNL already lets an agent sign for itself.
-What's missing everywhere is a public record of which ones were right.
+There's one piece that makes this more than a market. I also run a distributed compute
+mesh — university H100s plus my own GPUs — and the plan is for PNL to settle in **compute
+as well as capital**. A project the crowd backs gets inference and training capacity, not
+just liquidity.
+
+That matters for exactly the builders I'm trying to reach. The students I want at these
+hackathons are AI builders blocked on GPUs, not on ideas. A launchpad can hand you a
+token; it can't hand you the compute to build the thing the token is for. Being able to
+say "win conviction here and you get GPU time" is an on-ramp no other launch venue on any
+chain can offer, and it means a broke student with a real idea gets resources instead of
+just a liquidity pool.
 
 Code: github.com/aitankfish/pnl · X: @pnldotmarket · happy to send the full budget and
 target numbers, or walk through the live product.
